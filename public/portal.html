@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="SkyHonix School Management System Dashboard. Manage students, QR attendance, carry-forward dues, exam matrixes, and settings.">
+  <title>SkyHonix Workspace | School Portal</title>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- HTML5 QR Code Scanner Library (CDN) -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body>
+
+  <!-- Subscription Lock Overlay -->
+  <div class="subscription-lock" id="billing-lock-overlay" style="display: none;">
+    <div class="card lock-card">
+      <div class="lock-icon">🔒</div>
+      <h2>Workspace Locked</h2>
+      <p style="color: var(--text-muted); margin-bottom: 20px;">
+        Your school subscription is suspended or overdue. Billed at <strong>1500 PKR monthly</strong>. Please upload your payment transfer receipt to restore full system access.
+      <div id="lock-school-code-display" style="background: rgba(99, 102, 241, 0.1); border: 1px dashed var(--primary); color: #fff; padding: 10px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; font-size: 0.95rem; text-align: center;">
+        Loading school details...
+      </div>
+      
+      <div style="text-align: left; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem;">
+        <h4 style="margin-bottom: 10px; color: #fff;">Bank Transfer Instructions</h4>
+        <p>• <strong>EasyPaisa:</strong> 03459191224 (Golden Sun Academy)</p>
+        <p>• <strong>JazzCash:</strong> 03459191224 (Golden Sun Academy)</p>
+        <p>• <strong>HBL Bank:</strong> 00100405009116 (SkyHonix Education Software)</p>
+      </div>
+
+      <form id="form-lock-payment">
+        <div class="grid-2">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Amount Sent (PKR)</label>
+            <input type="number" class="form-control" id="lock-pay-amount" value="1500" required>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Payment Date</label>
+            <input type="date" class="form-control" id="lock-pay-date" required>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top: 15px;">
+          <label class="form-label">Upload Receipt Screenshot</label>
+          <input type="file" class="form-control" id="lock-pay-receipt" accept="image/*" required>
+        </div>
+        
+        <div style="margin-top: 20px; display: flex; gap: 15px;">
+          <button type="submit" class="btn btn-primary" style="flex: 1;">Submit Receipt Slip</button>
+          <button type="button" class="btn btn-outline" id="btn-lock-logout">Log Out</button>
+        </div>
+        
+        <p id="lock-feedback" style="margin-top: 15px; color: var(--accent); display: none;"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main Portal Layout -->
+  <div class="portal-layout">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <a href="#" class="logo">
+          <span>SkyHonix</span> Portal
+        </a>
+      </div>
+      
+      <ul class="sidebar-menu">
+        <li class="sidebar-menu-item active" data-screen="dashboard">
+          <a href="#" class="sidebar-menu-link">📊 Dashboard</a>
+        </li>
+        <li class="sidebar-menu-item" data-screen="students">
+          <a href="#" class="sidebar-menu-link">👥 Students Directory</a>
+        </li>
+        <li class="sidebar-menu-item" data-screen="attendance">
+          <a href="#" class="sidebar-menu-link">📷 QR Attendance</a>
+        </li>
+        <li class="sidebar-menu-item" data-screen="fees">
+          <a href="#" class="sidebar-menu-link">💰 Fees & Ledger</a>
+        </li>
+        <li class="sidebar-menu-item" data-screen="exams">
+          <a href="#" class="sidebar-menu-link">📝 Exams & DMCs</a>
+        </li>
+        <li class="sidebar-menu-item" data-screen="settings">
+          <a href="#" class="sidebar-menu-link">⚙️ Portal Settings</a>
+        </li>
+        <li class="sidebar-menu-item" data-screen="subscription">
+          <a href="#" class="sidebar-menu-link">💳 Billing & Sub</a>
+        </li>
+      </ul>
+      
+      <div class="sidebar-footer">
+        <div style="padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; text-align: center;">
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Status</span>
+          <div id="sidebar-sub-badge" class="status-badge status-present" style="margin-top: 5px; display: block;">Checking...</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Area -->
+    <main class="main-content">
+      
+      <!-- Top Header -->
+      <header class="portal-header">
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <button id="btn-sidebar-toggle" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; display: none;">☰</button>
+          <h2 id="header-school-name" style="font-size: 1.35rem;">School Management Portal</h2>
+        </div>
+        <div style="display: flex; align-items: center; gap: 20px;">
+          <span id="header-user-badge" class="sib-badge">User: Loading</span>
+          <button class="btn btn-outline btn-sm" id="btn-logout">Log Out</button>
+        </div>
+      </header>
+
+      <!-- Dynamic Screens Container -->
+      <section class="portal-body">
+        
+        <!-- ==================== SCREEN: DASHBOARD ==================== -->
+        <article class="screen-section" id="screen-dashboard">
+          <h2 style="margin-bottom: 24px;">Workspace Overview</h2>
+          
+          <div class="stats-grid">
+            <div class="card stat-card">
+              <div class="stat-icon">👥</div>
+              <div class="stat-info">
+                <h3 id="stat-total-students">-</h3>
+                <p>Total Active Students</p>
+              </div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-icon">✅</div>
+              <div class="stat-info">
+                <h3 id="stat-attendance-rate">-</h3>
+                <p>Today's Attendance Rate</p>
+              </div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-icon">💰</div>
+              <div class="stat-info">
+                <h3 id="stat-month-fees">-</h3>
+                <p>Fee Collections (Current Month)</p>
+              </div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-icon">⚠️</div>
+              <div class="stat-info">
+                <h3 id="stat-pending-dues">-</h3>
+                <p>Total Outstanding Dues</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <h3>System Activities & Quick Actions</h3>
+              <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem; margin-top: 10px;">
+                Welcome to your school administration board. You can perform quick operations below or browse the sidebar tabs.
+              </p>
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button class="btn btn-primary" id="dash-btn-students">Add Student Profile</button>
+                <button class="btn btn-secondary" id="dash-btn-scan">Open QR Scanner Camera</button>
+                <button class="btn btn-outline" id="dash-btn-fees">Generate Monthly Ledger</button>
+              </div>
+            </div>
+            
+            <div class="card" style="display: flex; flex-direction: column; justify-content: center; text-align: center; padding: 40px;">
+              <div style="font-size: 3rem; margin-bottom: 15px;">🏫</div>
+              <h3 id="dash-school-title">SkyHonix Cloud</h3>
+              <p id="dash-school-phone" style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px;">Loading school details...</p>
+              <p id="dash-school-reg" style="color: var(--text-muted); font-size: 0.9rem;">Reg: -</p>
+              <div style="margin-top: 20px;">
+                <img id="dash-school-logo" src="school_assets/school_logo.png" alt="School Branding Logo Badge" style="max-height: 80px; max-width: 150px; border-radius: 8px;">
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- ==================== SCREEN: STUDENTS ==================== -->
+        <article class="screen-section" id="screen-students" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px;">
+            <h2>Students Directory</h2>
+            <button class="btn btn-primary" id="btn-add-student">Add New Student</button>
+          </div>
+
+          <div class="card" style="margin-bottom: 24px;">
+            <div class="grid-3">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Filter Class</label>
+                <select class="form-control" id="student-filter-class">
+                  <option value="">All Classes</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Filter Section</label>
+                <select class="form-control" id="student-filter-section">
+                  <option value="">All Sections</option>
+                  <option value="No Section">No Section</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Search Directory</label>
+                <input type="text" class="form-control" id="student-search" placeholder="Type name, roll, phone...">
+              </div>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table" id="table-students">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Roll</th>
+                  <th>Name</th>
+                  <th>Father's Name</th>
+                  <th>Class / Sec</th>
+                  <th>Waivers / Discount</th>
+                  <th>Family Head</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Select filters or search directory...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <!-- ==================== SCREEN: ATTENDANCE ==================== -->
+        <article class="screen-section" id="screen-attendance" style="display: none;">
+          <h2 style="margin-bottom: 24px;">Attendance Tracking</h2>
+
+          <div class="tab-container">
+            <button class="tab-btn active" data-tab="att-mark">Mark Attendance</button>
+            <button class="tab-btn" data-tab="att-scan">Webcam QR Scanner</button>
+            <button class="tab-btn" data-tab="att-history">History Calendar</button>
+          </div>
+
+          <!-- Tab: Mark Attendance Grid -->
+          <div class="tab-content" id="tab-att-mark">
+            <div class="card" style="margin-bottom: 24px;">
+              <div class="grid-3">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Class</label>
+                  <select class="form-control" id="att-class-select"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Section</label>
+                  <select class="form-control" id="att-sec-select"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Date</label>
+                  <input type="date" class="form-control" id="att-date-input">
+                </div>
+              </div>
+              <div style="margin-top: 20px; display: flex; gap: 15px;">
+                <button class="btn btn-primary" id="btn-load-att-grid">Load Students List</button>
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table" id="table-attendance-grid">
+                <thead>
+                  <tr>
+                    <th>Roll No</th>
+                    <th>Name</th>
+                    <th>Class / Sec</th>
+                    <th>Attendance Status</th>
+                    <th>Time In</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Please load students list above...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            
+            <div style="text-align: right; display: none;" id="att-grid-actions">
+              <button class="btn btn-secondary" id="btn-save-attendance">Save Attendance Records</button>
+            </div>
+          </div>
+
+          <!-- Tab: QR Scanner -->
+          <div class="tab-content" id="tab-att-scan" style="display: none;">
+            <div class="grid-2">
+              <div class="card" style="text-align: center;">
+                <h3>Real-time Camera Reader</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+                  Point your card barcode or QR code towards the webcam.
+                </p>
+                <div class="qr-scanner-box">
+                  <div id="reader"></div>
+                </div>
+                <div style="margin-top: 20px; display: flex; gap: 15px; justify-content: center;">
+                  <button class="btn btn-primary btn-sm" id="btn-start-scanner">Start Webcam</button>
+                  <button class="btn btn-outline btn-sm" id="btn-stop-scanner">Stop Webcam</button>
+                </div>
+              </div>
+
+              <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <h3>Scan Log & Output</h3>
+                  <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+                    Last successfully recorded attendance check-ins will display here.
+                  </p>
+                  
+                  <div id="scan-feedback-container" style="display: none;">
+                    <div class="scan-result-card">
+                      <img id="scan-photo" src="school_assets/school_logo.png" alt="Scanned Student Profile" style="width: 70px; height: 70px; border-radius: 8px; object-fit: cover;">
+                      <div>
+                        <h4 id="scan-name" style="font-size: 1.15rem; color: #fff;">-</h4>
+                        <p id="scan-roll-class" style="color: var(--text-muted); font-size: 0.9rem;">Roll: -, Class: -</p>
+                        <p id="scan-time" style="color: var(--accent); font-weight: 700; font-size: 0.85rem; margin-top: 4px;">Checked in: -</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="table-container" style="margin-top: 20px; margin-bottom: 0;">
+                  <table class="data-table" id="table-scan-history">
+                    <thead>
+                      <tr>
+                        <th>Roll</th>
+                        <th>Name</th>
+                        <th>Class</th>
+                        <th>Time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Awaiting QR card scan inputs...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: History logs calendar -->
+          <div class="tab-content" id="tab-att-history" style="display: none;">
+            <div class="card" style="margin-bottom: 24px;">
+              <div class="grid-3" style="grid-template-columns: 2fr 1fr 1fr;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Class</label>
+                  <select class="form-control" id="att-history-class"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Month & Year</label>
+                  <input type="month" class="form-control" id="att-history-month">
+                </div>
+                <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
+                  <button class="btn btn-primary" id="btn-load-att-history" style="width: 100%;">View History</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table" id="table-attendance-history">
+                <thead>
+                  <tr>
+                    <th>Roll</th>
+                    <th>Student Name</th>
+                    <th>Log Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Please select a class and month...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+
+        <!-- ==================== SCREEN: FEES ==================== -->
+        <article class="screen-section" id="screen-fees" style="display: none;">
+          <h2 style="margin-bottom: 24px;">Fee Registry Ledger</h2>
+
+          <div class="tab-container">
+            <button class="tab-btn active" data-tab="fee-setup">Class Fees Configuration</button>
+            <button class="tab-btn" data-tab="fee-generator">Monthly Ledger Generator</button>
+            <button class="tab-btn" data-tab="fee-payments">Record Payments</button>
+            <button class="tab-btn" data-tab="fee-ledger-logs">Ledger Transactions</button>
+          </div>
+
+          <!-- Tab: Class Fees setup -->
+          <div class="tab-content" id="tab-fee-setup">
+            <div class="grid-2">
+              <div class="card">
+                <h3>Define Class Tuition Fee</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; margin-top: 8px;">
+                  Define the standard monthly tuition fee for each class. Individual sibling calculations and waivers apply relative to this value.
+                </p>
+                <form id="form-fee-setup">
+                  <div class="form-group">
+                    <label class="form-label">Class Name</label>
+                    <input type="text" class="form-control" id="fee-setup-class" placeholder="e.g. Nursery, 1st, 10th" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Monthly Standard Fee (PKR)</label>
+                    <input type="number" class="form-control" id="fee-setup-amount" placeholder="e.g. 1500" required>
+                  </div>
+                  <button type="submit" class="btn btn-primary">Save Fee Rule</button>
+                </form>
+              </div>
+
+              <div class="table-container" style="margin-bottom: 0;">
+                <table class="data-table" id="table-fee-setup-rules">
+                  <thead>
+                    <tr>
+                      <th>Class Name</th>
+                      <th>Standard Monthly Fee (PKR)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="2" style="text-align: center; color: var(--text-muted);">Loading configurations...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: Fee generator -->
+          <div class="tab-content" id="tab-fee-generator" style="display: none;">
+            <div class="card" style="max-width: 600px; margin: 0 auto;">
+              <h3>Generate Monthly Fee Ledgers</h3>
+              <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 10px; margin-bottom: 24px;">
+                Executing this creates monthly ledger entries for all active students. Sibling mapping checks (family heads), individual tuition exceptions (discounts), and carry forwards of unpaid dues will be calculated automatically.
+              </p>
+              
+              <form id="form-fee-generate">
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Target Month</label>
+                    <select class="form-control" id="fee-gen-month" required>
+                      <option>January</option><option>February</option><option>March</option>
+                      <option>April</option><option>May</option><option>June</option>
+                      <option>July</option><option>August</option><option>September</option>
+                      <option>October</option><option>November</option><option>December</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Target Year</label>
+                    <select class="form-control" id="fee-gen-year" required></select>
+                  </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                  <button type="submit" class="btn btn-secondary" style="width: 100%;">Process Ledger Generation</button>
+                </div>
+                <p id="fee-gen-feedback" style="margin-top: 15px; color: var(--accent); display: none; text-align: center;"></p>
+              </form>
+            </div>
+          </div>
+
+          <!-- Tab: Record payments -->
+          <div class="tab-content" id="tab-fee-payments" style="display: none;">
+            <div class="card" style="margin-bottom: 24px;">
+              <div class="grid-3" style="grid-template-columns: 2fr 1fr 1fr;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Search Student Ledger</label>
+                  <input type="text" class="form-control" id="fee-pay-search" placeholder="Type roll, name, father...">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Ledger Status</label>
+                  <select class="form-control" id="fee-pay-filter-status">
+                    <option value="Unpaid">Unpaid / Partially Paid</option>
+                    <option value="">All Ledgers</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
+                  <button class="btn btn-primary" id="btn-search-pay-ledger" style="width: 100%;">Search Ledgers</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table" id="table-unpaid-ledgers">
+                <thead>
+                  <tr>
+                    <th>Student Name</th>
+                    <th>Class / Sec</th>
+                    <th>Month / Year</th>
+                    <th>Total Due</th>
+                    <th>Paid Amount</th>
+                    <th>Remaining Due</th>
+                    <th>Status</th>
+                    <th>Record Transaction</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Please search for pending invoices...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Tab: Ledger logs -->
+          <div class="tab-content" id="tab-fee-ledger-logs" style="display: none;">
+            <div class="card" style="margin-bottom: 24px;">
+              <div class="grid-3">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Class Filter</label>
+                  <select class="form-control" id="ledger-filter-class"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Month Filter</label>
+                  <select class="form-control" id="ledger-filter-month">
+                    <option value="">All Months</option>
+                    <option>January</option><option>February</option><option>March</option>
+                    <option>April</option><option>May</option><option>June</option>
+                    <option>July</option><option>August</option><option>September</option>
+                    <option>October</option><option>November</option><option>December</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Payment Status</label>
+                  <select class="form-control" id="ledger-filter-status">
+                    <option value="">All Invoices</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Unpaid">Unpaid</option>
+                    <option value="Partial">Partial</option>
+                  </select>
+                </div>
+              </div>
+              <div style="margin-top: 20px;">
+                <button class="btn btn-primary" id="btn-load-ledger-logs">Load Transactions Log</button>
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table" id="table-ledger-logs">
+                <thead>
+                  <tr>
+                    <th>Roll</th>
+                    <th>Student Name</th>
+                    <th>Class</th>
+                    <th>Billing Month</th>
+                    <th>Previous Dues</th>
+                    <th>Monthly Fee</th>
+                    <th>Transport</th>
+                    <th>Total Payable</th>
+                    <th>Amount Paid</th>
+                    <th>Remaining Dues</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="11" style="text-align: center; color: var(--text-muted);">Please filter and load logs...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+
+        <!-- ==================== SCREEN: EXAMS ==================== -->
+        <article class="screen-section" id="screen-exams" style="display: none;">
+          <h2 style="margin-bottom: 24px;">Exams, Marks, & DMCs</h2>
+
+          <div class="tab-container">
+            <button class="tab-btn active" data-tab="exam-setup">Setup Exam & Subjects</button>
+            <button class="tab-btn" data-tab="exam-marks">Marks Spreadsheet Grid</button>
+            <button class="tab-btn" data-tab="exam-calculate">Result Calculator</button>
+            <button class="tab-btn" data-tab="exam-dmc">Student DMCs Portal</button>
+          </div>
+
+          <!-- Tab: Exam and subjects setup -->
+          <div class="tab-content" id="tab-exam-setup">
+            <div class="grid-2">
+              <div class="card">
+                <h3>Create Exam Registry</h3>
+                <form id="form-create-exam" style="margin-bottom: 30px;">
+                  <div class="grid-2">
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Exam Name (e.g. Mid Term)</label>
+                      <select class="form-control" id="exam-create-name" required>
+                        <option>1st Term</option>
+                        <option>2nd Term</option>
+                        <option>Final</option>
+                      </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Year</label>
+                      <select class="form-control" id="exam-create-year" required></select>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Create Exam</button>
+                </form>
+
+                <h3 style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">Add Exam Subject</h3>
+                <form id="form-create-subject" style="margin-top: 15px;">
+                  <div class="grid-2">
+                    <div class="form-group">
+                      <label class="form-label">Target Exam</label>
+                      <select class="form-control" id="sub-exam-select" required></select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Class</label>
+                      <select class="form-control" id="sub-class-select" required></select>
+                    </div>
+                  </div>
+                  <div class="grid-3">
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Subject Title</label>
+                      <input type="text" class="form-control" id="sub-name" placeholder="e.g. English, Math" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Max Marks</label>
+                      <input type="number" class="form-control" id="sub-max-marks" value="100" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Term</label>
+                      <select class="form-control" id="sub-term-select" required>
+                        <option>1st Term</option><option>2nd Term</option><option>Final</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-secondary" style="margin-top: 20px;">Save Exam Subject</button>
+                </form>
+              </div>
+
+              <div class="card" style="display: flex; flex-direction: column;">
+                <h3>Active Exam Subjects List</h3>
+                <div class="grid-2" style="margin-top: 15px; margin-bottom: 15px;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <select class="form-control" id="view-sub-exam"></select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <select class="form-control" id="view-sub-class"></select>
+                  </div>
+                </div>
+                <div class="table-container" style="flex: 1; margin-bottom: 0;">
+                  <table class="data-table" id="table-exam-subjects">
+                    <thead>
+                      <tr>
+                        <th>Subject Title</th>
+                        <th>Term</th>
+                        <th>Max Marks</th>
+                        <th>Remove</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Please select filters...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: Marks spreadsheet grid -->
+          <div class="tab-content" id="tab-exam-marks" style="display: none;">
+            <div class="card" style="margin-bottom: 24px;">
+              <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Exam Registry</label>
+                  <select class="form-control" id="marks-select-exam"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Class</label>
+                  <select class="form-control" id="marks-select-class"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Section</label>
+                  <select class="form-control" id="marks-select-sec"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Term</label>
+                  <select class="form-control" id="marks-select-term">
+                    <option>1st Term</option><option>2nd Term</option><option>Final</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Subject</label>
+                  <select class="form-control" id="marks-select-subject"></select>
+                </div>
+              </div>
+              <div style="margin-top: 20px; display: flex; gap: 15px;">
+                <button class="btn btn-primary" id="btn-load-marks-grid">Load Marks Matrix</button>
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table" id="table-marks-grid">
+                <thead>
+                  <tr>
+                    <th>Roll No</th>
+                    <th>Student Name</th>
+                    <th>Class / Section</th>
+                    <th>Obtained Marks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Please configure parameters above...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            
+            <div style="text-align: right; display: none;" id="marks-grid-actions">
+              <button class="btn btn-secondary" id="btn-save-marks">Save Student Marks</button>
+            </div>
+          </div>
+
+          <!-- Tab: Result Calculator -->
+          <div class="tab-content" id="tab-exam-calculate" style="display: none;">
+            <div class="card" style="max-width: 600px; margin: 0 auto;">
+              <h3>Process Term-wise Results</h3>
+              <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 10px; margin-bottom: 24px;">
+                This calculates percentage, grade, remarks, and sorts student ranks. Dense ranking is automatically applied: students with matching percentages share positions, and no sequential position numbers are skipped.
+              </p>
+              
+              <form id="form-result-calculate">
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Target Exam</label>
+                    <select class="form-control" id="calc-exam-select" required></select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Class</label>
+                    <select class="form-control" id="calc-class-select" required></select>
+                  </div>
+                </div>
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Section Filter</label>
+                    <select class="form-control" id="calc-sec-select">
+                      <option value="">All Sections</option>
+                      <option value="No Section">No Section</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Exam Term</label>
+                    <select class="form-control" id="calc-term-select" required>
+                      <option>1st Term</option><option>2nd Term</option><option>Final</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                  <button type="submit" class="btn btn-secondary" style="width: 100%;">Execute Result Calculations</button>
+                </div>
+                <p id="calc-feedback" style="margin-top: 15px; color: var(--accent); display: none; text-align: center;"></p>
+              </form>
+            </div>
+          </div>
+
+          <!-- Tab: DMC portal -->
+          <div class="tab-content" id="tab-exam-dmc" style="display: none;">
+            <div class="grid-2" style="grid-template-columns: 1fr 2fr;">
+              <!-- Student selector -->
+              <div class="card" style="display: flex; flex-direction: column; max-height: 80vh;">
+                <h3>Search Student</h3>
+                <div class="form-group" style="margin-top: 15px;">
+                  <input type="text" class="form-control" id="dmc-student-search" placeholder="Type student name...">
+                </div>
+                <div class="table-container" style="flex: 1; margin-bottom: 0; overflow-y: auto;">
+                  <table class="data-table" id="table-dmc-students">
+                    <thead>
+                      <tr>
+                        <th>Roll</th>
+                        <th>Name</th>
+                        <th>Class</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Search student to select...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- DMC view and Print -->
+              <div class="card" id="dmc-display-container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                  <h3>Detailed Marks Certificate (DMC)</h3>
+                  <button class="btn btn-outline btn-sm" id="btn-print-dmc" style="display: none;">🖨️ Print DMC</button>
+                </div>
+
+                <div class="form-group" style="max-width: 400px; display: flex; gap: 15px;">
+                  <select class="form-control" id="dmc-select-exam"></select>
+                  <select class="form-control" id="dmc-select-term">
+                    <option>1st Term</option><option>2nd Term</option><option>Final</option>
+                  </select>
+                  <button class="btn btn-primary btn-sm" id="btn-load-dmc-report">Load DMC</button>
+                </div>
+
+                <!-- Printable Certificate Container -->
+                <div id="dmc-printable-sheet" style="display: none; padding: 25px; border: 1px dashed rgba(255,255,255,0.15); border-radius: 12px; background: rgba(0,0,0,0.2);">
+                  <div style="text-align: center; border-bottom: 2px solid var(--primary); padding-bottom: 15px; margin-bottom: 20px;">
+                    <h2 id="dmc-school-name" style="font-family: var(--font-heading); color: #fff; font-size: 1.4rem;">GOLDEN SUN EDUCATION ACADEMY</h2>
+                    <p id="dmc-school-contact" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 5px;">Contact: - | Reg No: -</p>
+                    <h3 style="margin-top: 10px; font-size: 1.1rem; color: var(--primary);">DETAILED MARKS CERTIFICATE</h3>
+                  </div>
+
+                  <div class="grid-2" style="font-size: 0.9rem; margin-bottom: 20px;">
+                    <div>
+                      <p><strong>Student Name:</strong> <span id="dmc-sheet-name">-</span></p>
+                      <p><strong>Father Name:</strong> <span id="dmc-sheet-father">-</span></p>
+                      <p><strong>Admission No:</strong> <span id="dmc-sheet-admno">-</span></p>
+                    </div>
+                    <div>
+                      <p><strong>Roll Number:</strong> <span id="dmc-sheet-roll">-</span></p>
+                      <p><strong>Class & Section:</strong> <span id="dmc-sheet-class">-</span></p>
+                      <p><strong>Exam Term:</strong> <span id="dmc-sheet-term">-</span></p>
+                    </div>
+                  </div>
+
+                  <table class="data-table" id="table-dmc-sheet-marks" style="margin-bottom: 20px;">
+                    <thead>
+                      <tr>
+                        <th>Subject</th>
+                        <th>Max Marks</th>
+                        <th>Obtained Marks</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+
+                  <div class="grid-3" style="background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; font-size: 0.9rem;">
+                    <div>
+                      <p><strong>Total Marks:</strong> <span id="dmc-sheet-total">-</span></p>
+                      <p><strong>Obtained Total:</strong> <span id="dmc-sheet-obtained">-</span></p>
+                    </div>
+                    <div>
+                      <p><strong>Percentage:</strong> <span id="dmc-sheet-percentage">-</span>%</p>
+                      <p><strong>Grade Achieved:</strong> <span id="dmc-sheet-grade">-</span></p>
+                    </div>
+                    <div>
+                      <p><strong>Position:</strong> <span id="dmc-sheet-position">-</span></p>
+                      <p><strong>Remarks:</strong> <span id="dmc-sheet-remarks">-</span></p>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="dmc-fallback-msg" style="text-align: center; color: var(--text-muted); padding: 50px 0;">
+                  Please select a student and configure exam filters above.
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- ==================== SCREEN: SETTINGS ==================== -->
+        <article class="screen-section" id="screen-settings" style="display: none;">
+          <h2 style="margin-bottom: 24px;">Workspace Configurations</h2>
+
+          <div class="grid-2">
+            <div class="card">
+              <h3>School Profile Branding</h3>
+              <form id="form-settings-school" style="margin-top: 15px;">
+                <div class="form-group">
+                  <label class="form-label">School Name</label>
+                  <input type="text" class="form-control" id="set-school-name" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Branding/Footer Text</label>
+                  <input type="text" class="form-control" id="set-footer-text">
+                </div>
+                <div class="grid-2">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Contact Phone</label>
+                    <input type="text" class="form-control" id="set-phone">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Registration Number</label>
+                    <input type="text" class="form-control" id="set-reg">
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 25px;">Update Profile</button>
+              </form>
+            </div>
+
+            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <h3>Upload School Logo</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px;">
+                  Upload your school's logo to customize reports, print headers, and invoices.
+                </p>
+                <form id="form-settings-logo" style="margin-top: 15px;">
+                  <div class="form-group">
+                    <input type="file" class="form-control" id="set-logo-input" accept="image/*" required>
+                  </div>
+                  <button type="submit" class="btn btn-secondary">Upload Logo Image</button>
+                </form>
+              </div>
+
+              <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px; margin-top: 20px;">
+                <h3>Change Staff Passwords</h3>
+                <form id="form-settings-password" style="margin-top: 15px;">
+                  <div class="grid-2">
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Select Staff Role</label>
+                      <select class="form-control" id="set-pass-role" required>
+                        <option value="admin">Administrator</option>
+                        <option value="teacher">Teacher</option>
+                      </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">New Password</label>
+                      <input type="password" class="form-control" id="set-pass-val" required placeholder="Min 6 characters">
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-outline" style="margin-top: 15px;">Update Password</button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: 24px;">
+            <h3>Backup and Restore Utility</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+              Easily export your school database as a single offline backup file, or restore/override files to synchronise.
+            </p>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+              <button class="btn btn-primary" id="btn-settings-backup">📥 Export Database (.DB)</button>
+              
+              <form id="form-settings-restore" style="display: inline-flex; gap: 15px; align-items: center;">
+                <input type="file" class="form-control" id="restore-db-file" accept=".db" required style="width: auto; padding: 7px 10px;">
+                <button type="submit" class="btn btn-secondary">📤 Restore Database</button>
+              </form>
+            </div>
+            <p id="restore-feedback" style="margin-top: 15px; color: var(--accent); display: none;"></p>
+          </div>
+        </article>
+
+        <!-- ==================== SCREEN: SUBSCRIPTION ==================== -->
+        <article class="screen-section" id="screen-subscription" style="display: none;">
+          <h2 style="margin-bottom: 24px;">Billing & Subscription Management</h2>
+
+          <div class="grid-2">
+            <div class="card">
+              <h3>Billing Status</h3>
+              <div style="margin: 20px 0; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                  <span>Monthly Rate:</span>
+                  <strong>1500 PKR</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                  <span>Current Status:</span>
+                  <span id="sub-status-text" class="status-badge status-present">Loading...</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span>Next Due Date:</span>
+                  <strong id="sub-due-text">-</strong>
+                </div>
+              </div>
+
+              <h3>Upload Payment Receipt Slip</h3>
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 6px; margin-bottom: 20px;">
+                Transfer 1500 PKR to any of the verified payment accounts, then upload a screenshot of your transaction confirmation.
+              </p>
+              
+              <form id="form-billing-upload">
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Amount Paid</label>
+                    <input type="number" class="form-control" id="bill-amount" value="1500" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Payment Date</label>
+                    <input type="date" class="form-control" id="bill-date" required>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Upload Screen / Receipt File</label>
+                  <input type="file" class="form-control" id="bill-receipt" accept="image/*" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Submit Slip Receipt</button>
+              </form>
+            </div>
+
+            <div class="card">
+              <h3>Verified Payment Accounts</h3>
+              <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+                <div style="padding: 15px; background: rgba(0,0,0,0.2); border-radius: 10px; border-left: 4px solid var(--primary);">
+                  <h4>EasyPaisa Account</h4>
+                  <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Number: <strong>03459191224</strong></p>
+                  <p style="color: var(--text-muted); font-size: 0.9rem;">Title: <strong>Golden Sun Academy</strong></p>
+                </div>
+                
+                <div style="padding: 15px; background: rgba(0,0,0,0.2); border-radius: 10px; border-left: 4px solid var(--secondary);">
+                  <h4>JazzCash Wallet</h4>
+                  <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Number: <strong>03459191224</strong></p>
+                  <p style="color: var(--text-muted); font-size: 0.9rem;">Title: <strong>Golden Sun Academy</strong></p>
+                </div>
+
+                <div style="padding: 15px; background: rgba(0,0,0,0.2); border-radius: 10px; border-left: 4px solid var(--accent);">
+                  <h4>HBL Bank Account</h4>
+                  <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Account: <strong>00100405009116</strong></p>
+                  <p style="color: var(--text-muted); font-size: 0.9rem;">Title: <strong>SkyHonix Education Software (Pvt) Ltd</strong></p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Submitted Slips List -->
+          <div class="card" style="margin-top: 24px;">
+            <h3>Submitted Payment Receipts History</h3>
+            <div class="table-container" style="margin-top: 15px; margin-bottom: 0;">
+              <table class="data-table" id="table-billing-slips">
+                <thead>
+                  <tr>
+                    <th>Date Paid</th>
+                    <th>Amount (PKR)</th>
+                    <th>Uploaded Date</th>
+                    <th>Verification Slip</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No payment slips recorded...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ==================== MASTER BILLING ADMIN PORTAL (ACCESS WITH PIN) ==================== -->
+          <div class="card" style="margin-top: 40px; border: 1px solid var(--secondary-glow);">
+            <h3>🔐 Master Billing Admin Dashboard</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px;">
+              Enter the system Master Billing PIN to review and approve payment receipts submitted by registered schools.
+            </p>
+            
+            <div id="master-pin-section" style="margin-top: 15px; display: flex; gap: 15px; max-width: 400px;">
+              <input type="password" class="form-control" id="master-pin-input" placeholder="Enter PIN (e.g. goldensunbk)">
+              <button class="btn btn-secondary btn-sm" id="btn-verify-master-pin">Verify Access</button>
+            </div>
+
+            <!-- Master Admin Content (Initially Hidden) -->
+            <div id="master-admin-content" style="display: none; margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 25px;">
+              
+              <!-- Tab Navigation -->
+              <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px;">
+                <button class="btn btn-outline btn-sm" id="tab-master-slips" style="padding: 6px 12px; border-color: var(--primary);">Payment Slips</button>
+                <button class="btn btn-outline btn-sm" id="tab-master-schools" style="padding: 6px 12px;">Manage Schools</button>
+              </div>
+
+              <!-- Payment Slips View -->
+              <div id="master-slips-view">
+                <h3 style="margin-bottom: 15px;">Pending School Payments Receipts</h3>
+                <div class="table-container">
+                  <table class="data-table" id="table-master-slips">
+                    <thead>
+                      <tr>
+                        <th>School Name</th>
+                        <th>Email</th>
+                        <th>Amount</th>
+                        <th>Date Paid</th>
+                        <th>Receipt File</th>
+                        <th>System Status</th>
+                        <th>Admin Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No logs found...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Manage Schools View (Initially Hidden) -->
+              <div id="master-schools-view" style="display: none;">
+                <h3 style="margin-bottom: 15px;">Manage Registered Schools Access</h3>
+                <div class="table-container">
+                  <table class="data-table" id="table-master-schools">
+                    <thead>
+                      <tr>
+                        <th>School Code</th>
+                        <th>School Name</th>
+                        <th>Phone / Email</th>
+                        <th>Status</th>
+                        <th>Expiry Date</th>
+                        <th>Allow Access Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading schools...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </article>
+
+      </section>
+
+      <!-- Footer Branding -->
+      <footer style="padding: 20px 40px; border-top: 1px solid rgba(255,255,255,0.05); text-align: center; font-size: 0.8rem; color: var(--text-muted);">
+        <p id="portal-footer-text">Powered by SkyHonix School System Portal</p>
+      </footer>
+    </main>
+  </div>
+
+  <!-- MODAL: Student Profile Form (Add/Edit) -->
+  <div class="modal" id="modal-student">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-student-title">Add Student Profile</h2>
+        <button class="drawer-close" id="btn-close-student-modal">&times;</button>
+      </div>
+      
+      <form id="form-student" enctype="multipart/form-data">
+        <input type="hidden" id="student-edit-id">
+        
+        <div class="grid-3">
+          <div class="form-group">
+            <label class="form-label">Student ID (Auto-Generated)</label>
+            <input type="text" class="form-control" id="stud-id" placeholder="e.g. ST-2026-10" readonly>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Admission Number</label>
+            <input type="text" class="form-control" id="stud-admno" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Roll Number</label>
+            <input type="text" class="form-control" id="stud-roll" required>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-control" id="stud-name" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Father's Name</label>
+            <input type="text" class="form-control" id="stud-father" required>
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="form-group">
+            <label class="form-label">Class</label>
+            <input type="text" class="form-control" id="stud-class" placeholder="e.g. KG, 1st" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Section Name</label>
+            <input type="text" class="form-control" id="stud-section" placeholder="e.g. A, B">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Contact Phone</label>
+            <input type="text" class="form-control" id="stud-phone">
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Date of Birth</label>
+            <input type="date" class="form-control" id="stud-dob">
+          </div>
+          <div class="form-group">
+            <label class="form-label">DOB in Words</label>
+            <input type="text" class="form-control" id="stud-dobwords" placeholder="e.g. Twenty-First August">
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="form-group">
+            <label class="form-label">SLC Number</label>
+            <input type="text" class="form-control" id="stud-slc">
+          </div>
+          <div class="form-group">
+            <label class="form-label">National ID / Form-B</label>
+            <input type="text" class="form-control" id="stud-nationalid">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Religion</label>
+            <input type="text" class="form-control" id="stud-religion" value="Islam">
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Gender</label>
+            <select class="form-control" id="stud-gender">
+              <option>Male</option><option>Female</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Student Status</label>
+            <select class="form-control" id="stud-status">
+              <option>Active</option><option>Left</option>
+            </select>
+          </div>
+        </div>
+
+        <h3 style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px; margin-top: 10px;">Tuition Fees Exceptions</h3>
+        <div class="grid-3" style="margin-top: 10px;">
+          <div class="form-group">
+            <label class="form-label">Discount Amount (PKR)</label>
+            <input type="number" class="form-control" id="stud-disc-amount" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Discount Percent (%)</label>
+            <input type="number" class="form-control" id="stud-disc-percent" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Transport Fee (PKR)</label>
+            <input type="number" class="form-control" id="stud-transport" value="0">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+            <input type="checkbox" id="stud-isfree" value="1" style="transform: scale(1.2);">
+            <strong>Mark student as FREE WAIVER (0 Rs Tuition)</strong>
+          </label>
+        </div>
+
+        <div class="form-group" style="margin-top: 20px;">
+          <label class="form-label">Student Photo</label>
+          <input type="file" class="form-control" id="stud-photo-file" accept="image/*">
+        </div>
+
+        <div style="margin-top: 30px; text-align: right;">
+          <button type="submit" class="btn btn-primary" id="btn-save-student-profile">Save Student</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Sibling Association Manager -->
+  <div class="modal" id="modal-sibling">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Link Sibling Account</h2>
+        <button class="drawer-close" id="btn-close-sib-modal">&times;</button>
+      </div>
+      
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+        Linking students as siblings combines their monthly fees into one invoice. The sibling is linked to a <strong>Family Head</strong>. The Family Head pays the unified invoice.
+      </p>
+
+      <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+        <p>Current Student: <strong id="sib-target-student">-</strong></p>
+        <p>Current Status: <strong id="sib-target-status" style="color: var(--secondary);">-</strong></p>
+      </div>
+
+      <form id="form-link-sibling">
+        <input type="hidden" id="sib-student-id">
+        <div class="form-group">
+          <label class="form-label">Select Sibling Head Student</label>
+          <select class="form-control" id="sib-head-select" required>
+            <option value="">-- Choose Head Student --</option>
+          </select>
+        </div>
+        
+        <div style="margin-top: 30px; display: flex; gap: 15px; justify-content: right;">
+          <button type="button" class="btn btn-danger btn-sm" id="btn-unlink-sibling">Remove Sibling Link</button>
+          <button type="submit" class="btn btn-primary btn-sm">Confirm Link</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Record Transaction Fee Invoice Receipt -->
+  <div class="modal" id="modal-transaction">
+    <div class="modal-content" style="max-width: 450px;">
+      <div class="modal-header">
+        <h2>Collect Tuition Payment</h2>
+        <button class="drawer-close" id="btn-close-tx-modal">&times;</button>
+      </div>
+
+      <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem;">
+        <p>Student: <strong id="tx-student-name">-</strong></p>
+        <p>Month: <strong id="tx-month-year">-</strong></p>
+        <p>Total Dues: <strong id="tx-total-payable">-</strong> PKR</p>
+      </div>
+
+      <form id="form-fee-pay-record">
+        <input type="hidden" id="tx-ledger-id">
+        <div class="form-group">
+          <label class="form-label">Amount Received (PKR)</label>
+          <input type="number" class="form-control" id="tx-pay-amount" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Payment Date</label>
+          <input type="date" class="form-control" id="tx-pay-date" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 15px;">Confirm Payment</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Print Student QR Code Card -->
+  <div class="modal" id="modal-print-qr">
+    <div class="modal-content" style="max-width: 380px; text-align: center;">
+      <div class="modal-header">
+        <h2>Student Attendance Card</h2>
+        <button class="drawer-close" id="btn-close-qr-modal">&times;</button>
+      </div>
+
+      <div id="print-card-content" style="padding: 20px; border: 1px solid var(--primary-glow); border-radius: 12px; background: rgba(17,24,39,0.9); margin-bottom: 20px; font-family: var(--font-heading);">
+        <h3 id="qr-card-school" style="color: #fff; font-size: 1.1rem; margin-bottom: 12px;">GOLDEN SUN ACADEMY</h3>
+        <div id="qr-code-placeholder" style="margin: 20px auto; width: 150px; height: 150px; background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center;"></div>
+        <h4 id="qr-card-name" style="font-size: 1.25rem; color: #fff; margin-top: 10px;">-</h4>
+        <p id="qr-card-roll" style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Roll No: -, Class: -</p>
+        <p id="qr-card-id" style="color: var(--primary); font-size: 0.85rem; font-weight: 700; margin-top: 6px;">ID: -</p>
+      </div>
+      
+      <button class="btn btn-secondary btn-sm" id="btn-print-qr-execute" style="width: 100%;">🖨️ Print Student Card</button>
+    </div>
+  </div>
+
+  <!-- Toast Toast Notification -->
+  <div id="toast" style="display: none; position: fixed; bottom: 30px; right: 30px; padding: 16px 24px; border-radius: var(--border-radius); background: var(--bg-card); border: 1px solid var(--primary); backdrop-filter: blur(10px); z-index: 10000; box-shadow: var(--glass-shadow); color: white; animation: fadeIn 0.3s ease;">
+    <p id="toast-text"></p>
+  </div>
+
+  <!-- Application logic -->
+  <script src="js/app.js"></script>
+</body>
+</html>

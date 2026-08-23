@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="SkyHonix School Management System is a responsive online multi-tenant SaaS portal. Track students, fees with sibling waivers, attendance, and exam marks. Subscription model: 1500 PKR monthly.">
+  <title>SkyHonix School System | Responsive Cloud School Portal</title>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar" id="main-nav">
+    <a href="#" class="logo" id="logo-link">
+      <span>SkyHonix</span> School System
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+      <li><a href="/admin.html" class="btn btn-outline btn-sm">🔐 Admin</a></li>
+      <li><button class="btn btn-outline btn-sm" id="btn-login-trigger">Log In</button></li>
+      <li><button class="btn btn-primary btn-sm" id="btn-signup-trigger">Register School</button></li>
+    </ul>
+  </nav>
+
+  <!-- Hero Section -->
+  <header class="hero">
+    <div class="hero-content">
+      <div class="hero-badge">Responsive Cloud Portal</div>
+      <h1 class="hero-title">Manage Your School <span>Online & Seamlessly</span></h1>
+      <p class="hero-desc">
+        Empower teachers, admin staff, and stakeholders with SkyHonix. An all-in-one responsive web platform for student databases, attendance logs, sibling fee exceptions, carry-forward ledger calculations, and exams ranking.
+      </p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" id="btn-get-started">Start 30-Day Free Trial</button>
+        <a href="#pricing" class="btn btn-outline">View Subscription Details</a>
+      </div>
+    </div>
+    <div class="hero-image">
+      <!-- Generated vector design visual mock -->
+      <img src="https://images.unsplash.com/photo-1580582932707-520aed937b7b?q=80&w=600&auto=format&fit=crop" alt="SkyHonix School Dashboard Portal Interface Showcase" id="dashboard-mockup">
+    </div>
+  </header>
+
+  <!-- Features Section -->
+  <section class="pricing-section" id="features" style="background: none;">
+    <h2 class="section-title">Core Management Modules</h2>
+    <p class="section-desc">SkyHonix provides a comprehensive set of web modules tailored to match real school administration workflows.</p>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; padding: 0 4%;">
+      <div class="card">
+        <div style="font-size: 2.2rem; margin-bottom: 15px;">👥</div>
+        <h3>Student Management</h3>
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 10px;">
+          Track detailed student records, generate unique student card IDs, upload photos, and link siblings together for unified family accounts.
+        </p>
+      </div>
+      
+      <div class="card">
+        <div style="font-size: 2.2rem; margin-bottom: 15px;">📷</div>
+        <h3>QR Webcam Attendance</h3>
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 10px;">
+          Mark attendance by class/section, view chronological histories, and scan students' ID cards directly in the browser using any standard webcam.
+        </p>
+      </div>
+
+      <div class="card">
+        <div style="font-size: 2.2rem; margin-bottom: 15px;">💰</div>
+        <h3>Carry-Forward Fees</h3>
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 10px;">
+          Automatically calculate sibling fee exemptions (free/discount settings) and carry forward outstanding dues into next month's ledger.
+        </p>
+      </div>
+
+      <div class="card">
+        <div style="font-size: 2.2rem; margin-bottom: 15px;">📊</div>
+        <h3>Exam Grading & DMC</h3>
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 10px;">
+          Define term subjects, input marks via editable spreadsheets, compute dense rankings, and export professional Detailed Marks Certificates.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing / Subscription Section -->
+  <section class="pricing-section" id="pricing">
+    <h2 class="section-title">Transparent Pricing Plan</h2>
+    <p class="section-desc">No setup fees, no hidden locks. One simple plan designed to match the needs of primary and high schools.</p>
+    
+    <div class="pricing-card" id="main-pricing-card">
+      <span class="pricing-badge">PRO PLAN</span>
+      <div class="price">1500 PKR<span>/month</span></div>
+      <p class="price-subtext">Flat monthly rate per school registry, billed monthly.</p>
+      
+      <ul class="price-features">
+        <li>Unlimited Students, Teachers, and Classes</li>
+        <li>Dynamic Multi-User Roles (Admin & Teacher)</li>
+        <li>Online Database Backups & Restore operations</li>
+        <li>Webcam-based QR Attendance checking</li>
+        <li>Carry-Forward Dues ledger processing</li>
+        <li>Report Sheets & Detailed Marks Certificates (DMCs)</li>
+      </ul>
+      
+      <button class="btn btn-primary" style="width: 100%;" id="btn-pricing-trial">Activate 30-Day Free Trial</button>
+    </div>
+  </section>
+
+  <!-- Login Drawer -->
+  <aside class="drawer" id="drawer-login">
+    <div class="drawer-header">
+      <h2>School Staff Login</h2>
+      <button class="drawer-close" id="btn-login-close">&times;</button>
+    </div>
+    
+    <form id="form-login">
+      <div class="form-group">
+        <label class="form-label" for="login-school-email">School Email</label>
+        <input type="email" class="form-control" id="login-school-email" placeholder="school@example.com" required autocomplete="email">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="login-password">Password</label>
+        <input type="password" class="form-control" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      
+      <div style="margin-top: 30px;">
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In to Workspace</button>
+      </div>
+      
+      <p id="login-error-msg" style="color: var(--danger); font-size: 0.9rem; margin-top: 15px; text-align: center; display: none;"></p>
+    </form>
+  </aside>
+
+  <!-- Register School Drawer -->
+  <aside class="drawer" id="drawer-signup">
+    <div class="drawer-header">
+      <h2>Register School</h2>
+      <button class="drawer-close" id="btn-signup-close">&times;</button>
+    </div>
+    
+    <form id="form-signup">
+      <div class="form-group">
+        <label class="form-label" for="signup-school-name">School Name</label>
+        <input type="text" class="form-control" id="signup-school-name" placeholder="e.g. Golden Sun Academy Swat" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="signup-phone">Phone Number (For Unique School Code)</label>
+        <input type="text" class="form-control" id="signup-phone" placeholder="e.g. 03114918272" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="signup-email">Admin Email (School Key)</label>
+        <input type="email" class="form-control" id="signup-email" placeholder="admin@goldensun.com" required autocomplete="email">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="signup-password">Admin Password</label>
+        <input type="password" class="form-control" id="signup-password" placeholder="Create admin password" required autocomplete="new-password">
+      </div>
+      
+      <div style="margin-top: 30px;">
+        <button type="submit" class="btn btn-secondary" style="width: 100%;">Create School Account</button>
+      </div>
+      
+      <p id="signup-success-msg" style="color: var(--accent); font-size: 0.95rem; margin-top: 15px; text-align: center; display: none;"></p>
+      <p id="signup-error-msg" style="color: var(--danger); font-size: 0.9rem; margin-top: 15px; text-align: center; display: none;"></p>
+    </form>
+  </aside>
+
+  <!-- Toast Notification -->
+  <div id="toast" style="display: none; position: fixed; bottom: 30px; right: 30px; padding: 16px 24px; border-radius: var(--border-radius); background: var(--bg-card); border: 1px solid var(--primary); backdrop-filter: blur(10px); z-index: 10000; box-shadow: var(--glass-shadow); color: white; animation: fadeIn 0.3s ease;">
+    <p id="toast-text"></p>
+  </div>
+
+  <!-- Client Script -->
+  <script src="js/landing.js"></script>
+</body>
+</html>

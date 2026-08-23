@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="SkyHonix Master Admin Panel - Manage school registrations and subscriptions">
+  <title>SkyHonix Admin Panel | School Management</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .admin-container {
+      min-height: 100vh;
+      display: flex;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .admin-login-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 40px;
+      width: 100%;
+      max-width: 450px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .admin-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .admin-header h1 {
+      font-size: 28px;
+      color: #333;
+      margin: 0 0 10px 0;
+    }
+
+    .admin-header p {
+      color: #666;
+      font-size: 14px;
+      margin: 0;
+    }
+
+    .admin-dashboard {
+      display: none;
+    }
+
+    .admin-sidebar {
+      background: rgba(102, 126, 234, 0.95);
+      backdrop-filter: blur(10px);
+      width: 250px;
+      padding: 20px;
+      border-radius: 15px;
+      margin-right: 20px;
+      min-height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .admin-main {
+      margin-left: 270px;
+      padding: 30px;
+    }
+
+    .admin-nav-menu {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .admin-nav-item {
+      margin-bottom: 10px;
+    }
+
+    .admin-nav-link {
+      display: block;
+      padding: 12px 15px;
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .admin-nav-link:hover,
+    .admin-nav-link.active {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+
+    .admin-section {
+      display: none;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .admin-section.active {
+      display: block;
+    }
+
+    .schools-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    .schools-table th {
+      background: rgba(102, 126, 234, 0.1);
+      padding: 12px;
+      text-align: left;
+      color: #333;
+      font-weight: 600;
+      border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+    }
+
+    .schools-table td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .schools-table tr:hover {
+      background: rgba(102, 126, 234, 0.05);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-suspended {
+      background: rgba(220, 53, 69, 0.2);
+      color: #dc3545;
+    }
+
+    .status-active {
+      background: rgba(40, 167, 69, 0.2);
+      color: #28a745;
+    }
+
+    .status-trial {
+      background: rgba(255, 193, 7, 0.2);
+      color: #ffc107;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .btn-approve {
+      background: rgba(40, 167, 69, 0.2);
+      color: #28a745;
+      border: 1px solid #28a745;
+    }
+
+    .btn-approve:hover {
+      background: #28a745;
+      color: #fff;
+    }
+
+    .btn-suspend {
+      background: rgba(220, 53, 69, 0.2);
+      color: #dc3545;
+      border: 1px solid #dc3545;
+    }
+
+    .btn-suspend:hover {
+      background: #dc3545;
+      color: #fff;
+    }
+
+    .btn-view {
+      background: rgba(102, 126, 234, 0.2);
+      color: #667eea;
+      border: 1px solid #667eea;
+    }
+
+    .btn-view:hover {
+      background: #667eea;
+      color: #fff;
+    }
+
+    .btn-logout {
+      background: rgba(220, 53, 69, 0.2);
+      color: #dc3545;
+      border: 1px solid #dc3545;
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    .btn-logout:hover {
+      background: #dc3545;
+      color: #fff;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 30px;
+      border-radius: 15px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+      padding-bottom: 15px;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      color: #333;
+    }
+
+    .close-modal {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+    }
+
+    .close-modal:hover {
+      color: #333;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .info-item {
+      background: rgba(102, 126, 234, 0.05);
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: #666;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .info-value {
+      font-size: 16px;
+      color: #333;
+      font-weight: 600;
+    }
+
+    .alert {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border-left: 4px solid;
+    }
+
+    .alert-success {
+      background: rgba(40, 167, 69, 0.1);
+      color: #28a745;
+      border-color: #28a745;
+    }
+
+    .alert-error {
+      background: rgba(220, 53, 69, 0.1);
+      color: #dc3545;
+      border-color: #dc3545;
+    }
+
+    .alert-info {
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+      border-color: #667eea;
+    }
+
+    .sidebar-brand {
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .sidebar-brand h2 {
+      color: #fff;
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .sidebar-info {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 12px;
+      margin-top: 5px;
+    }
+
+    @media (max-width: 768px) {
+      .admin-sidebar {
+        width: 100%;
+        min-height: auto;
+        position: static;
+        margin-right: 0;
+        margin-bottom: 20px;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .admin-main {
+        margin-left: 0;
+        padding: 20px;
+      }
+
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="login-screen" class="admin-container">
+  <div class="admin-login-card">
+    <div class="admin-header">
+      <h1>🔐 SkyHonix Admin</h1>
+      <p>Master Panel - School Management</p>
+    </div>
+
+    <form id="admin-login-form">
+      <div class="form-group">
+        <label class="form-label">Admin Email</label>
+        <input type="email" class="form-control" id="login-email" placeholder="skyhonix56@gmail.com" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-control" id="login-password" placeholder="Enter your password" required>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 20px;">
+        Login to Admin Panel
+      </button>
+
+      <p id="login-error" style="color: #dc3545; margin-top: 15px; display: none; text-align: center;"></p>
+    </form>
+
+    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(0, 0, 0, 0.1);">
+      <p style="font-size: 12px; color: #666; margin: 0;">
+        Not admin? <a href="/" style="color: #667eea; text-decoration: none; font-weight: 600;">Register a school</a> or <a href="/portal.html" style="color: #667eea; text-decoration: none; font-weight: 600;">go to portal</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Dashboard Screen -->
+<div id="dashboard-screen" class="admin-dashboard">
+  <aside class="admin-sidebar">
+    <div class="sidebar-brand">
+      <h2>SkyHonix Admin</h2>
+      <div class="sidebar-info" id="admin-user-info">Loading...</div>
+    </div>
+
+    <ul class="admin-nav-menu">
+      <li class="admin-nav-item">
+        <a href="#" class="admin-nav-link active" data-tab="schools">
+          📊 All Schools
+        </a>
+      </li>
+      <li class="admin-nav-item">
+        <a href="#" class="admin-nav-link" data-tab="pending">
+          ⏳ Pending Approval
+        </a>
+      </li>
+      <li class="admin-nav-item">
+        <a href="#" class="admin-nav-link" data-tab="active">
+          ✅ Active Schools
+        </a>
+      </li>
+      <li class="admin-nav-item">
+        <a href="#" class="admin-nav-link" data-tab="suspended">
+          🔒 Suspended
+        </a>
+      </li>
+      <li class="admin-nav-item">
+        <a href="#" class="admin-nav-link" data-tab="stats">
+          📈 Statistics
+        </a>
+      </li>
+    </ul>
+
+    <button class="btn btn-logout" id="logout-btn">🚪 Logout</button>
+  </aside>
+
+  <div class="admin-main">
+    <!-- All Schools Tab -->
+    <div id="schools-tab" class="admin-section active">
+      <h2>All Schools</h2>
+      <p style="color: #666;">View and manage all registered schools</p>
+      <div id="schools-list"></div>
+    </div>
+
+    <!-- Pending Approval Tab -->
+    <div id="pending-tab" class="admin-section">
+      <h2>Pending Approval</h2>
+      <p style="color: #666;">Schools awaiting admin activation</p>
+      <div id="pending-list"></div>
+    </div>
+
+    <!-- Active Schools Tab -->
+    <div id="active-tab" class="admin-section">
+      <h2>Active Schools</h2>
+      <p style="color: #666;">Currently active and subscribed schools</p>
+      <div id="active-list"></div>
+    </div>
+
+    <!-- Suspended Schools Tab -->
+    <div id="suspended-tab" class="admin-section">
+      <h2>Suspended Schools</h2>
+      <p style="color: #666;">Schools with suspended subscriptions</p>
+      <div id="suspended-list"></div>
+    </div>
+
+    <!-- Statistics Tab -->
+    <div id="stats-tab" class="admin-section">
+      <h2>Statistics & Overview</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+        <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 12px; border-left: 4px solid #667eea;">
+          <div style="font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase;">Total Schools</div>
+          <div style="font-size: 32px; color: #667eea; font-weight: 700; margin-top: 10px;" id="stat-total">0</div>
+        </div>
+        <div style="background: rgba(255, 193, 7, 0.1); padding: 20px; border-radius: 12px; border-left: 4px solid #ffc107;">
+          <div style="font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase;">Pending</div>
+          <div style="font-size: 32px; color: #ffc107; font-weight: 700; margin-top: 10px;" id="stat-pending">0</div>
+        </div>
+        <div style="background: rgba(40, 167, 69, 0.1); padding: 20px; border-radius: 12px; border-left: 4px solid #28a745;">
+          <div style="font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase;">Active</div>
+          <div style="font-size: 32px; color: #28a745; font-weight: 700; margin-top: 10px;" id="stat-active">0</div>
+        </div>
+        <div style="background: rgba(220, 53, 69, 0.1); padding: 20px; border-radius: 12px; border-left: 4px solid #dc3545;">
+          <div style="font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase;">Suspended</div>
+          <div style="font-size: 32px; color: #dc3545; font-weight: 700; margin-top: 10px;" id="stat-suspended">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- School Details Modal -->
+<div id="school-modal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>School Details</h2>
+      <button class="close-modal" id="close-modal">&times;</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = '/api/admin';
+  let authToken = localStorage.getItem('adminToken');
+
+  // Check if already logged in
+  if (authToken) {
+    showDashboard();
+  }
+
+  // Login Form Handler
+  document.getElementById('admin-login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    const errorEl = document.getElementById('login-error');
+
+    try {
+      const response = await fetch(`${API_BASE}/authenticate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        errorEl.textContent = data.error || 'Authentication failed';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      authToken = data.token;
+      localStorage.setItem('adminToken', authToken);
+      localStorage.setItem('adminEmail', email);
+      showDashboard();
+    } catch (err) {
+      errorEl.textContent = 'Connection error: ' + err.message;
+      errorEl.style.display = 'block';
+    }
+  });
+
+  function showDashboard() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard-screen').style.display = 'flex';
+    loadSchools();
+    setupNavigation();
+  }
+
+  function showLogin() {
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('dashboard-screen').style.display = 'none';
+    localStorage.removeItem('adminToken');
+  }
+
+  // Navigation Handler
+  function setupNavigation() {
+    document.querySelectorAll('.admin-nav-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const tab = link.dataset.tab;
+
+        document.querySelectorAll('.admin-nav-link').forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+
+        document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+        document.getElementById(tab + '-tab').classList.add('active');
+
+        loadSchoolsByStatus(tab);
+      });
+    });
+  }
+
+  async function loadSchools() {
+    try {
+      const response = await fetch(`${API_BASE}/schools`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+
+      if (!response.ok) throw new Error('Failed to load schools');
+      const data = await response.json();
+
+      document.getElementById('admin-user-info').textContent = `Schools: ${data.schools.length}`;
+
+      renderSchoolsTable(data.schools, 'schools-list');
+      renderSchoolsByStatus(data.schools, 'pending', 'pending-list');
+      renderSchoolsByStatus(data.schools, 'active', 'active-list');
+      renderSchoolsByStatus(data.schools, 'suspended', 'suspended-list');
+
+      updateStats(data.schools);
+    } catch (err) {
+      console.error('Error loading schools:', err);
+    }
+  }
+
+  function renderSchoolsTable(schools, containerId) {
+    const container = document.getElementById(containerId);
+    if (!schools.length) {
+      container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No schools found</p>';
+      return;
+    }
+
+    const html = `
+      <table class="schools-table">
+        <thead>
+          <tr>
+            <th>School Name</th>
+            <th>Email</th>
+            <th>Code</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${schools.map(s => `
+            <tr>
+              <td><strong>${s.school_name}</strong></td>
+              <td>${s.email}</td>
+              <td><code style="background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px;">${s.school_code}</code></td>
+              <td><span class="status-badge status-${s.subscription_status}">${s.subscription_status.toUpperCase()}</span></td>
+              <td>${new Date(s.created_at).toLocaleDateString()}</td>
+              <td>
+                <div class="action-buttons">
+                  <button class="btn btn-view" onclick="viewSchool(${s.id})">View</button>
+                  ${s.subscription_status === 'suspended' ? `
+                    <button class="btn btn-approve" onclick="approveSchool(${s.id})">Approve</button>
+                  ` : ''}
+                  ${s.subscription_status !== 'suspended' ? `
+                    <button class="btn btn-suspend" onclick="suspendSchool(${s.id})">Suspend</button>
+                  ` : ''}
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    container.innerHTML = html;
+  }
+
+  function renderSchoolsByStatus(schools, status, containerId) {
+    const filtered = schools.filter(s => s.subscription_status === status);
+    renderSchoolsTable(filtered, containerId);
+  }
+
+  async function loadSchoolsByStatus(status) {
+    if (status === 'stats') return;
+    try {
+      const response = await fetch(`${API_BASE}/schools?status=${status}`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      const data = await response.json();
+      renderSchoolsTable(data.schools, status + '-list');
+    } catch (err) {
+      console.error('Error loading schools:', err);
+    }
+  }
+
+  async function viewSchool(schoolId) {
+    try {
+      const response = await fetch(`${API_BASE}/schools/${schoolId}`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      const data = await response.json();
+      const school = data.school;
+
+      const modalBody = document.getElementById('modal-body');
+      modalBody.innerHTML = `
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">School Name</div>
+            <div class="info-value">${school.school_name}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Email</div>
+            <div class="info-value">${school.email}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Phone</div>
+            <div class="info-value">${school.phone}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">School Code</div>
+            <div class="info-value"><code>${school.school_code}</code></div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Status</div>
+            <div class="info-value"><span class="status-badge status-${school.subscription_status}">${school.subscription_status.toUpperCase()}</span></div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Subscription Amount</div>
+            <div class="info-value">PKR ${school.subscription_amount}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Created</div>
+            <div class="info-value">${new Date(school.created_at).toLocaleDateString()}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Next Due Date</div>
+            <div class="info-value">${school.next_due_date ? new Date(school.next_due_date).toLocaleDateString() : 'N/A'}</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          ${school.subscription_status === 'suspended' ? `
+            <button class="btn btn-approve" onclick="approveSchool(${school.id}); closeModal()" style="flex: 1; padding: 10px;">✅ Approve & Activate</button>
+          ` : ''}
+          ${school.subscription_status !== 'suspended' ? `
+            <button class="btn btn-suspend" onclick="suspendSchool(${school.id}); closeModal()" style="flex: 1; padding: 10px;">🔒 Suspend</button>
+          ` : ''}
+        </div>
+      `;
+
+      document.getElementById('school-modal').classList.add('show');
+    } catch (err) {
+      alert('Error loading school details: ' + err.message);
+    }
+  }
+
+  async function approveSchool(schoolId) {
+    if (!confirm('Activate this school and set status to ACTIVE?')) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/schools/${schoolId}/approve`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+
+      alert('School approved and activated successfully!');
+      loadSchools();
+      closeModal();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+
+  async function suspendSchool(schoolId) {
+    if (!confirm('Suspend this school subscription?')) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/schools/${schoolId}/suspend`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+
+      alert('School suspended successfully');
+      loadSchools();
+      closeModal();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+
+  function updateStats(schools) {
+    document.getElementById('stat-total').textContent = schools.length;
+    document.getElementById('stat-pending').textContent = schools.filter(s => s.subscription_status === 'suspended').length;
+    document.getElementById('stat-active').textContent = schools.filter(s => s.subscription_status === 'active').length;
+    document.getElementById('stat-suspended').textContent = schools.filter(s => s.subscription_status === 'suspended').length;
+  }
+
+  function closeModal() {
+    document.getElementById('school-modal').classList.remove('show');
+  }
+
+  document.getElementById('close-modal').addEventListener('click', closeModal);
+  document.getElementById('school-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'school-modal') closeModal();
+  });
+
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    if (confirm('Logout from admin panel?')) {
+      showLogin();
+    }
+  });
+</script>
+
+</body>
+</html>
