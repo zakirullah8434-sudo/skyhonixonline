@@ -6,6 +6,7 @@ const fs = require('fs');
 const config = require('../config');
 const { authenticateToken } = require('./auth');
 const { querySchool, querySchoolOne, runSchool } = require('../database_manager');
+const syncManager = require('../sync_manager');
 
 // Setup multer storage for student photos
 const storage = multer.diskStorage({

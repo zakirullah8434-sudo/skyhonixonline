@@ -70,7 +70,98 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 4500);
   }
 
-  // REST API Client helper
+  // ==========================================
+  // REAL-TIME DATA SYNCHRONIZATION SYSTEM
+  // ==========================================
+
+  /**
+   * Handle sync events emitted from backend
+   * Automatically refreshes dependent data when changes occur
+   */
+  async function handleSyncEvent(syncEvent, eventData) {
+    console.log(`[SYNC] Frontend received event: ${syncEvent}`, eventData);
+
+    switch (syncEvent) {
+      case 'fees.payment.recorded':
+        // Refresh: analytics, dashboard, ledger
+        await refreshFeesAnalytics();
+        await refreshDashboardStats();
+        showToast('Fee payment recorded & analytics updated', false);
+        break;
+
+      case 'fees.classfee.changed':
+        // Refresh: class fees setup, notify about ledger impact
+        await loadFeesData();
+        showToast(`Class fee updated. Future ledgers will use new fee: ${eventData.newFee}`, false);
+        break;
+
+      case 'fees.student-setting.changed':
+        // Refresh: ledger entries, analytics
+        await refreshFeesAnalytics();
+        showToast('Student fee settings updated & analytics refreshed', false);
+        break;
+
+      case 'results.marks.updated':
+        // Invalidate: results need recalculation
+        showToast(`Marks updated for ${eventData.affectedStudents?.length || 1} student(s). Results need recalculation.`, false);
+        break;
+
+      case 'results.calculated':
+        // Refresh: results view, analytics, dashboard
+        await refreshResultsAnalytics();
+        await refreshDashboardStats();
+        showToast(`Results calculated for ${eventData.affectedClasses?.join(', ')} - ${eventData.term}`, false);
+        break;
+
+      case 'student.updated':
+        // Refresh: student list, related data
+        await loadStudentsList();
+        showToast('Student record updated & related data synced', false);
+        break;
+
+      default:
+        console.log(`[SYNC] Unhandled sync event: ${syncEvent}`);
+    }
+  }
+
+  /**
+   * Refresh fees analytics after payment or changes
+   */
+  async function refreshFeesAnalytics() {
+    try {
+      const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
+      const currentYear = new Date().getFullYear();
+      await apiCall(`/fees/analytics?month=${currentMonth}&year=${currentYear}`);
+
+      // Update dashboard if visible
+      const dashElement = document.getElementById('stat-pending-dues');
+      if (dashElement) {
+        await loadDashboardStats();
+      }
+    } catch (err) {
+      console.warn('[SYNC] Failed to refresh fees analytics:', err);
+    }
+  }
+
+  /**
+   * Refresh results analytics after calculation
+   */
+  async function refreshResultsAnalytics() {
+    try {
+      const examsTab = document.querySelector('[data-tab="exam-results"]');
+      if (examsTab) {
+        // Reload results if visible
+        const examIdInput = document.getElementById('result-filter-exam');
+        if (examIdInput?.value) {
+          await loadResultsList();
+        }
+      }
+    } catch (err) {
+      console.warn('[SYNC] Failed to refresh results analytics:', err);
+    }
+  }
+
+  // REST API Client helper (Enhanced with sync event handling)
   async function apiCall(endpoint, method = 'GET', body = null, isFormData = false) {
     const headers = {};
     if (token) {
@@ -107,6 +198,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (!response.ok) {
         throw new Error(result.error || 'API Request failed');
+      }
+
+      // SYNC: Handle sync events emitted from backend
+      if (result.syncEvent) {
+        await handleSyncEvent(result.syncEvent, result);
       }
 
       return result;
@@ -323,16 +419,30 @@ document.addEventListener('DOMContentLoaded', () => {
       const viewSubClass = document.getElementById('view-sub-class');
       const marksSelectClass = document.getElementById('marks-select-class');
       const calcClassSelect = document.getElementById('calc-class-select');
+      const historyFilterClass = document.getElementById('history-filter-class');
+      const studentFeeClass = document.getElementById('student-fee-class');
+      const reminderFilterClass = document.getElementById('reminder-filter-class');
 
       const selects = [
         filterClass, attClassSelect, attHistoryClass, ledgerFilterClass,
-        subClassSelect, viewSubClass, marksSelectClass, calcClassSelect
+        subClassSelect, viewSubClass, marksSelectClass, calcClassSelect,
+        historyFilterClass, studentFeeClass, reminderFilterClass
       ];
 
       selects.forEach(sel => {
         if (!sel) return;
         const currentVal = sel.value;
-        sel.innerHTML = sel.id === 'student-filter-class' ? '<option value="">All Classes</option>' : '';
+        const isAllClasses = ['student-filter-class', 'history-filter-class', 'student-fee-class'].includes(sel.id);
+        const isSelectPlaceholder = ['reminder-filter-class'].includes(sel.id);
+        
+        if (isAllClasses) {
+          sel.innerHTML = '<option value="All Classes">All Classes</option>';
+        } else if (isSelectPlaceholder) {
+          sel.innerHTML = '<option value="">-- Select Class --</option>';
+        } else {
+          sel.innerHTML = '';
+        }
+        
         classes.forEach(cls => {
           sel.innerHTML += `<option value="${cls}">${cls}</option>`;
         });
@@ -876,31 +986,166 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   // MODULE: FEES & LEDGER
   // ==========================================
+  let collectionChartInstance = null;
+
   function loadFeesData() {
+    resetFeePanels();
     loadClassesList();
     loadClassFeeRules();
-    
-    // Fill year select options
-    const yearSelect = document.getElementById('fee-gen-year');
-    const examYearSelect = document.getElementById('exam-create-year');
-    const currentYear = new Date().getFullYear();
-    [yearSelect, examYearSelect].forEach(sel => {
-      if (!sel) return;
-      sel.innerHTML = '';
-      for (let y = currentYear; y >= currentYear - 5; y--) {
-        sel.innerHTML += `<option value="${y}">${y}</option>`;
-      }
-    });
-
-    // Default target billing month
-    document.getElementById('fee-gen-month').value = new Date().toLocaleString('en-US', { month: 'long' });
   }
 
-  // Load Fee setup rules
+  // Helper to reset and show dashboard
+  function resetFeePanels() {
+    const dash = document.getElementById('fees-dashboard-view');
+    if (dash) dash.style.display = 'block';
+    document.querySelectorAll('.fee-option-panel').forEach(panel => {
+      panel.style.display = 'none';
+    });
+  }
+
+  // Dashboard card clicks to show target panel
+  document.querySelectorAll('.fees-dash-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const targetOpt = card.getAttribute('data-opt');
+      const dash = document.getElementById('fees-dashboard-view');
+      if (dash) dash.style.display = 'none';
+      document.querySelectorAll('.fee-option-panel').forEach(p => p.style.display = 'none');
+      
+      const targetPanel = document.getElementById(`fee-panel-${targetOpt}`);
+      if (targetPanel) {
+        targetPanel.style.display = 'block';
+        loadFeePanelData(targetOpt);
+      }
+    });
+  });
+
+  // Back button click in option panels
+  document.querySelectorAll('.btn-back-fee-dash').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      resetFeePanels();
+    });
+  });
+
+  // Dynamic dropdown loaders & change listeners
+  const histFilterClass = document.getElementById('history-filter-class');
+  if (histFilterClass) {
+    histFilterClass.addEventListener('change', () => {
+      updateSectionDropdown('history-filter-class', 'history-filter-section', true);
+    });
+  }
+  const studFeeClass = document.getElementById('student-fee-class');
+  if (studFeeClass) {
+    studFeeClass.addEventListener('change', () => {
+      updateSectionDropdown('student-fee-class', 'student-fee-section', true);
+    });
+  }
+  const remindFilterClass = document.getElementById('reminder-filter-class');
+  if (remindFilterClass) {
+    remindFilterClass.addEventListener('change', () => {
+      updateSectionDropdown('reminder-filter-class', 'reminder-filter-section', false);
+    });
+  }
+
+  // Section dropdown helper
+  async function updateSectionDropdown(classSelectId, sectionSelectId, includeAllOption = true) {
+    const clsEl = document.getElementById(classSelectId);
+    const secSelect = document.getElementById(sectionSelectId);
+    if (!clsEl || !secSelect) return;
+    const cls = clsEl.value;
+    
+    secSelect.innerHTML = includeAllOption ? '<option value="All Sections">All Sections</option>' : '<option value="">-- All Sections --</option>';
+    
+    if (!cls || cls === 'All Classes') {
+      return;
+    }
+    
+    try {
+      const sections = await apiCall(`/students/sections/${cls}`);
+      sections.forEach(s => {
+        secSelect.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`;
+      });
+      if (includeAllOption) {
+        secSelect.innerHTML += '<option value="No Section">No Section</option>';
+      }
+    } catch (err) {}
+  }
+
+  // Load configuration details for a specific option panel
+  function loadFeePanelData(opt) {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
+
+    if (opt === 'fee-history') {
+      // Setup history filters
+      const yearSelect = document.getElementById('history-filter-year');
+      if (yearSelect) {
+        yearSelect.innerHTML = '';
+        for (let y = currentYear; y >= currentYear - 5; y--) {
+          yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+        }
+        yearSelect.value = currentYear;
+      }
+      const monthSelect = document.getElementById('history-filter-month');
+      if (monthSelect) monthSelect.value = currentMonth;
+      const classSelect = document.getElementById('history-filter-class');
+      if (classSelect) classSelect.value = 'All Classes';
+      
+      updateSectionDropdown('history-filter-class', 'history-filter-section', true);
+      const hTableBody = document.querySelector('#table-history-ledgers tbody');
+      if (hTableBody) {
+        hTableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; color: var(--text-muted);">Select filters and click Load Ledger...</td></tr>';
+      }
+    } 
+    else if (opt === 'class-fee') {
+      loadClassFeeRules();
+    }
+    else if (opt === 'student-fee') {
+      const sClass = document.getElementById('student-fee-class');
+      if (sClass) sClass.value = 'All Classes';
+      updateSectionDropdown('student-fee-class', 'student-fee-section', true);
+      const sSearch = document.getElementById('student-fee-search');
+      if (sSearch) sSearch.value = '';
+      loadStudentFeeList();
+    }
+    else if (opt === 'generate-reminder') {
+      const yearSelect = document.getElementById('reminder-filter-year');
+      if (yearSelect) {
+        yearSelect.innerHTML = '';
+        for (let y = currentYear; y >= currentYear - 5; y--) {
+          yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+        }
+        yearSelect.value = currentYear;
+      }
+      const monthSelect = document.getElementById('reminder-filter-month');
+      if (monthSelect) monthSelect.value = currentMonth;
+      const classSelect = document.getElementById('reminder-filter-class');
+      if (classSelect) classSelect.value = '';
+      const sectionSelect = document.getElementById('reminder-filter-section');
+      if (sectionSelect) sectionSelect.innerHTML = '<option value="">-- All Sections --</option>';
+    }
+    else if (opt === 'fee-analytics') {
+      // Setup analytics filters
+      const yearSelect = document.getElementById('analytics-filter-year');
+      if (yearSelect) {
+        yearSelect.innerHTML = '';
+        for (let y = currentYear; y >= currentYear - 5; y--) {
+          yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+        }
+        yearSelect.value = currentYear;
+      }
+      const monthSelect = document.getElementById('analytics-filter-month');
+      if (monthSelect) monthSelect.value = currentMonth;
+      refreshFeeAnalytics();
+    }
+  }
+
+  // Load Fee setup rules (Tuition settings)
   async function loadClassFeeRules() {
     try {
       const fees = await apiCall('/fees/setup');
       const tbody = document.querySelector('#table-fee-setup-rules tbody');
+      if (!tbody) return;
       tbody.innerHTML = '';
 
       if (fees.length === 0) {
@@ -920,97 +1165,81 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Save new Tuition fee rule
-  document.getElementById('form-fee-setup').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const class_name = document.getElementById('fee-setup-class').value.trim();
-    const monthly_fee = document.getElementById('fee-setup-amount').value;
+  const formFeeSetup = document.getElementById('form-fee-setup');
+  if (formFeeSetup) {
+    formFeeSetup.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const class_name = document.getElementById('fee-setup-class').value.trim();
+      const monthly_fee = document.getElementById('fee-setup-amount').value;
 
-    try {
-      const res = await apiCall('/fees/setup', 'POST', { class_name, monthly_fee });
-      showToast(res.message);
-      document.getElementById('form-fee-setup').reset();
-      loadClassFeeRules();
-    } catch (err) {}
-  });
+      try {
+        const res = await apiCall('/fees/setup', 'POST', { class_name, monthly_fee });
+        showToast(res.message);
+        formFeeSetup.reset();
+        loadClassFeeRules();
+      } catch (err) {}
+    });
+  }
 
-  // Run ledger generator
-  document.getElementById('form-fee-generate').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const feedback = document.getElementById('fee-gen-feedback');
-    feedback.innerText = 'Calculating ledgers... Please wait.';
-    feedback.style.display = 'block';
+  // Search Pending Invoices (Pay Fee)
+  const btnSearchPayLedger = document.getElementById('btn-search-pay-ledger');
+  if (btnSearchPayLedger) {
+    btnSearchPayLedger.addEventListener('click', async () => {
+      const search = document.getElementById('fee-pay-search').value.trim();
+      const status = document.getElementById('fee-pay-filter-status').value;
 
-    const month = document.getElementById('fee-gen-month').value;
-    const year = document.getElementById('fee-gen-year').value;
+      let endpoint = '/fees/ledger?';
+      if (status) endpoint += `status=${status}&`;
 
-    try {
-      const res = await apiCall('/fees/generate', 'POST', { month, year });
-      feedback.innerText = res.message;
-      showToast(res.message);
-      loadDashboardStats();
-    } catch (err) {
-      feedback.innerText = 'Failed to generate fees: ' + err.message;
-    }
-  });
+      try {
+        const ledgers = await apiCall(endpoint);
+        const tbody = document.querySelector('#table-unpaid-ledgers tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
 
-  // Search Pending Invoices
-  document.getElementById('btn-search-pay-ledger').addEventListener('click', async () => {
-    const search = document.getElementById('fee-pay-search').value.trim();
-    const status = document.getElementById('fee-pay-filter-status').value;
+        const filtered = ledgers.filter(l => {
+          if (!search) return true;
+          const s = search.toLowerCase();
+          return l.student_name.toLowerCase().includes(s) || l.roll_no.toLowerCase().includes(s) || l.class_name.toLowerCase().includes(s);
+        });
 
-    let endpoint = '/fees/ledger?';
-    if (status) endpoint += `status=${status}&`;
+        if (filtered.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color:var(--text-muted);">No unpaid ledger records matches search.</td></tr>';
+          return;
+        }
 
-    try {
-      const ledgers = await apiCall(endpoint);
-      const tbody = document.querySelector('#table-unpaid-ledgers tbody');
-      tbody.innerHTML = '';
+        filtered.forEach(l => {
+          const remaining = l.total_payable - l.paid_amount;
+          let badgeClass = 'status-unpaid';
+          if (l.status === 'Partial') badgeClass = 'status-partial';
 
-      // Filter local search
-      const filtered = ledgers.filter(l => {
-        if (!search) return true;
-        const s = search.toLowerCase();
-        return l.student_name.toLowerCase().includes(s) || l.roll_no.toLowerCase().includes(s) || l.class_name.toLowerCase().includes(s);
-      });
+          tbody.innerHTML += `
+            <tr>
+              <td>
+                <div style="font-weight:700;">${l.student_name}</div>
+                <div style="font-size:0.8rem; color:var(--text-muted);">Roll: ${l.roll_no || 'N/A'} | Father: ${l.father_name || '-'}</div>
+              </td>
+              <td>${l.class_name}</td>
+              <td><strong>${l.month} ${l.year}</strong></td>
+              <td>${l.total_payable.toLocaleString()} Rs</td>
+              <td>${l.paid_amount.toLocaleString()} Rs</td>
+              <td><strong style="color:var(--secondary);">${remaining.toLocaleString()} Rs</strong></td>
+              <td><span class="status-badge ${badgeClass}">${l.status}</span></td>
+              <td>
+                <button class="btn btn-primary btn-sm btn-record-tx" 
+                  data-id="${l.id}" 
+                  data-name="${l.student_name}" 
+                  data-month="${l.month} ${l.year}" 
+                  data-due="${remaining}">Collect Fee</button>
+              </td>
+            </tr>
+          `;
+        });
 
-      if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color:var(--text-muted);">No unpaid ledger records matches search.</td></tr>';
-        return;
-      }
-
-      filtered.forEach(l => {
-        const remaining = l.total_payable - l.paid_amount;
-        let badgeClass = 'status-unpaid';
-        if (l.status === 'Partial') badgeClass = 'status-partial';
-
-        tbody.innerHTML += `
-          <tr>
-            <td>
-              <div style="font-weight:700;">${l.student_name}</div>
-              <div style="font-size:0.8rem; color:var(--text-muted);">Roll: ${l.roll_no || 'N/A'} | Father: ${l.father_name || '-'}</div>
-            </td>
-            <td>${l.class_name}</td>
-            <td><strong>${l.month} ${l.year}</strong></td>
-            <td>${l.total_payable.toLocaleString()} Rs</td>
-            <td>${l.paid_amount.toLocaleString()} Rs</td>
-            <td><strong style="color:var(--secondary);">${remaining.toLocaleString()} Rs</strong></td>
-            <td><span class="status-badge ${badgeClass}">${l.status}</span></td>
-            <td>
-              <button class="btn btn-primary btn-sm btn-record-tx" 
-                data-id="${l.id}" 
-                data-name="${l.student_name}" 
-                data-month="${l.month} ${l.year}" 
-                data-due="${remaining}">Collect Fee</button>
-            </td>
-          </tr>
-        `;
-      });
-
-      // Bind collect fee button click
-      attachFeePaymentFormEvents();
-
-    } catch (e) {}
-  });
+        attachFeePaymentFormEvents();
+      } catch (e) {}
+    });
+  }
 
   // Collect modal form bindings
   const modalTx = document.getElementById('modal-transaction');
@@ -1034,73 +1263,689 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  document.getElementById('btn-close-tx-modal').addEventListener('click', () => {
-    modalTx.classList.remove('open');
-  });
-
-  // Record Transaction Action (POST)
-  document.getElementById('form-fee-pay-record').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const ledger_id = document.getElementById('tx-ledger-id').value;
-    const amount_paid = document.getElementById('tx-pay-amount').value;
-    const payment_date = document.getElementById('tx-pay-date').value;
-
-    try {
-      const res = await apiCall('/fees/pay', 'POST', { ledger_id, amount_paid, payment_date });
-      showToast(res.message);
+  const btnCloseTxModal = document.getElementById('btn-close-tx-modal');
+  if (btnCloseTxModal) {
+    btnCloseTxModal.addEventListener('click', () => {
       modalTx.classList.remove('open');
-      
-      // Refresh statistics and list
-      loadDashboardStats();
-      document.getElementById('btn-search-pay-ledger').click();
-    } catch (err) {}
-  });
+    });
+  }
 
-  // Ledger Logs List
-  document.getElementById('btn-load-ledger-logs').addEventListener('click', async () => {
-    const cls = document.getElementById('ledger-filter-class').value;
-    const month = document.getElementById('ledger-filter-month').value;
-    const status = document.getElementById('ledger-filter-status').value;
+  const formFeePayRecord = document.getElementById('form-fee-pay-record');
+  if (formFeePayRecord) {
+    formFeePayRecord.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const ledger_id = document.getElementById('tx-ledger-id').value;
+      const amount_paid = document.getElementById('tx-pay-amount').value;
+      const payment_date = document.getElementById('tx-pay-date').value;
 
-    let endpoint = '/fees/ledger?';
-    if (cls) endpoint += `class_name=${encodeURIComponent(cls)}&`;
-    if (month) endpoint += `month=${month}&`;
-    if (status) endpoint += `status=${status}&`;
+      try {
+        const res = await apiCall('/fees/pay', 'POST', { ledger_id, amount_paid, payment_date });
+        showToast(res.message);
+        modalTx.classList.remove('open');
+        loadDashboardStats();
+        const paySearchBtn = document.getElementById('btn-search-pay-ledger');
+        if (paySearchBtn) paySearchBtn.click();
+      } catch (err) {}
+    });
+  }
+
+  // ==========================================
+  // FEE HISTORY LOGIC (Option 2)
+  // ==========================================
+  async function loadHistoryLedger() {
+    const cls = document.getElementById('history-filter-class').value;
+    const sec = document.getElementById('history-filter-section').value;
+    const month = document.getElementById('history-filter-month').value;
+    const year = document.getElementById('history-filter-year').value;
+
+    let url = `/fees/history-management?month=${month}&year=${year}`;
+    if (cls && cls !== 'All Classes') url += `&class_name=${encodeURIComponent(cls)}`;
+    if (sec && sec !== 'All Sections') url += `&section_name=${encodeURIComponent(sec)}`;
 
     try {
-      const list = await apiCall(endpoint);
-      const tbody = document.querySelector('#table-ledger-logs tbody');
+      const data = await apiCall(url);
+      const tbody = document.querySelector('#table-history-ledgers tbody');
+      if (!tbody) return;
       tbody.innerHTML = '';
 
-      if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align: center;">No ledger details found.</td></tr>';
+      if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="13" style="text-align: center;">No records found for the selection.</td></tr>';
         return;
       }
 
-      list.forEach(l => {
-        let badge = 'status-unpaid';
-        if (l.status === 'Paid') badge = 'status-present';
-        else if (l.status === 'Partial') badge = 'status-partial';
+      data.forEach(l => {
+        const hasLedger = l.ledger_id !== null;
+        let badge = '-';
+        if (l.status === 'Paid') badge = '<span class="status-badge status-present">PAID</span>';
+        else if (l.status === 'Partial') badge = '<span class="status-badge status-partial">PARTIAL</span>';
+        else if (l.status === 'Unpaid') badge = '<span class="status-badge status-absent">UNPAID</span>';
+
+        const actionBtn = hasLedger
+          ? `<button class="btn btn-danger btn-sm btn-delete-history-ledger" data-id="${l.ledger_id}">Delete</button>`
+          : `<button class="btn btn-outline btn-success btn-sm btn-generate-history-ledger" data-student-id="${l.student_id}">Generate</button>`;
 
         tbody.innerHTML += `
           <tr>
-            <td>${l.roll_no || '-'}</td>
-            <td><strong>${l.student_name}</strong></td>
-            <td>${l.class_name}</td>
-            <td>${l.month} ${l.year}</td>
-            <td>${l.previous_due.toLocaleString()} Rs</td>
-            <td>${l.monthly_fee.toLocaleString()} Rs</td>
-            <td>${l.transport_fee.toLocaleString()} Rs</td>
-            <td><strong>${l.total_payable.toLocaleString()} Rs</strong></td>
-            <td><span style="color:var(--accent); font-weight:700;">${l.amount_paid.toLocaleString()} Rs</span></td>
-            <td>${(l.total_payable - l.amount_paid).toLocaleString()} Rs</td>
-            <td><span class="status-badge ${badge}">${l.status}</span></td>
+            <td>${l.student_id}</td>
+            <td>${l.roll_no || 'N/A'}</td>
+            <td><strong>${l.name}</strong></td>
+            <td>${l.father_name || '-'}</td>
+            <td>${hasLedger ? l.base_fee.toLocaleString() : '-'}</td>
+            <td>${hasLedger ? l.discount.toLocaleString() : '-'}</td>
+            <td>${hasLedger ? l.transport_fee.toLocaleString() : '-'}</td>
+            <td>${hasLedger ? l.monthly_fee.toLocaleString() : '-'}</td>
+            <td style="text-align: center;">
+              <input type="number" class="editable-due-input ${hasLedger ? 'has-ledger' : ''}" 
+                data-student-id="${l.student_id}" 
+                data-ledger-id="${l.ledger_id || ''}" 
+                value="${l.previous_due || 0}">
+            </td>
+            <td>${hasLedger ? l.total_payable.toLocaleString() : '-'}</td>
+            <td>${hasLedger ? l.paid_amount.toLocaleString() : '-'}</td>
+            <td>${badge}</td>
+            <td>${actionBtn}</td>
           </tr>
         `;
       });
 
+      // Bind single generate/delete buttons
+      document.querySelectorAll('.btn-generate-history-ledger').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const student_id = btn.getAttribute('data-student-id');
+          try {
+            const res = await apiCall('/fees/generate-single', 'POST', { student_id, month, year });
+            showToast(res.message);
+            loadHistoryLedger();
+          } catch (e) {}
+        });
+      });
+
+      document.querySelectorAll('.btn-delete-history-ledger').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const ledger_id = btn.getAttribute('data-id');
+          if (!confirm('Are you sure you want to delete this student\'s ledger for this month?')) return;
+          try {
+            const res = await apiCall(`/fees/ledger/${ledger_id}`, 'DELETE');
+            showToast(res.message);
+            loadHistoryLedger();
+          } catch (e) {}
+        });
+      });
+
     } catch (e) {}
+  }
+
+  const btnLoadHistoryLedger = document.getElementById('btn-load-history-ledger');
+  if (btnLoadHistoryLedger) {
+    btnLoadHistoryLedger.addEventListener('click', loadHistoryLedger);
+  }
+
+  // Bulk ledger generation
+  const btnGenerateBulkLedger = document.getElementById('btn-generate-bulk-ledger');
+  if (btnGenerateBulkLedger) {
+    btnGenerateBulkLedger.addEventListener('click', async () => {
+      const month = document.getElementById('history-filter-month').value;
+      const year = document.getElementById('history-filter-year').value;
+      if (!confirm(`Generate monthly ledgers for ${month} ${year}?`)) return;
+
+      try {
+        const res = await apiCall('/fees/generate', 'POST', { month, year });
+        showToast(res.message);
+        loadHistoryLedger();
+      } catch (e) {}
+    });
+  }
+
+  // Bulk save dues
+  const btnSaveHistoryDues = document.getElementById('btn-save-history-dues');
+  if (btnSaveHistoryDues) {
+    btnSaveHistoryDues.addEventListener('click', async () => {
+      const inputs = document.querySelectorAll('#table-history-ledgers tbody input.editable-due-input');
+      const changes = [];
+      inputs.forEach(inp => {
+        changes.push({
+          student_id: parseInt(inp.getAttribute('data-student-id')),
+          ledger_id: inp.getAttribute('data-ledger-id') ? parseInt(inp.getAttribute('data-ledger-id')) : null,
+          previous_due: parseFloat(inp.value) || 0
+        });
+      });
+
+      try {
+        const res = await apiCall('/fees/save-history-dues', 'POST', { changes });
+        showToast(res.message);
+        loadHistoryLedger();
+      } catch (e) {}
+    });
+  }
+
+  // Bulk delete ledger
+  const btnDeleteBulkLedger = document.getElementById('btn-delete-bulk-ledger');
+  if (btnDeleteBulkLedger) {
+    btnDeleteBulkLedger.addEventListener('click', async () => {
+      const cls = document.getElementById('history-filter-class').value;
+      const sec = document.getElementById('history-filter-section').value;
+      const month = document.getElementById('history-filter-month').value;
+      const year = document.getElementById('history-filter-year').value;
+
+      if (!confirm(`Are you sure you want to delete ALL generated ledgers for ${month} ${year}?`)) return;
+
+      let url = `/fees/ledger-bulk?month=${month}&year=${year}`;
+      if (cls && cls !== 'All Classes') url += `&class_name=${encodeURIComponent(cls)}`;
+      if (sec && sec !== 'All Sections') url += `&section_name=${encodeURIComponent(sec)}`;
+
+      try {
+        const res = await apiCall(url, 'DELETE');
+        showToast(res.message);
+        loadHistoryLedger();
+      } catch (e) {}
+    });
+  }
+
+  // ==========================================
+  // STUDENT FEE MANAGER LOGIC (Option 4)
+  // ==========================================
+  async function loadStudentFeeList() {
+    const cls = document.getElementById('student-fee-class').value;
+    const sec = document.getElementById('student-fee-section').value;
+    const search = document.getElementById('student-fee-search').value.trim();
+
+    let url = '/students?';
+    if (cls && cls !== 'All Classes') url += `class_name=${encodeURIComponent(cls)}&`;
+    if (sec && sec !== 'All Sections') url += `section_name=${encodeURIComponent(sec)}&`;
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+
+    try {
+      const list = await apiCall(url);
+      const tbody = document.querySelector('#table-student-fee-list tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No students found matching selection.</td></tr>';
+        return;
+      }
+
+      list.forEach(s => {
+        let siblingText = 'Primary Head';
+        if (s.family_head_id) siblingText = `Sibling (Head ID: ${s.family_head_id})`;
+
+        let waiverType = 'none';
+        let discountVal = 0;
+        if (s.is_free === 1) {
+          waiverType = 'free';
+        } else if (s.discount_amount > 0) {
+          waiverType = 'amount';
+          discountVal = s.discount_amount;
+        } else if (s.discount_percent > 0) {
+          waiverType = 'percent';
+          discountVal = s.discount_percent;
+        }
+
+        const isValDisabled = waiverType === 'none' || waiverType === 'free';
+
+        tbody.innerHTML += `
+          <tr data-student-id="${s.id}">
+            <td>${s.roll_no || 'N/A'}</td>
+            <td><strong>${s.name}</strong></td>
+            <td>${s.class_name} ${s.section_name ? '('+s.section_name+')' : ''}</td>
+            <td><span style="font-size:0.85rem; color:var(--text-muted);">${siblingText}</span></td>
+            <td>
+              <select class="form-control val-waiver-type" style="padding:6px; font-size:0.85rem;">
+                <option value="none" ${waiverType === 'none' ? 'selected' : ''}>None</option>
+                <option value="free" ${waiverType === 'free' ? 'selected' : ''}>Free Education</option>
+                <option value="amount" ${waiverType === 'amount' ? 'selected' : ''}>Discount Amount (Rs)</option>
+                <option value="percent" ${waiverType === 'percent' ? 'selected' : ''}>Discount Percent (%)</option>
+              </select>
+            </td>
+            <td>
+              <input type="number" class="form-control val-discount-value" style="padding:6px; font-size:0.85rem; width:80px;" 
+                value="${discountVal}" ${isValDisabled ? 'disabled' : ''}>
+            </td>
+            <td>
+              <input type="number" class="form-control val-transport-fee" style="padding:6px; font-size:0.85rem; width:100px;" 
+                value="${s.transport_fee || 0}">
+            </td>
+            <td>
+              <button class="btn btn-primary btn-sm btn-save-student-fee" data-id="${s.id}">Save</button>
+            </td>
+          </tr>
+        `;
+      });
+
+      // Bind waiver select change to toggle discount input
+      document.querySelectorAll('.val-waiver-type').forEach(sel => {
+        sel.addEventListener('change', (e) => {
+          const row = sel.closest('tr');
+          const type = e.target.value;
+          const valInput = row.querySelector('.val-discount-value');
+          if (type === 'none' || type === 'free') {
+            valInput.value = 0;
+            valInput.disabled = true;
+          } else {
+            valInput.disabled = false;
+          }
+        });
+      });
+
+      // Bind save buttons
+      document.querySelectorAll('.btn-save-student-fee').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-id');
+          const row = btn.closest('tr');
+          const type = row.querySelector('.val-waiver-type').value;
+          const discountVal = parseFloat(row.querySelector('.val-discount-value').value) || 0;
+          const transport_fee = parseFloat(row.querySelector('.val-transport-fee').value) || 0;
+
+          let is_free = 0;
+          let discount_amount = 0;
+          let discount_percent = 0;
+
+          if (type === 'free') {
+            is_free = 1;
+          } else if (type === 'amount') {
+            discount_amount = discountVal;
+          } else if (type === 'percent') {
+            discount_percent = discountVal;
+          }
+
+          try {
+            const res = await apiCall('/fees/student-settings', 'POST', {
+              student_id: id,
+              is_free,
+              discount_amount,
+              discount_percent,
+              transport_fee
+            });
+            showToast(res.message);
+            loadStudentFeeList();
+          } catch (e) {}
+        });
+      });
+
+    } catch (e) {}
+  }
+
+  const btnLoadStudentFeeList = document.getElementById('btn-load-student-fee-list');
+  if (btnLoadStudentFeeList) {
+    btnLoadStudentFeeList.addEventListener('click', loadStudentFeeList);
+  }
+
+  // ==========================================
+  // FEE REMINDER LOGIC (Option 5)
+  // ==========================================
+  const formFeeReminderPdf = document.getElementById('form-fee-reminder-pdf');
+  if (formFeeReminderPdf) {
+    formFeeReminderPdf.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const cls = document.getElementById('reminder-filter-class').value;
+      const sec = document.getElementById('reminder-filter-section').value;
+      const month = document.getElementById('reminder-filter-month').value;
+      const year = document.getElementById('reminder-filter-year').value;
+
+      let url = `/fees/history-management?month=${month}&year=${year}&class_name=${encodeURIComponent(cls)}`;
+      if (sec) url += `&section_name=${encodeURIComponent(sec)}`;
+
+      try {
+        const data = await apiCall(url);
+        
+        // Filter for outstanding balance > 0
+        const unpaid = data.filter(l => {
+          const remaining = l.ledger_id ? (l.total_payable - l.paid_amount) : l.previous_due;
+          return remaining > 0;
+        });
+
+        if (unpaid.length === 0) {
+          showToast('No students with outstanding dues found for selection.', true);
+          return;
+        }
+
+        // Generate print layout
+        let printHtml = `
+          <html>
+            <head>
+              <title>Fee Reminders - ${cls} - ${month} ${year}</title>
+              <style>
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: white; color: black; }
+                .reminder-slip {
+                  border: 2px dashed #000;
+                  padding: 30px;
+                  margin-bottom: 50px;
+                  border-radius: 8px;
+                  page-break-inside: avoid;
+                  background: #fff;
+                }
+                .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
+                .school-name { font-size: 1.8rem; font-weight: bold; text-transform: uppercase; color: #111; letter-spacing: 1px; }
+                .title { font-size: 1.3rem; font-weight: bold; margin-top: 8px; color: #444; }
+                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 25px; font-size: 1.05rem; }
+                .info-item { margin-bottom: 5px; }
+                .info-label { font-weight: bold; color: #333; }
+                .fee-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
+                .fee-table th, .fee-table td { border: 1px solid #000; padding: 10px 14px; text-align: left; font-size: 1rem; }
+                .fee-table th { background: #f2f2f2; font-weight: bold; }
+                .total-row { font-weight: bold; font-size: 1.15rem; background: #e6e6e6 !important; }
+                .footer { margin-top: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
+                .note { font-style: italic; font-size: 0.9rem; color: #444; max-width: 65%; line-height: 1.4; }
+                .signature { text-align: center; border-top: 2px solid #000; width: 180px; padding-top: 8px; font-size: 0.95rem; font-weight: bold; }
+              </style>
+            </head>
+            <body>
+        `;
+        
+        const currentUser = JSON.parse(localStorage.getItem('skyhonix_user'));
+
+        unpaid.forEach(l => {
+          const hasLedger = l.ledger_id !== null;
+          const totalPayable = hasLedger ? l.total_payable : (parseFloat(l.previous_due) || 0);
+          const amountPaid = hasLedger ? l.paid_amount : 0;
+          const remaining = totalPayable - amountPaid;
+
+          printHtml += `
+            <div class="reminder-slip">
+              <div class="header">
+                <div class="school-name">${currentUser.schoolName}</div>
+                <div class="title">MONTHLY FEE REMINDER SLIP</div>
+              </div>
+              <div class="info-grid">
+                <div class="info-item"><span class="info-label">Student Name:</span> ${l.name}</div>
+                <div class="info-item"><span class="info-label">Father's Name:</span> ${l.father_name || '-'}</div>
+                <div class="info-item"><span class="info-label">Class & Sec:</span> ${l.class_name} ${l.section_name ? '(' + l.section_name + ')' : ''}</div>
+                <div class="info-item"><span class="info-label">Roll Number:</span> ${l.roll_no || 'N/A'}</div>
+                <div class="info-item"><span class="info-label">Reminder Month:</span> ${month} ${year}</div>
+                <div class="info-item"><span class="info-label">Ledger Status:</span> ${hasLedger ? l.status : 'Ledger Not Generated'}</div>
+              </div>
+              <table class="fee-table">
+                <thead>
+                  <tr>
+                    <th>Billing Head</th>
+                    <th>Amount (PKR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Tuition / Sibling Base Fee</td>
+                    <td>${hasLedger ? l.monthly_fee.toLocaleString() : '-'}</td>
+                  </tr>
+                  <tr>
+                    <td>Waiver Exception / Discount Applied</td>
+                    <td>${hasLedger ? '-' + l.discount.toLocaleString() : '-'}</td>
+                  </tr>
+                  <tr>
+                    <td>Transport Fare</td>
+                    <td>${hasLedger ? l.transport_fee.toLocaleString() : '-'}</td>
+                  </tr>
+                  <tr>
+                    <td>Prior Carry Forward Balance</td>
+                    <td>${l.previous_due.toLocaleString()}</td>
+                  </tr>
+                  <tr class="total-row">
+                    <td>Total Dues Payable</td>
+                    <td>${remaining.toLocaleString()} PKR</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="footer">
+                <div class="note">
+                  Please Note: If you have already deposited this fee amount, kindly submit the deposit receipt to the school administration office, or ignore this slip.
+                </div>
+                <div class="signature">
+                  Accounts Office
+                </div>
+              </div>
+            </div>
+          `;
+        });
+        
+        printHtml += `
+            </body>
+          </html>
+        `;
+
+        const originalContents = document.body.innerHTML;
+        document.body.innerHTML = printHtml;
+        window.print();
+        window.location.reload();
+
+      } catch (e) {}
+    });
+  }
+
+  // ==========================================
+  // FEE ANALYTICS LOGIC (Option 6)
+  // ==========================================
+  async function refreshFeeAnalytics() {
+    const month = document.getElementById('analytics-filter-month').value;
+    const year = document.getElementById('analytics-filter-year').value;
+
+    try {
+      const data = await apiCall(`/fees/analytics?month=${month}&year=${year}`);
+      const tbody = document.querySelector('#table-analytics-class-summary tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      if (data.classWise.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No data found.</td></tr>';
+        return;
+      }
+
+      data.classWise.forEach(c => {
+        let badgeColor = '#ff5252'; // Poor
+        let statusIcon = '🔴';
+        if (c.status === 'Good') {
+          badgeColor = '#4caf50';
+          statusIcon = '🟢';
+        } else if (c.status === 'Fair') {
+          badgeColor = '#ffb142';
+          statusIcon = '🟡';
+        }
+
+        const isTrendPositive = !c.trend.startsWith('-');
+        const trendIcon = isTrendPositive ? '📈' : '📉';
+        const trendColor = isTrendPositive ? '#4caf50' : '#ff5252';
+
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${c.class_name}</strong></td>
+            <td>${c.total_students}</td>
+            <td style="color:#ff5252; font-weight:500;">${c.total_due.toLocaleString()} Rs</td>
+            <td style="color:#4caf50; font-weight:500;">${c.total_collected.toLocaleString()} Rs</td>
+            <td style="color:#ffb142; font-weight:500;">${c.remaining_balance.toLocaleString()} Rs</td>
+            <td style="color:#2196f3; font-weight:700;">${c.collection_rate}%</td>
+            <td><span style="color:${badgeColor}; font-weight:bold;">${statusIcon} ${c.status}</span></td>
+            <td style="color:${trendColor}; font-weight:500;">${trendIcon} ${c.trend}</td>
+          </tr>
+        `;
+      });
+
+      // Update bottom totals label
+      const sTotals = document.getElementById('analytics-class-summary-totals');
+      if (sTotals) {
+        sTotals.innerHTML = `
+          <span style="color: #ff5252;">Total Due: Rs. ${data.schoolWise.total_due.toLocaleString()}</span>
+          <span style="color: #4caf50;">Total Collected: Rs. ${data.schoolWise.total_collected.toLocaleString()}</span>
+          <span style="color: #ffb142;">Total Remaining: Rs. ${data.schoolWise.total_remaining.toLocaleString()}</span>
+          <span style="color: #2196f3;">Overall Collection: ${data.schoolWise.overall_collection_rate}%</span>
+        `;
+      }
+
+      // Update School-wise Analysis Tab Stats
+      const statSchoolDue = document.getElementById('stat-school-due');
+      if (statSchoolDue) statSchoolDue.innerText = `${data.schoolWise.total_due.toLocaleString()} PKR`;
+      const statSchoolCollected = document.getElementById('stat-school-collected');
+      if (statSchoolCollected) statSchoolCollected.innerText = `${data.schoolWise.total_collected.toLocaleString()} PKR`;
+      const statSchoolRemaining = document.getElementById('stat-school-remaining');
+      if (statSchoolRemaining) statSchoolRemaining.innerText = `${data.schoolWise.total_remaining.toLocaleString()} PKR`;
+      const statSchoolRate = document.getElementById('stat-school-rate');
+      if (statSchoolRate) statSchoolRate.innerText = `${data.schoolWise.overall_collection_rate}%`;
+
+      // Render Chart.js Bar Chart
+      renderAnalyticsChart(data.classWise);
+
+    } catch (e) {}
+  }
+
+  const btnRefreshAnalytics = document.getElementById('btn-refresh-analytics');
+  if (btnRefreshAnalytics) {
+    btnRefreshAnalytics.addEventListener('click', refreshFeeAnalytics);
+  }
+
+  function renderAnalyticsChart(classWiseData) {
+    const chartCanvas = document.getElementById('chart-collection-rate');
+    if (!chartCanvas) return;
+
+    if (collectionChartInstance) {
+      collectionChartInstance.destroy();
+    }
+
+    const ctx = chartCanvas.getContext('2d');
+    const labels = classWiseData.map(c => c.class_name);
+    const dataValues = classWiseData.map(c => c.collection_rate);
+    const backgroundColors = classWiseData.map(c => {
+      if (c.status === 'Good') return 'rgba(76, 175, 80, 0.85)'; // Green
+      if (c.status === 'Fair') return 'rgba(255, 177, 66, 0.85)'; // Orange
+      return 'rgba(255, 82, 82, 0.85)'; // Red
+    });
+    const borderColors = classWiseData.map(c => {
+      if (c.status === 'Good') return '#4caf50';
+      if (c.status === 'Fair') return '#ffb142';
+      return '#ff5252';
+    });
+
+    collectionChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Collection %',
+          data: dataValues,
+          backgroundColor: backgroundColors,
+          borderColor: borderColors,
+          borderWidth: 1.5,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            min: 0,
+            max: 100,
+            grid: {
+              color: 'rgba(255, 255, 255, 0.08)'
+            },
+            ticks: {
+              color: 'rgba(255, 255, 255, 0.6)',
+              callback: function(value) { return value + '%'; }
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            },
+            ticks: {
+              color: 'rgba(255, 255, 255, 0.6)'
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: false
+          }
+        }
+      },
+      plugins: [{
+        id: 'targetLine',
+        afterDraw: (chart) => {
+          const chartCtx = chart.ctx;
+          const yAxis = chart.scales.y;
+          const xAxis = chart.scales.x;
+          const yVal = yAxis.getPixelForValue(80);
+          
+          chartCtx.save();
+          chartCtx.beginPath();
+          chartCtx.strokeStyle = '#4caf50';
+          chartCtx.lineWidth = 2;
+          chartCtx.setLineDash([6, 6]);
+          chartCtx.moveTo(xAxis.left, yVal);
+          chartCtx.lineTo(xAxis.right, yVal);
+          chartCtx.stroke();
+          
+          chartCtx.fillStyle = '#4caf50';
+          chartCtx.font = 'bold 12px sans-serif';
+          chartCtx.fillText('Target (80%)', xAxis.right - 85, yVal - 5);
+          chartCtx.restore();
+        }
+      }]
+    });
+  }
+
+  // Bind sub-tabs inside Fee Analytics (Class-wise, School-wise, Detailed Report)
+  document.querySelectorAll('#fee-panel-fee-analytics .tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const container = btn.closest('.fee-option-panel');
+      container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const targetTab = btn.getAttribute('data-tab');
+      container.querySelectorAll('.tab-content').forEach(content => {
+        if (content.id === `tab-${targetTab}`) {
+          content.style.display = 'block';
+        } else {
+          content.style.display = 'none';
+        }
+      });
+    });
   });
+
+  // Re-bind Transaction Logs filters & list under Detailed Report Analytics
+  const btnLoadLedgerLogs = document.getElementById('btn-load-ledger-logs');
+  if (btnLoadLedgerLogs) {
+    btnLoadLedgerLogs.addEventListener('click', async () => {
+      const cls = document.getElementById('ledger-filter-class').value;
+      const month = document.getElementById('analytics-filter-month').value; // Sync with analytics month
+      const status = document.getElementById('ledger-filter-status').value;
+
+      let endpoint = '/fees/ledger?';
+      if (cls && cls !== 'All Classes') endpoint += `class_name=${encodeURIComponent(cls)}&`;
+      if (month) endpoint += `month=${month}&`;
+      if (status) endpoint += `status=${status}&`;
+
+      try {
+        const list = await apiCall(endpoint);
+        const tbody = document.querySelector('#table-ledger-logs tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="11" style="text-align: center;">No ledger details found.</td></tr>';
+          return;
+        }
+
+        list.forEach(l => {
+          let badge = 'status-unpaid';
+          if (l.status === 'Paid') badge = 'status-present';
+          else if (l.status === 'Partial') badge = 'status-partial';
+
+          tbody.innerHTML += `
+            <tr>
+              <td>${l.roll_no || '-'}</td>
+              <td><strong>${l.student_name}</strong></td>
+              <td>${l.class_name}</td>
+              <td>${l.month} ${l.year}</td>
+              <td>${l.previous_due.toLocaleString()} Rs</td>
+              <td>${l.monthly_fee.toLocaleString()} Rs</td>
+              <td>${l.transport_fee.toLocaleString()} Rs</td>
+              <td><strong>${l.total_payable.toLocaleString()} Rs</strong></td>
+              <td><span style="color:var(--accent); font-weight:700;">${l.amount_paid.toLocaleString()} Rs</span></td>
+              <td>${(l.total_payable - l.amount_paid).toLocaleString()} Rs</td>
+              <td><span class="status-badge ${badge}">${l.status}</span></td>
+            </tr>
+          `;
+        });
+      } catch (e) {}
+    });
+  }
 
 
   // ==========================================

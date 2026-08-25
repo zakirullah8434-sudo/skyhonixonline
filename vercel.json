@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "public/databases/**",
+          "public/uploads/**"
+        ]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/uploads/(.*)",
+      "dest": "server.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "server.js"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "server.js"
+    }
+  ]
+}

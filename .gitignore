@@ -5,7 +5,7 @@ package-lock.json
 
 # Database files (contain sensitive school data)
 *.db
-public/databases/*.db
+!public/databases/*.db
 
 # Environment variables
 .env

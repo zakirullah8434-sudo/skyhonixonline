@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="css/styles.css">
   <!-- HTML5 QR Code Scanner Library (CDN) -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -374,87 +376,58 @@
 
         <!-- ==================== SCREEN: FEES ==================== -->
         <article class="screen-section" id="screen-fees" style="display: none;">
-          <h2 style="margin-bottom: 24px;">Fee Registry Ledger</h2>
-
-          <div class="tab-container">
-            <button class="tab-btn active" data-tab="fee-setup">Class Fees Configuration</button>
-            <button class="tab-btn" data-tab="fee-generator">Monthly Ledger Generator</button>
-            <button class="tab-btn" data-tab="fee-payments">Record Payments</button>
-            <button class="tab-btn" data-tab="fee-ledger-logs">Ledger Transactions</button>
-          </div>
-
-          <!-- Tab: Class Fees setup -->
-          <div class="tab-content" id="tab-fee-setup">
-            <div class="grid-2">
-              <div class="card">
-                <h3>Define Class Tuition Fee</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; margin-top: 8px;">
-                  Define the standard monthly tuition fee for each class. Individual sibling calculations and waivers apply relative to this value.
-                </p>
-                <form id="form-fee-setup">
-                  <div class="form-group">
-                    <label class="form-label">Class Name</label>
-                    <input type="text" class="form-control" id="fee-setup-class" placeholder="e.g. Nursery, 1st, 10th" required>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Monthly Standard Fee (PKR)</label>
-                    <input type="number" class="form-control" id="fee-setup-amount" placeholder="e.g. 1500" required>
-                  </div>
-                  <button type="submit" class="btn btn-primary">Save Fee Rule</button>
-                </form>
+          <!-- Fee Dashboard Main View -->
+          <div id="fees-dashboard-view">
+            <h1 style="text-align: center; color: #4b6cb7; font-family: var(--font-heading); margin-bottom: 35px; font-size: 2.4rem; font-weight: 700; letter-spacing: 0.5px;">Fees Management</h1>
+            
+            <div class="fees-dash-grid">
+              <!-- Card 1: Pay Fee / Payment Entry -->
+              <div class="fees-dash-card card-green" data-opt="pay-fee">
+                <div class="fees-card-title">Pay Fee</div>
+                <div class="fees-card-desc">Payment Entry</div>
               </div>
-
-              <div class="table-container" style="margin-bottom: 0;">
-                <table class="data-table" id="table-fee-setup-rules">
-                  <thead>
-                    <tr>
-                      <th>Class Name</th>
-                      <th>Standard Monthly Fee (PKR)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr><td colspan="2" style="text-align: center; color: var(--text-muted);">Loading configurations...</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- Tab: Fee generator -->
-          <div class="tab-content" id="tab-fee-generator" style="display: none;">
-            <div class="card" style="max-width: 600px; margin: 0 auto;">
-              <h3>Generate Monthly Fee Ledgers</h3>
-              <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 10px; margin-bottom: 24px;">
-                Executing this creates monthly ledger entries for all active students. Sibling mapping checks (family heads), individual tuition exceptions (discounts), and carry forwards of unpaid dues will be calculated automatically.
-              </p>
               
-              <form id="form-fee-generate">
-                <div class="grid-2">
-                  <div class="form-group">
-                    <label class="form-label">Target Month</label>
-                    <select class="form-control" id="fee-gen-month" required>
-                      <option>January</option><option>February</option><option>March</option>
-                      <option>April</option><option>May</option><option>June</option>
-                      <option>July</option><option>August</option><option>September</option>
-                      <option>October</option><option>November</option><option>December</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Target Year</label>
-                    <select class="form-control" id="fee-gen-year" required></select>
-                  </div>
-                </div>
-                
-                <div style="margin-top: 20px;">
-                  <button type="submit" class="btn btn-secondary" style="width: 100%;">Process Ledger Generation</button>
-                </div>
-                <p id="fee-gen-feedback" style="margin-top: 15px; color: var(--accent); display: none; text-align: center;"></p>
-              </form>
+              <!-- Card 2: Fee History (Ledger) / Manage Ledgers -->
+              <div class="fees-dash-card card-blue" data-opt="fee-history">
+                <div class="fees-card-title">Fee History (Ledger)</div>
+                <div class="fees-card-desc">Manage Ledgers</div>
+              </div>
+              
+              <!-- Card 3: Class Fee Manager / Set Monthly Fees -->
+              <div class="fees-dash-card card-orange" data-opt="class-fee">
+                <div class="fees-card-title">Class Fee Manager</div>
+                <div class="fees-card-desc">Set Monthly Fees</div>
+              </div>
+              
+              <!-- Card 4: Student Fee Manager / Set Discounts -->
+              <div class="fees-dash-card card-purple" data-opt="student-fee">
+                <div class="fees-card-title">Student Fee Manager</div>
+                <div class="fees-card-desc">Set Discounts</div>
+              </div>
+              
+              <!-- Card 5: Generate Fee Reminder / Print Slips -->
+              <div class="fees-dash-card card-pink" data-opt="generate-reminder">
+                <div class="fees-card-title">Generate Fee Reminder</div>
+                <div class="fees-card-desc">Print Slips</div>
+              </div>
+              
+              <!-- Card 6: Fee Analytics / View Reports Charts -->
+              <div class="fees-dash-card card-teal" data-opt="fee-analytics">
+                <div class="fees-card-title">Fee Analytics</div>
+                <div class="fees-card-desc">View Reports Charts</div>
+              </div>
             </div>
           </div>
 
-          <!-- Tab: Record payments -->
-          <div class="tab-content" id="tab-fee-payments" style="display: none;">
+          <!-- Option Panels -->
+          
+          <!-- Panel 1: Pay Fee / Payment Entry -->
+          <div id="fee-panel-pay-fee" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-fee-dash">← Back to Fee Dashboard</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">Pay Fee & Payment Entry</h2>
+            
             <div class="card" style="margin-bottom: 24px;">
               <div class="grid-3" style="grid-template-columns: 2fr 1fr 1fr;">
                 <div class="form-group" style="margin-bottom: 0;">
@@ -495,18 +468,30 @@
             </div>
           </div>
 
-          <!-- Tab: Ledger logs -->
-          <div class="tab-content" id="tab-fee-ledger-logs" style="display: none;">
+          <!-- Panel 2: Fee History (Ledger) / Manage Ledgers -->
+          <div id="fee-panel-fee-history" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-fee-dash">← Back to Fee Dashboard</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">Fee History & Ledger Management</h2>
+            
             <div class="card" style="margin-bottom: 24px;">
-              <div class="grid-3">
+              <div class="grid-5" style="grid-template-columns: 1.5fr 1.5fr 1.5fr 1fr 1.5fr; gap: 15px; align-items: flex-end;">
                 <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Class Filter</label>
-                  <select class="form-control" id="ledger-filter-class"></select>
+                  <label class="form-label">Class</label>
+                  <select class="form-control" id="history-filter-class">
+                    <option value="All Classes">All Classes</option>
+                  </select>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Month Filter</label>
-                  <select class="form-control" id="ledger-filter-month">
-                    <option value="">All Months</option>
+                  <label class="form-label">Section</label>
+                  <select class="form-control" id="history-filter-section">
+                    <option value="All Sections">All Sections</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Month</label>
+                  <select class="form-control" id="history-filter-month">
                     <option>January</option><option>February</option><option>March</option>
                     <option>April</option><option>May</option><option>June</option>
                     <option>July</option><option>August</option><option>September</option>
@@ -514,43 +499,343 @@
                   </select>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Payment Status</label>
-                  <select class="form-control" id="ledger-filter-status">
-                    <option value="">All Invoices</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Unpaid">Unpaid</option>
-                    <option value="Partial">Partial</option>
-                  </select>
+                  <label class="form-label">Year</label>
+                  <select class="form-control" id="history-filter-year"></select>
                 </div>
-              </div>
-              <div style="margin-top: 20px;">
-                <button class="btn btn-primary" id="btn-load-ledger-logs">Load Transactions Log</button>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <button class="btn btn-primary" id="btn-load-history-ledger" style="width: 100%;">Load Ledger</button>
+                </div>
               </div>
             </div>
 
+            <!-- Action Buttons for History -->
+            <div style="margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap;">
+              <button class="btn btn-success" id="btn-generate-bulk-ledger">Generate Fee Ledger for Selected Month</button>
+              <button class="btn" id="btn-save-history-dues" style="background-color:#d97706; color:white;">Save Changes (Dues)</button>
+              <button class="btn btn-danger" id="btn-delete-bulk-ledger">Delete Monthly Ledger</button>
+            </div>
+
             <div class="table-container">
-              <table class="data-table" id="table-ledger-logs">
+              <table class="data-table" id="table-history-ledgers">
                 <thead>
                   <tr>
-                    <th>Roll</th>
-                    <th>Student Name</th>
-                    <th>Class</th>
-                    <th>Billing Month</th>
-                    <th>Previous Dues</th>
+                    <th>Student ID</th>
+                    <th>Roll No</th>
+                    <th>Name</th>
+                    <th>Father Name</th>
+                    <th>Base Fee</th>
+                    <th>Discount</th>
+                    <th>Transport Fee</th>
                     <th>Monthly Fee</th>
-                    <th>Transport</th>
+                    <th style="background-color: rgba(0, 229, 255, 0.2); color: #fff; text-align: center;">Previous Due</th>
                     <th>Total Payable</th>
-                    <th>Amount Paid</th>
-                    <th>Remaining Dues</th>
+                    <th>Paid</th>
                     <th>Status</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td colspan="11" style="text-align: center; color: var(--text-muted);">Please filter and load logs...</td></tr>
+                  <tr><td colspan="13" style="text-align: center; color: var(--text-muted);">Select filters and click Load Ledger...</td></tr>
                 </tbody>
               </table>
             </div>
           </div>
+
+          <!-- Panel 3: Class Fee Manager / Set Monthly Fees -->
+          <div id="fee-panel-class-fee" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-fee-dash">← Back to Fee Dashboard</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">Class Fee Manager</h2>
+            
+            <div class="grid-2">
+              <div class="card">
+                <h3>Define Class Tuition Fee</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; margin-top: 8px;">
+                  Define the standard monthly tuition fee for each class. Individual sibling calculations and waivers apply relative to this value.
+                </p>
+                <form id="form-fee-setup">
+                  <div class="form-group">
+                    <label class="form-label">Class Name</label>
+                    <input type="text" class="form-control" id="fee-setup-class" placeholder="e.g. Nursery, 1st, 10th" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Monthly Standard Fee (PKR)</label>
+                    <input type="number" class="form-control" id="fee-setup-amount" placeholder="e.g. 1500" required>
+                  </div>
+                  <button type="submit" class="btn btn-primary">Save Fee Rule</button>
+                </form>
+              </div>
+
+              <div class="table-container" style="margin-bottom: 0;">
+                <table class="data-table" id="table-fee-setup-rules">
+                  <thead>
+                    <tr>
+                      <th>Class Name</th>
+                      <th>Standard Monthly Fee (PKR)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="2" style="text-align: center; color: var(--text-muted);">Loading configurations...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 4: Student Fee Manager / Set Discounts -->
+          <div id="fee-panel-student-fee" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-fee-dash">← Back to Fee Dashboard</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">Student Fee & Waiver Manager</h2>
+            
+            <div class="card" style="margin-bottom: 24px;">
+              <div class="grid-4" style="grid-template-columns: 1.5fr 1.5fr 2fr 1.5fr; gap: 15px; align-items: flex-end;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Class Filter</label>
+                  <select class="form-control" id="student-fee-class">
+                    <option value="All Classes">All Classes</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Section Filter</label>
+                  <select class="form-control" id="student-fee-section">
+                    <option value="All Sections">All Sections</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Search Student</label>
+                  <input type="text" class="form-control" id="student-fee-search" placeholder="Type roll or name...">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <button class="btn btn-primary" id="btn-load-student-fee-list" style="width: 100%;">Load Students</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table" id="table-student-fee-list">
+                <thead>
+                  <tr>
+                    <th>Roll No</th>
+                    <th>Student Name</th>
+                    <th>Class / Section</th>
+                    <th>Sibling Status</th>
+                    <th>Tuition Waiver</th>
+                    <th>Discount Value</th>
+                    <th>Transport Fee (PKR)</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Please load students list...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Panel 5: Generate Fee Reminder / Print Slips -->
+          <div id="fee-panel-generate-reminder" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-fee-dash">← Back to Fee Dashboard</button>
+            </div>
+            
+            <div class="card" style="max-width: 500px; margin: 0 auto; padding: 30px;">
+              <h2 style="text-align: center; margin-bottom: 24px; font-weight:700;">Generate Fee Reminders</h2>
+              
+              <form id="form-fee-reminder-pdf">
+                <div class="form-group">
+                  <label class="form-label">Select Class:</label>
+                  <select class="form-control" id="reminder-filter-class" required>
+                    <option value="">-- Select Class --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Select Section:</label>
+                  <select class="form-control" id="reminder-filter-section">
+                    <option value="">-- All Sections --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Select Month:</label>
+                  <select class="form-control" id="reminder-filter-month" required>
+                    <option>January</option><option>February</option><option>March</option>
+                    <option>April</option><option>May</option><option>June</option>
+                    <option>July</option><option>August</option><option>September</option>
+                    <option>October</option><option>November</option><option>December</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Select Year:</label>
+                  <select class="form-control" id="reminder-filter-year" required></select>
+                </div>
+                
+                <div style="margin-top: 24px;">
+                  <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight:700; font-size:1rem;">Generate PDF</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Panel 6: Fee Analytics / View Reports Charts -->
+          <div id="fee-panel-fee-analytics" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-fee-dash">← Back to Fee Dashboard</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">Fee Collection Analytics Dashboard</h2>
+
+            <div class="tab-container" style="margin-bottom: 20px;">
+              <button class="tab-btn active" data-tab="analytics-class">Class-wise Analysis</button>
+              <button class="tab-btn" data-tab="analytics-school">School-wise Analysis</button>
+              <button class="tab-btn" data-tab="analytics-report">Detailed Report</button>
+            </div>
+
+            <!-- Analytics Filter Section -->
+            <div class="card" style="margin-bottom: 24px;">
+              <div class="grid-3" style="grid-template-columns: 1.5fr 1.5fr 1fr; gap: 15px; align-items: flex-end;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Month:</label>
+                  <select class="form-control" id="analytics-filter-month">
+                    <option>January</option><option>February</option><option>March</option>
+                    <option>April</option><option>May</option><option>June</option>
+                    <option>July</option><option>August</option><option>September</option>
+                    <option>October</option><option>November</option><option>December</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Year:</label>
+                  <select class="form-control" id="analytics-filter-year"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <button class="btn btn-primary" id="btn-refresh-analytics" style="width: 100%;">
+                    🔄 Refresh
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab Contents for Analytics -->
+            
+            <!-- Tab Content: Class-wise Analysis -->
+            <div class="tab-content" id="tab-analytics-class">
+              <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px;">
+                
+                <div>
+                  <h3 style="margin-bottom: 15px;">📊 Class-wise Collection Summary</h3>
+                  <div class="table-container" style="max-height: 420px; overflow-y: auto;">
+                    <table class="data-table" id="table-analytics-class-summary">
+                      <thead>
+                        <tr>
+                          <th>Class</th>
+                          <th>Total Student</th>
+                          <th>Total Due</th>
+                          <th>Amount Collected</th>
+                          <th>Remaining Balance</th>
+                          <th>Collection %</th>
+                          <th>Status</th>
+                          <th>Trend</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Click Refresh to load...</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <!-- Totals under the table -->
+                  <div id="analytics-class-summary-totals" style="margin-top: 15px; font-weight: bold; font-size: 0.95rem; display: flex; flex-wrap: wrap; gap: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 6px;">
+                    <span style="color: #ff5252;">Total Due: Rs. 0</span>
+                    <span style="color: #4caf50;">Total Collected: Rs. 0</span>
+                    <span style="color: #ffb142;">Total Remaining: Rs. 0</span>
+                    <span style="color: #2196f3;">Overall Collection: 0%</span>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 style="margin-bottom: 15px;">📈 Collection Rate by Class</h3>
+                  <div class="card" style="padding: 15px; display: flex; justify-content: center; align-items: center; min-height: 350px; background: rgba(0,0,0,0.2);">
+                    <canvas id="chart-collection-rate" width="400" height="300"></canvas>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Tab Content: School-wise Analysis -->
+            <div class="tab-content" id="tab-analytics-school" style="display: none;">
+              <div class="card" style="max-width: 600px; margin: 0 auto; text-align: center; padding: 30px;">
+                <h3>School Overall Collection Report</h3>
+                <div style="margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                  <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px;">
+                    <h4 style="color: var(--text-muted); font-size: 0.9rem;">Total Monthly Target Dues</h4>
+                    <p id="stat-school-due" style="font-size: 1.8rem; font-weight: bold; color: #ff5252; margin-top: 5px;">0 PKR</p>
+                  </div>
+                  <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px;">
+                    <h4 style="color: var(--text-muted); font-size: 0.9rem;">Total Amount Collected</h4>
+                    <p id="stat-school-collected" style="font-size: 1.8rem; font-weight: bold; color: #4caf50; margin-top: 5px;">0 PKR</p>
+                  </div>
+                  <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px;">
+                    <h4 style="color: var(--text-muted); font-size: 0.9rem;">Total Outstanding Balance</h4>
+                    <p id="stat-school-remaining" style="font-size: 1.8rem; font-weight: bold; color: #ffb142; margin-top: 5px;">0 PKR</p>
+                  </div>
+                  <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px;">
+                    <h4 style="color: var(--text-muted); font-size: 0.9rem;">Overall Collection Rate</h4>
+                    <p id="stat-school-rate" style="font-size: 1.8rem; font-weight: bold; color: #2196f3; margin-top: 5px;">0%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab Content: Detailed Report -->
+            <div class="tab-content" id="tab-analytics-report" style="display: none;">
+              <div class="card" style="margin-bottom: 24px;">
+                <h3>Detailed Transaction Log Filters</h3>
+                <div class="grid-3" style="margin-top: 15px;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Class Filter</label>
+                    <select class="form-control" id="ledger-filter-class"></select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Payment Status</label>
+                    <select class="form-control" id="ledger-filter-status">
+                      <option value="">All Invoices</option>
+                      <option value="Paid">Paid</option>
+                      <option value="Unpaid">Unpaid</option>
+                      <option value="Partial">Partial</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
+                    <button class="btn btn-primary" id="btn-load-ledger-logs" style="width: 100%;">Load Transactions Log</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="table-container">
+                <table class="data-table" id="table-ledger-logs">
+                  <thead>
+                    <tr>
+                      <th>Roll</th>
+                      <th>Student Name</th>
+                      <th>Class</th>
+                      <th>Billing Month</th>
+                      <th>Previous Dues</th>
+                      <th>Monthly Fee</th>
+                      <th>Transport</th>
+                      <th>Total Payable</th>
+                      <th>Amount Paid</th>
+                      <th>Remaining Dues</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="11" style="text-align: center; color: var(--text-muted);">Please filter and load logs...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
         </article>
 
         <!-- ==================== SCREEN: EXAMS ==================== -->

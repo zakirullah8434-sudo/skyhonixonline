@@ -842,3 +842,145 @@ h1, h2, h3, h4, h5, h6 {
   border-color: var(--primary);
   outline: none;
 }
+
+/* ==========================================================================
+   MODULE: FEES MANAGEMENT DASHBOARD & VIEW PANELS
+   ========================================================================== */
+
+.fees-dash-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 25px;
+  margin-top: 20px;
+}
+
+@media (max-width: 900px) {
+  .fees-dash-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .fees-dash-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fees-dash-card {
+  border-radius: 16px;
+  padding: 40px 24px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 160px;
+  user-select: none;
+}
+
+.fees-dash-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  filter: brightness(1.1);
+}
+
+.fees-card-title {
+  font-size: 1.45rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  font-family: var(--font-heading);
+}
+
+.fees-card-desc {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Card Gradient Themes */
+.card-green {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.card-blue {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.card-orange {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+.card-purple {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+.card-pink {
+  background: linear-gradient(135deg, #db2777 0%, #c11574 100%);
+}
+
+.card-teal {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+}
+
+/* Option view sub-panels */
+.fee-option-panel {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.btn-back-fee-dash {
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 8px 16px;
+  border-radius: 8px;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-back-fee-dash:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Previous dues editable field */
+.editable-due-input {
+  width: 95px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  font-weight: 700;
+  text-align: center;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  background-color: #00e5ff !important; /* cyan for missing ledger */
+  color: #000000 !important;
+}
+
+.editable-due-input.has-ledger {
+  background-color: #ffeb3b !important; /* yellow for generated ledger */
+  color: #000000 !important;
+}
+
+.editable-due-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.3);
+  border-color: #2196f3;
+}
+
+/* Printing styles for reminders */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}
+

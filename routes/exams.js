@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('./auth');
 const { querySchool, querySchoolOne, runSchool, runSchoolTransaction } = require('../database_manager');
+const syncManager = require('../sync_manager');
 
 // GET /exams - Get list of exams
 router.get('/', authenticateToken, async (req, res) => {
@@ -156,6 +157,8 @@ router.post('/marks', authenticateToken, async (req, res) => {
   }
 
   try {
+    const affectedStudents = [];
+
     for (const entry of marksList) {
       const marksVal = entry.marks === '' ? null : parseInt(entry.marks);
 
@@ -167,19 +170,7 @@ router.post('/marks', authenticateToken, async (req, res) => {
           [entry.student_id, parseInt(exam_id), subject, term]
         );
       } else {
-        // Upsert marks
-        await runSchool(
-          schoolId,
-          `INSERT INTO marks (student_id, exam_id, subject, marks, term)
-           VALUES (?, ?, ?, ?, ?)
-           ON CONFLICT(student_id, exam_id, subject, term) DO UPDATE SET marks = excluded.marks`,
-          // Wait, SQLite doesn't have a unique constraint on marks(student_id, exam_id, subject, term) in the original schema!
-          // Ah, is there a unique index in the marks table? Let's check:
-          // The database schema created: CREATE TABLE IF NOT EXISTS marks (id INTEGER PRIMARY KEY AUTOINCREMENT, student_id INTEGER, exam_id INTEGER, subject TEXT, marks INTEGER, term TEXT DEFAULT '1st Term')
-          // No unique index was defined!
-          // So we should delete the existing record first and insert to avoid duplicate marks!
-        );
-        // Let's safe-insert:
+        // Safe-insert: delete then insert to avoid duplicates
         await runSchool(
           schoolId,
           'DELETE FROM marks WHERE student_id = ? AND exam_id = ? AND subject = ? AND term = ?',
@@ -191,8 +182,26 @@ router.post('/marks', authenticateToken, async (req, res) => {
           [entry.student_id, parseInt(exam_id), subject, marksVal, term]
         );
       }
+
+      affectedStudents.push(entry.student_id);
+
+      // SYNC: Emit marks update event for each student affected
+      await syncManager.onMarksUpdated(
+        schoolId,
+        entry.student_id,
+        parseInt(exam_id),
+        subject,
+        null, // oldMarks not tracked for this version
+        marksVal
+      );
     }
-    res.json({ message: 'Marks saved successfully!' });
+
+    res.json({
+      message: 'Marks saved successfully!',
+      syncEvent: 'results.marks.updated',
+      affectedStudents,
+      needsRecalculation: true
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -360,7 +369,17 @@ router.post('/calculate', authenticateToken, async (req, res) => {
       }
     }
 
-    res.json({ message: 'Result calculations completed successfully!' });
+    // SYNC: Emit results calculated event to cascade updates to analytics, dashboard, and DMCs
+    const affectedClasses = class_name ? [class_name] : classes;
+    await syncManager.onResultsCalculated(schoolId, affectedClasses, term, parseInt(exam_id));
+
+    res.json({
+      message: 'Result calculations completed successfully!',
+      syncEvent: 'results.calculated',
+      affectedClasses,
+      term,
+      examId: parseInt(exam_id)
+    });
   } catch (err) {
     console.error('Calculation error:', err);
     res.status(500).json({ error: 'Failed to calculate results: ' + err.message });

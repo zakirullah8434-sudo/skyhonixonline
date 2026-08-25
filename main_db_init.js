@@ -63,7 +63,7 @@ function initMainDb() {
           )
         `);
 
-        // Create admin users table
+        // Create admin users table and seed default admin
         db.run(`
           CREATE TABLE IF NOT EXISTS admin_users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,32 +73,48 @@ function initMainDb() {
             created_at TEXT,
             last_login TEXT
           )
-        `, async (err) => {
-          if (!err) {
-            // Check if default admin exists, if not create one
-            db.get('SELECT id FROM admin_users WHERE email = ?', ['skyhonix56@gmail.com'], async (err, row) => {
-              if (!row) {
-                try {
-                  const salt = await bcrypt.genSalt(10);
-                  const hashedPassword = await bcrypt.hash('skyhonixthegreat', salt);
-                  db.run(
-                    'INSERT INTO admin_users (email, password, name, created_at) VALUES (?, ?, ?, ?)',
-                    ['skyhonix56@gmail.com', hashedPassword, 'Master Admin', new Date().toISOString()],
-                    (err) => {
-                      if (err) console.error('Error creating default admin:', err);
-                      else console.log('Default admin user created: skyhonix56@gmail.com / skyhonixthegreat');
-                    }
-                  );
-                } catch (hashErr) {
-                  console.error('Error hashing admin password:', hashErr);
-                }
-              }
-            });
+        `, (err) => {
+          if (err) {
+            console.error('Error creating admin_users table:', err);
+            db.close(() => reject(err));
+            return;
           }
-        });
 
-        console.log('main.db initialized successfully.');
-        db.close(resolve);
+          // Check if default admin exists
+          db.get('SELECT id FROM admin_users WHERE email = ?', ['skyhonix56@gmail.com'], async (getErr, row) => {
+            if (getErr) {
+              console.error('Error checking default admin:', getErr);
+              db.close(() => reject(getErr));
+              return;
+            }
+
+            if (!row) {
+              try {
+                const salt = await bcrypt.genSalt(10);
+                const hashedPassword = await bcrypt.hash('skyhonixthegreat', salt);
+                db.run(
+                  'INSERT INTO admin_users (email, password, name, created_at) VALUES (?, ?, ?, ?)',
+                  ['skyhonix56@gmail.com', hashedPassword, 'Master Admin', new Date().toISOString()],
+                  (insertErr) => {
+                    if (insertErr) {
+                      console.error('Error creating default admin:', insertErr);
+                    } else {
+                      console.log('Default admin user created: skyhonix56@gmail.com / skyhonixthegreat');
+                    }
+                    console.log('main.db initialized successfully.');
+                    db.close(resolve);
+                  }
+                );
+              } catch (hashErr) {
+                console.error('Error hashing admin password:', hashErr);
+                db.close(() => reject(hashErr));
+              }
+            } else {
+              console.log('main.db initialized successfully.');
+              db.close(resolve);
+            }
+          });
+        });
       });
     });
   });
