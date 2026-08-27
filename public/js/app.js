@@ -2552,8 +2552,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const include_logo = document.getElementById('rollno-include-logo').value;
       const include_qr = document.getElementById('rollno-include-qr').value;
       const per_page = document.getElementById('rollno-per-page').value;
-      const instructions = document.getElementById('rollno-instructions').value.trim();
       const signFile = document.getElementById('rollno-principal-sign').files[0];
+
+      // Collect selected predefined instructions + custom text
+      const checkedInst = [];
+      document.querySelectorAll('.rollno-inst-check:checked').forEach(cb => checkedInst.push(cb.value));
+      const customInst = document.getElementById('rollno-instructions').value.trim();
+      if (customInst) checkedInst.push(customInst);
+      const instructions = checkedInst.join('. ') + (checkedInst.length > 0 ? '.' : '');
 
       let principal_sign = '';
       if (signFile) {

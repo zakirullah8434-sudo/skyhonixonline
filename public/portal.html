@@ -1114,8 +1114,22 @@
                     </div>
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Instructions (optional)</label>
-                    <textarea class="form-control" id="rollno-instructions" rows="3" placeholder="e.g. Bring your own pen. No electronic devices allowed."></textarea>
+                    <label class="form-label">Instructions</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px; padding: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;">
+                      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                        <input type="checkbox" class="rollno-inst-check" value="Bring your own pen."> <span>Bring your own pen.</span>
+                      </label>
+                      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                        <input type="checkbox" class="rollno-inst-check" value="No electronic devices allowed."> <span>No electronic devices allowed.</span>
+                      </label>
+                      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                        <input type="checkbox" class="rollno-inst-check" value="Dues must be cleared before exam."> <span>Dues must be cleared before exam.</span>
+                      </label>
+                      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                        <input type="checkbox" class="rollno-inst-check" value="All students must be uniformed."> <span>All students must be uniformed.</span>
+                      </label>
+                    </div>
+                    <textarea class="form-control" id="rollno-instructions" rows="2" placeholder="Write additional instructions (optional)" style="margin-top: 8px;"></textarea>
                   </div>
                   <div class="form-group">
                     <label class="form-label">Principal Signature Image (optional)</label>
