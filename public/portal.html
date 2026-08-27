@@ -84,7 +84,7 @@
           <a href="#" class="sidebar-menu-link">💰 Fees & Ledger</a>
         </li>
         <li class="sidebar-menu-item" data-screen="exams">
-          <a href="#" class="sidebar-menu-link">📝 Exams & DMCs</a>
+          <a href="#" class="sidebar-menu-link">📝 Exam</a>
         </li>
         <li class="sidebar-menu-item" data-screen="settings">
           <a href="#" class="sidebar-menu-link">⚙️ Portal Settings</a>
@@ -840,17 +840,55 @@
 
         <!-- ==================== SCREEN: EXAMS ==================== -->
         <article class="screen-section" id="screen-exams" style="display: none;">
-          <h2 style="margin-bottom: 24px;">Exams, Marks, & DMCs</h2>
-
-          <div class="tab-container">
-            <button class="tab-btn active" data-tab="exam-setup">Setup Exam & Subjects</button>
-            <button class="tab-btn" data-tab="exam-marks">Marks Spreadsheet Grid</button>
-            <button class="tab-btn" data-tab="exam-calculate">Result Calculator</button>
-            <button class="tab-btn" data-tab="exam-dmc">Student DMCs Portal</button>
+          <!-- Exam Dashboard Main View -->
+          <div id="exam-dashboard-view">
+            <h1 style="text-align: center; color: #4b6cb7; font-family: var(--font-heading); margin-bottom: 35px; font-size: 2.4rem; font-weight: 700; letter-spacing: 0.5px;">Exam Management</h1>
+            
+            <div class="fees-dash-grid">
+              <!-- Card 1: Setup Exam -->
+              <div class="fees-dash-card card-green" data-opt="exam-setup">
+                <div class="fees-card-title">Setup Exam</div>
+                <div class="fees-card-desc">Create Exam & Subjects</div>
+              </div>
+              
+              <!-- Card 2: Marks Entry -->
+              <div class="fees-dash-card card-blue" data-opt="exam-marks">
+                <div class="fees-card-title">Marks Entry</div>
+                <div class="fees-card-desc">Marks Spreadsheet Grid</div>
+              </div>
+              
+              <!-- Card 3: Date Sheet -->
+              <div class="fees-dash-card card-orange" data-opt="exam-datesheet">
+                <div class="fees-card-title">Date Sheet</div>
+                <div class="fees-card-desc">Design & Generate</div>
+              </div>
+              
+              <!-- Card 4: Roll No Slip -->
+              <div class="fees-dash-card card-purple" data-opt="exam-rollno">
+                <div class="fees-card-title">Roll No Slip</div>
+                <div class="fees-card-desc">Design & Print Slips</div>
+              </div>
+              
+              <!-- Card 5: Calculate Result -->
+              <div class="fees-dash-card card-pink" data-opt="exam-calculate">
+                <div class="fees-card-title">Calculate Result</div>
+                <div class="fees-card-desc">Grade & Rank Students</div>
+              </div>
+              
+              <!-- Card 6: Result Card -->
+              <div class="fees-dash-card card-teal" data-opt="exam-resultcard">
+                <div class="fees-card-title">Result Card</div>
+                <div class="fees-card-desc">View & Print DMC</div>
+              </div>
+            </div>
           </div>
 
-          <!-- Tab: Exam and subjects setup -->
-          <div class="tab-content" id="tab-exam-setup">
+          <!-- ========== Option Panel: Setup Exam ========== -->
+          <div id="exam-panel-exam-setup" class="exam-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-exam-dash">&larr; Back to Exam Dashboard</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">Setup Exam & Subjects</h2>
             <div class="grid-2">
               <div class="card">
                 <h3>Create Exam Registry</h3>
@@ -933,8 +971,12 @@
             </div>
           </div>
 
-          <!-- Tab: Marks spreadsheet grid -->
-          <div class="tab-content" id="tab-exam-marks" style="display: none;">
+          <!-- ========== Option Panel: Marks Entry ========== -->
+          <div id="exam-panel-exam-marks" class="exam-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-exam-dash">&larr; Back to Exam Dashboard</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">Marks Entry Spreadsheet</h2>
             <div class="card" style="margin-bottom: 24px;">
               <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
                 <div class="form-group" style="margin-bottom: 0;">
@@ -986,8 +1028,194 @@
             </div>
           </div>
 
-          <!-- Tab: Result Calculator -->
-          <div class="tab-content" id="tab-exam-calculate" style="display: none;">
+          <!-- ========== Option Panel: Date Sheet ========== -->
+          <div id="exam-panel-exam-datesheet" class="exam-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-exam-dash">&larr; Back to Exam Dashboard</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">Date Sheet</h2>
+
+            <div class="tab-container">
+              <button class="tab-btn active" data-tab="datesheet-design">Date Sheet Designer</button>
+              <button class="tab-btn" data-tab="datesheet-generate">Generate Date Sheet</button>
+            </div>
+
+            <!-- Sub-Tab: Date Sheet Designer -->
+            <div class="tab-content" id="tab-datesheet-design">
+              <div class="card" style="max-width: 700px; margin: 0 auto;">
+                <h3>Design Exam Date Sheet</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                  Create date sheet templates with exam dates, times, and subjects for each class.
+                </p>
+                <form id="form-datesheet-design">
+                  <div class="grid-2">
+                    <div class="form-group">
+                      <label class="form-label">Template Name</label>
+                      <input type="text" class="form-control" id="datesheet-template-name" placeholder="e.g. Mid Term 2026" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Exam</label>
+                      <select class="form-control" id="datesheet-exam-select" required></select>
+                    </div>
+                  </div>
+                  <div class="grid-2">
+                    <div class="form-group">
+                      <label class="form-label">Class</label>
+                      <select class="form-control" id="datesheet-class-select" required></select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Term</label>
+                      <select class="form-control" id="datesheet-term-select" required>
+                        <option>1st Term</option><option>2nd Term</option><option>Final</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style="margin-top: 15px;">
+                    <button type="button" class="btn btn-primary" id="btn-add-datesheet-row">+ Add Subject Row</button>
+                  </div>
+                  <div id="datesheet-rows-container" style="margin-top: 15px;"></div>
+                  <button type="submit" class="btn btn-secondary" style="margin-top: 20px; width: 100%;">Save Date Sheet Template</button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Sub-Tab: Generate Date Sheet -->
+            <div class="tab-content" id="tab-datesheet-generate" style="display: none;">
+              <div class="card" style="max-width: 700px; margin: 0 auto;">
+                <h3>Generate & Print Date Sheet</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                  Select a saved date sheet template to view and print.
+                </p>
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Select Template</label>
+                    <select class="form-control" id="datesheet-gen-template"></select>
+                  </div>
+                  <div class="form-group" style="display: flex; align-items: flex-end;">
+                    <button class="btn btn-primary" id="btn-load-datesheet" style="width: 100%;">Load Date Sheet</button>
+                  </div>
+                </div>
+              </div>
+              <div id="datesheet-preview" style="display: none; margin-top: 24px;">
+                <div class="card" style="padding: 30px; background: white; color: black;">
+                  <div id="datesheet-printable-content"></div>
+                </div>
+                <div style="text-align: center; margin-top: 20px;">
+                  <button class="btn btn-secondary" id="btn-print-datesheet">Print Date Sheet</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========== Option Panel: Roll No Slip ========== -->
+          <div id="exam-panel-exam-rollno" class="exam-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-exam-dash">&larr; Back to Exam Dashboard</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">Roll No Slip</h2>
+
+            <div class="tab-container">
+              <button class="tab-btn active" data-tab="rollno-design">Roll No Slip Design</button>
+              <button class="tab-btn" data-tab="rollno-generate">Generate Roll No Slip</button>
+            </div>
+
+            <!-- Sub-Tab: Roll No Slip Design -->
+            <div class="tab-content" id="tab-rollno-design">
+              <div class="card" style="max-width: 700px; margin: 0 auto;">
+                <h3>Design Roll Number Slip Template</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                  Configure the layout and fields for roll number slips.
+                </p>
+                <form id="form-rollno-design">
+                  <div class="grid-2">
+                    <div class="form-group">
+                      <label class="form-label">Template Name</label>
+                      <input type="text" class="form-control" id="rollno-template-name" placeholder="e.g. Standard Slip" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Exam</label>
+                      <select class="form-control" id="rollno-exam-select" required></select>
+                    </div>
+                  </div>
+                  <div class="grid-2">
+                    <div class="form-group">
+                      <label class="form-label">Class</label>
+                      <select class="form-control" id="rollno-class-select" required></select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Term</label>
+                      <select class="form-control" id="rollno-term-select" required>
+                        <option>1st Term</option><option>2nd Term</option><option>Final</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="grid-3">
+                    <div class="form-group">
+                      <label class="form-label">Include School Logo</label>
+                      <select class="form-control" id="rollno-include-logo">
+                        <option value="1">Yes</option>
+                        <option value="0">No</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Include QR Code</label>
+                      <select class="form-control" id="rollno-include-qr">
+                        <option value="1">Yes</option>
+                        <option value="0">No</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Slips Per Page</label>
+                      <select class="form-control" id="rollno-per-page">
+                        <option value="3">3 per page</option>
+                        <option value="4">4 per page</option>
+                        <option value="6">6 per page</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-secondary" style="margin-top: 20px; width: 100%;">Save Slip Template</button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Sub-Tab: Generate Roll No Slip -->
+            <div class="tab-content" id="tab-rollno-generate" style="display: none;">
+              <div class="card" style="max-width: 700px; margin: 0 auto;">
+                <h3>Generate & Print Roll No Slips</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                  Select class and exam to generate roll number slips for all students.
+                </p>
+                <div class="grid-3">
+                  <div class="form-group">
+                    <label class="form-label">Class</label>
+                    <select class="form-control" id="rollno-gen-class" required></select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Exam</label>
+                    <select class="form-control" id="rollno-gen-exam" required></select>
+                  </div>
+                  <div class="form-group" style="display: flex; align-items: flex-end;">
+                    <button class="btn btn-primary" id="btn-generate-rollno-slips" style="width: 100%;">Generate Slips</button>
+                  </div>
+                </div>
+              </div>
+              <div id="rollno-preview" style="display: none; margin-top: 24px;">
+                <div class="card" style="padding: 30px; background: white; color: black;">
+                  <div id="rollno-printable-content"></div>
+                </div>
+                <div style="text-align: center; margin-top: 20px;">
+                  <button class="btn btn-secondary" id="btn-print-rollno">Print Roll No Slips</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========== Option Panel: Calculate Result ========== -->
+          <div id="exam-panel-exam-calculate" class="exam-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-exam-dash">&larr; Back to Exam Dashboard</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">Calculate Result</h2>
             <div class="card" style="max-width: 600px; margin: 0 auto;">
               <h3>Process Term-wise Results</h3>
               <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 10px; margin-bottom: 24px;">
@@ -1029,8 +1257,12 @@
             </div>
           </div>
 
-          <!-- Tab: DMC portal -->
-          <div class="tab-content" id="tab-exam-dmc" style="display: none;">
+          <!-- ========== Option Panel: Result Card (DMC) ========== -->
+          <div id="exam-panel-exam-resultcard" class="exam-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-exam-dash">&larr; Back to Exam Dashboard</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">Result Card</h2>
             <div class="grid-2" style="grid-template-columns: 1fr 2fr;">
               <!-- Student selector -->
               <div class="card" style="display: flex; flex-direction: column; max-height: 80vh;">
@@ -1054,11 +1286,11 @@
                 </div>
               </div>
 
-              <!-- DMC view and Print -->
+              <!-- Result Card view and Print -->
               <div class="card" id="dmc-display-container">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                  <h3>Detailed Marks Certificate (DMC)</h3>
-                  <button class="btn btn-outline btn-sm" id="btn-print-dmc" style="display: none;">🖨️ Print DMC</button>
+                  <h3>Result Card (DMC)</h3>
+                  <button class="btn btn-outline btn-sm" id="btn-print-dmc" style="display: none;">Print Result Card</button>
                 </div>
 
                 <div class="form-group" style="max-width: 400px; display: flex; gap: 15px;">
@@ -1066,7 +1298,7 @@
                   <select class="form-control" id="dmc-select-term">
                     <option>1st Term</option><option>2nd Term</option><option>Final</option>
                   </select>
-                  <button class="btn btn-primary btn-sm" id="btn-load-dmc-report">Load DMC</button>
+                  <button class="btn btn-primary btn-sm" id="btn-load-dmc-report">Load Result Card</button>
                 </div>
 
                 <!-- Printable Certificate Container -->

@@ -316,7 +316,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Tabs layout navigation inside screens
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const container = btn.closest('.screen-section');
+      // Scope tabs to the closest panel container (exam-option-panel or fee-option-panel) or screen-section
+      const container = btn.closest('.exam-option-panel') || btn.closest('.fee-option-panel') || btn.closest('.screen-section');
       
       // Toggle button active
       container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -422,11 +423,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const historyFilterClass = document.getElementById('history-filter-class');
       const studentFeeClass = document.getElementById('student-fee-class');
       const reminderFilterClass = document.getElementById('reminder-filter-class');
+      const datesheetClassSelect = document.getElementById('datesheet-class-select');
+      const rollnoClassSelect = document.getElementById('rollno-class-select');
+      const rollnoGenClass = document.getElementById('rollno-gen-class');
 
       const selects = [
         filterClass, attClassSelect, attHistoryClass, ledgerFilterClass,
         subClassSelect, viewSubClass, marksSelectClass, calcClassSelect,
-        historyFilterClass, studentFeeClass, reminderFilterClass
+        historyFilterClass, studentFeeClass, reminderFilterClass,
+        datesheetClassSelect, rollnoClassSelect, rollnoGenClass
       ];
 
       selects.forEach(sel => {
@@ -1949,14 +1954,61 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ==========================================
-  // MODULE: EXAMS, MARKS & DMCS
+  // MODULE: EXAMS, MARKS & RESULT CARDS
   // ==========================================
+
+  // Exam Dashboard: reset to show dashboard view
+  function resetExamPanels() {
+    const dash = document.getElementById('exam-dashboard-view');
+    if (dash) dash.style.display = 'block';
+    document.querySelectorAll('.exam-option-panel').forEach(panel => {
+      panel.style.display = 'none';
+    });
+  }
+
+  // Dashboard card clicks to show target panel
+  document.querySelectorAll('#screen-exams .fees-dash-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const targetOpt = card.getAttribute('data-opt');
+      const dash = document.getElementById('exam-dashboard-view');
+      if (dash) dash.style.display = 'none';
+      document.querySelectorAll('.exam-option-panel').forEach(p => p.style.display = 'none');
+      
+      const targetPanel = document.getElementById(`exam-panel-${targetOpt}`);
+      if (targetPanel) {
+        targetPanel.style.display = 'block';
+        loadExamPanelData(targetOpt);
+      }
+    });
+  });
+
+  // Back button clicks in exam option panels
+  document.querySelectorAll('.btn-back-exam-dash').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      resetExamPanels();
+    });
+  });
+
+  // Load data for specific exam option panel
+  function loadExamPanelData(opt) {
+    loadClassesList();
+    loadExamsDropdowns();
+
+    if (opt === 'exam-datesheet') {
+      loadDatesheetDesignData();
+    } else if (opt === 'exam-rollno') {
+      loadRollnoDesignData();
+    }
+  }
+
   function loadExamsData() {
+    resetExamPanels();
     loadClassesList();
     loadExamsDropdowns();
   }
 
-  // Load exams into select dropdown inputs
+  // Load exams into select dropdown inputs (including new datesheet/rollno selects)
   async function loadExamsDropdowns() {
     try {
       const exams = await apiCall('/exams');
@@ -1965,8 +2017,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const marksSelectExam = document.getElementById('marks-select-exam');
       const calcExamSelect = document.getElementById('calc-exam-select');
       const dmcSelectExam = document.getElementById('dmc-select-exam');
+      const datesheetExamSelect = document.getElementById('datesheet-exam-select');
+      const rollnoExamSelect = document.getElementById('rollno-exam-select');
+      const rollnoGenExam = document.getElementById('rollno-gen-exam');
 
-      const selectors = [subExamSelect, viewSubExam, marksSelectExam, calcExamSelect, dmcSelectExam];
+      const selectors = [subExamSelect, viewSubExam, marksSelectExam, calcExamSelect, dmcSelectExam, datesheetExamSelect, rollnoExamSelect, rollnoGenExam];
 
       selectors.forEach(sel => {
         if (!sel) return;
@@ -2294,6 +2349,194 @@ document.addEventListener('DOMContentLoaded', () => {
     window.print();
     window.location.reload();
   });
+
+  // ==========================================
+  // DATE SHEET PANEL LOGIC
+  // ==========================================
+  let datesheetRowCount = 0;
+
+  function loadDatesheetDesignData() {
+    // Populate year dropdown for datesheet
+    const yearSelect = document.getElementById('datesheet-exam-select');
+    if (yearSelect) {
+      // Exams already loaded via loadExamsDropdowns
+    }
+    // Reset rows
+    const container = document.getElementById('datesheet-rows-container');
+    if (container) {
+      container.innerHTML = '';
+      datesheetRowCount = 0;
+    }
+  }
+
+  // Add subject row for date sheet designer
+  const btnAddDatesheetRow = document.getElementById('btn-add-datesheet-row');
+  if (btnAddDatesheetRow) {
+    btnAddDatesheetRow.addEventListener('click', () => {
+      datesheetRowCount++;
+      const container = document.getElementById('datesheet-rows-container');
+      const rowHtml = `
+        <div class="grid-3" style="grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-bottom: 10px; align-items: flex-end;" id="datesheet-row-${datesheetRowCount}">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Subject</label>
+            <input type="text" class="form-control" placeholder="e.g. Mathematics" required>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Date</label>
+            <input type="date" class="form-control" required>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Time</label>
+            <input type="text" class="form-control" placeholder="e.g. 9:00 AM - 12:00 PM" required>
+          </div>
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', rowHtml);
+    });
+  }
+
+  // Save date sheet template
+  const formDatesheetDesign = document.getElementById('form-datesheet-design');
+  if (formDatesheetDesign) {
+    formDatesheetDesign.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('datesheet-template-name').value.trim();
+      const exam_id = document.getElementById('datesheet-exam-select').value;
+      const class_name = document.getElementById('datesheet-class-select').value;
+      const term = document.getElementById('datesheet-term-select').value;
+
+      const rows = document.querySelectorAll('#datesheet-rows-container .grid-3');
+      if (rows.length === 0) {
+        showToast('Please add at least one subject row', true);
+        return;
+      }
+
+      const subjects = [];
+      rows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        subjects.push({
+          subject: inputs[0].value,
+          date: inputs[1].value,
+          time: inputs[2].value
+        });
+      });
+
+      const template = { exam_id, class_name, term, subjects };
+      
+      try {
+        const res = await apiCall('/exams/datesheets', 'POST', { name, template_json: JSON.stringify(template) });
+        showToast(res.message);
+        formDatesheetDesign.reset();
+        document.getElementById('datesheet-rows-container').innerHTML = '';
+        datesheetRowCount = 0;
+      } catch (err) {}
+    });
+  }
+
+  // Load date sheet for preview/print
+  const btnLoadDatesheet = document.getElementById('btn-load-datesheet');
+  if (btnLoadDatesheet) {
+    btnLoadDatesheet.addEventListener('click', async () => {
+      showToast('Date sheet preview will be available once templates are saved to the server.', true);
+    });
+  }
+
+  const btnPrintDatesheet = document.getElementById('btn-print-datesheet');
+  if (btnPrintDatesheet) {
+    btnPrintDatesheet.addEventListener('click', () => {
+      const content = document.getElementById('datesheet-printable-content').innerHTML;
+      const originalBody = document.body.innerHTML;
+      document.body.innerHTML = `<div style="padding:40px; background:white; color:black; font-family:sans-serif; min-height:100vh;">${content}</div>`;
+      window.print();
+      window.location.reload();
+    });
+  }
+
+  // ==========================================
+  // ROLL NO SLIP PANEL LOGIC
+  // ==========================================
+  function loadRollnoDesignData() {
+    // Dropdowns already populated
+  }
+
+  // Save roll no slip template
+  const formRollnoDesign = document.getElementById('form-rollno-design');
+  if (formRollnoDesign) {
+    formRollnoDesign.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('rollno-template-name').value.trim();
+      const exam_id = document.getElementById('rollno-exam-select').value;
+      const class_name = document.getElementById('rollno-class-select').value;
+      const term = document.getElementById('rollno-term-select').value;
+      const include_logo = document.getElementById('rollno-include-logo').value;
+      const include_qr = document.getElementById('rollno-include-qr').value;
+      const per_page = document.getElementById('rollno-per-page').value;
+
+      const template = { exam_id, class_name, term, include_logo, include_qr, per_page };
+
+      try {
+        const res = await apiCall('/exams/rollno-templates', 'POST', { name, template_json: JSON.stringify(template) });
+        showToast(res.message);
+        formRollnoDesign.reset();
+      } catch (err) {}
+    });
+  }
+
+  // Generate roll no slips
+  const btnGenerateRollno = document.getElementById('btn-generate-rollno-slips');
+  if (btnGenerateRollno) {
+    btnGenerateRollno.addEventListener('click', async () => {
+      const class_name = document.getElementById('rollno-gen-class').value;
+      const exam_id = document.getElementById('rollno-gen-exam').value;
+
+      if (!class_name || !exam_id) {
+        showToast('Class and Exam are required', true);
+        return;
+      }
+
+      try {
+        const students = await apiCall(`/students?class_name=${encodeURIComponent(class_name)}`);
+        const exam = (await apiCall('/exams')).find(e => e.id == exam_id);
+        
+        if (students.length === 0) {
+          showToast('No students found in this class', true);
+          return;
+        }
+
+        let slipsHtml = '';
+        students.forEach(s => {
+          slipsHtml += `
+            <div style="border: 2px solid #333; border-radius: 10px; padding: 20px; margin-bottom: 20px; page-break-inside: avoid; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <h3 style="margin:0; font-size: 1.1rem;">${currentUser.schoolName}</h3>
+                <p style="margin:5px 0; font-size: 0.9rem;">Exam: ${exam ? exam.exam_name + ' ' + exam.year : '-'}</p>
+                <p style="margin:2px 0; font-size: 0.95rem;"><strong>Student:</strong> ${s.name}</p>
+                <p style="margin:2px 0; font-size: 0.95rem;"><strong>Class:</strong> ${s.class_name} - ${s.section_name || 'N/A'}</p>
+              </div>
+              <div style="text-align: center; border: 2px dashed #333; border-radius: 8px; padding: 15px 25px;">
+                <p style="margin:0; font-size: 0.8rem; color: #666;">ROLL NO</p>
+                <p style="margin:0; font-size: 2rem; font-weight: bold;">${s.roll_no || '-'}</p>
+              </div>
+            </div>
+          `;
+        });
+
+        document.getElementById('rollno-printable-content').innerHTML = slipsHtml;
+        document.getElementById('rollno-preview').style.display = 'block';
+      } catch (err) {}
+    });
+  }
+
+  const btnPrintRollno = document.getElementById('btn-print-rollno');
+  if (btnPrintRollno) {
+    btnPrintRollno.addEventListener('click', () => {
+      const content = document.getElementById('rollno-printable-content').innerHTML;
+      const originalBody = document.body.innerHTML;
+      document.body.innerHTML = `<div style="padding:40px; background:white; color:black; font-family:sans-serif; min-height:100vh;">${content}</div>`;
+      window.print();
+      window.location.reload();
+    });
+  }
 
 
   // ==========================================

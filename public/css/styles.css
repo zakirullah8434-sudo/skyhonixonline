@@ -951,6 +951,30 @@ h1, h2, h3, h4, h5, h6 {
   border-color: var(--primary);
 }
 
+/* ===================== EXAM DASHBOARD ===================== */
+
+.exam-option-panel {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.btn-back-exam-dash {
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 8px 16px;
+  border-radius: 8px;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-back-exam-dash:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
 /* Previous dues editable field */
 .editable-due-input {
   width: 95px;
