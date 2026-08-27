@@ -1081,7 +1081,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
 
-    if (opt === 'fee-history') {
+    if (opt === 'pay-fee') {
+      // Auto-load unpaid ledgers when pay-fee panel opens
+      const paySearchBtn = document.getElementById('btn-search-pay-ledger');
+      if (paySearchBtn) paySearchBtn.click();
+    }
+    else if (opt === 'fee-history') {
       // Setup history filters
       const yearSelect = document.getElementById('history-filter-year');
       if (yearSelect) {
@@ -1287,11 +1292,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await apiCall('/fees/pay', 'POST', { ledger_id, amount_paid, payment_date });
         showToast(res.message);
         modalTx.classList.remove('open');
-        loadDashboardStats();
-        const paySearchBtn = document.getElementById('btn-search-pay-ledger');
-        if (paySearchBtn) paySearchBtn.click();
+        refreshAllFeeViews();
       } catch (err) {}
     });
+  }
+
+  // Helper: Refresh all fee-related views after any change
+  function refreshAllFeeViews() {
+    loadDashboardStats();
+    const paySearchBtn = document.getElementById('btn-search-pay-ledger');
+    if (paySearchBtn) paySearchBtn.click();
+    loadHistoryLedger();
+    refreshFeeAnalytics();
   }
 
   // ==========================================
@@ -1360,7 +1372,7 @@ document.addEventListener('DOMContentLoaded', () => {
           try {
             const res = await apiCall('/fees/generate-single', 'POST', { student_id, month, year });
             showToast(res.message);
-            loadHistoryLedger();
+            refreshAllFeeViews();
           } catch (e) {}
         });
       });
@@ -1372,7 +1384,7 @@ document.addEventListener('DOMContentLoaded', () => {
           try {
             const res = await apiCall(`/fees/ledger/${ledger_id}`, 'DELETE');
             showToast(res.message);
-            loadHistoryLedger();
+            refreshAllFeeViews();
           } catch (e) {}
         });
       });
@@ -1396,7 +1408,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await apiCall('/fees/generate', 'POST', { month, year });
         showToast(res.message);
-        loadHistoryLedger();
+        refreshAllFeeViews();
       } catch (e) {}
     });
   }
@@ -1418,7 +1430,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await apiCall('/fees/save-history-dues', 'POST', { changes });
         showToast(res.message);
-        loadHistoryLedger();
+        refreshAllFeeViews();
       } catch (e) {}
     });
   }
@@ -1441,7 +1453,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await apiCall(url, 'DELETE');
         showToast(res.message);
-        loadHistoryLedger();
+        refreshAllFeeViews();
       } catch (e) {}
     });
   }
