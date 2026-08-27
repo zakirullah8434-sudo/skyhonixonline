@@ -4,20 +4,20 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const config = require('./config');
 
-// Ensure database directories exist
-if (!fs.existsSync(config.DATABASES_DIR)) {
-  fs.mkdirSync(config.DATABASES_DIR, { recursive: true });
-}
-if (!fs.existsSync(config.UPLOADS_DIR)) {
-  fs.mkdirSync(config.UPLOADS_DIR, { recursive: true });
-}
-if (!fs.existsSync(config.BACKUPS_DIR)) {
-  fs.mkdirSync(config.BACKUPS_DIR, { recursive: true });
-}
-
 const mainDbPath = path.join(config.DATABASES_DIR, 'main.db');
 
 function initMainDb() {
+  // Ensure database directories exist
+  if (!fs.existsSync(config.DATABASES_DIR)) {
+    fs.mkdirSync(config.DATABASES_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(config.UPLOADS_DIR)) {
+    fs.mkdirSync(config.UPLOADS_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(config.BACKUPS_DIR)) {
+    fs.mkdirSync(config.BACKUPS_DIR, { recursive: true });
+  }
+
   return new Promise((resolve, reject) => {
     const db = new sqlite3.Database(mainDbPath, (err) => {
       if (err) {

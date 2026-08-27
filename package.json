@@ -5,7 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "postinstall": "npm rebuild sqlite3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "keywords": [
     "school",

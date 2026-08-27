@@ -6,19 +6,24 @@
       "use": "@vercel/node",
       "config": {
         "includeFiles": [
-          "public/databases/**",
-          "public/uploads/**"
+          "config.js",
+          "main_db_init.js",
+          "database_manager.js",
+          "school_db_template.js",
+          "sync_manager.js",
+          "routes/**",
+          "public/**"
         ]
       }
     }
   ],
   "routes": [
     {
-      "src": "/uploads/(.*)",
+      "src": "/api/(.*)",
       "dest": "server.js"
     },
     {
-      "src": "/api/(.*)",
+      "src": "/uploads/(.*)",
       "dest": "server.js"
     },
     {

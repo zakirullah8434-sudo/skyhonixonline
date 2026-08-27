@@ -107,12 +107,11 @@ app.use('/api/admin', adminRoutes);
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Catch-all route to serve landing page or dashboard
-app.get('*', (req, res, next) => {
-  // If API route not matched, return 404 for APIs, but serve index.html for UI pages
+app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'Endpoint not found' });
   }
-  next();
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Start Server after initializing main registry database
