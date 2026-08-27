@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'fees.payment.recorded':
         // Refresh: analytics, dashboard, ledger
         await refreshFeesAnalytics();
-        await refreshDashboardStats();
+        await loadDashboardStats();
         showToast('Fee payment recorded & analytics updated', false);
         break;
 
@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'results.calculated':
         // Refresh: results view, analytics, dashboard
         await refreshResultsAnalytics();
-        await refreshDashboardStats();
+        await loadDashboardStats();
         showToast(`Results calculated for ${eventData.affectedClasses?.join(', ')} - ${eventData.term}`, false);
         break;
 
@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reload results if visible
         const examIdInput = document.getElementById('result-filter-exam');
         if (examIdInput?.value) {
-          await loadResultsList();
+          loadExamsDropdowns();
         }
       }
     } catch (err) {
