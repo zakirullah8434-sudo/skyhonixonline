@@ -548,4 +548,55 @@ router.delete('/datesheets/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// ==========================================
+// ROLL NO SLIP TEMPLATES
+// ==========================================
+
+// POST /exams/rollno-templates - Create roll no slip template
+router.post('/rollno-templates', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { name, template_json } = req.body;
+
+  if (!name || !template_json) {
+    return res.status(400).json({ error: 'name and template_json are required' });
+  }
+
+  try {
+    const result = await runSchool(
+      schoolId,
+      'INSERT INTO roll_slip_templates (name, template_json, created_at) VALUES (?, ?, ?)',
+      [name, template_json, new Date().toISOString()]
+    );
+    res.status(201).json({ message: 'Roll no slip template saved!', id: result.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /exams/rollno-templates - Get all roll no slip templates
+router.get('/rollno-templates', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  try {
+    const templates = await querySchool(schoolId, 'SELECT * FROM roll_slip_templates ORDER BY id DESC');
+    templates.forEach(t => {
+      try { t.template = JSON.parse(t.template_json || '{}'); } catch (e) { t.template = {}; }
+    });
+    res.json(templates);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /exams/rollno-templates/:id
+router.delete('/rollno-templates/:id', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const id = req.params.id;
+  try {
+    await runSchool(schoolId, 'DELETE FROM roll_slip_templates WHERE id = ?', [id]);
+    res.json({ message: 'Roll no slip template deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

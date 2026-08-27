@@ -1003,19 +1003,11 @@
                       <select class="form-control" id="datesheet-exam-select" required></select>
                     </div>
                   </div>
-                  <div class="grid-2">
-                    <div class="form-group">
-                      <label class="form-label">Class</label>
-                      <select class="form-control" id="datesheet-class-select" required>
-                        <option value="All Classes">All Classes</option>
-                      </select>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Term</label>
-                      <select class="form-control" id="datesheet-term-select" required>
-                        <option>1st Term</option><option>2nd Term</option><option>Final</option>
-                      </select>
-                    </div>
+                  <div class="form-group">
+                    <label class="form-label">Term</label>
+                    <select class="form-control" id="datesheet-term-select" required>
+                      <option>1st Term</option><option>2nd Term</option><option>Final</option>
+                    </select>
                   </div>
                   <div style="margin-top: 15px;">
                     <button type="button" class="btn btn-primary" id="btn-add-datesheet-row">+ Add Subject Row</button>
@@ -1114,11 +1106,20 @@
                     <div class="form-group">
                       <label class="form-label">Slips Per Page</label>
                       <select class="form-control" id="rollno-per-page">
+                        <option value="2">2 per page</option>
                         <option value="3">3 per page</option>
                         <option value="4">4 per page</option>
                         <option value="6">6 per page</option>
                       </select>
                     </div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Instructions (optional)</label>
+                    <textarea class="form-control" id="rollno-instructions" rows="3" placeholder="e.g. Bring your own pen. No electronic devices allowed."></textarea>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Principal Signature Image (optional)</label>
+                    <input type="file" class="form-control" id="rollno-principal-sign" accept="image/*">
                   </div>
                   <button type="submit" class="btn btn-secondary" style="margin-top: 20px; width: 100%;">Save Slip Template</button>
                 </form>

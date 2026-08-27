@@ -182,7 +182,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const response = await fetch(`/api${endpoint}`, options);
-      const result = await response.json();
+      const text = await response.text();
+      let result;
+      try { result = JSON.parse(text); } catch (e) {
+        console.error('API returned non-JSON:', text.substring(0, 200));
+        throw new Error('Server returned an invalid response. Please try again.');
+      }
 
       if (response.status === 401 || response.status === 403) {
         if (result.suspended) {
@@ -435,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
       selects.forEach(sel => {
         if (!sel) return;
         const currentVal = sel.value;
-        const isAllClasses = ['student-filter-class', 'history-filter-class', 'student-fee-class', 'datesheet-class-select'].includes(sel.id);
+        const isAllClasses = ['student-filter-class', 'history-filter-class', 'student-fee-class', 'datesheet-class-select', 'rollno-class-select', 'rollno-gen-class'].includes(sel.id);
         const isSelectPlaceholder = ['reminder-filter-class'].includes(sel.id);
         
         if (isAllClasses) {
@@ -2068,11 +2073,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const selectors = [marksSelectExam, calcExamSelect, dmcSelectExam, datesheetExamSelect, rollnoExamSelect, rollnoGenExam];
 
+      // Deduplicate exams by id
+      const seen = new Set();
+      const uniqueExams = exams.filter(ex => {
+        if (seen.has(ex.id)) return false;
+        seen.add(ex.id);
+        return true;
+      });
+
       selectors.forEach(sel => {
         if (!sel) return;
         const currentVal = sel.value;
         sel.innerHTML = '';
-        exams.forEach(ex => {
+        uniqueExams.forEach(ex => {
           sel.innerHTML += `<option value="${ex.id}">${ex.exam_name} (${ex.year})</option>`;
         });
         if (currentVal) sel.value = currentVal;
@@ -2368,17 +2381,26 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   }
 
-  // Add subject row for date sheet designer
+  // Add subject row for date sheet designer (with class selector)
   const btnAddDatesheetRow = document.getElementById('btn-add-datesheet-row');
   if (btnAddDatesheetRow) {
     btnAddDatesheetRow.addEventListener('click', () => {
       datesheetRowCount++;
       const container = document.getElementById('datesheet-rows-container');
+      // Build class options from cached classes
+      let classOpts = '<option value="All Classes">All Classes</option>';
+      if (typeof cachedClasses !== 'undefined' && cachedClasses.length > 0) {
+        cachedClasses.forEach(cls => { classOpts += `<option value="${cls}">${cls}</option>`; });
+      }
       const rowHtml = `
-        <div class="grid-3" style="grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-bottom: 10px; align-items: flex-end;" id="datesheet-row-${datesheetRowCount}">
+        <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: flex-end;" id="datesheet-row-${datesheetRowCount}">
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label">Subject</label>
             <input type="text" class="form-control" placeholder="e.g. Mathematics" required>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Class</label>
+            <select class="form-control ds-row-class" required>${classOpts}</select>
           </div>
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label">Date</label>
@@ -2388,9 +2410,17 @@ document.addEventListener('DOMContentLoaded', () => {
             <label class="form-label">Time</label>
             <input type="text" class="form-control" placeholder="e.g. 9:00 AM - 12:00 PM" required>
           </div>
+          <button type="button" class="btn btn-danger btn-sm btn-remove-datesheet-row" style="margin-bottom: 2px;">&times;</button>
         </div>
       `;
       container.insertAdjacentHTML('beforeend', rowHtml);
+    });
+
+    // Remove row handler (event delegation)
+    document.getElementById('datesheet-rows-container').addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-remove-datesheet-row')) {
+        e.target.closest('[id^="datesheet-row-"]').remove();
+      }
     });
   }
 
@@ -2401,10 +2431,9 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const name = document.getElementById('datesheet-template-name').value.trim();
       const exam_id = document.getElementById('datesheet-exam-select').value;
-      const class_name = document.getElementById('datesheet-class-select').value;
       const term = document.getElementById('datesheet-term-select').value;
 
-      const rows = document.querySelectorAll('#datesheet-rows-container .grid-3');
+      const rows = document.querySelectorAll('#datesheet-rows-container [id^="datesheet-row-"]');
       if (rows.length === 0) {
         showToast('Please add at least one subject row', true);
         return;
@@ -2412,15 +2441,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const subjects = [];
       rows.forEach(row => {
-        const inputs = row.querySelectorAll('input');
+        const subjectInput = row.querySelector('input[type="text"]');
+        const classSelect = row.querySelector('.ds-row-class');
+        const dateInput = row.querySelector('input[type="date"]');
         subjects.push({
-          subject: inputs[0].value,
-          date: inputs[1].value,
-          time: inputs[2].value
+          subject: subjectInput.value,
+          class: classSelect.value,
+          date: dateInput.value,
+          time: row.querySelectorAll('input[type="text"]')[1].value
         });
       });
 
-      const template = { exam_id, class_name, term, subjects };
+      const template = { exam_id, term, subjects };
       
       try {
         const res = await apiCall('/exams/datesheets', 'POST', { name, template_json: JSON.stringify(template) });
@@ -2520,8 +2552,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const include_logo = document.getElementById('rollno-include-logo').value;
       const include_qr = document.getElementById('rollno-include-qr').value;
       const per_page = document.getElementById('rollno-per-page').value;
+      const instructions = document.getElementById('rollno-instructions').value.trim();
+      const signFile = document.getElementById('rollno-principal-sign').files[0];
 
-      const template = { exam_id, class_name, term, include_logo, include_qr, per_page };
+      let principal_sign = '';
+      if (signFile) {
+        principal_sign = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => resolve(ev.target.result);
+          reader.readAsDataURL(signFile);
+        });
+      }
+
+      const template = { exam_id, class_name, term, include_logo, include_qr, per_page, instructions, principal_sign };
 
       try {
         const res = await apiCall('/exams/rollno-templates', 'POST', { name, template_json: JSON.stringify(template) });
@@ -2538,22 +2581,27 @@ document.addEventListener('DOMContentLoaded', () => {
       const class_name = document.getElementById('rollno-gen-class').value;
       const exam_id = document.getElementById('rollno-gen-exam').value;
 
-      if (!class_name || !exam_id) {
-        showToast('Class and Exam are required', true);
+      if (!exam_id) {
+        showToast('Exam is required', true);
         return;
       }
 
       try {
-        const students = await apiCall(`/students?class_name=${encodeURIComponent(class_name)}`);
+        let students = [];
+        if (class_name === 'All Classes') {
+          students = await apiCall('/students');
+        } else {
+          students = await apiCall(`/students?class_name=${encodeURIComponent(class_name)}`);
+        }
         const exam = (await apiCall('/exams')).find(e => e.id == exam_id);
         
         if (students.length === 0) {
-          showToast('No students found in this class', true);
+          showToast('No students found', true);
           return;
         }
 
         let slipsHtml = '';
-        students.forEach(s => {
+        students.forEach((s, idx) => {
           slipsHtml += `
             <div style="border: 2px solid #333; border-radius: 10px; padding: 20px; margin-bottom: 20px; page-break-inside: avoid; display: flex; justify-content: space-between; align-items: center;">
               <div>
