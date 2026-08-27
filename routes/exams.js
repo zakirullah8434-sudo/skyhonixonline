@@ -511,6 +511,13 @@ router.post('/datesheets', authenticateToken, async (req, res) => {
   }
 
   try {
+    // Ensure table exists (migration safety net for existing schools)
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS date_sheet_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      template_json TEXT,
+      is_active INTEGER DEFAULT 0
+    )`);
     const result = await runSchool(
       schoolId,
       'INSERT INTO date_sheet_templates (name, template_json) VALUES (?, ?)',
@@ -526,6 +533,12 @@ router.post('/datesheets', authenticateToken, async (req, res) => {
 router.get('/datesheets', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS date_sheet_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      template_json TEXT,
+      is_active INTEGER DEFAULT 0
+    )`);
     const templates = await querySchool(schoolId, 'SELECT * FROM date_sheet_templates ORDER BY id DESC');
     templates.forEach(t => {
       try { t.template = JSON.parse(t.template_json || '{}'); } catch (e) { t.template = {}; }
@@ -562,6 +575,13 @@ router.post('/rollno-templates', authenticateToken, async (req, res) => {
   }
 
   try {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS roll_slip_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      template_json TEXT,
+      is_active INTEGER DEFAULT 0,
+      created_at TEXT
+    )`);
     const result = await runSchool(
       schoolId,
       'INSERT INTO roll_slip_templates (name, template_json, created_at) VALUES (?, ?, ?)',
@@ -577,6 +597,13 @@ router.post('/rollno-templates', authenticateToken, async (req, res) => {
 router.get('/rollno-templates', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS roll_slip_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      template_json TEXT,
+      is_active INTEGER DEFAULT 0,
+      created_at TEXT
+    )`);
     const templates = await querySchool(schoolId, 'SELECT * FROM roll_slip_templates ORDER BY id DESC');
     templates.forEach(t => {
       try { t.template = JSON.parse(t.template_json || '{}'); } catch (e) { t.template = {}; }

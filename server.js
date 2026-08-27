@@ -106,6 +106,12 @@ app.use('/api/admin', adminRoutes);
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Global error handler - always return JSON, never HTML
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: err.message || 'Internal server error' });
+});
+
 // Catch-all route to serve landing page or dashboard
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) {
