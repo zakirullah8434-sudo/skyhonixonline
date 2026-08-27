@@ -176,9 +176,12 @@ function createSchoolDatabaseSchema(db) {
         CREATE TABLE IF NOT EXISTS exams (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           exam_name TEXT,
-          year INTEGER
+          year INTEGER,
+          classes TEXT DEFAULT '[]'
         )
       `);
+      // Migration: add classes column to existing exams tables
+      db.run(`ALTER TABLE exams ADD COLUMN classes TEXT DEFAULT '[]'`, () => {});
 
       // 14. Exam subjects
       db.run(`

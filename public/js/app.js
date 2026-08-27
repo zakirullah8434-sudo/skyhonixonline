@@ -435,7 +435,7 @@ document.addEventListener('DOMContentLoaded', () => {
       selects.forEach(sel => {
         if (!sel) return;
         const currentVal = sel.value;
-        const isAllClasses = ['student-filter-class', 'history-filter-class', 'student-fee-class'].includes(sel.id);
+        const isAllClasses = ['student-filter-class', 'history-filter-class', 'student-fee-class', 'datesheet-class-select'].includes(sel.id);
         const isSelectPlaceholder = ['reminder-filter-class'].includes(sel.id);
         
         if (isAllClasses) {
@@ -2005,6 +2005,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadClassesList();
     loadExamsDropdowns();
     loadExamSetupYears();
+    loadExamClassCheckboxes();
 
     if (opt === 'exam-datesheet') {
       loadDatesheetDesignData();
@@ -2022,6 +2023,30 @@ document.addEventListener('DOMContentLoaded', () => {
     for (let y = currentYear; y <= currentYear + 5; y++) {
       yearSel.innerHTML += `<option value="${y}">${y}</option>`;
     }
+  }
+
+  // Populate class checkboxes for exam creation (All Classes + each class)
+  async function loadExamClassCheckboxes() {
+    const container = document.getElementById('exam-class-checkboxes');
+    if (!container) return;
+    try {
+      const classes = await apiCall('/students/classes');
+      container.innerHTML = `
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
+          <input type="checkbox" id="exam-class-all" value="All Classes"> <span>All Classes</span>
+        </label>
+      `;
+      classes.forEach(cls => {
+        container.innerHTML += `
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
+            <input type="checkbox" class="exam-class-check" value="${cls}"> <span>${cls}</span>
+          </label>
+        `;
+      });
+      document.getElementById('exam-class-all').addEventListener('change', (e) => {
+        document.querySelectorAll('.exam-class-check').forEach(cb => cb.checked = e.target.checked);
+      });
+    } catch (e) {}
   }
 
   function loadExamsData() {
@@ -2062,10 +2087,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const exam_name = document.getElementById('exam-create-name').value;
     const year = document.getElementById('exam-create-year').value;
 
+    // Get selected classes
+    const allCb = document.getElementById('exam-class-all');
+    const classCbs = document.querySelectorAll('.exam-class-check');
+    let selectedClasses = [];
+    if (allCb && allCb.checked) {
+      try { selectedClasses = await apiCall('/students/classes'); } catch (e) { selectedClasses = []; }
+    } else {
+      classCbs.forEach(cb => { if (cb.checked) selectedClasses.push(cb.value); });
+    }
+
+    if (selectedClasses.length === 0) {
+      showToast('Please select at least one class', true);
+      return;
+    }
+
     try {
-      const res = await apiCall('/exams', 'POST', { exam_name, year });
+      const res = await apiCall('/exams', 'POST', { exam_name, year, classes: selectedClasses });
       showToast(res.message);
       loadExamsDropdowns();
+      if (allCb) allCb.checked = false;
+      classCbs.forEach(cb => cb.checked = false);
     } catch (err) {}
   });
 
@@ -2303,17 +2345,27 @@ document.addEventListener('DOMContentLoaded', () => {
   let datesheetRowCount = 0;
 
   function loadDatesheetDesignData() {
-    // Populate year dropdown for datesheet
-    const yearSelect = document.getElementById('datesheet-exam-select');
-    if (yearSelect) {
-      // Exams already loaded via loadExamsDropdowns
-    }
     // Reset rows
     const container = document.getElementById('datesheet-rows-container');
     if (container) {
       container.innerHTML = '';
       datesheetRowCount = 0;
     }
+    // Load saved templates into generate tab dropdown
+    loadDatesheetTemplates();
+  }
+
+  // Load saved date sheet templates into the generate tab dropdown
+  async function loadDatesheetTemplates() {
+    const sel = document.getElementById('datesheet-gen-template');
+    if (!sel) return;
+    try {
+      const templates = await apiCall('/exams/datesheets');
+      sel.innerHTML = '<option value="">-- Select Template --</option>';
+      templates.forEach(t => {
+        sel.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+      });
+    } catch (e) {}
   }
 
   // Add subject row for date sheet designer
@@ -2376,6 +2428,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formDatesheetDesign.reset();
         document.getElementById('datesheet-rows-container').innerHTML = '';
         datesheetRowCount = 0;
+        loadDatesheetTemplates();
       } catch (err) {}
     });
   }
@@ -2384,7 +2437,56 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnLoadDatesheet = document.getElementById('btn-load-datesheet');
   if (btnLoadDatesheet) {
     btnLoadDatesheet.addEventListener('click', async () => {
-      showToast('Date sheet preview will be available once templates are saved to the server.', true);
+      const templateId = document.getElementById('datesheet-gen-template').value;
+      if (!templateId) {
+        showToast('Please select a template', true);
+        return;
+      }
+
+      try {
+        const templates = await apiCall('/exams/datesheets');
+        const tpl = templates.find(t => t.id == templateId);
+        if (!tpl) { showToast('Template not found', true); return; }
+
+        const t = tpl.template;
+        const exams = await apiCall('/exams');
+        const exam = exams.find(ex => ex.id == t.exam_id);
+
+        // Resolve class display
+        let classDisplay = t.class_name;
+        if (t.class_name === 'All Classes') {
+          if (exam && exam.classes && exam.classes.length > 0) {
+            classDisplay = exam.classes.join(', ');
+          } else {
+            classDisplay = 'All Classes';
+          }
+        }
+
+        let rowsHtml = '';
+        (t.subjects || []).forEach(s => {
+          rowsHtml += `<tr><td>${s.subject}</td><td>${s.date}</td><td>${s.time}</td></tr>`;
+        });
+
+        document.getElementById('datesheet-printable-content').innerHTML = `
+          <div style="text-align:center; margin-bottom:20px;">
+            <h2 style="margin:0;">${currentUser.schoolName}</h2>
+            <h3 style="margin:5px 0;">Date Sheet: ${tpl.name}</h3>
+            <p style="margin:2px 0; color:#555;">Exam: ${exam ? exam.exam_name + ' ' + exam.year : '-'} | Term: ${t.term}</p>
+            <p style="margin:2px 0; color:#555;">Class: ${classDisplay}</p>
+          </div>
+          <table style="width:100%; border-collapse:collapse; margin-top:15px;">
+            <thead>
+              <tr style="background:#f0f0f0;">
+                <th style="border:1px solid #ccc; padding:10px; text-align:left;">Subject</th>
+                <th style="border:1px solid #ccc; padding:10px; text-align:left;">Date</th>
+                <th style="border:1px solid #ccc; padding:10px; text-align:left;">Time</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        `;
+        document.getElementById('datesheet-preview').style.display = 'block';
+      } catch (err) {}
     });
   }
 

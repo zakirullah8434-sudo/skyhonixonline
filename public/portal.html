@@ -888,13 +888,13 @@
             <div style="margin-bottom: 20px;">
               <button class="btn btn-outline btn-sm btn-back-exam-dash">&larr; Back to Exam Dashboard</button>
             </div>
-            <h2 style="margin-bottom: 24px;">Setup Exam & Subjects</h2>
+            <h2 style="margin-bottom: 24px;">Setup Exam</h2>
             <div class="card" style="max-width: 600px;">
               <h3>Create Exam Registry</h3>
               <form id="form-create-exam">
                 <div class="grid-2">
                   <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Exam Name (e.g. Mid Term)</label>
+                    <label class="form-label">Exam Name</label>
                     <select class="form-control" id="exam-create-name" required>
                       <option>1st Term</option>
                       <option>2nd Term</option>
@@ -904,6 +904,11 @@
                   <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label">Year</label>
                     <select class="form-control" id="exam-create-year" required></select>
+                  </div>
+                </div>
+                <div class="form-group" style="margin-top: 15px;">
+                  <label class="form-label">Select Classes</label>
+                  <div id="exam-class-checkboxes" style="display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; min-height: 42px;">
                   </div>
                 </div>
                 <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Create Exam</button>
@@ -1001,7 +1006,9 @@
                   <div class="grid-2">
                     <div class="form-group">
                       <label class="form-label">Class</label>
-                      <select class="form-control" id="datesheet-class-select" required></select>
+                      <select class="form-control" id="datesheet-class-select" required>
+                        <option value="All Classes">All Classes</option>
+                      </select>
                     </div>
                     <div class="form-group">
                       <label class="form-label">Term</label>

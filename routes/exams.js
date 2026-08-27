@@ -9,6 +9,10 @@ router.get('/', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
     const exams = await querySchool(schoolId, 'SELECT * FROM exams ORDER BY year DESC, id DESC');
+    // Parse classes JSON string into array
+    exams.forEach(ex => {
+      try { ex.classes = JSON.parse(ex.classes || '[]'); } catch (e) { ex.classes = []; }
+    });
     res.json(exams);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -18,17 +22,19 @@ router.get('/', authenticateToken, async (req, res) => {
 // POST /exams - Create an exam
 router.post('/', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
-  const { exam_name, year } = req.body;
+  const { exam_name, year, classes } = req.body;
 
   if (!exam_name || !year) {
     return res.status(400).json({ error: 'exam_name and year are required' });
   }
 
+  const classesJson = JSON.stringify(classes || []);
+
   try {
     const result = await runSchool(
       schoolId,
-      'INSERT INTO exams (exam_name, year) VALUES (?, ?)',
-      [exam_name, parseInt(year)]
+      'INSERT INTO exams (exam_name, year, classes) VALUES (?, ?, ?)',
+      [exam_name, parseInt(year), classesJson]
     );
     res.status(201).json({ message: 'Exam created successfully!', id: result.id });
   } catch (err) {
@@ -486,6 +492,57 @@ router.get('/dmc/:studentId', authenticateToken, async (req, res) => {
       reportDetails
     });
 
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// DATE SHEET ENDPOINTS
+// ==========================================
+
+// POST /exams/datesheets - Create date sheet template
+router.post('/datesheets', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { name, template_json } = req.body;
+
+  if (!name || !template_json) {
+    return res.status(400).json({ error: 'name and template_json are required' });
+  }
+
+  try {
+    const result = await runSchool(
+      schoolId,
+      'INSERT INTO date_sheet_templates (name, template_json) VALUES (?, ?)',
+      [name, template_json]
+    );
+    res.status(201).json({ message: 'Date sheet template saved!', id: result.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /exams/datesheets - Get all date sheet templates
+router.get('/datesheets', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  try {
+    const templates = await querySchool(schoolId, 'SELECT * FROM date_sheet_templates ORDER BY id DESC');
+    templates.forEach(t => {
+      try { t.template = JSON.parse(t.template_json || '{}'); } catch (e) { t.template = {}; }
+    });
+    res.json(templates);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /exams/datesheets/:id - Delete date sheet template
+router.delete('/datesheets/:id', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const id = req.params.id;
+  try {
+    await runSchool(schoolId, 'DELETE FROM date_sheet_templates WHERE id = ?', [id]);
+    res.json({ message: 'Date sheet template deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
