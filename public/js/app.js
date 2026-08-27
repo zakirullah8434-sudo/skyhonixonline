@@ -437,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
       selects.forEach(sel => {
         if (!sel) return;
         const currentVal = sel.value;
-        const isAllClasses = ['student-filter-class', 'history-filter-class', 'student-fee-class'].includes(sel.id);
+        const isAllClasses = ['student-filter-class', 'history-filter-class', 'student-fee-class', 'view-sub-class'].includes(sel.id);
         const isSelectPlaceholder = ['reminder-filter-class'].includes(sel.id);
         
         if (isAllClasses) {
@@ -2006,12 +2006,50 @@ document.addEventListener('DOMContentLoaded', () => {
   function loadExamPanelData(opt) {
     loadClassesList();
     loadExamsDropdowns();
+    loadExamSetupYears();
+    loadExamClassCheckboxes();
 
     if (opt === 'exam-datesheet') {
       loadDatesheetDesignData();
     } else if (opt === 'exam-rollno') {
       loadRollnoDesignData();
     }
+  }
+
+  // Populate year dropdown for Create Exam (from current year to +5 years)
+  function loadExamSetupYears() {
+    const yearSel = document.getElementById('exam-create-year');
+    if (!yearSel) return;
+    const currentYear = new Date().getFullYear();
+    yearSel.innerHTML = '';
+    for (let y = currentYear; y <= currentYear + 5; y++) {
+      yearSel.innerHTML += `<option value="${y}">${y}</option>`;
+    }
+  }
+
+  // Populate class checkboxes for subject creation (All Classes + each class)
+  async function loadExamClassCheckboxes() {
+    const container = document.getElementById('sub-class-checkboxes');
+    if (!container) return;
+    try {
+      const classes = await apiCall('/students/classes');
+      container.innerHTML = `
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
+          <input type="checkbox" id="sub-class-all" value="All Classes"> <span>All Classes</span>
+        </label>
+      `;
+      classes.forEach(cls => {
+        container.innerHTML += `
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
+            <input type="checkbox" class="sub-class-check" value="${cls}"> <span>${cls}</span>
+          </label>
+        `;
+      });
+      // "All Classes" toggle
+      document.getElementById('sub-class-all').addEventListener('change', (e) => {
+        document.querySelectorAll('.sub-class-check').forEach(cb => cb.checked = e.target.checked);
+      });
+    } catch (e) {}
   }
 
   function loadExamsData() {
@@ -2066,19 +2104,43 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {}
   });
 
-  // Create Exam subject
+  // Create Exam subject (multi-class support)
   document.getElementById('form-create-subject').addEventListener('submit', async (e) => {
     e.preventDefault();
     const exam_id = document.getElementById('sub-exam-select').value;
-    const class_name = document.getElementById('sub-class-select').value;
     const subject = document.getElementById('sub-name').value.trim();
     const max_marks = document.getElementById('sub-max-marks').value;
     const term = document.getElementById('sub-term-select').value;
 
+    // Get selected classes from checkboxes
+    const allCb = document.getElementById('sub-class-all');
+    const classCbs = document.querySelectorAll('.sub-class-check');
+    let selectedClasses = [];
+    if (allCb && allCb.checked) {
+      // "All Classes" checked — get all from API
+      try {
+        selectedClasses = await apiCall('/students/classes');
+      } catch (e) { selectedClasses = []; }
+    } else {
+      classCbs.forEach(cb => { if (cb.checked) selectedClasses.push(cb.value); });
+    }
+
+    if (selectedClasses.length === 0) {
+      showToast('Please select at least one class', true);
+      return;
+    }
+
     try {
-      const res = await apiCall('/exams/subjects', 'POST', { exam_id, class_name, subject, max_marks, term });
-      showToast(res.message);
+      let successCount = 0;
+      for (const cls of selectedClasses) {
+        await apiCall('/exams/subjects', 'POST', { exam_id, class_name: cls, subject, max_marks, term });
+        successCount++;
+      }
+      showToast(`Subject added to ${successCount} class(es) successfully!`);
       document.getElementById('sub-name').value = '';
+      // Uncheck all
+      if (allCb) allCb.checked = false;
+      classCbs.forEach(cb => cb.checked = false);
       loadExamSubjectsList();
     } catch (err) {}
   });
@@ -2087,17 +2149,22 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadExamSubjectsList() {
     const exam_id = document.getElementById('view-sub-exam').value;
     const class_name = document.getElementById('view-sub-class').value;
-    const term = document.getElementById('sub-term-select').value; // fallbacks to first or active
+    const term = document.getElementById('sub-term-select').value;
 
-    if (!exam_id || !class_name) return;
+    if (!exam_id || !term) return;
+
+    let url = `/exams/subjects?exam_id=${exam_id}&term=${encodeURIComponent(term)}`;
+    if (class_name && class_name !== 'All Classes') {
+      url += `&class_name=${encodeURIComponent(class_name)}`;
+    }
 
     try {
-      const list = await apiCall(`/exams/subjects?exam_id=${exam_id}&class_name=${encodeURIComponent(class_name)}&term=${encodeURIComponent(term)}`);
+      const list = await apiCall(url);
       const tbody = document.querySelector('#table-exam-subjects tbody');
       tbody.innerHTML = '';
 
       if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color:var(--text-muted);">No subjects found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color:var(--text-muted);">No subjects found.</td></tr>';
         return;
       }
 
@@ -2105,6 +2172,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tbody.innerHTML += `
           <tr>
             <td><strong>${sub.subject}</strong></td>
+            <td>${sub.class}</td>
             <td>${sub.term}</td>
             <td><strong>${sub.max_marks}</strong></td>
             <td>

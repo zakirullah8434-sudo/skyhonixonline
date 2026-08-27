@@ -889,84 +889,83 @@
               <button class="btn btn-outline btn-sm btn-back-exam-dash">&larr; Back to Exam Dashboard</button>
             </div>
             <h2 style="margin-bottom: 24px;">Setup Exam & Subjects</h2>
-            <div class="grid-2">
-              <div class="card">
-                <h3>Create Exam Registry</h3>
-                <form id="form-create-exam" style="margin-bottom: 30px;">
-                  <div class="grid-2">
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label">Exam Name (e.g. Mid Term)</label>
-                      <select class="form-control" id="exam-create-name" required>
-                        <option>1st Term</option>
-                        <option>2nd Term</option>
-                        <option>Final</option>
-                      </select>
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label">Year</label>
-                      <select class="form-control" id="exam-create-year" required></select>
-                    </div>
+            <div class="card" style="max-width: 600px;">
+              <h3>Create Exam Registry</h3>
+              <form id="form-create-exam" style="margin-bottom: 30px;">
+                <div class="grid-2">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Exam Name (e.g. Mid Term)</label>
+                    <select class="form-control" id="exam-create-name" required>
+                      <option>1st Term</option>
+                      <option>2nd Term</option>
+                      <option>Final</option>
+                    </select>
                   </div>
-                  <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Create Exam</button>
-                </form>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Year</label>
+                    <select class="form-control" id="exam-create-year" required></select>
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Create Exam</button>
+              </form>
 
-                <h3 style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">Add Exam Subject</h3>
-                <form id="form-create-subject" style="margin-top: 15px;">
-                  <div class="grid-2">
-                    <div class="form-group">
-                      <label class="form-label">Target Exam</label>
-                      <select class="form-control" id="sub-exam-select" required></select>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Class</label>
-                      <select class="form-control" id="sub-class-select" required></select>
-                    </div>
+              <h3 style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">Add Exam Subject</h3>
+              <form id="form-create-subject" style="margin-top: 15px;">
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Target Exam</label>
+                    <select class="form-control" id="sub-exam-select" required></select>
                   </div>
-                  <div class="grid-3">
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label">Subject Title</label>
-                      <input type="text" class="form-control" id="sub-name" placeholder="e.g. English, Math" required>
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label">Max Marks</label>
-                      <input type="number" class="form-control" id="sub-max-marks" value="100" required>
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label">Term</label>
-                      <select class="form-control" id="sub-term-select" required>
-                        <option>1st Term</option><option>2nd Term</option><option>Final</option>
-                      </select>
-                    </div>
+                  <div class="form-group">
+                    <label class="form-label">Term</label>
+                    <select class="form-control" id="sub-term-select" required>
+                      <option>1st Term</option><option>2nd Term</option><option>Final</option>
+                    </select>
                   </div>
-                  <button type="submit" class="btn btn-secondary" style="margin-top: 20px;">Save Exam Subject</button>
-                </form>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Select Classes</label>
+                  <div id="sub-class-checkboxes" style="display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; min-height: 42px;">
+                    <!-- Populated by JS -->
+                  </div>
+                </div>
+                <div class="grid-2">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Subject Title</label>
+                    <input type="text" class="form-control" id="sub-name" placeholder="e.g. English, Math" required>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Max Marks</label>
+                    <input type="number" class="form-control" id="sub-max-marks" value="100" required>
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-secondary" style="margin-top: 20px;">Save Exam Subject</button>
+              </form>
+
+              <h3 style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">Active Exam Subjects List</h3>
+              <div class="grid-2" style="margin-top: 15px; margin-bottom: 15px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <select class="form-control" id="view-sub-exam"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <select class="form-control" id="view-sub-class"></select>
+                </div>
               </div>
-
-              <div class="card" style="display: flex; flex-direction: column;">
-                <h3>Active Exam Subjects List</h3>
-                <div class="grid-2" style="margin-top: 15px; margin-bottom: 15px;">
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <select class="form-control" id="view-sub-exam"></select>
-                  </div>
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <select class="form-control" id="view-sub-class"></select>
-                  </div>
-                </div>
-                <div class="table-container" style="flex: 1; margin-bottom: 0;">
-                  <table class="data-table" id="table-exam-subjects">
-                    <thead>
-                      <tr>
-                        <th>Subject Title</th>
-                        <th>Term</th>
-                        <th>Max Marks</th>
-                        <th>Remove</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Please select filters...</td></tr>
-                    </tbody>
-                  </table>
-                </div>
+              <div class="table-container" style="margin-bottom: 0;">
+                <table class="data-table" id="table-exam-subjects">
+                  <thead>
+                    <tr>
+                      <th>Subject Title</th>
+                      <th>Class</th>
+                      <th>Term</th>
+                      <th>Max Marks</th>
+                      <th>Remove</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Please select filters...</td></tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

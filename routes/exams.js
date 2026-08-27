@@ -41,16 +41,22 @@ router.get('/subjects', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { exam_id, class_name, term } = req.query;
 
-  if (!exam_id || !class_name || !term) {
-    return res.status(400).json({ error: 'exam_id, class_name, and term are required' });
+  if (!exam_id || !term) {
+    return res.status(400).json({ error: 'exam_id and term are required' });
   }
 
+  let query = 'SELECT * FROM exam_subjects WHERE exam_id = ? AND term = ?';
+  const params = [parseInt(exam_id), term];
+
+  if (class_name && class_name !== 'All Classes') {
+    query += ' AND class = ?';
+    params.push(class_name);
+  }
+
+  query += ' ORDER BY class, subject';
+
   try {
-    const subjects = await querySchool(
-      schoolId,
-      'SELECT * FROM exam_subjects WHERE exam_id = ? AND class = ? AND term = ? ORDER BY subject',
-      [parseInt(exam_id), class_name, term]
-    );
+    const subjects = await querySchool(schoolId, query, params);
     res.json(subjects);
   } catch (err) {
     res.status(500).json({ error: err.message });
