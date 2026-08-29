@@ -9,7 +9,7 @@ const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 let dbInitialized = false;
@@ -19,57 +19,59 @@ async function ensureDbInitialized() {
   if (dbInitialized) return;
   if (!dbInitializationPromise) {
     dbInitializationPromise = (async () => {
-      if (config.isVercel) {
-        console.log('Vercel environment detected. Copying templates to /tmp...');
-        if (!fs.existsSync(config.DATABASES_DIR)) {
-          fs.mkdirSync(config.DATABASES_DIR, { recursive: true });
-        }
-        if (fs.existsSync(config.READONLY_DATABASES_DIR)) {
-          const files = fs.readdirSync(config.READONLY_DATABASES_DIR);
-          for (const file of files) {
-            if (file.endsWith('.db')) {
-              const src = path.join(config.READONLY_DATABASES_DIR, file);
-              const dest = path.join(config.DATABASES_DIR, file);
-              if (!fs.existsSync(dest)) {
-                fs.copyFileSync(src, dest);
-                console.log(`Copied database ${file} to /tmp`);
+      try {
+        if (config.isVercel) {
+          if (!fs.existsSync(config.DATABASES_DIR)) {
+            fs.mkdirSync(config.DATABASES_DIR, { recursive: true });
+          }
+          if (!fs.existsSync(config.UPLOADS_DIR)) {
+            fs.mkdirSync(config.UPLOADS_DIR, { recursive: true });
+          }
+          if (fs.existsSync(config.READONLY_DATABASES_DIR)) {
+            const files = fs.readdirSync(config.READONLY_DATABASES_DIR);
+            for (const file of files) {
+              if (file.endsWith('.db')) {
+                const src = path.join(config.READONLY_DATABASES_DIR, file);
+                const dest = path.join(config.DATABASES_DIR, file);
+                if (!fs.existsSync(dest)) {
+                  fs.copyFileSync(src, dest);
+                }
               }
             }
           }
-        }
-        
-        if (!fs.existsSync(config.UPLOADS_DIR)) {
-          fs.mkdirSync(config.UPLOADS_DIR, { recursive: true });
-        }
-        const copyDirRecursive = (srcDir, destDir) => {
-          if (!fs.existsSync(srcDir)) return;
-          if (!fs.existsSync(destDir)) {
-            fs.mkdirSync(destDir, { recursive: true });
-          }
-          const items = fs.readdirSync(srcDir);
-          for (const item of items) {
-            const srcItem = path.join(srcDir, item);
-            const destItem = path.join(destDir, item);
-            if (fs.statSync(srcItem).isDirectory()) {
-              copyDirRecursive(srcItem, destItem);
-            } else {
-              if (!fs.existsSync(destItem)) {
-                fs.copyFileSync(srcItem, destItem);
+          const copyDirRecursive = (srcDir, destDir) => {
+            if (!fs.existsSync(srcDir)) return;
+            if (!fs.existsSync(destDir)) {
+              fs.mkdirSync(destDir, { recursive: true });
+            }
+            const items = fs.readdirSync(srcDir);
+            for (const item of items) {
+              const srcItem = path.join(srcDir, item);
+              const destItem = path.join(destDir, item);
+              if (fs.statSync(srcItem).isDirectory()) {
+                copyDirRecursive(srcItem, destItem);
+              } else {
+                if (!fs.existsSync(destItem)) {
+                  fs.copyFileSync(srcItem, destItem);
+                }
               }
             }
-          }
-        };
-        copyDirRecursive(config.READONLY_UPLOADS_DIR, config.UPLOADS_DIR);
-        console.log('Template copy completed.');
+          };
+          copyDirRecursive(config.READONLY_UPLOADS_DIR, config.UPLOADS_DIR);
+        }
+        await initMainDb();
+        dbInitialized = true;
+      } catch (initErr) {
+        console.error('DB initialization error:', initErr);
+        dbInitializationPromise = null;
+        throw initErr;
       }
-      await initMainDb();
-      dbInitialized = true;
     })();
   }
   return dbInitializationPromise;
 }
 
-// Middleware to ensure DB is initialized (wrapped to catch async errors for Express 4)
+// Middleware to ensure DB is initialized
 app.use((req, res, next) => {
   ensureDbInitialized()
     .then(() => next())
@@ -82,7 +84,12 @@ app.use((req, res, next) => {
 });
 
 // Serve static uploaded assets
-app.use('/uploads', express.static(config.UPLOADS_DIR));
+app.use('/uploads', (req, res, next) => {
+  if (config.isVercel && !fs.existsSync(config.UPLOADS_DIR)) {
+    fs.mkdirSync(config.UPLOADS_DIR, { recursive: true });
+  }
+  express.static(config.UPLOADS_DIR)(req, res, next);
+});
 
 // Import routes
 const authRoutes = require('./routes/auth').router;
