@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "installCommand": "npm install --ignore-scripts",
   "builds": [
     {
       "src": "server.js",
@@ -12,7 +11,8 @@
           "database_manager.js",
           "school_db_template.js",
           "sync_manager.js",
-          "routes/**"
+          "routes/**",
+          "public/**"
         ]
       }
     }
