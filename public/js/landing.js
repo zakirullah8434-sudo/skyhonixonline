@@ -97,10 +97,12 @@ document.addEventListener('DOMContentLoaded', () => {
     drawerSignup.classList.add('open');
   });
 
-  btnPricingTrial.addEventListener('click', () => {
-    drawerLogin.classList.remove('open');
-    drawerSignup.classList.add('open');
-  });
+  if (btnPricingTrial) {
+    btnPricingTrial.addEventListener('click', () => {
+      drawerLogin.classList.remove('open');
+      drawerSignup.classList.add('open');
+    });
+  }
 
   // API Call: Register School tenant
   formSignup.addEventListener('submit', async (e) => {
