@@ -12,7 +12,9 @@
           "school_db_template.js",
           "sync_manager.js",
           "routes/**",
-          "public/**"
+          "public/**",
+          "node_modules/sqlite3/build/**",
+          "node_modules/sqlite3/lib/**"
         ]
       }
     }
