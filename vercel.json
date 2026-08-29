@@ -3,7 +3,18 @@
   "builds": [
     {
       "src": "server.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "config.js",
+          "main_db_init.js",
+          "database_manager.js",
+          "school_db_template.js",
+          "sync_manager.js",
+          "routes/**",
+          "public/**"
+        ]
+      }
     }
   ],
   "routes": [
