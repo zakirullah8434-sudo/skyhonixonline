@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkyHonix | Teacher Portal</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="main-header" id="main-header">
+    <div class="header-left">
+      <button class="nav-hamburger" id="sidebar-toggle" aria-label="Menu">&#9776;</button>
+      <h1 class="header-title">Teacher Portal</h1>
+    </div>
+    <div class="header-right">
+      <span class="user-badge" id="header-user-badge">Teacher</span>
+      <button class="btn btn-outline btn-sm" id="btn-logout" title="Sign Out">Logout</button>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="main-sidebar">
+    <div class="sidebar-brand">
+      <span>SkyHonix</span>
+      <small>Teacher</small>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-opt="my-subjects">My Subjects</button>
+      <button class="nav-item" data-opt="marks-entry">Marks Entry</button>
+      <button class="nav-item" data-opt="announcements">Announcements</button>
+    </nav>
+  </aside>
+
+  <!-- Content Area -->
+  <main class="main-content" id="main-content">
+
+    <!-- Announcement News Ticker -->
+    <div id="news-ticker" style="display: none; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; overflow: hidden;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; white-space: nowrap; color: #fff;">📢 NEWS</span>
+        <div style="overflow: hidden; flex: 1; position: relative; height: 24px;">
+          <div id="news-ticker-content" style="display: flex; gap: 60px; animation: tickerScroll 20s linear infinite; position: absolute; white-space: nowrap;">
+          </div>
+        </div>
+      </div>
+    </div>
+    <style>
+      @keyframes tickerScroll {
+        0% { transform: translateX(100%); }
+        100% { transform: translateX(-100%); }
+      }
+    </style>
+
+    <!-- My Subjects Panel -->
+    <section class="content-panel active" id="panel-my-subjects">
+      <h2>My Assigned Subjects</h2>
+      <p class="text-muted" style="margin-bottom:20px;">Your teaching schedule and assigned classes.</p>
+      <div id="my-subjects-container"></div>
+    </section>
+
+    <!-- Marks Entry Panel -->
+    <section class="content-panel" id="panel-marks-entry">
+      <h2>Marks Entry</h2>
+      <p class="text-muted" style="margin-bottom:20px;">Enter marks for your assigned subjects.</p>
+
+      <!-- Filters -->
+      <div class="card" style="padding:20px; margin-bottom:20px;">
+        <div class="grid-2" style="gap:15px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Exam</label>
+            <select class="form-control" id="marks-exam-select">
+              <option value="">-- Select Exam --</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Term</label>
+            <select class="form-control" id="marks-term-select">
+              <option value="">-- Select Term --</option>
+              <option value="1st Term">1st Term</option>
+              <option value="2nd Term">2nd Term</option>
+              <option value="Final">Final</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2" style="gap:15px; margin-top:15px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Class</label>
+            <select class="form-control" id="marks-class-select">
+              <option value="">-- Select Class --</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Subject</label>
+            <select class="form-control" id="marks-subject-select">
+              <option value="">-- Select Subject --</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:15px;">
+          <button class="btn btn-primary" id="btn-load-marks">Load Students</button>
+        </div>
+      </div>
+
+      <!-- Marks Grid -->
+      <div id="marks-grid-container" style="display:none;">
+        <div class="card" style="padding:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 id="marks-grid-title">Marks Grid</h3>
+            <button class="btn btn-primary" id="btn-save-marks">Save All Marks</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr>
+                  <th style="text-align:left; padding:10px; border-bottom:2px solid var(--primary);">Roll No</th>
+                  <th style="text-align:left; padding:10px; border-bottom:2px solid var(--primary);">Student Name</th>
+                  <th style="text-align:center; padding:10px; border-bottom:2px solid var(--primary); width:150px;">Marks</th>
+                </tr>
+              </thead>
+              <tbody id="marks-grid-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Announcements Panel -->
+    <section class="content-panel" id="panel-announcements">
+      <h2>📢 School Announcements</h2>
+      <p class="text-muted" style="margin-bottom:20px;">Latest updates and notices from school administration.</p>
+      <div id="announcements-container"></div>
+    </section>
+
+  </main>
+
+  <div id="toast" style="display: none; position: fixed; bottom: 30px; right: 30px; padding: 16px 24px; border-radius: var(--border-radius); background: var(--bg-card); border: 1px solid var(--primary); backdrop-filter: blur(10px); z-index: 10000; box-shadow: var(--glass-shadow); color: white; animation: fadeIn 0.3s ease;">
+    <p id="toast-text"></p>
+  </div>
+
+  <script src="js/teacher-portal.js"></script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="SkyHonix School Management System is a responsive online multi-tenant SaaS portal. Track students, fees with sibling waivers, attendance, and exam marks. Subscription model: 1500 PKR monthly.">
+  <meta name="description" content="SkyHonix School Management System - responsive online multi-tenant SaaS portal. Track students, fees, attendance, exams & DMCs. Packages from 800 to 2400 PKR/month based on school size.">
   <title>SkyHonix School System | Responsive Cloud School Portal</title>
   
   <!-- Custom CSS -->
@@ -16,7 +16,8 @@
     <a href="#" class="logo" id="logo-link">
       <span>SkyHonix</span> School System
     </a>
-    <ul class="nav-links">
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Menu">&#9776;</button>
+    <ul class="nav-links" id="nav-links">
       <li><a href="#features">Features</a></li>
       <li><a href="#pricing">Pricing</a></li>
       <li><a href="/admin.html" class="btn btn-outline btn-sm">🔐 Admin</a></li>
@@ -86,35 +87,127 @@
 
   <!-- Pricing / Subscription Section -->
   <section class="pricing-section" id="pricing">
-    <h2 class="section-title">Transparent Pricing Plan</h2>
-    <p class="section-desc">No setup fees, no hidden locks. One simple plan designed to match the needs of primary and high schools.</p>
+    <h2 class="section-title">Choose Your Package</h2>
+    <p class="section-desc">Select the plan that fits your school size. All packages include a 30-day free trial.</p>
     
-    <div class="pricing-card" id="main-pricing-card">
-      <span class="pricing-badge">PRO PLAN</span>
-      <div class="price">1500 PKR<span>/month</span></div>
-      <p class="price-subtext">Flat monthly rate per school registry, billed monthly.</p>
-      
-      <ul class="price-features">
-        <li>Unlimited Students, Teachers, and Classes</li>
-        <li>Dynamic Multi-User Roles (Admin & Teacher)</li>
-        <li>Online Database Backups & Restore operations</li>
-        <li>Webcam-based QR Attendance checking</li>
-        <li>Carry-Forward Dues ledger processing</li>
-        <li>Report Sheets & Detailed Marks Certificates (DMCs)</li>
-      </ul>
-      
-      <button class="btn btn-primary" style="width: 100%;" id="btn-pricing-trial">Activate 30-Day Free Trial</button>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; padding: 0 4%; max-width: 1100px; margin: 0 auto;">
+      <!-- Package 1 -->
+      <div class="card" style="text-align:center; padding:28px 20px; position:relative; border:2px solid transparent; transition: border-color 0.3s, transform 0.3s;" onmouseover="this.style.borderColor='var(--primary)'; this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='transparent'; this.style.transform='none'">
+        <span class="pricing-badge" style="position:absolute; top:12px; right:12px;">STARTER</span>
+        <div style="font-size:2rem; margin-bottom:10px;">🏫</div>
+        <h3 style="margin:0 0 5px;">Package 1</h3>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin:0 0 15px;">50 – 200 Students</p>
+        <div class="price" style="font-size:2rem; margin:10px 0;">800 PKR<span style="font-size:0.9rem; font-weight:400;">/month</span></div>
+        <ul class="price-features" style="text-align:left; font-size:0.85rem;">
+          <li>Unlimited Teachers & Classes</li>
+          <li>Attendance & Fee Tracking</li>
+          <li>Exams & DMC Generation</li>
+          <li>Parent & Teacher Portals</li>
+          <li>Online Backups</li>
+        </ul>
+        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
+      </div>
+
+      <!-- Package 2 -->
+      <div class="card" style="text-align:center; padding:28px 20px; position:relative; border:2px solid transparent; transition: border-color 0.3s, transform 0.3s;" onmouseover="this.style.borderColor='var(--primary)'; this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='transparent'; this.style.transform='none'">
+        <div style="font-size:2rem; margin-bottom:10px;">🏫</div>
+        <h3 style="margin:0 0 5px;">Package 2</h3>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin:0 0 15px;">201 – 400 Students</p>
+        <div class="price" style="font-size:2rem; margin:10px 0;">1,200 PKR<span style="font-size:0.9rem; font-weight:400;">/month</span></div>
+        <ul class="price-features" style="text-align:left; font-size:0.85rem;">
+          <li>Unlimited Teachers & Classes</li>
+          <li>Attendance & Fee Tracking</li>
+          <li>Exams & DMC Generation</li>
+          <li>Parent & Teacher Portals</li>
+          <li>Online Backups</li>
+        </ul>
+        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
+      </div>
+
+      <!-- Package 3 -->
+      <div class="card" style="text-align:center; padding:28px 20px; position:relative; border:2px solid transparent; transition: border-color 0.3s, transform 0.3s;" onmouseover="this.style.borderColor='var(--primary)'; this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='transparent'; this.style.transform='none'">
+        <span class="pricing-badge" style="position:absolute; top:12px; right:12px; background:var(--accent);">POPULAR</span>
+        <div style="font-size:2rem; margin-bottom:10px;">🏫</div>
+        <h3 style="margin:0 0 5px;">Package 3</h3>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin:0 0 15px;">401 – 600 Students</p>
+        <div class="price" style="font-size:2rem; margin:10px 0;">1,500 PKR<span style="font-size:0.9rem; font-weight:400;">/month</span></div>
+        <ul class="price-features" style="text-align:left; font-size:0.85rem;">
+          <li>Unlimited Teachers & Classes</li>
+          <li>Attendance & Fee Tracking</li>
+          <li>Exams & DMC Generation</li>
+          <li>Parent & Teacher Portals</li>
+          <li>Online Backups</li>
+        </ul>
+        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
+      </div>
+
+      <!-- Package 4 -->
+      <div class="card" style="text-align:center; padding:28px 20px; position:relative; border:2px solid transparent; transition: border-color 0.3s, transform 0.3s;" onmouseover="this.style.borderColor='var(--primary)'; this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='transparent'; this.style.transform='none'">
+        <div style="font-size:2rem; margin-bottom:10px;">🏫</div>
+        <h3 style="margin:0 0 5px;">Package 4</h3>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin:0 0 15px;">601 – 800 Students</p>
+        <div class="price" style="font-size:2rem; margin:10px 0;">1,800 PKR<span style="font-size:0.9rem; font-weight:400;">/month</span></div>
+        <ul class="price-features" style="text-align:left; font-size:0.85rem;">
+          <li>Unlimited Teachers & Classes</li>
+          <li>Attendance & Fee Tracking</li>
+          <li>Exams & DMC Generation</li>
+          <li>Parent & Teacher Portals</li>
+          <li>Online Backups</li>
+        </ul>
+        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
+      </div>
+
+      <!-- Package 5 -->
+      <div class="card" style="text-align:center; padding:28px 20px; position:relative; border:2px solid transparent; transition: border-color 0.3s, transform 0.3s;" onmouseover="this.style.borderColor='var(--primary)'; this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='transparent'; this.style.transform='none'">
+        <div style="font-size:2rem; margin-bottom:10px;">🏫</div>
+        <h3 style="margin:0 0 5px;">Package 5</h3>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin:0 0 15px;">801 – 1,000 Students</p>
+        <div class="price" style="font-size:2rem; margin:10px 0;">2,000 PKR<span style="font-size:0.9rem; font-weight:400;">/month</span></div>
+        <ul class="price-features" style="text-align:left; font-size:0.85rem;">
+          <li>Unlimited Teachers & Classes</li>
+          <li>Attendance & Fee Tracking</li>
+          <li>Exams & DMC Generation</li>
+          <li>Parent & Teacher Portals</li>
+          <li>Online Backups</li>
+        </ul>
+        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
+      </div>
+
+      <!-- Package 6 -->
+      <div class="card" style="text-align:center; padding:28px 20px; position:relative; border:2px solid transparent; transition: border-color 0.3s, transform 0.3s;" onmouseover="this.style.borderColor='var(--primary)'; this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='transparent'; this.style.transform='none'">
+        <span class="pricing-badge" style="position:absolute; top:12px; right:12px; background:#ef4444;">ENTERPRISE</span>
+        <div style="font-size:2rem; margin-bottom:10px;">🏫</div>
+        <h3 style="margin:0 0 5px;">Package 6</h3>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin:0 0 15px;">1,001 – 1,500 Students</p>
+        <div class="price" style="font-size:2rem; margin:10px 0;">2,400 PKR<span style="font-size:0.9rem; font-weight:400;">/month</span></div>
+        <ul class="price-features" style="text-align:left; font-size:0.85rem;">
+          <li>Unlimited Teachers & Classes</li>
+          <li>Attendance & Fee Tracking</li>
+          <li>Exams & DMC Generation</li>
+          <li>Parent & Teacher Portals</li>
+          <li>Online Backups</li>
+        </ul>
+        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
+      </div>
     </div>
   </section>
 
   <!-- Login Drawer -->
   <aside class="drawer" id="drawer-login">
     <div class="drawer-header">
-      <h2>School Staff Login</h2>
+      <h2 id="login-drawer-title">School Staff Login</h2>
       <button class="drawer-close" id="btn-login-close">&times;</button>
     </div>
-    
-    <form id="form-login">
+
+    <!-- Role Toggle -->
+    <div style="display:flex; gap:8px; margin-bottom:20px;">
+      <button type="button" class="btn btn-primary login-role-btn" id="login-role-school" style="flex:1; padding:10px;">School</button>
+      <button type="button" class="btn btn-outline login-role-btn" id="login-role-teacher" style="flex:1; padding:10px;">Teacher</button>
+      <button type="button" class="btn btn-outline login-role-btn" id="login-role-parent" style="flex:1; padding:10px;">Parent</button>
+    </div>
+
+    <!-- School Login Form -->
+    <form id="form-login" class="login-form" data-role="school">
       <div class="form-group">
         <label class="form-label" for="login-school-email">School Email</label>
         <input type="email" class="form-control" id="login-school-email" placeholder="school@example.com" required autocomplete="email">
@@ -124,12 +217,51 @@
         <label class="form-label" for="login-password">Password</label>
         <input type="password" class="form-control" id="login-password" placeholder="••••••••" required autocomplete="current-password">
       </div>
-      
+
       <div style="margin-top: 30px;">
         <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In to Workspace</button>
       </div>
-      
+
       <p id="login-error-msg" style="color: var(--danger); font-size: 0.9rem; margin-top: 15px; text-align: center; display: none;"></p>
+    </form>
+
+    <!-- Teacher Login Form -->
+    <form id="form-login-teacher" class="login-form" data-role="teacher" style="display:none;">
+      <div class="form-group">
+        <label class="form-label" for="login-teacher-phone">Phone Number</label>
+        <input type="text" class="form-control" id="login-teacher-phone" placeholder="e.g. 03114918272" required autocomplete="tel">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="login-teacher-password">Password</label>
+        <input type="password" class="form-control" id="login-teacher-password" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+
+      <div style="margin-top: 30px;">
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In as Teacher</button>
+      </div>
+
+      <p id="login-teacher-error-msg" style="color: var(--danger); font-size: 0.9rem; margin-top: 15px; text-align: center; display: none;"></p>
+    </form>
+
+    <!-- Parent Login Form -->
+    <form id="form-login-parent" class="login-form" data-role="parent" style="display:none;">
+      <div class="form-group">
+        <label class="form-label" for="login-parent-school-id">School ID</label>
+        <input type="number" class="form-control" id="login-parent-school-id" placeholder="e.g. 1" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="login-parent-phone">Phone Number</label>
+        <input type="text" class="form-control" id="login-parent-phone" placeholder="e.g. 03114918272" required autocomplete="tel">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="login-parent-password">Password</label>
+        <input type="password" class="form-control" id="login-parent-password" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <div style="margin-top: 30px;">
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In as Parent</button>
+      </div>
+      <p id="login-parent-error-msg" style="color: var(--danger); font-size: 0.9rem; margin-top: 15px; text-align: center; display: none;"></p>
     </form>
   </aside>
 

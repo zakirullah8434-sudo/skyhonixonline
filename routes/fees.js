@@ -320,8 +320,11 @@ router.post('/pay', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { ledger_id, amount_paid, payment_date } = req.body;
 
-  if (!ledger_id || !amount_paid) {
-    return res.status(400).json({ error: 'ledger_id and amount_paid are required' });
+  const parsedAmount = parseFloat(amount_paid);
+  const parsedLedgerId = parseInt(ledger_id);
+
+  if (!parsedLedgerId || isNaN(parsedAmount) || parsedAmount <= 0) {
+    return res.status(400).json({ error: 'Valid ledger_id and a positive amount_paid are required' });
   }
 
   const payDate = payment_date || new Date().toISOString().split('T')[0];
@@ -331,17 +334,18 @@ router.post('/pay', authenticateToken, async (req, res) => {
     const ledger = await querySchoolOne(
       schoolId,
       'SELECT id, student_id, class_name, month, year, total_payable, paid_amount FROM fee_ledger WHERE id = ?',
-      [ledger_id]
+      [parsedLedgerId]
     );
 
     if (!ledger) {
       return res.status(404).json({ error: 'Ledger record not found' });
     }
 
-    const newPaidAmount = ledger.paid_amount + parseFloat(amount_paid);
+    const newPaidAmount = ledger.paid_amount + parsedAmount;
     let newStatus = 'Unpaid';
     if (newPaidAmount >= ledger.total_payable) {
       newStatus = 'Paid';
+      newPaidAmount = ledger.total_payable; // Cap at total
     } else if (newPaidAmount > 0) {
       newStatus = 'Partial';
     }
@@ -350,29 +354,29 @@ router.post('/pay', authenticateToken, async (req, res) => {
     const statements = [
       {
         sql: 'UPDATE fee_ledger SET paid_amount = ?, status = ? WHERE id = ?',
-        params: [newPaidAmount, newStatus, ledger_id]
+        params: [newPaidAmount, newStatus, parsedLedgerId]
       },
       {
         sql: `INSERT INTO fee_payments (student_id, class_name, month, year, amount_paid, payment_date, fee_ledger_id)
               VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        params: [ledger.student_id, ledger.class_name, ledger.month, ledger.year, parseFloat(amount_paid), payDate, ledger_id]
+        params: [ledger.student_id, ledger.class_name, ledger.month, ledger.year, parsedAmount, payDate, parsedLedgerId]
       }
     ];
 
     await runSchoolTransaction(schoolId, statements);
 
     // SYNC: Emit fee payment event to cascade updates to analytics, dashboard, and related views
-    await syncManager.onFeePaymentRecorded(schoolId, ledger_id, parseFloat(amount_paid), ledger.student_id);
+    await syncManager.onFeePaymentRecorded(schoolId, parsedLedgerId, parsedAmount, ledger.student_id);
 
     res.json({
       message: 'Payment recorded successfully!',
       ledger: {
-        id: ledger_id,
+        id: parsedLedgerId,
         total_payable: ledger.total_payable,
         paid_amount: newPaidAmount,
         status: newStatus
       },
-      syncEvent: 'fees.payment.recorded' // Notify frontend to refresh dependent data
+      syncEvent: 'fees.payment.recorded'
     });
 
   } catch (err) {
@@ -782,6 +786,12 @@ router.get('/analytics', authenticateToken, async (req, res) => {
   }
 
   try {
+    const monthOrder = { 'January':1,'February':2,'March':3,'April':4,'May':5,'June':6,'July':7,'August':8,'September':9,'October':10,'November':11,'December':12 };
+    const currentMonthName = new Date().toLocaleString('en-US', { month: 'long' });
+    const currentYear = new Date().getFullYear();
+    const reqMonth = month || currentMonthName;
+    const reqYear = parseInt(year) || currentYear;
+
     const classStats = await querySchool(
       schoolId,
       `SELECT class_name, 
@@ -791,10 +801,9 @@ router.get('/analytics', authenticateToken, async (req, res) => {
        FROM fee_ledger
        WHERE month = ? AND year = ?
        GROUP BY class_name`,
-      [month, parseInt(year)]
+      [reqMonth, reqYear]
     );
 
-    const classList = ['Nursery', 'KG', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th'];
     const statsMap = {};
     classStats.forEach(cs => {
       statsMap[cs.class_name] = cs;
@@ -807,6 +816,27 @@ router.get('/analytics', authenticateToken, async (req, res) => {
     const studentCountMap = {};
     activeStudentCounts.forEach(r => {
       studentCountMap[r.class_name] = r.cnt;
+    });
+
+    const classSet = new Set();
+    classStats.forEach(cs => classSet.add(cs.class_name));
+    activeStudentCounts.forEach(r => classSet.add(r.class_name));
+    const classList = Array.from(classSet).sort();
+
+    const prevMonthIndex = (monthOrder[reqMonth] || 1) - 1;
+    const prevMonthName = Object.keys(monthOrder).find(k => monthOrder[k] === prevMonthIndex) || Object.keys(monthOrder).find(k => monthOrder[k] === 12);
+    const prevYear = prevMonthIndex === 0 ? reqYear - 1 : reqYear;
+
+    const prevMonthStats = await querySchool(
+      schoolId,
+      `SELECT class_name, SUM(paid_amount) as prev_collected
+       FROM fee_ledger WHERE month = ? AND year = ?
+       GROUP BY class_name`,
+      [prevMonthName, prevYear]
+    );
+    const prevCollectedMap = {};
+    prevMonthStats.forEach(p => {
+      prevCollectedMap[p.class_name] = p.prev_collected || 0;
     });
 
     const classWise = [];
@@ -825,8 +855,14 @@ router.get('/analytics', authenticateToken, async (req, res) => {
       if (rate >= 80) status = 'Good';
       else if (rate >= 50) status = 'Fair';
 
-      const trendVal = ((idx * 3 + month.length) % 10) - 4;
-      const trend = trendVal >= 0 ? `+${trendVal}%` : `${trendVal}%`;
+      const prevCollected = prevCollectedMap[clsName] || 0;
+      let trend = '0%';
+      if (prevCollected > 0) {
+        const change = ((collected - prevCollected) / prevCollected * 100).toFixed(0);
+        trend = change >= 0 ? `+${change}%` : `${change}%`;
+      } else if (collected > 0) {
+        trend = '+100%';
+      }
 
       schoolTotalDue += due;
       schoolTotalCollected += collected;
@@ -934,6 +970,451 @@ router.post('/student-settings', authenticateToken, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// GET /fees/slip/:student_id - Get fee slip data for a student (12-month view)
+router.get('/slip/:student_id', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const studentId = parseInt(req.params.student_id);
+  const { year } = req.query;
+
+  try {
+    const student = await querySchoolOne(
+      schoolId,
+      `SELECT id, name, roll_no, father_name, class_name, section_name, admission_no 
+       FROM students WHERE id = ?`,
+      [studentId]
+    );
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+
+    const settings = await querySchoolOne(schoolId, 'SELECT * FROM fee_settings LIMIT 1');
+
+    const slipYear = parseInt(year) || new Date().getFullYear();
+    const months = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
+    const fullMonthMap = {
+      'Mar':'March','Apr':'April','May':'May','Jun':'June',
+      'Jul':'July','Aug':'August','Sep':'September','Oct':'October',
+      'Nov':'November','Dec':'December','Jan':'January','Feb':'February'
+    };
+    const yearMap = {
+      'Mar': slipYear, 'Apr': slipYear, 'May': slipYear, 'Jun': slipYear,
+      'Jul': slipYear, 'Aug': slipYear, 'Sep': slipYear, 'Oct': slipYear,
+      'Nov': slipYear, 'Dec': slipYear, 'Jan': slipYear + 1, 'Feb': slipYear + 1
+    };
+
+    const ledgerRows = await querySchool(
+      schoolId,
+      `SELECT month, year, base_fee, monthly_fee, transport_fee, previous_due, total_payable, paid_amount, status 
+       FROM fee_ledger WHERE student_id = ? AND year IN (?, ?)`,
+      [studentId, slipYear, slipYear + 1]
+    );
+
+    const ledgerMap = {};
+    ledgerRows.forEach(r => {
+      const shortMonth = months.find(m => fullMonthMap[m] === r.month);
+      if (shortMonth && r.year === yearMap[shortMonth]) {
+        ledgerMap[shortMonth] = r;
+      }
+    });
+
+    const monthlyFee = {};
+    const transportFee = {};
+    const due = {};
+    const total = {};
+    const paid = {};
+    const unpaid = {};
+    let netTotal = 0;
+
+    months.forEach(m => {
+      const entry = ledgerMap[m];
+      if (entry) {
+        monthlyFee[m] = entry.monthly_fee || 0;
+        transportFee[m] = entry.transport_fee || 0;
+        due[m] = entry.previous_due || 0;
+        total[m] = entry.total_payable || 0;
+        paid[m] = entry.paid_amount || 0;
+        unpaid[m] = (entry.total_payable || 0) - (entry.paid_amount || 0);
+        netTotal += unpaid[m] > 0 ? unpaid[m] : 0;
+      } else {
+        monthlyFee[m] = null;
+        transportFee[m] = null;
+        due[m] = null;
+        total[m] = null;
+        paid[m] = null;
+        unpaid[m] = null;
+      }
+    });
+
+    res.json({
+      student,
+      school: {
+        name: settings ? settings.school_name : '',
+        phone: settings ? settings.phone : '',
+        reg: settings ? settings.registration_number : '',
+        logo: settings ? settings.logo_path : ''
+      },
+      year: slipYear,
+      months,
+      monthlyFee,
+      transportFee,
+      due,
+      total,
+      paid,
+      unpaid,
+      netTotal
+    });
+  } catch (err) {
+    console.error('Fee slip error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /fees/unpaid-students - Get students with unpaid fees for reminders
+router.get('/unpaid-students', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { class_name, section_name, year } = req.query;
+
+  try {
+    let query = `
+      SELECT s.id, s.name, s.roll_no, s.father_name, s.class_name, s.section_name, s.admission_no,
+             COALESCE(SUM(CASE WHEN f.total_payable IS NOT NULL THEN f.total_payable - f.paid_amount ELSE 0 END), 0) as total_unpaid,
+             COUNT(f.id) as ledger_entries
+      FROM students s
+      LEFT JOIN fee_ledger f ON f.student_id = s.id AND f.year = ?
+      WHERE (s.status IS NULL OR s.status != 'Left')
+    `;
+    const params = [parseInt(year) || new Date().getFullYear()];
+
+    if (class_name) {
+      query += ' AND s.class_name = ?';
+      params.push(class_name);
+    }
+    if (section_name) {
+      query += ' AND s.section_name = ?';
+      params.push(section_name);
+    }
+
+    query += ' GROUP BY s.id ORDER BY s.class_name, s.roll_no';
+
+    const students = await querySchool(schoolId, query, params);
+    res.json(students);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /fees/reminders - Save a fee reminder
+router.post('/reminders', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { title, class_name, section_name, year, student_ids, total_amount, student_count } = req.body;
+
+  try {
+    const result = await runSchool(schoolId,
+      `INSERT INTO fee_reminders (title, class_name, section_name, year, student_ids, total_amount, student_count, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'Active', datetime('now'))`,
+      [
+        title || `Fee Reminder - ${class_name || 'All'} - ${year}`,
+        class_name || '',
+        section_name || '',
+        year || new Date().getFullYear(),
+        JSON.stringify(student_ids || []),
+        total_amount || 0,
+        student_count || 0
+      ]
+    );
+    res.json({ id: result.id, message: 'Reminder saved successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /fees/reminders - List all saved reminders
+router.get('/reminders', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+
+  try {
+    const reminders = await querySchool(schoolId,
+      'SELECT * FROM fee_reminders ORDER BY created_at DESC'
+    );
+    res.json(reminders);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /fees/reminders/:id/print - Mark reminder as printed
+router.put('/reminders/:id/print', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { id } = req.params;
+
+  try {
+    await runSchool(schoolId,
+      `UPDATE fee_reminders SET printed_at = datetime('now') WHERE id = ?`,
+      [id]
+    );
+    res.json({ message: 'Reminder marked as printed' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /fees/reminders/:id - Delete a saved reminder
+router.delete('/reminders/:id', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { id } = req.params;
+
+  try {
+    await runSchool(schoolId, 'DELETE FROM fee_reminders WHERE id=?', [id]);
+    res.json({ message: 'Reminder deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /fees/reminders/generate-pdf - Generate PDF for selected students
+router.post('/reminders/generate-pdf', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { student_ids, year, title } = req.body;
+
+  if (!student_ids || !Array.isArray(student_ids) || student_ids.length === 0) {
+    return res.status(400).json({ error: 'student_ids array is required' });
+  }
+
+  try {
+    const PDFDocument = require('pdfkit');
+    const path = require('path');
+    const fs = require('fs');
+
+    const slipYear = parseInt(year) || new Date().getFullYear();
+    const months = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
+    const fullMonthMap = {
+      'Mar':'March','Apr':'April','May':'May','Jun':'June',
+      'Jul':'July','Aug':'August','Sep':'September','Oct':'October',
+      'Nov':'November','Dec':'December','Jan':'January','Feb':'February'
+    };
+    const yearMap = {
+      'Mar': slipYear, 'Apr': slipYear, 'May': slipYear, 'Jun': slipYear,
+      'Jul': slipYear, 'Aug': slipYear, 'Sep': slipYear, 'Oct': slipYear,
+      'Nov': slipYear, 'Dec': slipYear, 'Jan': slipYear + 1, 'Feb': slipYear + 1
+    };
+
+    // Get school settings
+    const settings = await querySchoolOne(schoolId, 'SELECT * FROM fee_settings LIMIT 1');
+    const schoolName = settings ? settings.school_name : 'School Name';
+    const schoolPhone = settings ? settings.phone : '';
+    const schoolReg = settings ? settings.registration_number : '';
+
+    // Create uploads directory if not exists
+    const uploadsDir = path.join(__dirname, '..', 'public', 'uploads', 'reminders');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const fileName = `reminder_${Date.now()}.pdf`;
+    const filePath = path.join(uploadsDir, fileName);
+
+    // Collect all student data first
+    const studentDataList = [];
+    for (const studentId of student_ids) {
+      const student = await querySchoolOne(
+        schoolId,
+        `SELECT id, name, roll_no, father_name, class_name, section_name, admission_no 
+         FROM students WHERE id = ?`,
+        [studentId]
+      );
+      if (!student) continue;
+
+      const ledgerRows = await querySchool(
+        schoolId,
+        `SELECT month, year, base_fee, monthly_fee, transport_fee, previous_due, total_payable, paid_amount, status 
+         FROM fee_ledger WHERE student_id = ? AND year IN (?, ?)`,
+        [studentId, slipYear, slipYear + 1]
+      );
+
+      const ledgerMap = {};
+      ledgerRows.forEach(r => {
+        const shortMonth = months.find(m => fullMonthMap[m] === r.month);
+        if (shortMonth && r.year === yearMap[shortMonth]) {
+          ledgerMap[shortMonth] = r;
+        }
+      });
+
+      let netTotal = 0;
+      months.forEach(m => {
+        if (ledgerMap[m]) {
+          const unpaid = (ledgerMap[m].total_payable || 0) - (ledgerMap[m].paid_amount || 0);
+          if (unpaid > 0) netTotal += unpaid;
+        }
+      });
+
+      studentDataList.push({ student, ledgerMap, netTotal });
+    }
+
+    if (studentDataList.length === 0) {
+      return res.status(404).json({ error: 'No valid students found' });
+    }
+
+    // Create PDF
+    const doc = new PDFDocument({ size: 'A4', bufferPages: true });
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
+
+    const SLIP_W = 267;
+    const SLIP_H = 380;
+    const MARGIN = 15;
+    const GAP = 13;
+
+    function drawSlip(slipData, x, y) {
+      const { student, ledgerMap, netTotal } = slipData;
+
+      // Border
+      doc.rect(x, y, SLIP_W, SLIP_H).stroke();
+
+      // School header
+      doc.font('Helvetica-Bold').fontSize(8);
+      doc.text(schoolName.toUpperCase(), x + 5, y + 6, { width: SLIP_W - 10, align: 'center' });
+      doc.font('Helvetica').fontSize(5);
+      doc.text(`Contact: ${schoolPhone} | Reg No: ${schoolReg}`, x + 5, y + 17, { width: SLIP_W - 10, align: 'center' });
+
+      // Separator line
+      const sepY = y + 25;
+      doc.moveTo(x + 5, sepY).lineTo(x + SLIP_W - 5, sepY).lineWidth(0.5).stroke().lineWidth(1);
+
+      // Student info
+      let iy = y + 28;
+      doc.font('Helvetica-Bold').fontSize(5.5);
+      doc.text('Name:', x + 7, iy, { continued: true }).font('Helvetica').text(` ${student.name}`, { width: SLIP_W / 2 - 10 });
+      doc.font('Helvetica-Bold').text('Roll No:', x + SLIP_W / 2, iy, { continued: true }).font('Helvetica').text(` ${student.roll_no || '-'}`, { width: SLIP_W / 2 - 10 });
+
+      iy += 10;
+      doc.font('Helvetica-Bold').text('F-Name:', x + 7, iy, { continued: true }).font('Helvetica').text(` ${student.father_name || '-'}`, { width: SLIP_W / 2 - 10 });
+      doc.font('Helvetica-Bold').text('ID:', x + SLIP_W / 2, iy, { continued: true }).font('Helvetica').text(` ${student.admission_no || student.id}`, { width: SLIP_W / 2 - 10 });
+
+      iy += 10;
+      doc.font('Helvetica-Bold').text('Class:', x + 7, iy, { continued: true }).font('Helvetica').text(` ${student.class_name}${student.section_name ? ' (' + student.section_name + ')' : ''}`, { width: SLIP_W / 2 - 10 });
+      doc.font('Helvetica-Bold').text('FEE REMINDER', x + SLIP_W / 2, iy, { width: SLIP_W / 2 - 7, align: 'center' });
+
+      // Fee table
+      const tableX = x + 5;
+      const tableTopY = iy + 14;
+      const labelW = 35;
+      const dataW = (SLIP_W - 10 - labelW) / 12;
+      const rowH = 9;
+
+      // Header row background
+      doc.rect(tableX, tableTopY, SLIP_W - 10, rowH).fill('#f0f0f0').stroke();
+      doc.fill('#000');
+
+      // Month headers
+      let hx = tableX + labelW;
+      doc.font('Helvetica-Bold').fontSize(3.8);
+      months.forEach((m) => {
+        doc.text(m, hx, tableTopY + 2, { width: dataW, align: 'center' });
+        hx += dataW;
+      });
+
+      // Data rows
+      const rowDefs = [
+        { label: 'Mnth Fee', key: 'monthly_fee' },
+        { label: 'Transport', key: 'transport_fee' },
+        { label: 'Due', key: 'previous_due' },
+        { label: 'Total', key: 'total_payable' },
+        { label: 'Paid', key: 'paid_amount' },
+        { label: 'Unpaid', key: 'unpaid' }
+      ];
+
+      rowDefs.forEach((rd, ri) => {
+        const ry = tableTopY + rowH + ri * rowH;
+
+        // Row border
+        doc.moveTo(tableX, ry).lineTo(tableX + SLIP_W - 10, ry).lineWidth(0.3).stroke().lineWidth(1);
+
+        // Label
+        doc.font('Helvetica-Bold').fontSize(3.8);
+        doc.text(rd.label, tableX + 2, ry + 2, { width: labelW - 2 });
+
+        // Data cells
+        let cx = tableX + labelW;
+        doc.font('Helvetica').fontSize(3.8);
+        months.forEach((m) => {
+          let val = '';
+          if (ledgerMap[m]) {
+            if (rd.key === 'unpaid') {
+              val = ((ledgerMap[m].total_payable || 0) - (ledgerMap[m].paid_amount || 0)).toLocaleString();
+            } else {
+              val = (ledgerMap[m][rd.key] || 0).toLocaleString();
+            }
+          }
+          doc.text(val, cx, ry + 2, { width: dataW, align: 'center' });
+          cx += dataW;
+        });
+      });
+
+      // Bottom border of table
+      const tableBottomY = tableTopY + rowH + rowDefs.length * rowH;
+      doc.moveTo(tableX, tableBottomY).lineTo(tableX + SLIP_W - 10, tableBottomY).lineWidth(0.5).stroke().lineWidth(1);
+
+      // Footer
+      const footY = tableBottomY + 6;
+      doc.moveTo(x + 5, footY).lineTo(x + SLIP_W - 5, footY).lineWidth(0.5).stroke().lineWidth(1);
+
+      doc.font('Helvetica').fontSize(5);
+      doc.text('Principal Sign: _______________', x + 7, footY + 3, { width: SLIP_W / 2 });
+
+      doc.font('Helvetica-Bold').fontSize(6);
+      doc.text(`NET TOTAL: ${netTotal.toLocaleString()}`, x + SLIP_W / 2, footY + 3, { width: SLIP_W / 2 - 7, align: 'right' });
+    }
+
+    // Layout: 2 columns x 2 rows per page
+    for (let i = 0; i < studentDataList.length; i++) {
+      const posOnPage = i % 4;
+      const col = posOnPage % 2;
+      const row = Math.floor(posOnPage / 2);
+
+      if (posOnPage === 0 && i > 0) {
+        doc.addPage();
+      }
+
+      const sx = MARGIN + col * (SLIP_W + GAP);
+      const sy = MARGIN + row * (SLIP_H + GAP);
+
+      drawSlip(studentDataList[i], sx, sy);
+    }
+
+    doc.end();
+
+    stream.on('finish', () => {
+      res.json({
+        message: 'PDF generated successfully',
+        file_name: fileName,
+        file_path: `/uploads/reminders/${fileName}`,
+        student_count: studentDataList.length
+      });
+    });
+
+    stream.on('error', (err) => {
+      res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
+    });
+
+  } catch (err) {
+    console.error('PDF generation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /fees/reminders/download/:filename - Download generated PDF
+router.get('/reminders/download/:filename', authenticateToken, async (req, res) => {
+  const { filename } = req.params;
+  const path = require('path');
+  const fs = require('fs');
+
+  const filePath = path.join(__dirname, '..', 'public', 'uploads', 'reminders', filename);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  res.download(filePath, filename);
 });
 
 module.exports = router;

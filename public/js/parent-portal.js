@@ -1,0 +1,352 @@
+(() => {
+  const token = localStorage.getItem('skyhonix_token');
+  const userJson = localStorage.getItem('skyhonix_user');
+  if (!token || !userJson) {
+    window.location.href = 'index.html';
+    return;
+  }
+  const currentUser = JSON.parse(userJson);
+  if (currentUser.role !== 'parent') {
+    window.location.href = currentUser.role === 'teacher' ? 'teacher-portal.html' : 'portal.html';
+    return;
+  }
+
+  const headerUserBadge = document.getElementById('header-user-badge');
+  const headerTitle = document.getElementById('header-title');
+  const childSelector = document.getElementById('child-selector');
+  const childSelect = document.getElementById('child-select');
+
+  headerUserBadge.textContent = `${currentUser.parentName} | ${currentUser.schoolName}`;
+
+  let children = [];
+  let selectedChildId = null;
+
+  async function apiCall(endpoint, method = 'GET', body = null) {
+    const opts = { method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } };
+    if (body && method !== 'GET') opts.body = JSON.stringify(body);
+    const res = await fetch(endpoint, opts);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  }
+
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 3000);
+  }
+
+  // Logout
+  document.getElementById('btn-logout').addEventListener('click', () => {
+    localStorage.removeItem('skyhonix_token');
+    localStorage.removeItem('skyhonix_user');
+    window.location.href = 'index.html';
+  });
+
+  // Panel navigation
+  window.showPanel = function(name) {
+    document.querySelectorAll('.screen-section').forEach(p => p.style.display = 'none');
+    document.getElementById(`panel-${name}`).style.display = '';
+    document.querySelectorAll('.portal-sidebar nav a').forEach(a => a.classList.remove('active'));
+    document.querySelector(`.portal-sidebar nav a[data-panel="${name}"]`).classList.add('active');
+    const titles = { dashboard: 'Dashboard', fees: 'Fee Records', exams: 'Exam Results', attendance: 'Attendance', announcements: 'Announcements' };
+    headerTitle.textContent = titles[name] || name;
+    document.getElementById('sidebar').classList.remove('open');
+    loadPanelData(name);
+  };
+
+  // Close sidebar when clicking outside on mobile
+  document.getElementById('btn-hamburger').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('sidebar').classList.toggle('open');
+  });
+  document.querySelector('.portal-main').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.remove('open');
+  });
+
+  // Child selector change
+  childSelect.addEventListener('change', function() {
+    selectedChildId = this.value ? parseInt(this.value) : null;
+    const activePanel = document.querySelector('.portal-sidebar nav a.active');
+    if (activePanel) loadPanelData(activePanel.dataset.panel);
+  });
+
+  // Load children
+  async function loadChildren() {
+    try {
+      children = await apiCall('/api/parents/my-children');
+      childSelect.innerHTML = '<option value="">-- Select Child --</option>';
+      children.forEach(c => {
+        childSelect.innerHTML += `<option value="${c.id}">${c.name} (${c.class_name}${c.section_name ? ' - ' + c.section_name : ''})</option>`;
+      });
+      if (children.length > 0) {
+        childSelector.style.display = 'flex';
+        selectedChildId = children[0].id;
+        childSelect.value = selectedChildId;
+      }
+      document.getElementById('stat-children').textContent = children.length;
+    } catch (e) {
+      showToast(e.message, true);
+    }
+  }
+
+  // Load panel data
+  function loadPanelData(name) {
+    switch (name) {
+      case 'dashboard': loadDashboard(); break;
+      case 'fees': loadFees(); break;
+      case 'exams': loadExams(); break;
+      case 'attendance': loadAttendance(); break;
+      case 'announcements': loadAnnouncements(); break;
+    }
+  }
+
+  // ========== DASHBOARD ==========
+  async function loadDashboard() {
+    const container = document.getElementById('children-overview-container');
+    if (!children.length) {
+      container.innerHTML = '<p style="color: var(--text-muted);">No children linked to your account.</p>';
+      return;
+    }
+    container.innerHTML = children.map(c => `
+      <div class="record-card" style="display:flex; gap:16px; align-items:center;">
+        <div style="width:50px; height:50px; border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center; color:white; font-size:1.2rem; flex-shrink:0;">
+          ${c.photo ? `<img src="${c.photo}" style="width:50px; height:50px; border-radius:50%; object-fit:cover;">` : '🎓'}
+        </div>
+        <div>
+          <strong>${c.name}</strong>
+          <div style="color: var(--text-muted); font-size: 0.8rem;">Class: ${c.class_name}${c.section_name ? ' - ' + c.section_name : ''} | Roll: ${c.roll_no || '-'}</div>
+          <div style="color: var(--text-muted); font-size: 0.8rem;">Father: ${c.father_name || '-'}</div>
+        </div>
+      </div>
+    `).join('');
+
+    if (selectedChildId) {
+      try {
+        const att = await apiCall(`/api/parents/my-attendance/${selectedChildId}?month=${String(new Date().getMonth() + 1).padStart(2, '0')}&year=${new Date().getFullYear()}`);
+        const today = new Date().toISOString().split('T')[0];
+        const todayRec = att.find(a => a.date === today);
+        document.getElementById('stat-attendance').textContent = todayRec ? todayRec.status : 'No record';
+        const feeData = await apiCall(`/api/parents/my-fees/${selectedChildId}`);
+        const unpaid = feeData.ledger.filter(l => !l.paid_amount || l.paid_amount === 0).length;
+        document.getElementById('stat-fees').textContent = unpaid;
+        const examData = await apiCall(`/api/parents/my-exams/${selectedChildId}`);
+        let totalMarks = 0;
+        examData.forEach(r => { totalMarks += r.marks.length; });
+        document.getElementById('stat-exams').textContent = totalMarks;
+      } catch (e) {}
+    }
+  }
+
+  // ========== FEES ==========
+  async function loadFees() {
+    const container = document.getElementById('fees-container');
+    if (!selectedChildId) { container.innerHTML = '<p style="color: var(--text-muted);">Select a child first.</p>'; return; }
+    try {
+      const data = await apiCall(`/api/parents/my-fees/${selectedChildId}`);
+      const feePerMonth = data.feeSettings ? (data.feeSettings.monthly_fee || 0) : 0;
+
+      let html = `<div style="margin-bottom:16px; color: var(--text-muted); font-size: 0.85rem;">Monthly Fee: <strong>Rs. ${feePerMonth}</strong></div>`;
+
+      if (!data.ledger || data.ledger.length === 0) {
+        html += '<p style="color: var(--text-muted);">No fee records found.</p>';
+      } else {
+        html += '<div class="fee-grid">';
+        data.ledger.forEach(entry => {
+          const total = entry.total_payable || 0;
+          const paid = entry.paid_amount || 0;
+          const remaining = total - paid;
+          const status = entry.status || (remaining <= 0 ? 'Paid' : paid > 0 ? 'Partial' : 'Unpaid');
+          const cardClass = status === 'Paid' ? 'paid' : 'unpaid';
+          html += `<div class="month-card ${cardClass}">
+            <div class="month-name">${entry.month ? entry.month.substring(0, 3) : '-'}</div>
+            <div style="font-size:0.7rem; color: var(--text-muted);">${entry.year || ''}</div>
+            <div class="amount">Rs. ${paid} / Rs. ${total}</div>
+            <div style="font-size:0.7rem; margin-top:2px;">
+              <span class="badge ${status === 'Paid' ? 'badge-green' : status === 'Partial' ? 'badge-yellow' : 'badge-red'}">${status}</span>
+            </div>
+            ${entry.discount > 0 ? `<div style="color:#22c55e; font-size:0.7rem;">Discount: Rs. ${entry.discount}</div>` : ''}
+            ${remaining > 0 ? `<div style="color:#ef4444; font-size:0.7rem;">Due: Rs. ${remaining}</div>` : ''}
+          </div>`;
+        });
+        html += '</div>';
+      }
+      container.innerHTML = html;
+    } catch (e) {
+      container.innerHTML = `<p style="color: var(--danger);">${e.message}</p>`;
+    }
+  }
+
+  // ========== EXAMS ==========
+  async function loadExams() {
+    const container = document.getElementById('exams-container');
+    if (!selectedChildId) { container.innerHTML = '<p style="color: var(--text-muted);">Select a child first.</p>'; return; }
+    try {
+      const results = await apiCall(`/api/parents/my-exams/${selectedChildId}`);
+      if (results.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted);">No exam results found.</p>';
+        return;
+      }
+      let html = '';
+      results.forEach(r => {
+        let totalMarks = 0, obtainedMarks = 0;
+        const subjectResults = [];
+        r.marks.forEach(m => {
+          totalMarks += (m.max_marks || 100);
+          obtainedMarks += (m.marks || 0);
+          const pct = m.max_marks ? ((m.marks || 0) / m.max_marks * 100) : 0;
+          subjectResults.push({ subject: m.subject, marks: m.marks || 0, max: m.max_marks || 100, pct });
+        });
+        const pct = totalMarks > 0 ? ((obtainedMarks / totalMarks) * 100).toFixed(1) : 0;
+
+        // Overall tips
+        let gradeColor = '#22c55e', grade = 'Excellent';
+        if (pct < 50) { gradeColor = '#ef4444'; grade = 'Needs Serious Improvement'; }
+        else if (pct < 60) { gradeColor = '#f97316'; grade = 'Below Average'; }
+        else if (pct < 70) { gradeColor = '#f59e0b'; grade = 'Average'; }
+        else if (pct < 80) { gradeColor = '#3b82f6'; grade = 'Good'; }
+        else if (pct < 90) { gradeColor = '#22c55e'; grade = 'Very Good'; }
+
+        // Weak/strong subjects
+        const weak = subjectResults.filter(s => s.pct < 50).map(s => s.subject);
+        const strong = subjectResults.filter(s => s.pct >= 80).map(s => s.subject);
+
+        let tips = '';
+        if (pct < 50) tips = 'Your child is struggling. Consider extra tutoring or speaking with the class teacher.';
+        else if (pct < 60) tips = 'Room for improvement. Help your child set a daily study routine.';
+        else if (pct < 70) tips = 'Average performance. Encourage consistent practice, especially in weaker subjects.';
+        else if (pct < 80) tips = 'Good job! Keep supporting your child\'s study habits.';
+        else tips = 'Excellent performance! Your child is doing great. Keep it up!';
+
+        html += `<div class="record-card">
+          <h4>${r.exam.exam_name} (${r.exam.year})</h4>
+          <div style="font-size:0.8rem; color: var(--text-muted); margin-bottom:8px;">
+            Term: ${r.marks[0] ? r.marks[0].term : '-'} | Total: ${obtainedMarks}/${totalMarks} | <strong style="color:${gradeColor};">${pct}% - ${grade}</strong>
+          </div>
+          <table class="data-table" style="margin-top:8px;">
+            <thead><tr><th>Subject</th><th>Obtained</th><th>Max</th><th>%</th></tr></thead>
+            <tbody>`;
+        subjectResults.forEach(s => {
+          const color = s.pct >= 80 ? '#22c55e' : s.pct >= 50 ? '#f59e0b' : '#ef4444';
+          html += `<tr>
+            <td>${s.subject || '-'}</td>
+            <td><strong>${s.marks}</strong></td>
+            <td>${s.max}</td>
+            <td style="color:${color}; font-weight:600;">${s.pct.toFixed(0)}%</td>
+          </tr>`;
+        });
+        html += `</tbody></table>`;
+
+        // Tips box
+        html += `<div style="margin-top:12px; padding:12px; border-radius:8px; background:rgba(59,130,246,0.08); border-left:3px solid ${gradeColor}; font-size:0.82rem; color:var(--text-primary);">
+          <strong style="color:${gradeColor};">Tip:</strong> ${tips}
+        </div>`;
+
+        // Weak/strong subjects
+        if (weak.length || strong.length) {
+          html += `<div style="margin-top:8px; display:flex; gap:12px; font-size:0.8rem; flex-wrap:wrap;">`;
+          if (strong.length) html += `<span style="color:#22c55e;">Strong: ${strong.join(', ')}</span>`;
+          if (weak.length) html += `<span style="color:#ef4444;">Needs Focus: ${weak.join(', ')}</span>`;
+          html += `</div>`;
+        }
+
+        html += `</div>`;
+      });
+      container.innerHTML = html;
+    } catch (e) {
+      container.innerHTML = `<p style="color: var(--danger);">${e.message}</p>`;
+    }
+  }
+
+  // ========== ATTENDANCE ==========
+  async function loadAttendance() {
+    const container = document.getElementById('attendance-container');
+    if (!selectedChildId) { container.innerHTML = '<p style="color: var(--text-muted);">Select a child first.</p>'; return; }
+
+    const monthSelect = document.getElementById('att-month');
+    const yearSelect = document.getElementById('att-year');
+    if (!monthSelect.options.length) {
+      const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      months.forEach((m, i) => {
+        monthSelect.innerHTML += `<option value="${String(i + 1).padStart(2, '0')}" ${i === new Date().getMonth() ? 'selected' : ''}>${m}</option>`;
+      });
+      for (let y = new Date().getFullYear(); y >= new Date().getFullYear() - 2; y--) {
+        yearSelect.innerHTML += `<option value="${y}" ${y === new Date().getFullYear() ? 'selected' : ''}>${y}</option>`;
+      }
+    }
+
+    const month = monthSelect.value;
+    const year = yearSelect.value;
+    try {
+      const att = await apiCall(`/api/parents/my-attendance/${selectedChildId}?month=${month}&year=${year}`);
+      if (att.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted);">No attendance records found for this period.</p>';
+        return;
+      }
+      let present = 0, absent = 0, late = 0, total = att.length;
+      att.forEach(a => { if (a.status === 'Present') present++; else if (a.status === 'Absent') absent++; else if (a.status === 'Late') late++; });
+
+      let html = `<div style="display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
+        <div class="stat-card" style="flex:1; min-width:100px;"><h3 style="color:#22c55e;">${present}</h3><p>Present</p></div>
+        <div class="stat-card" style="flex:1; min-width:100px;"><h3 style="color:#ef4444;">${absent}</h3><p>Absent</p></div>
+        <div class="stat-card" style="flex:1; min-width:100px;"><h3 style="color:#f59e0b;">${late}</h3><p>Late</p></div>
+        <div class="stat-card" style="flex:1; min-width:100px;"><h3>${total}</h3><p>Total Days</p></div>
+      </div>`;
+
+      html += `<table class="data-table"><thead><tr><th>Date</th><th>Status</th><th>Check In</th></tr></thead><tbody>`;
+      att.forEach(a => {
+        const badge = a.status === 'Present' ? 'badge-green' : a.status === 'Absent' ? 'badge-red' : 'badge-yellow';
+        html += `<tr>
+          <td>${a.date}</td>
+          <td><span class="badge ${badge}">${a.status}</span></td>
+          <td>${a.time || '-'}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    } catch (e) {
+      container.innerHTML = `<p style="color: var(--danger);">${e.message}</p>`;
+    }
+  }
+
+  document.getElementById('att-month').addEventListener('change', loadAttendance);
+  document.getElementById('att-year').addEventListener('change', loadAttendance);
+
+  // ========== ANNOUNCEMENTS ==========
+  async function loadAnnouncements() {
+    const container = document.getElementById('announcements-container');
+    try {
+      const announcements = await apiCall('/api/parents/announcements');
+      if (announcements.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted);">No announcements.</p>';
+        return;
+      }
+      container.innerHTML = announcements.map(a => `
+        <div class="record-card">
+          <h4>${a.title}</h4>
+          <p style="margin: 6px 0; color: var(--text);">${a.message}</p>
+          <small style="color: var(--text-muted);">${a.created_at ? new Date(a.created_at).toLocaleDateString() : ''} | by ${a.created_by || 'Admin'}</small>
+        </div>
+      `).join('');
+
+      // News ticker
+      if (announcements.length > 0) {
+        const ticker = document.getElementById('news-ticker');
+        const tickerContent = document.getElementById('ticker-content');
+        ticker.style.display = 'block';
+        const items = announcements.map(a => `<span class="ticker-item"><span class="ticker-label">NEWS</span>${a.title} - ${a.message.substring(0, 80)}</span>`).join('');
+        tickerContent.innerHTML = items + items;
+      }
+    } catch (e) {
+      container.innerHTML = `<p style="color: var(--danger);">${e.message}</p>`;
+    }
+  }
+
+  // ========== INIT ==========
+  loadChildren().then(() => {
+    loadDashboard();
+    loadAnnouncements();
+  });
+})();

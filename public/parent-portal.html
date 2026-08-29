@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parent Portal - SkyHonix</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .portal-layout { display: flex; min-height: 100vh; }
+    .portal-sidebar { width: 240px; background: var(--glass-bg); border-right: 1px solid var(--border-glow); padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; }
+    .portal-sidebar .brand { padding: 0 20px 20px; border-bottom: 1px solid var(--border-glow); }
+    .portal-sidebar .brand h3 { margin: 0; font-size: 1rem; color: var(--primary); }
+    .portal-sidebar .brand small { color: var(--text-muted); font-size: 0.75rem; }
+    .portal-sidebar nav { padding: 10px 0; }
+    .portal-sidebar nav a { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; cursor: pointer; }
+    .portal-sidebar nav a:hover, .portal-sidebar nav a.active { background: rgba(99,102,241,0.1); color: var(--primary); border-right: 3px solid var(--primary); }
+    .portal-main { flex: 1; margin-left: 240px; padding: 20px 30px; }
+    .portal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border-glow); }
+    .portal-header h2 { margin: 0; font-size: 1.3rem; }
+    .user-badge { display: flex; align-items: center; gap: 8px; background: var(--glass-bg); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border-glow); font-size: 0.85rem; }
+    .child-selector { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+    .child-selector select { min-width: 200px; }
+    .stat-card { text-align: center; padding: 20px; background: var(--glass-bg); border-radius: 12px; border: 1px solid var(--border-glow); }
+    .stat-card h3 { margin: 0; font-size: 1.8rem; color: var(--primary); }
+    .stat-card p { margin: 6px 0 0; color: var(--text-muted); font-size: 0.85rem; }
+    .record-card { background: var(--glass-bg); border-radius: 12px; border: 1px solid var(--border-glow); padding: 16px; margin-bottom: 12px; }
+    .record-card h4 { margin: 0 0 8px; color: var(--primary); }
+    .news-ticker { background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 10px; padding: 12px 20px; margin-bottom: 20px; display: none; overflow: hidden; position: relative; }
+    .news-ticker .ticker-content { display: flex; gap: 60px; animation: tickerScroll 30s linear infinite; white-space: nowrap; }
+    .news-ticker .ticker-item { color: white; font-size: 0.85rem; }
+    .news-ticker .ticker-label { background: rgba(255,255,255,0.2); padding: 2px 10px; border-radius: 10px; margin-right: 10px; font-weight: 700; font-size: 0.75rem; }
+    @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    .fee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .month-card { padding: 12px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); text-align: center; }
+    .month-card.paid { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.05); }
+    .month-card.unpaid { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.05); }
+    .month-card .month-name { font-weight: 600; font-size: 0.85rem; }
+    .month-card .amount { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+    .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+    .hamburger:hover { background: rgba(255,255,255,0.1); }
+    @media (max-width: 768px) {
+      .portal-sidebar { position: fixed; z-index: 1000; transform: translateX(-100%); transition: transform 0.3s; }
+      .portal-sidebar.open { transform: translateX(0); }
+      .portal-main { margin-left: 0; padding: 16px; }
+      .hamburger { display: block; }
+      .portal-header { flex-wrap: wrap; gap: 10px; }
+    }
+    @media (min-width: 16px) and (max-width: 768px) {
+      input, select, textarea { font-size: 16px !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="portal-layout">
+    <aside class="portal-sidebar" id="sidebar">
+      <div class="brand">
+        <h3>SkyHonix / Parent</h3>
+        <small>Parent Portal</small>
+      </div>
+      <nav>
+        <a class="active" data-panel="dashboard" onclick="showPanel('dashboard')">🏠 Dashboard</a>
+        <a data-panel="fees" onclick="showPanel('fees')">💰 Fees</a>
+        <a data-panel="exams" onclick="showPanel('exams')">📝 Exams</a>
+        <a data-panel="attendance" onclick="showPanel('attendance')">📋 Attendance</a>
+        <a data-panel="announcements" onclick="showPanel('announcements')">📢 Announcements</a>
+      </nav>
+    </aside>
+
+    <main class="portal-main">
+      <header class="portal-header">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <button class="hamburger" id="btn-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+          <h2 id="header-title">Dashboard</h2>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div class="user-badge" id="header-user-badge">Loading...</div>
+          <button class="btn btn-outline" id="btn-logout" style="padding: 6px 14px; font-size: 0.8rem;">Logout</button>
+        </div>
+      </header>
+
+      <!-- Child Selector -->
+      <div class="child-selector" id="child-selector" style="display:none;">
+        <label class="form-label" style="margin:0;">Select Child:</label>
+        <select class="form-control" id="child-select" style="max-width:300px;">
+          <option value="">-- Select Child --</option>
+        </select>
+      </div>
+
+      <!-- News Ticker -->
+      <div class="news-ticker" id="news-ticker">
+        <div class="ticker-content" id="ticker-content"></div>
+      </div>
+
+      <!-- PANEL: Dashboard -->
+      <div id="panel-dashboard" class="screen-section">
+        <div class="grid-4" style="margin-bottom: 24px;">
+          <div class="stat-card">
+            <h3 id="stat-children">0</h3>
+            <p>Children</p>
+          </div>
+          <div class="stat-card">
+            <h3 id="stat-attendance">-</h3>
+            <p>Attendance Today</p>
+          </div>
+          <div class="stat-card">
+            <h3 id="stat-fees">-</h3>
+            <p>Unpaid Months</p>
+          </div>
+          <div class="stat-card">
+            <h3 id="stat-exams">0</h3>
+            <p>Exam Results</p>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin: 0 0 16px;">Children Overview</h3>
+          <div id="children-overview-container"></div>
+        </div>
+      </div>
+
+      <!-- PANEL: Fees -->
+      <div id="panel-fees" class="screen-section" style="display:none;">
+        <div class="card">
+          <h3 style="margin: 0 0 16px;">Fee Records</h3>
+          <div id="fees-container">
+            <p style="color: var(--text-muted);">Select a child to view fee records.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL: Exams -->
+      <div id="panel-exams" class="screen-section" style="display:none;">
+        <div class="card">
+          <h3 style="margin: 0 0 16px;">Exam Results</h3>
+          <div id="exams-container">
+            <p style="color: var(--text-muted);">Select a child to view exam results.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL: Attendance -->
+      <div id="panel-attendance" class="screen-section" style="display:none;">
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+            <h3 style="margin: 0;">Attendance Record</h3>
+            <div style="display:flex; gap:8px;">
+              <select class="form-control" id="att-month" style="width:auto;"></select>
+              <select class="form-control" id="att-year" style="width:auto;"></select>
+            </div>
+          </div>
+          <div id="attendance-container">
+            <p style="color: var(--text-muted);">Select a child to view attendance.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL: Announcements -->
+      <div id="panel-announcements" class="screen-section" style="display:none;">
+        <div class="card">
+          <h3 style="margin: 0 0 16px;">School Announcements</h3>
+          <div id="announcements-container"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="js/parent-portal.js"></script>
+</body>
+</html>

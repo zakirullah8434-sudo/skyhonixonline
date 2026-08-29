@@ -212,4 +212,32 @@ router.post('/restore', authenticateToken, uploadDb.single('backup'), async (req
   }
 });
 
+// POST /settings/delete-all-data - Delete all school operational data (students, fees, attendance, exams)
+router.post('/delete-all-data', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { confirm_text } = req.body;
+
+  if (confirm_text !== 'DELETE ALL DATA') {
+    return res.status(400).json({ error: 'Please type "DELETE ALL DATA" to confirm.' });
+  }
+
+  try {
+    const tablesToWipe = [
+      'marks', 'results', 'exam_subjects', 'exams',
+      'student_promotion_history', 'result_sections',
+      'attendance', 'fee_payments', 'fee_ledger', 'fee_dues', 'past_dues',
+      'class_fees', 'student_fee_exceptions', 'sections', 'students'
+    ];
+
+    for (const table of tablesToWipe) {
+      await runSchool(schoolId, `DELETE FROM ${table}`);
+    }
+
+    res.json({ message: 'All school data has been deleted successfully. School profile and login credentials are preserved.' });
+  } catch (err) {
+    console.error('Delete all data error:', err);
+    res.status(500).json({ error: 'Failed to delete school data: ' + err.message });
+  }
+});
+
 module.exports = router;

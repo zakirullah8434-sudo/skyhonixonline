@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
-const { queryMain, queryMainOne, runMain, runSchool, querySchoolOne } = require('../database_manager');
+const { queryMain, queryMainOne, runMain, runSchool, querySchoolOne, querySchool } = require('../database_manager');
 
 // Middleware to verify JWT token and inject req.user
 function authenticateToken(req, res, next) {
@@ -184,6 +184,91 @@ router.get('/session', authenticateToken, (req, res) => {
   res.json({
     user: req.user
   });
+});
+
+// Teacher Login (phone + password only — school is auto-detected)
+router.post('/teacher-login', async (req, res) => {
+  const { phone, password } = req.body;
+
+  if (!phone || !password) {
+    return res.status(400).json({ error: 'Phone and Password are required' });
+  }
+
+  try {
+    // 1. Find all schools
+    const schools = await queryMain(
+      'SELECT id, school_name, subscription_status FROM schools'
+    );
+
+    if (schools.length === 0) {
+      return res.status(404).json({ error: 'No schools registered' });
+    }
+
+    // 2. Search for teacher across all school databases
+    let foundSchool = null;
+    let foundTeacher = null;
+
+    for (const school of schools) {
+      try {
+        const teacher = await querySchoolOne(
+          school.id,
+          'SELECT id, name, phone, password, subject, status FROM teachers WHERE phone = ?',
+          [phone]
+        );
+
+        if (teacher) {
+          foundSchool = school;
+          foundTeacher = teacher;
+          break;
+        }
+      } catch (e) {
+        // Skip schools where teacher table doesn't exist or has errors
+        continue;
+      }
+    }
+
+    if (!foundTeacher) {
+      return res.status(404).json({ error: 'Teacher not found with this phone number' });
+    }
+
+    if (foundTeacher.status !== 'Active') {
+      return res.status(403).json({ error: 'Teacher account is inactive. Contact admin.' });
+    }
+
+    // 3. Verify password
+    const isMatch = await bcrypt.compare(password, foundTeacher.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Incorrect password' });
+    }
+
+    // 4. Generate JWT
+    const payload = {
+      schoolId: foundSchool.id,
+      schoolName: foundSchool.school_name,
+      teacherId: foundTeacher.id,
+      teacherName: foundTeacher.name,
+      role: 'teacher'
+    };
+
+    const token = jwt.sign(payload, config.JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({
+      message: 'Teacher login successful',
+      token,
+      user: {
+        teacherId: foundTeacher.id,
+        teacherName: foundTeacher.name,
+        subject: foundTeacher.subject,
+        role: 'teacher',
+        schoolName: foundSchool.school_name,
+        schoolId: foundSchool.id
+      }
+    });
+
+  } catch (err) {
+    console.error('Teacher login error:', err);
+    res.status(500).json({ error: 'Login failed. ' + err.message });
+  }
 });
 
 module.exports = {

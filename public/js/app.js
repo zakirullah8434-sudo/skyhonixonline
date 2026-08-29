@@ -1,4 +1,4 @@
-// SkyHonix Workspace Application Logic (SPA Router & REST Clients)
+﻿// SkyHonix Workspace Application Logic (SPA Router & REST Clients)
 
 document.addEventListener('DOMContentLoaded', () => {
   // Authentication Guard
@@ -275,15 +275,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Load screen specific content
       loadScreenData(targetScreen);
+
+      // Close mobile sidebar on navigation
+      if (window.innerWidth <= 992) {
+        closeSidebar();
+      }
     });
   });
 
   // Mobile sidebar toggle
   const btnSidebarToggle = document.getElementById('btn-sidebar-toggle');
   const sidebar = document.getElementById('sidebar');
+  const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+  function closeSidebar() {
+    sidebar.classList.remove('open');
+    sidebarOverlay.classList.remove('active');
+  }
+
+  function openSidebar() {
+    sidebar.classList.add('open');
+    sidebarOverlay.classList.add('active');
+  }
+
   btnSidebarToggle.addEventListener('click', () => {
-    sidebar.classList.toggle('open');
+    if (sidebar.classList.contains('open')) {
+      closeSidebar();
+    } else {
+      openSidebar();
+    }
   });
+
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', closeSidebar);
+  }
 
   // Logout Trigger
   btnLogout.addEventListener('click', () => {
@@ -315,6 +340,15 @@ document.addEventListener('DOMContentLoaded', () => {
       loadSettingsData();
     } else if (screenName === 'subscription') {
       loadBillingData();
+    } else if (screenName === 'admin-settings') {
+      const adminScreen = document.getElementById('screen-admin-settings');
+      if (adminScreen) {
+        adminScreen.querySelectorAll('.fee-option-panel').forEach(p => p.style.display = 'none');
+        adminScreen.querySelectorAll(':scope > .card, :scope > .grid-3').forEach(c => c.style.display = '');
+      }
+    } else if (screenName === 'student-profile') {
+      loadStudentProfileFilters();
+      loadStudentProfileList();
     }
   }
 
@@ -382,6 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('dash-school-title').innerText = settings.school_name;
       document.getElementById('dash-school-phone').innerText = `Phone: ${settings.phone || 'N/A'}`;
       document.getElementById('dash-school-reg').innerText = `Reg No: ${settings.registration_number || 'N/A'}`;
+      document.getElementById('dash-school-id').innerText = `School ID: ${currentUser.schoolId || 'N/A'}`;
       if (settings.logo_path) {
         document.getElementById('dash-school-logo').src = '/' + settings.logo_path;
       }
@@ -542,6 +577,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnCloseStudentModal.addEventListener('click', () => modalStudent.classList.remove('open'));
 
+  // Compress image to under 50KB using Canvas
+  function compressImage(file, maxKB) {
+    return new Promise((resolve, reject) => {
+      maxKB = maxKB || 50;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          let width = img.width;
+          let height = img.height;
+          // Scale down if larger than 800px on any side
+          const maxDim = 800;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
+            else { width = Math.round(width * maxDim / height); height = maxDim; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          // Start with high quality, reduce if still too large
+          let quality = 0.9;
+          let blob;
+          const tryCompress = () => {
+            canvas.toBlob(function(b) {
+              blob = b;
+              if (blob.size > maxKB * 1024 && quality > 0.1) {
+                quality -= 0.1;
+                tryCompress();
+              } else {
+                resolve(blob);
+              }
+            }, 'image/jpeg', quality);
+          };
+          tryCompress();
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = e.target.result;
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
   // Save student (Form POST/PUT)
   formStudent.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -571,7 +651,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fileInput = document.getElementById('stud-photo-file');
     if (fileInput.files[0]) {
-      formData.append('photo', fileInput.files[0]);
+      try {
+        const compressed = await compressImage(fileInput.files[0], 50);
+        formData.append('photo', compressed, 'photo.jpg');
+      } catch (e) {
+        formData.append('photo', fileInput.files[0]);
+      }
     }
 
     try {
@@ -743,6 +828,195 @@ document.addEventListener('DOMContentLoaded', () => {
         loadStudentsList();
       } catch (err) {}
     });
+  }
+
+
+  // ==========================================
+  // MODULE: STUDENT PROFILE
+  // ==========================================
+
+  async function loadStudentProfileFilters() {
+    try {
+      const classes = await apiCall('/students/classes');
+      const classSelect = document.getElementById('sp-class-select');
+      if (classSelect) {
+        classSelect.innerHTML = '<option value="">-- All Classes --</option>';
+        classes.forEach(c => {
+          const name = typeof c === 'object' ? c.class_name : c;
+          classSelect.innerHTML += `<option value="${name}">${name}</option>`;
+        });
+      }
+    } catch (e) {}
+  }
+
+  document.getElementById('sp-class-select').addEventListener('change', async function() {
+    const className = this.value;
+    const sectionSelect = document.getElementById('sp-section-select');
+    const studentSelect = document.getElementById('sp-student-select');
+    sectionSelect.innerHTML = '<option value="">-- All Sections --</option>';
+    studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
+    document.getElementById('sp-profile-container').style.display = 'none';
+    if (!className) return;
+    try {
+      const sections = await apiCall(`/students/sections/${encodeURIComponent(className)}`);
+      sections.forEach(s => { sectionSelect.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`; });
+      loadStudentProfileList();
+    } catch (e) {}
+  });
+
+  document.getElementById('sp-section-select').addEventListener('change', () => {
+    loadStudentProfileList();
+    document.getElementById('sp-profile-container').style.display = 'none';
+  });
+
+  async function loadStudentProfileList() {
+    const className = document.getElementById('sp-class-select').value;
+    const sectionName = document.getElementById('sp-section-select').value;
+    const studentSelect = document.getElementById('sp-student-select');
+    studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
+    try {
+      let url = '/students?';
+      if (className) url += `class_name=${encodeURIComponent(className)}&`;
+      if (sectionName) url += `section_name=${encodeURIComponent(sectionName)}&`;
+      const students = await apiCall(url);
+      students.forEach(s => {
+        studentSelect.innerHTML += `<option value="${s.id}">${s.roll_no || '-'} - ${s.name}</option>`;
+      });
+    } catch (e) {}
+  }
+
+  document.getElementById('sp-student-select').addEventListener('change', async function() {
+    const studentId = this.value;
+    if (!studentId) {
+      document.getElementById('sp-profile-container').style.display = 'none';
+      return;
+    }
+    await loadStudentProfile(studentId);
+  });
+
+  async function loadStudentProfile(studentId) {
+    const container = document.getElementById('sp-profile-container');
+    container.style.display = 'block';
+
+    // Show loading state
+    document.getElementById('sp-student-name').innerText = 'Loading...';
+
+    try {
+      const data = await apiCall(`/students/${studentId}/profile`);
+      const s = data.student;
+      const stats = data.stats;
+
+      // Header
+      document.getElementById('sp-avatar').innerText = (s.name || 'S')[0].toUpperCase();
+      document.getElementById('sp-student-name').innerText = s.name || 'Unknown';
+      document.getElementById('sp-class-info').innerText = `Class: ${s.class_name || '-'}${s.section_name ? ' - ' + s.section_name : ''}`;
+      document.getElementById('sp-roll-info').innerText = `Roll No: ${s.roll_no || '-'}`;
+      document.getElementById('sp-father-info').innerText = `Father: ${s.father_name || '-'}`;
+      document.getElementById('sp-status-badge').innerText = s.status || 'Active';
+      document.getElementById('sp-attendance-rate').innerText = `${stats.attendanceRate}%`;
+
+      // Overview - Personal Info
+      document.getElementById('sp-info-name').innerText = s.name || '-';
+      document.getElementById('sp-info-father').innerText = s.father_name || '-';
+      document.getElementById('sp-info-dob').innerText = s.dob || '-';
+      document.getElementById('sp-info-gender').innerText = s.gender || '-';
+      document.getElementById('sp-info-phone').innerText = s.phone || '-';
+      document.getElementById('sp-info-address').innerText = s.address || '-';
+
+      // Overview - Stats
+      document.getElementById('sp-total-marks').innerText = stats.totalMarksObtained;
+      document.getElementById('sp-avg-marks').innerText = `${stats.avgPercentage}%`;
+      document.getElementById('sp-pending-dues').innerText = stats.totalDue.toLocaleString();
+      document.getElementById('sp-total-paid').innerText = stats.totalPaid.toLocaleString();
+
+      // Fee Ledger
+      const feeLedgerBody = document.getElementById('sp-fee-ledger-body');
+      if (data.feeLedger.length === 0) {
+        feeLedgerBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No fee records found.</td></tr>';
+      } else {
+        feeLedgerBody.innerHTML = data.feeLedger.map(f => {
+          const due = (f.total_payable || 0) - (f.paid_amount || 0);
+          const status = due <= 0 ? '<span class="badge badge-green">Paid</span>' : due < f.total_payable ? '<span class="badge badge-yellow">Partial</span>' : '<span class="badge badge-red">Unpaid</span>';
+          return `<tr>
+            <td>${f.month || '-'}</td>
+            <td>${f.year || '-'}</td>
+            <td>${(f.total_payable || 0).toLocaleString()}</td>
+            <td>${(f.paid_amount || 0).toLocaleString()}</td>
+            <td>${due > 0 ? due.toLocaleString() : '0'}</td>
+            <td>${status}</td>
+          </tr>`;
+        }).join('');
+      }
+
+      // Payments
+      const paymentsBody = document.getElementById('sp-payments-body');
+      if (data.payments.length === 0) {
+        paymentsBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No payments found.</td></tr>';
+      } else {
+        paymentsBody.innerHTML = data.payments.map(p => `<tr>
+          <td>${p.payment_date || '-'}</td>
+          <td><strong>${(p.amount_paid || 0).toLocaleString()} PKR</strong></td>
+          <td>${p.payment_method || '-'}</td>
+          <td>${p.receipt_number || '-'}</td>
+          <td>${p.notes || '-'}</td>
+        </tr>`).join('');
+      }
+
+      // Marks
+      const marksBody = document.getElementById('sp-marks-body');
+      if (data.marks.length === 0) {
+        marksBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No marks found.</td></tr>';
+      } else {
+        marksBody.innerHTML = data.marks.map(m => {
+          const maxM = m.max_marks || 100;
+          const pct = maxM > 0 ? ((m.marks / maxM) * 100).toFixed(1) : 0;
+          return `<tr>
+            <td>${m.exam_name || '-'}</td>
+            <td>${m.term || '-'}</td>
+            <td>${m.subject || '-'}</td>
+            <td><strong>${m.marks !== null ? m.marks : '-'}</strong></td>
+            <td>${maxM}</td>
+            <td>${pct}%</td>
+          </tr>`;
+        }).join('');
+      }
+
+      // Results
+      const resultsBody = document.getElementById('sp-results-body');
+      if (data.results.length === 0) {
+        resultsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No results found.</td></tr>';
+      } else {
+        resultsBody.innerHTML = data.results.map(r => `<tr>
+          <td>${r.exam_name || '-'}</td>
+          <td>${r.total_marks || '-'}</td>
+          <td><strong>${r.obtained_marks || '-'}</strong></td>
+          <td>${r.percentage ? r.percentage + '%' : '-'}</td>
+          <td><span class="badge badge-blue">${r.grade || '-'}</span></td>
+          <td>${r.position || '-'}</td>
+        </tr>`).join('');
+      }
+
+      // Attendance
+      document.getElementById('sp-att-present').innerText = stats.presentDays;
+      document.getElementById('sp-att-absent').innerText = stats.absentDays;
+
+      const attBody = document.getElementById('sp-attendance-body');
+      if (data.attendance.length === 0) {
+        attBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No attendance records found.</td></tr>';
+      } else {
+        attBody.innerHTML = data.attendance.map(a => {
+          const isPresent = a.status === 'present' || a.status === 'Present';
+          return `<tr>
+            <td>${a.date || '-'}</td>
+            <td><span class="badge ${isPresent ? 'badge-green' : 'badge-red'}">${a.status || '-'}</span></td>
+            <td>${a.created_at || '-'}</td>
+          </tr>`;
+        }).join('');
+      }
+
+    } catch (err) {
+      container.innerHTML = `<div class="card" style="padding: 40px; text-align: center; color: var(--danger);">Error loading profile: ${err.message}</div>`;
+    }
   }
 
 
@@ -1054,6 +1328,12 @@ document.addEventListener('DOMContentLoaded', () => {
       updateSectionDropdown('reminder-filter-class', 'reminder-filter-section', false);
     });
   }
+  const marksFilterClass = document.getElementById('marks-select-class');
+  if (marksFilterClass) {
+    marksFilterClass.addEventListener('change', () => {
+      updateSectionDropdown('marks-select-class', 'marks-select-sec', true);
+    });
+  }
 
   // Section dropdown helper
   async function updateSectionDropdown(classSelectId, sectionSelectId, includeAllOption = true) {
@@ -1122,20 +1402,37 @@ document.addEventListener('DOMContentLoaded', () => {
       loadStudentFeeList();
     }
     else if (opt === 'generate-reminder') {
-      const yearSelect = document.getElementById('reminder-filter-year');
-      if (yearSelect) {
-        yearSelect.innerHTML = '';
+      // Initialize reminder year
+      const reminderYearSelect = document.getElementById('reminder-filter-year');
+      if (reminderYearSelect) {
+        reminderYearSelect.innerHTML = '';
         for (let y = currentYear; y >= currentYear - 5; y--) {
-          yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+          reminderYearSelect.innerHTML += `<option value="${y}">${y}</option>`;
         }
-        yearSelect.value = currentYear;
       }
-      const monthSelect = document.getElementById('reminder-filter-month');
-      if (monthSelect) monthSelect.value = currentMonth;
-      const classSelect = document.getElementById('reminder-filter-class');
-      if (classSelect) classSelect.value = '';
-      const sectionSelect = document.getElementById('reminder-filter-section');
-      if (sectionSelect) sectionSelect.innerHTML = '<option value="">-- All Sections --</option>';
+      // Initialize slip year (inside same panel)
+      const slipYearSelect = document.getElementById('slip-year');
+      if (slipYearSelect) {
+        slipYearSelect.innerHTML = '';
+        for (let y = currentYear; y >= currentYear - 5; y--) {
+          slipYearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+        }
+        slipYearSelect.value = currentYear;
+      }
+      // Reset slip search and containers
+      const searchInput = document.getElementById('slip-search');
+      if (searchInput) searchInput.value = '';
+      const listContainer = document.getElementById('slip-student-list-container');
+      if (listContainer) listContainer.style.display = 'block';
+      const previewContainer = document.getElementById('slip-preview-container');
+      if (previewContainer) previewContainer.style.display = 'none';
+      // Reset reminder preview
+      const reminderPreview = document.getElementById('reminder-preview-container');
+      if (reminderPreview) reminderPreview.style.display = 'none';
+      const reminderCards = document.querySelectorAll('#tab-reminder-form .card');
+      if (reminderCards.length) reminderCards.forEach(c => c.style.display = '');
+      // Load saved reminders
+      loadSavedReminders();
     }
     else if (opt === 'fee-analytics') {
       // Setup analytics filters
@@ -1305,7 +1602,11 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDashboardStats();
     const paySearchBtn = document.getElementById('btn-search-pay-ledger');
     if (paySearchBtn) paySearchBtn.click();
-    loadHistoryLedger();
+    const histYear = document.getElementById('history-filter-year');
+    const histMonth = document.getElementById('history-filter-month');
+    if (histYear && histYear.value && histMonth && histMonth.value) {
+      loadHistoryLedger();
+    }
     refreshFeeAnalytics();
   }
 
@@ -1360,7 +1661,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 data-ledger-id="${l.ledger_id || ''}" 
                 value="${l.previous_due || 0}">
             </td>
-            <td>${hasLedger ? l.total_payable.toLocaleString() : '-'}</td>
+            <td>${hasLedger ? (l.total_payable - l.paid_amount).toLocaleString() : '-'}</td>
             <td>${hasLedger ? l.paid_amount.toLocaleString() : '-'}</td>
             <td>${badge}</td>
             <td>${actionBtn}</td>
@@ -1392,7 +1693,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
 
-    } catch (e) {}
+    } catch (e) {
+      console.error('loadHistoryLedger error:', e);
+      showToast('Failed to load fee ledger: ' + (e.message || 'Unknown error'), true);
+    }
   }
 
   const btnLoadHistoryLedger = document.getElementById('btn-load-history-ledger');
@@ -1593,141 +1897,388 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   // FEE REMINDER LOGIC (Option 5)
   // ==========================================
-  const formFeeReminderPdf = document.getElementById('form-fee-reminder-pdf');
-  if (formFeeReminderPdf) {
-    formFeeReminderPdf.addEventListener('submit', async (e) => {
-      e.preventDefault();
+  let reminderStudentsData = [];
+
+  const btnLoadReminders = document.getElementById('btn-load-reminders');
+  if (btnLoadReminders) {
+    btnLoadReminders.addEventListener('click', async () => {
       const cls = document.getElementById('reminder-filter-class').value;
       const sec = document.getElementById('reminder-filter-section').value;
-      const month = document.getElementById('reminder-filter-month').value;
       const year = document.getElementById('reminder-filter-year').value;
 
-      let url = `/fees/history-management?month=${month}&year=${year}&class_name=${encodeURIComponent(cls)}`;
-      if (sec) url += `&section_name=${encodeURIComponent(sec)}`;
+      if (!year) { showToast('Select a year first', true); return; }
 
       try {
-        const data = await apiCall(url);
-        
-        // Filter for outstanding balance > 0
-        const unpaid = data.filter(l => {
-          const remaining = l.ledger_id ? (l.total_payable - l.paid_amount) : l.previous_due;
-          return remaining > 0;
-        });
+        let url = `/fees/unpaid-students?year=${year}`;
+        if (cls) url += `&class_name=${encodeURIComponent(cls)}`;
+        if (sec) url += `&section_name=${encodeURIComponent(sec)}`;
 
-        if (unpaid.length === 0) {
-          showToast('No students with outstanding dues found for selection.', true);
+        reminderStudentsData = await apiCall(url);
+        const tbody = document.querySelector('#table-reminder-students tbody');
+        if (!tbody) return;
+
+        if (reminderStudentsData.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No students found for this selection.</td></tr>';
           return;
         }
 
-        // Generate print layout
-        let printHtml = `
-          <html>
-            <head>
-              <title>Fee Reminders - ${cls} - ${month} ${year}</title>
-              <style>
-                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: white; color: black; }
-                .reminder-slip {
-                  border: 2px dashed #000;
-                  padding: 30px;
-                  margin-bottom: 50px;
-                  border-radius: 8px;
-                  page-break-inside: avoid;
-                  background: #fff;
-                }
-                .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
-                .school-name { font-size: 1.8rem; font-weight: bold; text-transform: uppercase; color: #111; letter-spacing: 1px; }
-                .title { font-size: 1.3rem; font-weight: bold; margin-top: 8px; color: #444; }
-                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 25px; font-size: 1.05rem; }
-                .info-item { margin-bottom: 5px; }
-                .info-label { font-weight: bold; color: #333; }
-                .fee-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-                .fee-table th, .fee-table td { border: 1px solid #000; padding: 10px 14px; text-align: left; font-size: 1rem; }
-                .fee-table th { background: #f2f2f2; font-weight: bold; }
-                .total-row { font-weight: bold; font-size: 1.15rem; background: #e6e6e6 !important; }
-                .footer { margin-top: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
-                .note { font-style: italic; font-size: 0.9rem; color: #444; max-width: 65%; line-height: 1.4; }
-                .signature { text-align: center; border-top: 2px solid #000; width: 180px; padding-top: 8px; font-size: 0.95rem; font-weight: bold; }
-              </style>
-            </head>
-            <body>
-        `;
-        
-        const currentUser = JSON.parse(localStorage.getItem('skyhonix_user'));
+        tbody.innerHTML = reminderStudentsData.map(s => {
+          const hasLedger = s.ledger_entries > 0;
+          const unpaidAmount = s.total_unpaid || 0;
+          const statusBadge = hasLedger
+            ? (unpaidAmount > 0 ? '<span class="badge badge-red">Unpaid</span>' : '<span class="badge badge-green">Paid</span>')
+            : '<span class="badge badge-yellow">No Ledger</span>';
 
-        unpaid.forEach(l => {
-          const hasLedger = l.ledger_id !== null;
-          const totalPayable = hasLedger ? l.total_payable : (parseFloat(l.previous_due) || 0);
-          const amountPaid = hasLedger ? l.paid_amount : 0;
-          const remaining = totalPayable - amountPaid;
-
-          printHtml += `
-            <div class="reminder-slip">
-              <div class="header">
-                <div class="school-name">${currentUser.schoolName}</div>
-                <div class="title">MONTHLY FEE REMINDER SLIP</div>
-              </div>
-              <div class="info-grid">
-                <div class="info-item"><span class="info-label">Student Name:</span> ${l.name}</div>
-                <div class="info-item"><span class="info-label">Father's Name:</span> ${l.father_name || '-'}</div>
-                <div class="info-item"><span class="info-label">Class & Sec:</span> ${l.class_name} ${l.section_name ? '(' + l.section_name + ')' : ''}</div>
-                <div class="info-item"><span class="info-label">Roll Number:</span> ${l.roll_no || 'N/A'}</div>
-                <div class="info-item"><span class="info-label">Reminder Month:</span> ${month} ${year}</div>
-                <div class="info-item"><span class="info-label">Ledger Status:</span> ${hasLedger ? l.status : 'Ledger Not Generated'}</div>
-              </div>
-              <table class="fee-table">
-                <thead>
-                  <tr>
-                    <th>Billing Head</th>
-                    <th>Amount (PKR)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Tuition / Sibling Base Fee</td>
-                    <td>${hasLedger ? l.monthly_fee.toLocaleString() : '-'}</td>
-                  </tr>
-                  <tr>
-                    <td>Waiver Exception / Discount Applied</td>
-                    <td>${hasLedger ? '-' + l.discount.toLocaleString() : '-'}</td>
-                  </tr>
-                  <tr>
-                    <td>Transport Fare</td>
-                    <td>${hasLedger ? l.transport_fee.toLocaleString() : '-'}</td>
-                  </tr>
-                  <tr>
-                    <td>Prior Carry Forward Balance</td>
-                    <td>${l.previous_due.toLocaleString()}</td>
-                  </tr>
-                  <tr class="total-row">
-                    <td>Total Dues Payable</td>
-                    <td>${remaining.toLocaleString()} PKR</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div class="footer">
-                <div class="note">
-                  Please Note: If you have already deposited this fee amount, kindly submit the deposit receipt to the school administration office, or ignore this slip.
-                </div>
-                <div class="signature">
-                  Accounts Office
-                </div>
-              </div>
-            </div>
+          return `
+            <tr style="${!hasLedger ? 'opacity: 0.6;' : ''}">
+              <td><input type="checkbox" class="reminder-check" data-id="${s.id}" ${hasLedger && unpaidAmount > 0 ? 'checked' : ''}></td>
+              <td>${s.roll_no || 'N/A'}</td>
+              <td><strong>${s.name}</strong></td>
+              <td>${s.class_name} ${s.section_name ? '(' + s.section_name + ')' : ''}</td>
+              <td>${s.father_name || '-'}</td>
+              <td>${statusBadge} <strong>${unpaidAmount > 0 ? unpaidAmount.toLocaleString() : ''}</strong></td>
+            </tr>
           `;
-        });
-        
-        printHtml += `
-            </body>
-          </html>
-        `;
-
-        const originalContents = document.body.innerHTML;
-        document.body.innerHTML = printHtml;
-        window.print();
-        window.location.reload();
-
-      } catch (e) {}
+        }).join('');
+      } catch (e) {
+        showToast('Failed to load students: ' + e.message, true);
+      }
     });
+  }
+
+  document.getElementById('reminder-check-all')?.addEventListener('change', (e) => {
+    document.querySelectorAll('.reminder-check').forEach(cb => { cb.checked = e.target.checked; });
+  });
+
+  document.getElementById('btn-select-all-reminders')?.addEventListener('click', () => {
+    document.querySelectorAll('.reminder-check').forEach(cb => { cb.checked = true; });
+  });
+
+  document.getElementById('btn-deselect-all-reminders')?.addEventListener('click', () => {
+    document.querySelectorAll('.reminder-check').forEach(cb => { cb.checked = false; });
+  });
+
+  function buildReminderHTML(studentData, schoolData, year) {
+    const allMonths = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
+    const d = studentData;
+
+    // Only include months that have actual ledger data (not null)
+    const activeMonths = allMonths.filter(m => d.monthlyFee[m] !== null && d.monthlyFee[m] !== undefined);
+
+    if (activeMonths.length === 0) {
+      return `
+        <div class="fee-slip">
+          <div class="slip-header">
+            <img src="/${schoolData.logo || 'school_assets/school_logo.png'}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
+            <div class="slip-header-text">
+              <h2>${schoolData.name || 'School Name'}</h2>
+              <p>Contact: ${schoolData.phone || '-'} | Reg No: ${schoolData.reg || '-'}</p>
+            </div>
+          </div>
+          <div class="slip-student-row">
+            <div class="slip-student-info">
+              <div><strong>Name:</strong> ${d.student.name}</div>
+              <div><strong>F-Name:</strong> ${d.student.father_name || '-'}</div>
+              <div><strong>Class:</strong> ${d.student.class_name}${d.student.section_name ? ' (' + d.student.section_name + ')' : ''}</div>
+            </div>
+            <div class="slip-student-info">
+              <div><strong>Roll No:</strong> ${d.student.roll_no || '-'}</div>
+              <div><strong>ID:</strong> ${d.student.admission_no || d.student.id}</div>
+            </div>
+            <div class="slip-badge">FEE REMINDER ${year}-${parseInt(year)+1}</div>
+          </div>
+          <div style="text-align: center; padding: 20px; color: #666;">No fee ledger data found for this year.</div>
+        </div>
+      `;
+    }
+
+    let tableRows = '';
+    const rows = [
+      { label: 'Mnth Fee', data: d.monthlyFee },
+      { label: 'Transport', data: d.transportFee },
+      { label: 'Due', data: d.due },
+      { label: 'Total', data: d.total },
+      { label: 'Paid', data: d.paid },
+      { label: 'Unpaid', data: d.unpaid }
+    ];
+
+    rows.forEach(row => {
+      let tr = `<tr><td>${row.label}</td>`;
+      activeMonths.forEach(m => {
+        const val = row.data[m];
+        tr += `<td>${val !== null && val !== undefined ? val.toLocaleString() : '-'}</td>`;
+      });
+      tr += '</tr>';
+      tableRows += tr;
+    });
+
+    return `
+      <div class="fee-slip">
+        <div class="slip-header">
+          <img src="/${schoolData.logo || 'school_assets/school_logo.png'}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
+          <div class="slip-header-text">
+            <h2>${schoolData.name || 'School Name'}</h2>
+            <p>Contact: ${schoolData.phone || '-'} | Reg No: ${schoolData.reg || '-'}</p>
+          </div>
+        </div>
+        <div class="slip-student-row">
+          <div class="slip-student-info">
+            <div><strong>Name:</strong> ${d.student.name}</div>
+            <div><strong>F-Name:</strong> ${d.student.father_name || '-'}</div>
+            <div><strong>Class:</strong> ${d.student.class_name}${d.student.section_name ? ' (' + d.student.section_name + ')' : ''}</div>
+          </div>
+          <div class="slip-student-info">
+            <div><strong>Roll No:</strong> ${d.student.roll_no || '-'}</div>
+            <div><strong>ID:</strong> ${d.student.admission_no || d.student.id}</div>
+          </div>
+          <div class="slip-badge">FEE REMINDER ${year}-${parseInt(year)+1}</div>
+        </div>
+        <div class="table-container" style="border: 2px solid #000; background: #fff;">
+          <table class="data-table" style="color: #000;">
+            <thead>
+              <tr style="background: #f0f0f0;">
+                <th></th>
+                ${activeMonths.map(m => `<th>${m}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody style="color: #000;">${tableRows}</tbody>
+          </table>
+        </div>
+        <div class="slip-footer">
+          <div class="slip-sign">Principal Sign: _______________</div>
+          <div class="slip-net-total">NET TOTAL: ${d.netTotal.toLocaleString()}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  const btnGenerateReminders = document.getElementById('btn-generate-reminders');
+  if (btnGenerateReminders) {
+    btnGenerateReminders.addEventListener('click', async () => {
+      const year = document.getElementById('reminder-filter-year').value;
+      const selectedIds = [];
+      document.querySelectorAll('.reminder-check:checked').forEach(cb => {
+        selectedIds.push(parseInt(cb.dataset.id));
+      });
+
+      if (selectedIds.length === 0) {
+        showToast('Select at least one student', true);
+        return;
+      }
+
+      const a4Page = document.getElementById('reminder-a4-page');
+      a4Page.innerHTML = '';
+
+      try {
+        const allData = await Promise.all(
+          selectedIds.map(id => apiCall(`/fees/slip/${id}?year=${year}`))
+        );
+
+        allData.forEach(data => {
+          a4Page.innerHTML += buildReminderHTML(data, data.school, year);
+        });
+
+        document.querySelector('#tab-reminder-form .card').style.display = 'none';
+        document.getElementById('reminder-preview-container').style.display = 'block';
+      } catch (e) {
+        showToast('Failed to generate reminders: ' + e.message, true);
+      }
+    });
+  }
+
+  document.getElementById('btn-back-reminder-list')?.addEventListener('click', () => {
+    document.querySelector('#tab-reminder-form .card').style.display = '';
+    document.getElementById('reminder-preview-container').style.display = 'none';
+  });
+
+  document.getElementById('btn-print-reminders')?.addEventListener('click', async () => {
+    const a4Page = document.getElementById('reminder-a4-page');
+    const printHTML = a4Page.innerHTML;
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html><head><title>Fee Reminders</title>
+      <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; }
+        @page { size: A4; margin: 10mm; }
+        .a4-page {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+          padding: 5mm;
+          page-break-after: always;
+        }
+        .fee-slip { border: 2px solid #000; padding: 6px; color: #000; font-size: 0.65rem; break-inside: avoid; page-break-inside: avoid; }
+        .slip-header { display: flex; align-items: center; gap: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 4px; }
+        .slip-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+        .slip-header-text h2 { font-size: 0.6rem; font-weight: 800; margin: 0; text-transform: uppercase; }
+        .slip-header-text p { font-size: 0.5rem; margin: 1px 0 0; }
+        .slip-student-row { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 4px; padding: 4px; border: 1px solid #ccc; border-radius: 2px; }
+        .slip-student-info { font-size: 0.55rem; line-height: 1.4; }
+        .slip-student-info strong { display: inline-block; min-width: 35px; }
+        .slip-badge { background: #000; color: #fff; padding: 3px 6px; font-weight: 700; font-size: 0.5rem; white-space: nowrap; }
+        table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
+        th, td { padding: 2px 3px; font-size: 0.5rem; border: 1px solid #ccc; text-align: center; }
+        th { background: #f5f5f5; font-weight: 700; }
+        td:first-child { text-align: left; font-weight: 600; background: #f9f9f9; font-size: 0.48rem; }
+        .slip-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 2px solid #000; }
+        .slip-sign { font-size: 0.5rem; }
+        .slip-net-total { background: #000; color: #fff; padding: 2px 8px; font-weight: 800; font-size: 0.55rem; }
+      </style></head><body><div class="a4-page">${printHTML}</div></body></html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  });
+
+  // Save reminders
+  let currentReminderData = null;
+
+  // Save as PDF
+  document.getElementById('btn-save-pdf-reminders')?.addEventListener('click', async () => {
+    const year = document.getElementById('reminder-filter-year').value;
+    const cls = document.getElementById('reminder-filter-class').value;
+    const selectedIds = [];
+    document.querySelectorAll('.reminder-check:checked').forEach(cb => {
+      selectedIds.push(parseInt(cb.dataset.id));
+    });
+
+    if (selectedIds.length === 0) {
+      showToast('No students selected', true);
+      return;
+    }
+
+    const statusEl = document.getElementById('reminder-save-status');
+    statusEl.textContent = 'Generating PDF...';
+    statusEl.style.color = 'var(--accent)';
+
+    try {
+      const result = await apiCall('/fees/reminders/generate-pdf', 'POST', {
+        student_ids: selectedIds,
+        year: parseInt(year),
+        title: `Fee Reminder - ${cls || 'All'} - ${year}`
+      });
+
+      const downloadUrl = result.file_path;
+      statusEl.innerHTML = `PDF ready! <a href="${downloadUrl}" target="_blank" style="color: var(--accent); text-decoration: underline; font-weight: 700;">Click to Download</a>`;
+
+      // Auto-download
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = result.file_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast(`PDF generated for ${result.student_count} students`);
+    } catch (err) {
+      statusEl.textContent = 'Failed to generate PDF';
+      statusEl.style.color = 'var(--danger)';
+      showToast('Failed: ' + err.message, true);
+    }
+  });
+
+  document.getElementById('btn-save-reminders')?.addEventListener('click', async () => {
+    const cls = document.getElementById('reminder-filter-class').value;
+    const sec = document.getElementById('reminder-filter-section').value;
+    const year = document.getElementById('reminder-filter-year').value;
+    const selectedIds = [];
+    let totalAmount = 0;
+    document.querySelectorAll('.reminder-check:checked').forEach(cb => {
+      selectedIds.push(parseInt(cb.dataset.id));
+      const student = reminderStudentsData.find(s => s.id == cb.dataset.id);
+      if (student) totalAmount += student.total_unpaid;
+    });
+
+    if (selectedIds.length === 0) {
+      showToast('No students selected', true);
+      return;
+    }
+
+    try {
+      const result = await apiCall('/fees/reminders', 'POST', {
+        title: `Fee Reminder - ${cls || 'All Classes'} - ${year}`,
+        class_name: cls,
+        section_name: sec,
+        year: parseInt(year),
+        student_ids: selectedIds,
+        total_amount: totalAmount,
+        student_count: selectedIds.length
+      });
+      showToast('Reminder saved successfully');
+      document.getElementById('reminder-save-status').textContent = 'Saved!';
+      setTimeout(() => { document.getElementById('reminder-save-status').textContent = ''; }, 3000);
+      loadSavedReminders();
+    } catch (err) {
+      showToast('Failed to save: ' + err.message, true);
+    }
+  });
+
+  async function loadSavedReminders() {
+    try {
+      const reminders = await apiCall('/fees/reminders');
+      const tbody = document.querySelector('#table-saved-reminders tbody');
+      if (!tbody) return;
+
+      if (reminders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No saved reminders yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = reminders.map(r => `
+        <tr>
+          <td><strong>${r.title || 'Untitled'}</strong></td>
+          <td>${r.class_name || 'All'}</td>
+          <td>${r.year}</td>
+          <td>${r.student_count}</td>
+          <td>${r.total_amount ? r.total_amount.toLocaleString() : '0'}</td>
+          <td>${r.created_at ? new Date(r.created_at).toLocaleDateString() : '-'}</td>
+          <td>${r.printed_at ? new Date(r.printed_at).toLocaleDateString() : 'Not printed'}</td>
+          <td>
+            <button class="btn btn-outline btn-sm btn-view-reminder" data-id="${r.id}" data-student-ids='${r.student_ids}' data-year="${r.year}">View</button>
+            <button class="btn btn-danger btn-sm btn-delete-reminder" data-id="${r.id}">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+
+      tbody.querySelectorAll('.btn-view-reminder').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const studentIds = JSON.parse(btn.dataset.studentIds || '[]');
+          const year = btn.dataset.year;
+          if (studentIds.length === 0) { showToast('No students in this reminder', true); return; }
+
+          const a4Page = document.getElementById('reminder-a4-page');
+          a4Page.innerHTML = '';
+
+          try {
+            const allData = await Promise.all(
+              studentIds.map(id => apiCall(`/fees/slip/${id}?year=${year}`))
+            );
+            allData.forEach(data => {
+              a4Page.innerHTML += buildReminderHTML(data, data.school, year);
+            });
+
+            document.querySelector('#tab-reminder-form .card').style.display = 'none';
+            document.getElementById('reminder-preview-container').style.display = 'block';
+
+            await apiCall(`/fees/reminders/${btn.dataset.id}/print`, 'PUT');
+            loadSavedReminders();
+          } catch (e) {
+            showToast('Failed to load reminder: ' + e.message, true);
+          }
+        });
+      });
+
+      tbody.querySelectorAll('.btn-delete-reminder').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this saved reminder?')) return;
+          try {
+            await apiCall(`/fees/reminders/${btn.dataset.id}`, 'DELETE');
+            showToast('Reminder deleted');
+            loadSavedReminders();
+          } catch (e) { showToast(e.message, true); }
+        });
+      });
+    } catch (e) {}
   }
 
   // ==========================================
@@ -1750,17 +2301,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
       data.classWise.forEach(c => {
         let badgeColor = '#ff5252'; // Poor
-        let statusIcon = '🔴';
+        let statusIcon = '●';
         if (c.status === 'Good') {
           badgeColor = '#4caf50';
-          statusIcon = '🟢';
+          statusIcon = '●';
         } else if (c.status === 'Fair') {
           badgeColor = '#ffb142';
-          statusIcon = '🟡';
+          statusIcon = '●';
         }
 
         const isTrendPositive = !c.trend.startsWith('-');
-        const trendIcon = isTrendPositive ? '📈' : '📉';
+        const trendIcon = isTrendPositive ? '▲' : '▼';
         const trendColor = isTrendPositive ? '#4caf50' : '#ff5252';
 
         tbody.innerHTML += `
@@ -1957,13 +2508,226 @@ document.addEventListener('DOMContentLoaded', () => {
               <td>${l.monthly_fee.toLocaleString()} Rs</td>
               <td>${l.transport_fee.toLocaleString()} Rs</td>
               <td><strong>${l.total_payable.toLocaleString()} Rs</strong></td>
-              <td><span style="color:var(--accent); font-weight:700;">${l.amount_paid.toLocaleString()} Rs</span></td>
-              <td>${(l.total_payable - l.amount_paid).toLocaleString()} Rs</td>
+              <td><span style="color:var(--accent); font-weight:700;">${l.paid_amount.toLocaleString()} Rs</span></td>
+              <td>${(l.total_payable - l.paid_amount).toLocaleString()} Rs</td>
               <td><span class="status-badge ${badge}">${l.status}</span></td>
             </tr>
           `;
         });
       } catch (e) {}
+    });
+  }
+
+
+  // ==========================================
+  // MODULE: FEE SLIP
+  // ==========================================
+
+  const slipStudentsCache = [];
+
+  const btnSearchSlipStudent = document.getElementById('btn-search-slip-student');
+  if (btnSearchSlipStudent) {
+    btnSearchSlipStudent.addEventListener('click', async () => {
+      const search = document.getElementById('slip-search').value.trim();
+      if (!search) return;
+
+      try {
+        const students = await apiCall(`/students?search=${encodeURIComponent(search)}`);
+        slipStudentsCache.length = 0;
+        const tbody = document.querySelector('#table-slip-students tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (students.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No students found.</td></tr>';
+          return;
+        }
+
+        students.forEach(s => {
+          slipStudentsCache.push(s);
+          tbody.innerHTML += `
+            <tr>
+              <td>${s.roll_no || 'N/A'}</td>
+              <td><strong>${s.name}</strong></td>
+              <td>${s.class_name} ${s.section_name ? '(' + s.section_name + ')' : ''}</td>
+              <td>${s.father_name || '-'}</td>
+              <td><button class="btn btn-primary btn-sm btn-generate-slip" data-id="${s.id}">Generate Slip</button></td>
+            </tr>
+          `;
+        });
+
+        document.querySelectorAll('.btn-generate-slip').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const studentId = btn.getAttribute('data-id');
+            generateSlipsForStudents([slipStudentsCache.find(s => s.id == studentId)]);
+          });
+        });
+      } catch (e) {}
+    });
+  }
+
+  function buildSlipHTML(studentData, schoolData, year) {
+    const allMonths = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
+    const d = studentData;
+
+    // Only include months that have actual ledger data (not null)
+    const activeMonths = allMonths.filter(m => d.monthlyFee[m] !== null && d.monthlyFee[m] !== undefined);
+
+    if (activeMonths.length === 0) {
+      return `
+        <div class="fee-slip">
+          <div class="slip-header">
+            <img src="/${schoolData.logo || 'school_assets/school_logo.png'}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
+            <div class="slip-header-text">
+              <h2>${schoolData.name || 'School Name'}</h2>
+              <p>Contact: ${schoolData.phone || '-'} | Reg No: ${schoolData.reg || '-'}</p>
+            </div>
+          </div>
+          <div class="slip-student-row">
+            <div class="slip-student-info">
+              <div><strong>Name:</strong> ${d.student.name}</div>
+              <div><strong>F-Name:</strong> ${d.student.father_name || '-'}</div>
+              <div><strong>Class:</strong> ${d.student.class_name}${d.student.section_name ? ' (' + d.student.section_name + ')' : ''}</div>
+            </div>
+            <div class="slip-student-info">
+              <div><strong>Roll No:</strong> ${d.student.roll_no || '-'}</div>
+              <div><strong>ID:</strong> ${d.student.admission_no || d.student.id}</div>
+            </div>
+            <div class="slip-badge">FEE SLIP ${year}-${parseInt(year)+1}</div>
+          </div>
+          <div style="text-align: center; padding: 20px; color: #666;">No fee ledger data found for this year.</div>
+        </div>
+      `;
+    }
+
+    let tableRows = '';
+    const rows = [
+      { label: 'Mnth Fee', data: d.monthlyFee },
+      { label: 'Transport', data: d.transportFee },
+      { label: 'Due', data: d.due },
+      { label: 'Total', data: d.total },
+      { label: 'Paid', data: d.paid },
+      { label: 'Unpaid', data: d.unpaid }
+    ];
+
+    rows.forEach(row => {
+      let tr = `<tr><td>${row.label}</td>`;
+      activeMonths.forEach(m => {
+        const val = row.data[m];
+        tr += `<td>${val !== null && val !== undefined ? val.toLocaleString() : '-'}</td>`;
+      });
+      tr += '</tr>';
+      tableRows += tr;
+    });
+
+    return `
+      <div class="fee-slip">
+        <div class="slip-header">
+          <img src="/${schoolData.logo || 'school_assets/school_logo.png'}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
+          <div class="slip-header-text">
+            <h2>${schoolData.name || 'School Name'}</h2>
+            <p>Contact: ${schoolData.phone || '-'} | Reg No: ${schoolData.reg || '-'}</p>
+          </div>
+        </div>
+        <div class="slip-student-row">
+          <div class="slip-student-info">
+            <div><strong>Name:</strong> ${d.student.name}</div>
+            <div><strong>F-Name:</strong> ${d.student.father_name || '-'}</div>
+            <div><strong>Class:</strong> ${d.student.class_name}${d.student.section_name ? ' (' + d.student.section_name + ')' : ''}</div>
+          </div>
+          <div class="slip-student-info">
+            <div><strong>Roll No:</strong> ${d.student.roll_no || '-'}</div>
+            <div><strong>ID:</strong> ${d.student.admission_no || d.student.id}</div>
+          </div>
+          <div class="slip-badge">FEE SLIP ${year}-${parseInt(year)+1}</div>
+        </div>
+        <div class="table-container" style="border: 2px solid #000; background: #fff;">
+          <table class="data-table" style="color: #000;">
+            <thead>
+              <tr style="background: #f0f0f0;">
+                <th></th>
+                ${activeMonths.map(m => `<th>${m}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody style="color: #000;">${tableRows}</tbody>
+          </table>
+        </div>
+        <div class="slip-footer">
+          <div class="slip-sign">Principal Sign: _______________</div>
+          <div class="slip-net-total">NET TOTAL: ${d.netTotal.toLocaleString()}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function generateSlipsForStudents(students) {
+    const year = document.getElementById('slip-year').value;
+    const a4Page = document.getElementById('slip-a4-page');
+    a4Page.innerHTML = '';
+
+    try {
+      const allData = await Promise.all(
+        students.map(s => apiCall(`/fees/slip/${s.id}?year=${year}`))
+      );
+
+      allData.forEach(data => {
+        a4Page.innerHTML += buildSlipHTML(data, data.school, year);
+      });
+
+      document.getElementById('slip-student-list-container').style.display = 'none';
+      document.getElementById('slip-preview-container').style.display = 'block';
+    } catch (e) {
+      showToast('Failed to load fee slips: ' + (e.message || 'Unknown error'), true);
+    }
+  }
+
+  const btnPrintFeeSlip = document.getElementById('btn-print-fee-slip');
+  if (btnPrintFeeSlip) {
+    btnPrintFeeSlip.addEventListener('click', () => {
+      const a4Page = document.getElementById('slip-a4-page');
+      const printHTML = a4Page.innerHTML;
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <html><head><title>Fee Slips</title>
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: Arial, sans-serif; }
+          @page { size: A4; margin: 10mm; }
+          .a4-page {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding: 5mm;
+            page-break-after: always;
+          }
+          .fee-slip { border: 2px solid #000; padding: 6px; color: #000; font-size: 0.65rem; break-inside: avoid; }
+          .slip-header { display: flex; align-items: center; gap: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 4px; }
+          .slip-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+          .slip-header-text h2 { font-size: 0.6rem; font-weight: 800; margin: 0; text-transform: uppercase; }
+          .slip-header-text p { font-size: 0.5rem; margin: 1px 0 0; }
+          .slip-student-row { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 4px; padding: 4px; border: 1px solid #ccc; border-radius: 2px; }
+          .slip-student-info { font-size: 0.55rem; line-height: 1.4; }
+          .slip-student-info strong { display: inline-block; min-width: 35px; }
+          .slip-badge { background: #000; color: #fff; padding: 3px 6px; font-weight: 700; font-size: 0.5rem; white-space: nowrap; }
+          table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
+          th, td { padding: 2px 3px; font-size: 0.5rem; border: 1px solid #ccc; text-align: center; }
+          th { background: #f5f5f5; font-weight: 700; }
+          td:first-child { text-align: left; font-weight: 600; background: #f9f9f9; font-size: 0.48rem; }
+          .slip-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 2px solid #000; }
+          .slip-sign { font-size: 0.5rem; }
+          .slip-net-total { background: #000; color: #fff; padding: 2px 8px; font-weight: 800; font-size: 0.55rem; }
+        </style></head><body><div class="a4-page">${printHTML}</div></body></html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+    });
+  }
+
+  const btnBackSlipList = document.getElementById('btn-back-slip-list');
+  if (btnBackSlipList) {
+    btnBackSlipList.addEventListener('click', () => {
+      document.getElementById('slip-student-list-container').style.display = 'block';
+      document.getElementById('slip-preview-container').style.display = 'none';
     });
   }
 
@@ -2124,97 +2888,106 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {}
   });
 
-  // Marks Matrix loader
-  document.getElementById('marks-select-class').addEventListener('change', async (e) => {
-    // Populate dynamic subjects for class
-    const cls = e.target.value;
-    const exam_id = document.getElementById('marks-select-exam').value;
-    const term = document.getElementById('marks-select-term').value;
-    const subSelect = document.getElementById('marks-select-subject');
-    
-    subSelect.innerHTML = '';
-    if (!cls || !exam_id) return;
-
-    try {
-      const list = await apiCall(`/exams/subjects?exam_id=${exam_id}&class_name=${encodeURIComponent(cls)}&term=${encodeURIComponent(term)}`);
-      list.forEach(sub => {
-        subSelect.innerHTML += `<option value="${sub.subject}">${sub.subject} (Max: ${sub.max_marks})</option>`;
-      });
-    } catch (e) {}
-  });
-
-  // Force subject reload if exam changes on marks grid
-  document.getElementById('marks-select-exam').addEventListener('change', () => {
-    document.getElementById('marks-select-class').dispatchEvent(new Event('change'));
-  });
-  document.getElementById('marks-select-term').addEventListener('change', () => {
-    document.getElementById('marks-select-class').dispatchEvent(new Event('change'));
-  });
-
-  // Load Marks Spreadsheet
+  // Marks Spreadsheet loader - fetches all subjects for class
   document.getElementById('btn-load-marks-grid').addEventListener('click', async () => {
     const exam_id = document.getElementById('marks-select-exam').value;
     const class_name = document.getElementById('marks-select-class').value;
     const section_name = document.getElementById('marks-select-sec').value;
     const term = document.getElementById('marks-select-term').value;
-    const subject = document.getElementById('marks-select-subject').value;
 
-    if (!exam_id || !class_name || !subject) {
-      showToast('Exam, Class, and Subject are required', true);
+    if (!exam_id || !class_name) {
+      showToast('Exam and Class are required', true);
       return;
     }
 
     try {
-      let url = `/exams/marks?exam_id=${exam_id}&class_name=${encodeURIComponent(class_name)}&term=${encodeURIComponent(term)}&subject=${encodeURIComponent(subject)}`;
-      if (section_name) url += `&section_name=${encodeURIComponent(section_name)}`;
+      const data = await apiCall(`/exams/marks/spreadsheet?exam_id=${exam_id}&class_name=${encodeURIComponent(class_name)}&term=${encodeURIComponent(term)}&section_name=${encodeURIComponent(section_name || '')}`);
+      const subjects = data.subjects || [];
+      const grid = data.grid || [];
 
-      const students = await apiCall(url);
+      const thead = document.getElementById('marks-grid-head');
       const tbody = document.querySelector('#table-marks-grid tbody');
       tbody.innerHTML = '';
 
-      if (students.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No students found in this class</td></tr>';
+      const infoBox = document.getElementById('marks-subject-info');
+      if (subjects.length === 0) {
+        infoBox.style.display = 'block';
+        infoBox.innerHTML = '<strong>No subjects found.</strong> Add subjects to the Timetable for this class, or set up subjects in "Exam Setup".';
+        thead.innerHTML = '<tr><th>Roll No</th><th>Student Name</th><th>Class / Section</th></tr>';
         document.getElementById('marks-grid-actions').style.display = 'none';
         return;
       }
 
-      students.forEach(s => {
-        tbody.innerHTML += `
-          <tr data-student-id="${s.id}">
-            <td><strong>${s.roll_no || '-'}</strong></td>
-            <td><strong>${s.name}</strong></td>
-            <td>${s.class_name} - ${s.section_name || 'N/A'}</td>
-            <td>
-              <input type="number" class="marks-input student-marks-val" value="${s.marks}" min="0" placeholder="Enter score">
-            </td>
-          </tr>
-        `;
+      infoBox.style.display = 'block';
+      infoBox.innerHTML = '<strong>' + subjects.length + ' subject(s) from timetable:</strong> ' + subjects.map(s => s.subject + ' (Max: ' + s.max_marks + ')').join(', ');
+
+      let headerHtml = '<tr><th style="position:sticky;left:0;background:var(--bg-secondary);z-index:1;">Roll No</th><th style="position:sticky;left:80px;background:var(--bg-secondary);z-index:1;">Student Name</th><th>Class / Section</th>';
+      subjects.forEach(sub => {
+        headerHtml += '<th style="min-width:90px;">' + sub.subject + '<br><span style="font-size:0.7rem;font-weight:400;color:var(--text-muted);">(Max: ' + sub.max_marks + ')</span></th>';
+      });
+      headerHtml += '</tr>';
+      thead.innerHTML = headerHtml;
+
+      if (grid.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No students found in this class</td></tr>';
+        document.getElementById('marks-grid-actions').style.display = 'none';
+        return;
+      }
+
+      grid.forEach(s => {
+        let rowHtml = '<tr data-student-id="' + s.id + '">';
+        rowHtml += '<td style="position:sticky;left:0;background:var(--bg-primary);z-index:1;"><strong>' + (s.roll_no || '-') + '</strong></td>';
+        rowHtml += '<td style="position:sticky;left:80px;background:var(--bg-primary);z-index:1;"><strong>' + s.name + '</strong></td>';
+        rowHtml += '<td>' + s.class_name + ' - ' + (s.section_name || 'N/A') + '</td>';
+        subjects.forEach(sub => {
+          const val = s.marks[sub.subject] !== undefined ? s.marks[sub.subject] : '';
+          rowHtml += '<td><input type="number" class="marks-input marks-cell" data-subject="' + sub.subject + '" data-max="' + sub.max_marks + '" value="' + val + '" min="0" max="' + sub.max_marks + '" placeholder="0"></td>';
+        });
+        rowHtml += '</tr>';
+        tbody.innerHTML += rowHtml;
       });
 
       document.getElementById('marks-grid-actions').style.display = 'block';
-
-    } catch (e) {}
+    } catch (e) {
+      showToast('Failed to load marks spreadsheet', true);
+    }
   });
 
-  // Save Marks Grid spreadsheet inputs
+  // Save Marks Spreadsheet - all subjects at once
   document.getElementById('btn-save-marks').addEventListener('click', async () => {
     const exam_id = document.getElementById('marks-select-exam').value;
     const term = document.getElementById('marks-select-term').value;
-    const subject = document.getElementById('marks-select-subject').value;
 
-    const rows = document.querySelectorAll('#table-marks-grid tbody tr');
-    const marksList = [];
+    if (!exam_id || !term) {
+      showToast('Exam and Term are required', true);
+      return;
+    }
+
+    const rows = document.querySelectorAll('#table-marks-grid tbody tr[data-student-id]');
+    const marksData = [];
 
     rows.forEach(row => {
-      const student_id = row.getAttribute('data-student-id');
-      const marks = row.querySelector('.student-marks-val').value;
-      marksList.push({ student_id, marks });
+      const student_id = parseInt(row.getAttribute('data-student-id'));
+      const marks = {};
+      row.querySelectorAll('.marks-cell').forEach(cell => {
+        const subject = cell.getAttribute('data-subject');
+        const val = cell.value;
+        marks[subject] = val === '' ? null : parseInt(val);
+      });
+      marksData.push({ student_id, marks });
     });
 
+    if (marksData.length === 0) {
+      showToast('No student rows to save', true);
+      return;
+    }
+
     try {
-      const res = await apiCall('/exams/marks', 'POST', { exam_id, subject, term, marksList });
+      const res = await apiCall('/exams/marks/spreadsheet', 'POST', { exam_id, term, marksData });
       showToast(res.message);
-    } catch (err) {}
+    } catch (err) {
+      showToast('Failed to save marks', true);
+    }
   });
 
   // Execute Result calculator
@@ -2242,108 +3015,357 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // DMC Portal student search
-  const dmcSearchInput = document.getElementById('dmc-student-search');
-  const dmcStudentsTable = document.querySelector('#table-dmc-students tbody');
+  // DMC Portal - Class filter, section filter, load students, and search
 
-  async function searchDmcStudents() {
-    const searchVal = dmcSearchInput.value.trim();
-    if (!searchVal) return;
-
+  // Populate class filter for DMC
+  async function loadDmcClassFilter() {
     try {
-      const list = await apiCall(`/students?search=${encodeURIComponent(searchVal)}`);
-      dmcStudentsTable.innerHTML = '';
-
-      if (list.length === 0) {
-        dmcStudentsTable.innerHTML = '<tr><td colspan="3" style="text-align: center;">No students matches query</td></tr>';
-        return;
-      }
-
-      list.forEach(s => {
-        dmcStudentsTable.innerHTML += `
-          <tr class="clickable-row select-dmc-stud-row" data-id="${s.id}" style="cursor:pointer;">
-            <td><strong>${s.roll_no || '-'}</strong></td>
-            <td>${s.name}</td>
-            <td>${s.class_name}</td>
-          </tr>
-        `;
-      });
-
-      // Bind row clicks
-      document.querySelectorAll('.select-dmc-stud-row').forEach(row => {
-        row.addEventListener('click', () => {
-          document.querySelectorAll('.select-dmc-stud-row').forEach(r => r.style.background = 'none');
-          row.style.background = 'rgba(99, 102, 241, 0.15)';
-          activeStudentDmcId = row.getAttribute('data-id');
-          document.getElementById('dmc-fallback-msg').style.display = 'none';
-        });
-      });
-
+      const classes = await apiCall('/students/classes');
+      const sel = document.getElementById('dmc-filter-class');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- All Classes --</option>';
+      classes.forEach(c => { sel.innerHTML += `<option value="${c}">${c}</option>`; });
     } catch (e) {}
   }
+  loadDmcClassFilter();
 
-  dmcSearchInput.addEventListener('input', searchDmcStudents);
+  // Section filter for DMC
+  document.getElementById('dmc-filter-class').addEventListener('change', async function() {
+    const cls = this.value;
+    const secSel = document.getElementById('dmc-filter-section');
+    secSel.innerHTML = '<option value="">-- All Sections --</option>';
+    if (!cls) return;
+    try {
+      const sections = await apiCall(`/students/sections/${encodeURIComponent(cls)}`);
+      sections.forEach(s => { secSel.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`; });
+    } catch (e) {}
+  });
 
-  // Load detailed DMC report card
-  document.getElementById('btn-load-dmc-report').addEventListener('click', async () => {
-    if (!activeStudentDmcId) {
-      showToast('Please search and select a student first', true);
+  // Load students button
+  document.getElementById('btn-dmc-load-students').addEventListener('click', () => loadDmcStudents());
+
+  async function loadDmcStudents() {
+    const cls = document.getElementById('dmc-filter-class').value;
+    const sec = document.getElementById('dmc-filter-section').value;
+    const search = document.getElementById('dmc-student-search').value.trim();
+
+    let url = '/students?';
+    if (cls) url += `class_name=${encodeURIComponent(cls)}&`;
+    if (sec && sec !== 'All Sections') url += `section_name=${encodeURIComponent(sec)}&`;
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+
+    try {
+      const list = await apiCall(url);
+      renderDmcStudents(list);
+    } catch (e) { showToast('Failed to load students', true); }
+  }
+
+  function renderDmcStudents(list) {
+    const dmcStudentsTable = document.querySelector('#table-dmc-students tbody');
+    dmcStudentsTable.innerHTML = '';
+
+    if (list.length === 0) {
+      dmcStudentsTable.innerHTML = '<tr><td colspan="3" style="text-align: center;">No students found</td></tr>';
       return;
     }
 
+    list.forEach(s => {
+      dmcStudentsTable.innerHTML += `
+        <tr class="clickable-row select-dmc-stud-row" data-id="${s.id}" style="cursor:pointer;">
+          <td><strong>${s.roll_no || '-'}</strong></td>
+          <td>${s.name}</td>
+          <td>${s.class_name} - ${s.section_name || 'N/A'}</td>
+        </tr>
+      `;
+    });
+
+    document.querySelectorAll('.select-dmc-stud-row').forEach(row => {
+      row.addEventListener('click', () => {
+        document.querySelectorAll('.select-dmc-stud-row').forEach(r => r.style.background = 'none');
+        row.style.background = 'rgba(99, 102, 241, 0.15)';
+        activeStudentDmcId = row.getAttribute('data-id');
+        document.getElementById('dmc-fallback-msg').style.display = 'none';
+      });
+    });
+  }
+
+  // Text search also works with class filter
+  document.getElementById('dmc-student-search').addEventListener('input', () => {
+    loadDmcStudents();
+  });
+
+  // Load detailed DMC report card (single student or whole class)
+  document.getElementById('btn-load-dmc-report').addEventListener('click', async () => {
     const exam_id = document.getElementById('dmc-select-exam').value;
     const term = document.getElementById('dmc-select-term').value;
+    const cls = document.getElementById('dmc-filter-class').value;
+    const sec = document.getElementById('dmc-filter-section').value;
+
+    if (!exam_id || !term) {
+      showToast('Select exam and term first', true);
+      return;
+    }
 
     try {
-      const res = await apiCall(`/exams/dmc/${activeStudentDmcId}?exam_id=${exam_id}&term=${encodeURIComponent(term)}`);
-      
-      // Update printable sheet values
-      document.getElementById('dmc-school-name').innerText = currentUser.schoolName;
-      
-      const set = await apiCall('/settings');
-      document.getElementById('dmc-school-contact').innerText = `Phone: ${set.phone || 'N/A'} | Registration No: ${set.registration_number || 'N/A'}`;
+      // If a specific student is selected, show single DMC
+      if (activeStudentDmcId) {
+        const res = await apiCall(`/exams/dmc/${activeStudentDmcId}?exam_id=${exam_id}&term=${encodeURIComponent(term)}`);
+        renderSingleDmc(res);
+        return;
+      }
 
-      document.getElementById('dmc-sheet-name').innerText = res.student.name;
-      document.getElementById('dmc-sheet-father').innerText = res.student.father_name;
-      document.getElementById('dmc-sheet-admno').innerText = res.student.admission_no || '-';
-      document.getElementById('dmc-sheet-roll').innerText = res.student.roll_no || '-';
-      document.getElementById('dmc-sheet-class').innerText = `${res.student.class_name} - ${res.student.section_name || 'N/A'}`;
-      document.getElementById('dmc-sheet-term').innerText = term;
+      // If a class is selected, show ALL students' DMCs
+      if (cls) {
+        let url = `/exams/dmc/class/${encodeURIComponent(cls)}?exam_id=${exam_id}&term=${encodeURIComponent(term)}`;
+        if (sec && sec !== 'All Sections') url += `&section_name=${encodeURIComponent(sec)}`;
+        const allDmcs = await apiCall(url);
+        renderClassDmcs(allDmcs, cls, sec);
+        return;
+      }
 
-      // Populate subject list
-      const tbody = document.querySelector('#table-dmc-sheet-marks tbody');
-      tbody.innerHTML = '';
-      res.reportDetails.forEach(row => {
-        tbody.innerHTML += `
-          <tr>
-            <td><strong>${row.subject}</strong></td>
-            <td>${row.max_marks}</td>
-            <td><strong>${row.obtained_marks}</strong></td>
-            <td><span class="status-badge ${row.status === 'Pass' ? 'status-present' : 'status-unpaid'}">${row.status}</span></td>
-          </tr>
-        `;
-      });
+      showToast('Select a class or search and select a student first', true);
+    } catch (err) {
+      showToast('Failed to load result card: ' + err.message, true);
+    }
+  });
 
-      // Fills totals card
-      document.getElementById('dmc-sheet-total').innerText = res.summary.total;
-      document.getElementById('dmc-sheet-obtained').innerText = res.summary.obtained;
-      document.getElementById('dmc-sheet-percentage').innerText = res.summary.percentage;
-      document.getElementById('dmc-sheet-grade').innerText = res.summary.grade;
-      document.getElementById('dmc-sheet-position').innerText = `${res.summary.position} Position`;
-      document.getElementById('dmc-sheet-remarks').innerText = res.summary.remarks;
+  function renderSingleDmc(res) {
+    const examEl = document.getElementById('dmc-select-exam');
+    const examText = examEl.options[examEl.selectedIndex] ? examEl.options[examEl.selectedIndex].text : '';
+    const term = document.getElementById('dmc-select-term').value;
+    const s = res.student;
+    const sum = res.summary;
+    const details = res.reportDetails || [];
+    const photoUrl = s.photo ? '/' + s.photo : '';
 
+    let totalMax = 0, totalObt = 0;
+    details.forEach(r => { totalMax += r.max_marks; totalObt += r.obtained_marks; });
+
+    apiCall('/settings').then(set => {
+      const schoolLogo = set.logo_path ? '/' + set.logo_path : 'school_assets/school_logo.png';
+      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const posLabel = sum.position && sum.position !== '-' ? sum.position : '-';
+
+      const html = `
+        <div style="font-family: Arial, Helvetica, sans-serif; color: #111; padding: 30px; background: white;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <img src="${schoolLogo}" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; margin-bottom: 8px;" onerror="this.style.display='none'">
+            <h1 style="margin: 0; font-size: 1.5rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">${currentUser.schoolName}</h1>
+            <div style="border-top: 2px solid #111; margin: 12px 0;"></div>
+            <h2 style="margin: 0; font-size: 1.1rem; font-weight: 700; text-transform: uppercase;">DETAILED MARKS CERTIFICATE</h2>
+            <p style="margin: 5px 0 0; font-size: 0.95rem; color: #333;">${term} Examination ${new Date().getFullYear()}</p>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; font-size: 0.95rem;">
+            <div style="flex: 1;">
+              <p style="margin: 4px 0;"><strong>Name:</strong> ${s.name}</p>
+              <p style="margin: 4px 0;"><strong>Father Name:</strong> ${s.father_name || '-'}</p>
+              <p style="margin: 4px 0;"><strong>Roll No:</strong> ${s.roll_no || '-'}</p>
+              <p style="margin: 4px 0;"><strong>Class:</strong> ${s.class_name} ${s.section_name ? '- ' + s.section_name : ''}</p>
+            </div>
+            <div style="text-align: right; flex-shrink: 0; margin-left: 20px;">
+              ${photoUrl ? `<img src="${photoUrl}" style="width: 80px; height: 100px; border: 1px solid #ccc; object-fit: cover;">` : '<div style="width: 80px; height: 100px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #999;">No Photo</div>'}
+            </div>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.9rem;">
+            <thead>
+              <tr style="background: #f0f0f0;">
+                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 6%;">No</th>
+                <th style="border: 1px solid #111; padding: 8px 10px; text-align: left;">Subject</th>
+                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 18%;">Total Marks</th>
+                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 18%;">Obtained Marks</th>
+                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 25%;">Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${details.map((r, i) => `<tr>
+                <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${i + 1}</td>
+                <td style="border: 1px solid #111; padding: 8px 10px;">${r.subject}</td>
+                <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.max_marks}</td>
+                <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.obtained_marks}</td>
+                <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${i === 0 ? (sum.remarks || '') : ''}</td>
+              </tr>`).join('')}
+              <tr style="font-weight: 700; background: #f9f9f9;">
+                <td style="border: 1px solid #111; padding: 8px 10px;" colspan="2">Total</td>
+                <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${totalMax}</td>
+                <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${totalObt}</td>
+                <td style="border: 1px solid #111; padding: 8px 10px;"></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="display: flex; gap: 0; margin-bottom: 25px; border: 2px solid #111; border-radius: 6px; overflow: hidden;">
+            <div style="flex: 1; padding: 14px 10px; text-align: center; border-right: 2px solid #111; background: #f9f9f9;">
+              <div style="font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Percentage</div>
+              <div style="font-size: 1.5rem; font-weight: 900; color: #111; margin-top: 4px;">${sum.percentage}%</div>
+            </div>
+            <div style="flex: 1; padding: 14px 10px; text-align: center; border-right: 2px solid #111; background: #f9f9f9;">
+              <div style="font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Class Position</div>
+              <div style="font-size: 1.5rem; font-weight: 900; color: #111; margin-top: 4px;">${posLabel}</div>
+            </div>
+            <div style="flex: 1; padding: 14px 10px; text-align: center; background: #f9f9f9;">
+              <div style="font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Grade</div>
+              <div style="font-size: 1.5rem; font-weight: 900; color: #111; margin-top: 4px;">${sum.grade}</div>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 0.85rem; color: #333;">
+            <div style="text-align: center;">
+              <p style="margin-bottom: 35px;">Signatures of:</p>
+              <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Teacher incharge</div>
+            </div>
+            <div style="text-align: center;">
+              <p style="margin-bottom: 35px;"></p>
+              <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Parent</div>
+            </div>
+            <div style="text-align: center;">
+              <p style="margin-bottom: 35px;"></p>
+              <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Principal</div>
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid #ccc; padding-top: 10px; font-size: 0.78rem; color: #555;">
+            <p style="margin: 2px 0;">Result Declaration Date: ${today}</p>
+            <p style="margin: 2px 0;">Note: Error and omission can be accepted within three days. This result is computer generated by SkyHonix Digital.</p>
+            <p style="margin: 2px 0;">Contact: ${set.phone || 'N/A'}</p>
+          </div>
+        </div>`;
+
+      document.getElementById('dmc-printable-sheet').innerHTML = html;
       document.getElementById('dmc-printable-sheet').style.display = 'block';
       document.getElementById('btn-print-dmc').style.display = 'block';
+    });
+  }
 
-    } catch (err) {}
-  });
+  function renderClassDmcs(allDmcs, cls, sec) {
+    const container = document.getElementById('dmc-printable-sheet');
+    const examEl = document.getElementById('dmc-select-exam');
+    const examText = examEl.options[examEl.selectedIndex] ? examEl.options[examEl.selectedIndex].text : '';
+    const term = document.getElementById('dmc-select-term').value;
+
+    apiCall('/settings').then(set => {
+      const schoolLogo = set.logo_path ? '/' + set.logo_path : 'school_assets/school_logo.png';
+      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      let html = '';
+
+      allDmcs.forEach((dmc, idx) => {
+        const s = dmc.student;
+        const sum = dmc.summary;
+        const details = dmc.reportDetails || [];
+        const photoUrl = s.photo ? '/' + s.photo : '';
+        let totalMax = 0, totalObt = 0;
+        details.forEach(r => { totalMax += r.max_marks; totalObt += r.obtained_marks; });
+        const posLabel = sum.position && sum.position !== '-' ? sum.position : '-';
+
+        if (idx > 0) html += '<div style="page-break-after: always; break-after: page;"></div>';
+
+        html += `
+          <div style="font-family: Arial, Helvetica, sans-serif; color: #111; padding: 30px; background: white;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <img src="${schoolLogo}" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; margin-bottom: 8px;" onerror="this.style.display='none'">
+              <h1 style="margin: 0; font-size: 1.5rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">${currentUser.schoolName}</h1>
+              <div style="border-top: 2px solid #111; margin: 12px 0;"></div>
+              <h2 style="margin: 0; font-size: 1.1rem; font-weight: 700; text-transform: uppercase;">DETAILED MARKS CERTIFICATE</h2>
+              <p style="margin: 5px 0 0; font-size: 0.95rem; color: #333;">${term} Examination ${new Date().getFullYear()}</p>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; font-size: 0.95rem;">
+              <div style="flex: 1;">
+                <p style="margin: 4px 0;"><strong>Name:</strong> ${s.name}</p>
+                <p style="margin: 4px 0;"><strong>Father Name:</strong> ${s.father_name || '-'}</p>
+                <p style="margin: 4px 0;"><strong>Roll No:</strong> ${s.roll_no || '-'}</p>
+                <p style="margin: 4px 0;"><strong>Class:</strong> ${s.class_name} ${s.section_name ? '- ' + s.section_name : ''}</p>
+              </div>
+              <div style="text-align: right; flex-shrink: 0; margin-left: 20px;">
+                ${photoUrl ? `<img src="${photoUrl}" style="width: 80px; height: 100px; border: 1px solid #ccc; object-fit: cover;">` : '<div style="width: 80px; height: 100px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #999;">No Photo</div>'}
+              </div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.9rem;">
+              <thead>
+                <tr style="background: #f0f0f0;">
+                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 6%;">No</th>
+                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: left;">Subject</th>
+                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 18%;">Total Marks</th>
+                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 18%;">Obtained Marks</th>
+                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 25%;">Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${details.map((r, i) => `<tr>
+                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${i + 1}</td>
+                  <td style="border: 1px solid #111; padding: 8px 10px;">${r.subject}</td>
+                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.max_marks}</td>
+                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.obtained_marks}</td>
+                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${i === 0 ? (sum.remarks || '') : ''}</td>
+                </tr>`).join('')}
+                <tr style="font-weight: 700; background: #f9f9f9;">
+                  <td style="border: 1px solid #111; padding: 8px 10px;" colspan="2">Total</td>
+                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${totalMax}</td>
+                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${totalObt}</td>
+                  <td style="border: 1px solid #111; padding: 8px 10px;"></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style="display: flex; gap: 0; margin-bottom: 25px; border: 2px solid #111; border-radius: 6px; overflow: hidden;">
+              <div style="flex: 1; padding: 14px 10px; text-align: center; border-right: 2px solid #111; background: #f9f9f9;">
+                <div style="font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Percentage</div>
+                <div style="font-size: 1.5rem; font-weight: 900; color: #111; margin-top: 4px;">${sum.percentage}%</div>
+              </div>
+              <div style="flex: 1; padding: 14px 10px; text-align: center; border-right: 2px solid #111; background: #f9f9f9;">
+                <div style="font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Class Position</div>
+                <div style="font-size: 1.5rem; font-weight: 900; color: #111; margin-top: 4px;">${posLabel}</div>
+              </div>
+              <div style="flex: 1; padding: 14px 10px; text-align: center; background: #f9f9f9;">
+                <div style="font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Grade</div>
+                <div style="font-size: 1.5rem; font-weight: 900; color: #111; margin-top: 4px;">${sum.grade}</div>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 0.85rem; color: #333;">
+              <div style="text-align: center;">
+                <p style="margin-bottom: 35px;">Signatures of:</p>
+                <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Teacher incharge</div>
+              </div>
+              <div style="text-align: center;">
+                <p style="margin-bottom: 35px;"></p>
+                <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Parent</div>
+              </div>
+              <div style="text-align: center;">
+                <p style="margin-bottom: 35px;"></p>
+                <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Principal</div>
+              </div>
+            </div>
+
+            <div style="border-top: 1px solid #ccc; padding-top: 10px; font-size: 0.78rem; color: #555;">
+              <p style="margin: 2px 0;">Result Declaration Date: ${today}</p>
+              <p style="margin: 2px 0;">Note: Error and omission can be accepted within three days. This result is computer generated by SkyHonix Digital.</p>
+              <p style="margin: 2px 0;">Contact: ${set.phone || 'N/A'}</p>
+            </div>
+          </div>`;
+      });
+
+      container.innerHTML = html;
+      container.style.display = 'block';
+      document.getElementById('btn-print-dmc').style.display = 'block';
+      showToast(`${allDmcs.length} result card(s) loaded`);
+    });
+  }
 
   // Print DMC Sheet Trigger
   document.getElementById('btn-print-dmc').addEventListener('click', () => {
     const sheetContent = document.getElementById('dmc-printable-sheet').innerHTML;
-    const originalBody = document.body.innerHTML;
 
     document.body.innerHTML = `
+      <style>
+        @page { margin: 0; size: A4; }
+        @media print {
+          body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          html { margin: 0; padding: 0; }
+        }
+      </style>
       <div style="padding:40px; background:white; color:black; font-family:sans-serif; min-height:100vh;">
         ${sheetContent}
       </div>
@@ -2368,17 +3390,74 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDatesheetTemplates();
   }
 
-  // Load saved date sheet templates into the generate tab dropdown
+  // Load saved date sheet templates into the generate tab dropdown (deduplicated by name)
   async function loadDatesheetTemplates() {
     const sel = document.getElementById('datesheet-gen-template');
     if (!sel) return;
     try {
       const templates = await apiCall('/exams/datesheets');
-      sel.innerHTML = '<option value="">-- Select Template --</option>';
+      // Deduplicate by name — keep latest (highest id) for each unique name
+      const uniqueMap = {};
       templates.forEach(t => {
-        sel.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+        const key = t.name;
+        if (!uniqueMap[key] || t.id > uniqueMap[key].id) {
+          uniqueMap[key] = t;
+        }
       });
+      const unique = Object.values(uniqueMap).sort((a, b) => b.id - a.id);
+      sel.innerHTML = '<option value="">-- Select Template --</option>';
+      unique.forEach(t => {
+        const activeMark = t.is_active ? ' [ACTIVE]' : '';
+        const style = t.is_active ? ' style="font-weight:bold;color:#16a34a;"' : '';
+        sel.innerHTML += '<option value="' + t.id + '"' + style + '>' + t.name + activeMark + '</option>';
+      });
+      updateDatesheetActiveBadge(templates);
     } catch (e) {}
+  }
+
+  // Show template info when selected
+  document.getElementById('datesheet-gen-template').addEventListener('change', async function() {
+    const templateId = this.value;
+    const infoDiv = document.getElementById('datesheet-template-info');
+    const previewDiv = document.getElementById('datesheet-preview');
+    if (!templateId) { infoDiv.style.display = 'none'; previewDiv.style.display = 'none'; return; }
+
+    try {
+      const templates = await apiCall('/exams/datesheets');
+      const tpl = templates.find(t => t.id == templateId);
+      if (!tpl) return;
+
+      const t = tpl.template;
+      const subjects = t.subjects || [];
+      const classGroups = {};
+      subjects.forEach(s => {
+        const cls = s.class || 'All Classes';
+        if (!classGroups[cls]) classGroups[cls] = [];
+        classGroups[cls].push(s);
+      });
+
+      const classNames = Object.keys(classGroups);
+      const subjectNames = [...new Set(subjects.map(s => s.subject))];
+
+      infoDiv.style.display = 'block';
+      infoDiv.innerHTML = '<strong>Template:</strong> ' + tpl.name +
+        ' &mdash; <strong>' + subjects.length + ' exam entries</strong> across ' +
+        '<strong>' + classNames.length + ' class(es)</strong>: ' + classNames.join(', ') +
+        '<br><strong>Subjects:</strong> ' + subjectNames.join(', ');
+    } catch (e) {}
+  });
+
+  function updateDatesheetActiveBadge(templates) {
+    const badge = document.getElementById('datesheet-active-badge');
+    if (!badge) return;
+    const active = (templates || []).find(t => t.is_active);
+    if (active) {
+      badge.style.display = 'block';
+      badge.innerHTML = '<strong>Active Datesheet:</strong> ' + active.name;
+    } else {
+      badge.style.display = 'none';
+      badge.innerHTML = '';
+    }
   }
 
   // Add subject row for date sheet designer (with class selector)
@@ -2484,39 +3563,83 @@ document.addEventListener('DOMContentLoaded', () => {
         const exams = await apiCall('/exams');
         const exam = exams.find(ex => ex.id == t.exam_id);
 
-        // Resolve class display
-        let classDisplay = t.class_name;
-        if (t.class_name === 'All Classes') {
-          if (exam && exam.classes && exam.classes.length > 0) {
-            classDisplay = exam.classes.join(', ');
-          } else {
-            classDisplay = 'All Classes';
-          }
-        }
+        let settings = {};
+        try { settings = await apiCall('/settings'); } catch (e) {}
+        const logoUrl = settings.logo_path ? '/' + settings.logo_path : 'school_assets/school_logo.png';
 
-        let rowsHtml = '';
-        (t.subjects || []).forEach(s => {
-          rowsHtml += `<tr><td>${s.subject}</td><td>${s.date}</td><td>${s.time}</td></tr>`;
+        const subjects = t.subjects || [];
+
+        // Build matrix: collect unique dates and classes
+        const dateSet = new Set();
+        const classSet = new Set();
+        const cellMap = {}; // cellMap[class][date] = subject
+
+        subjects.forEach(s => {
+          const cls = s.class || 'All Classes';
+          const date = s.date || '';
+          classSet.add(cls);
+          if (date) dateSet.add(date);
+          if (!cellMap[cls]) cellMap[cls] = {};
+          cellMap[cls][date] = s.subject || '-';
         });
 
-        document.getElementById('datesheet-printable-content').innerHTML = `
-          <div style="text-align:center; margin-bottom:20px;">
-            <h2 style="margin:0;">${currentUser.schoolName}</h2>
-            <h3 style="margin:5px 0;">Date Sheet: ${tpl.name}</h3>
-            <p style="margin:2px 0; color:#555;">Exam: ${exam ? exam.exam_name + ' ' + exam.year : '-'} | Term: ${t.term}</p>
-            <p style="margin:2px 0; color:#555;">Class: ${classDisplay}</p>
-          </div>
-          <table style="width:100%; border-collapse:collapse; margin-top:15px;">
-            <thead>
-              <tr style="background:#f0f0f0;">
-                <th style="border:1px solid #ccc; padding:10px; text-align:left;">Subject</th>
-                <th style="border:1px solid #ccc; padding:10px; text-align:left;">Date</th>
-                <th style="border:1px solid #ccc; padding:10px; text-align:left;">Time</th>
-              </tr>
-            </thead>
-            <tbody>${rowsHtml}</tbody>
-          </table>
-        `;
+        const sortedDates = Array.from(dateSet).sort();
+        const sortedClasses = Array.from(classSet).sort((a, b) => {
+          const na = parseInt(a), nb = parseInt(b);
+          if (!isNaN(na) && !isNaN(nb)) return na - nb;
+          return a.localeCompare(b);
+        });
+
+        // Header row: Paper Date | Date1 | Date2 | ...
+        let headerCells = '<th style="border:2px solid #000; padding:8px 10px; text-align:left; font-weight:700; background:#f0f0f0; min-width:100px;">Paper Date</th>';
+        sortedDates.forEach(d => {
+          const dateObj = new Date(d + 'T00:00:00');
+          const formatted = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          headerCells += '<th style="border:2px solid #000; padding:8px 10px; text-align:center; font-weight:700; background:#f0f0f0; min-width:110px;">' + formatted + '</th>';
+        });
+
+        // Body rows: one per class
+        let bodyRows = '';
+        sortedClasses.forEach((cls, idx) => {
+          const bg = idx % 2 === 0 ? '#ffffff' : '#f9f9f9';
+          let cells = '<td style="border:2px solid #000; padding:8px 10px; font-weight:700; background:' + bg + ';">' + cls + '</td>';
+          sortedDates.forEach(d => {
+            const subject = (cellMap[cls] && cellMap[cls][d]) ? cellMap[cls][d] : '';
+            cells += '<td style="border:2px solid #000; padding:8px 10px; text-align:center; background:' + bg + ';">' + subject + '</td>';
+          });
+          bodyRows += '<tr>' + cells + '</tr>';
+        });
+
+        document.getElementById('datesheet-printable-content').innerHTML =
+          '<div style="text-align:center; margin-bottom:30px;">' +
+            '<div style="display:flex; align-items:center; justify-content:center; gap:20px; margin-bottom:15px;">' +
+              '<img src="' + logoUrl + '" alt="School Logo" style="max-height:80px; max-width:120px; border-radius:8px;" onerror="this.style.display=\'none\'">' +
+              '<div>' +
+                '<h1 style="margin:0; font-size:2.2rem; color:#1e293b; font-weight:800; letter-spacing:0.5px;">' + currentUser.schoolName + '</h1>' +
+              '</div>' +
+            '</div>' +
+            '<div style="border-top:3px solid #1e293b; margin:15px auto; width:60%;"></div>' +
+            '<p style="margin:8px 0; color:#333; font-size:1rem;">' +
+              '<strong>Exam:</strong> ' + (exam ? exam.exam_name + ' ' + exam.year : '-') +
+              ' &nbsp;&nbsp;|&nbsp;&nbsp; <strong>Term:</strong> ' + (t.term || '-') +
+            '</p>' +
+          '</div>' +
+          '<table style="width:100%; border-collapse:collapse; margin-top:15px; font-size:0.95rem;">' +
+            '<thead><tr>' + headerCells + '</tr></thead>' +
+            '<tbody>' + bodyRows + '</tbody>' +
+          '</table>' +
+          '<div style="margin-top:40px; padding-top:15px; font-size:0.85rem; color:#333;">' +
+            '<div style="display:flex; justify-content:space-between; align-items:flex-end;">' +
+              '<div>' +
+                '<p style="margin:0 0 4px 0;">&#8226; All students must be uniformed.</p>' +
+                '<p style="margin:0;">&#8226; Students must come on time.</p>' +
+              '</div>' +
+              '<div style="text-align:right;">' +
+                '<p style="margin:0 0 30px 0;">Principal Sign: ____________________</p>' +
+                '<p style="margin:0; font-weight:700; font-size:1rem;">' + currentUser.schoolName + '</p>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
         document.getElementById('datesheet-preview').style.display = 'block';
       } catch (err) {}
     });
@@ -2526,10 +3649,114 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnPrintDatesheet) {
     btnPrintDatesheet.addEventListener('click', () => {
       const content = document.getElementById('datesheet-printable-content').innerHTML;
-      const originalBody = document.body.innerHTML;
-      document.body.innerHTML = `<div style="padding:40px; background:white; color:black; font-family:sans-serif; min-height:100vh;">${content}</div>`;
+      document.body.innerHTML = '<div style="padding:40px; background:white; color:black; font-family:sans-serif; min-height:100vh;">' + content + '</div>';
       window.print();
       window.location.reload();
+    });
+  }
+
+  // Activate datesheet template
+  const btnActivateDatesheet = document.getElementById('btn-activate-datesheet');
+  if (btnActivateDatesheet) {
+    btnActivateDatesheet.addEventListener('click', async () => {
+      const templateId = document.getElementById('datesheet-gen-template').value;
+      if (!templateId) {
+        showToast('Please select a template to activate', true);
+        return;
+      }
+      try {
+        const res = await apiCall('/exams/datesheets/' + templateId + '/activate', 'PUT');
+        showToast(res.message);
+        loadDatesheetTemplates();
+      } catch (err) {
+        showToast('Failed to activate datesheet', true);
+      }
+    });
+  }
+
+  // Delete datesheet template
+  const btnDeleteDatesheet = document.getElementById('btn-delete-datesheet');
+  if (btnDeleteDatesheet) {
+    btnDeleteDatesheet.addEventListener('click', async () => {
+      const templateId = document.getElementById('datesheet-gen-template').value;
+      if (!templateId) { showToast('Select a template to delete', true); return; }
+      if (!confirm('Delete this datesheet template?')) return;
+      try {
+        await apiCall('/exams/datesheets/' + templateId, 'DELETE');
+        showToast('Template deleted');
+        document.getElementById('datesheet-preview').style.display = 'none';
+        document.getElementById('datesheet-template-info').style.display = 'none';
+        loadDatesheetTemplates();
+      } catch (err) { showToast(err.message, true); }
+    });
+  }
+
+  // Preview datesheet template from designer (live preview)
+  const btnPreviewDatesheet = document.getElementById('btn-preview-datesheet-template');
+  if (btnPreviewDatesheet) {
+    btnPreviewDatesheet.addEventListener('click', () => {
+      const rows = document.querySelectorAll('#datesheet-rows-container [id^="datesheet-row-"]');
+      if (rows.length === 0) { showToast('Add at least one subject row first', true); return; }
+
+      const subjects = [];
+      rows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        const classSelect = row.querySelector('.ds-row-class');
+        subjects.push({
+          subject: inputs[0].value || '(unnamed)',
+          class: classSelect.value,
+          date: inputs[1].value,
+          time: inputs[2].value
+        });
+      });
+
+      // Build matrix
+      const dateSet = new Set();
+      const classSet = new Set();
+      const cellMap = {};
+      subjects.forEach(s => {
+        const cls = s.class || 'All Classes';
+        const date = s.date || '';
+        classSet.add(cls);
+        if (date) dateSet.add(date);
+        if (!cellMap[cls]) cellMap[cls] = {};
+        cellMap[cls][date] = s.subject || '-';
+      });
+      const sortedDates = Array.from(dateSet).sort();
+      const sortedClasses = Array.from(classSet).sort((a, b) => {
+        const na = parseInt(a), nb = parseInt(b);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return a.localeCompare(b);
+      });
+
+      let headerCells = '<th style="border:2px solid #000; padding:8px 10px; text-align:left; font-weight:700; background:#f0f0f0;">Paper Date</th>';
+      sortedDates.forEach(d => {
+        const dateObj = new Date(d + 'T00:00:00');
+        const formatted = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        headerCells += '<th style="border:2px solid #000; padding:8px 10px; text-align:center; font-weight:700; background:#f0f0f0;">' + formatted + '</th>';
+      });
+      let bodyRows = '';
+      sortedClasses.forEach((cls, idx) => {
+        const bg = idx % 2 === 0 ? '#ffffff' : '#f9f9f9';
+        let cells = '<td style="border:2px solid #000; padding:8px 10px; font-weight:700; background:' + bg + ';">' + cls + '</td>';
+        sortedDates.forEach(d => {
+          const subject = (cellMap[cls] && cellMap[cls][d]) ? cellMap[cls][d] : '';
+          cells += '<td style="border:2px solid #000; padding:8px 10px; text-align:center; background:' + bg + ';">' + subject + '</td>';
+        });
+        bodyRows += '<tr>' + cells + '</tr>';
+      });
+
+      const classNames = Object.keys(classSet);
+      document.getElementById('datesheet-design-preview-content').innerHTML =
+        '<div style="text-align:center; margin-bottom:20px;">' +
+          '<h3 style="color:#1e293b; margin:0;">Template Preview</h3>' +
+          '<p style="color:#64748b; font-size:0.9rem;">' + subjects.length + ' exam entries across ' + classNames.length + ' class(es): ' + classNames.join(', ') + '</p>' +
+        '</div>' +
+        '<table style="width:100%; border-collapse:collapse; font-size:0.9rem;">' +
+          '<thead><tr>' + headerCells + '</tr></thead>' +
+          '<tbody>' + bodyRows + '</tbody>' +
+        '</table>';
+      document.getElementById('datesheet-design-preview').style.display = 'block';
     });
   }
 
@@ -2600,7 +3827,22 @@ document.addEventListener('DOMContentLoaded', () => {
           students = await apiCall(`/students?class_name=${encodeURIComponent(class_name)}`);
         }
         const exam = (await apiCall('/exams')).find(e => e.id == exam_id);
-        
+
+        let settings = {};
+        try { settings = await apiCall('/settings'); } catch (e) {}
+        const logoUrl = settings.logo_path ? '/' + settings.logo_path : 'school_assets/school_logo.png';
+
+        let activeDatesheet = null;
+        try { activeDatesheet = await apiCall('/exams/datesheets/active'); } catch (e) {}
+
+        let principal_sign = null;
+        try {
+          const rollnoTemplates = await apiCall('/exams/rollno-templates');
+          if (rollnoTemplates.length > 0) {
+            principal_sign = rollnoTemplates[0].template.principal_sign || null;
+          }
+        } catch (e) {}
+
         if (students.length === 0) {
           showToast('No students found', true);
           return;
@@ -2608,20 +3850,93 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let slipsHtml = '';
         students.forEach((s, idx) => {
-          slipsHtml += `
-            <div style="border: 2px solid #333; border-radius: 10px; padding: 20px; margin-bottom: 20px; page-break-inside: avoid; display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <h3 style="margin:0; font-size: 1.1rem;">${currentUser.schoolName}</h3>
-                <p style="margin:5px 0; font-size: 0.9rem;">Exam: ${exam ? exam.exam_name + ' ' + exam.year : '-'}</p>
-                <p style="margin:2px 0; font-size: 0.95rem;"><strong>Student:</strong> ${s.name}</p>
-                <p style="margin:2px 0; font-size: 0.95rem;"><strong>Class:</strong> ${s.class_name} - ${s.section_name || 'N/A'}</p>
-              </div>
-              <div style="text-align: center; border: 2px dashed #333; border-radius: 8px; padding: 15px 25px;">
-                <p style="margin:0; font-size: 0.8rem; color: #666;">ROLL NO</p>
-                <p style="margin:0; font-size: 2rem; font-weight: bold;">${s.roll_no || '-'}</p>
-              </div>
-            </div>
-          `;
+          let subjectsForClass = [];
+          if (activeDatesheet && activeDatesheet.template && activeDatesheet.template.subjects) {
+            subjectsForClass = activeDatesheet.template.subjects.filter(sub => {
+              return sub.class === 'All Classes' || sub.class === s.class_name;
+            });
+          }
+
+          let tableRows = '';
+          if (subjectsForClass.length > 0) {
+            subjectsForClass.forEach((sub, i) => {
+              const dateObj = sub.date ? new Date(sub.date + 'T00:00:00') : null;
+              const dayName = dateObj ? dateObj.toLocaleDateString('en-US', { weekday: 'long' }) : '-';
+              const dateFormatted = dateObj ? dateObj.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
+              tableRows += '<tr>' +
+                '<td style="border:1px solid #333; padding:5px 6px; text-align:center;">' + (i + 1) + '</td>' +
+                '<td style="border:1px solid #333; padding:5px 6px; text-align:center;">' + dateFormatted + '</td>' +
+                '<td style="border:1px solid #333; padding:5px 6px; text-align:center; font-weight:600;">' + dayName + '</td>' +
+                '<td style="border:1px solid #333; padding:5px 6px; font-weight:500;">' + sub.subject + '</td>' +
+                '<td style="border:1px solid #333; padding:5px 6px; text-align:center;">' + (sub.time || '-') + '</td>' +
+                '</tr>';
+            });
+          } else {
+            tableRows = '<tr><td colspan="5" style="border:1px solid #333; padding:12px; text-align:center; color:#888;">No datesheet subjects available for this class</td></tr>';
+          }
+
+          const instructions = [
+            'All Students Must be Uniformed.',
+            'Students Must come on time.',
+            'Dues Must be cleared.'
+          ];
+          let instHtml = instructions.map(inst => '<li style="margin:3px 0;">' + inst + '</li>').join('');
+
+          const studentPhoto = s.photo ? '/' + s.photo : '';
+
+          slipsHtml += '<div class="rollno-slip">' +
+            '<div style="text-align:center; margin-bottom:3px;">' +
+              '<h1 style="margin:0; font-size:1.2rem; font-weight:800; color:#1e293b; text-transform:uppercase; letter-spacing:1px;">' + currentUser.schoolName + '</h1>' +
+            '</div>' +
+            '<div style="display:flex; align-items:center; justify-content:center; margin:5px 0 8px;">' +
+              '<img src="' + logoUrl + '" alt="School Logo" style="max-height:50px; max-width:70px; border-radius:50%;" onerror="this.style.display=\'none\'">' +
+            '</div>' +
+            '<div style="text-align:center; margin-bottom:10px;">' +
+              '<h2 style="margin:0; font-size:0.95rem; font-weight:700; letter-spacing:1px;">ROLL NO SLIP</h2>' +
+              '<p style="margin:3px 0 0; font-size:0.8rem; color:#444;">' + (exam ? exam.exam_name + ' Exam ' + exam.year : '') + '</p>' +
+            '</div>' +
+            '<div style="display:flex; gap:12px; align-items:center; margin-bottom:10px; padding:8px; border:1px solid #ddd; border-radius:6px; background:#fafafa;">' +
+              (studentPhoto ?
+                '<img src="' + studentPhoto + '" alt="Photo" style="width:60px; height:75px; border-radius:4px; object-fit:cover; border:1px solid #ccc;" onerror="this.style.display=\'none\'">' :
+                '<div style="width:60px; height:75px; border-radius:4px; border:1px solid #ccc; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:#94a3b8;">👤</div>'
+              ) +
+              '<div style="flex:1; font-size:0.8rem; display:grid; grid-template-columns:1fr 1fr; gap:3px 10px;">' +
+                '<div><strong>Name:</strong>&nbsp;' + (s.name || '-') + '</div>' +
+                '<div><strong>Roll No:</strong>&nbsp;' + (s.roll_no || '-') + '</div>' +
+                '<div><strong>Class:</strong>&nbsp;' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
+                '<div><strong>Father:</strong>&nbsp;' + (s.father_name || '-') + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<table style="width:100%; border-collapse:collapse; margin-bottom:10px; font-size:0.75rem;">' +
+              '<thead>' +
+                '<tr style="background:#f0f0f0;">' +
+                  '<th style="border:1px solid #333; padding:5px 6px; text-align:center; width:6%;">#</th>' +
+                  '<th style="border:1px solid #333; padding:5px 6px; text-align:center; width:22%;">Date</th>' +
+                  '<th style="border:1px solid #333; padding:5px 6px; text-align:center; width:20%;">Day</th>' +
+                  '<th style="border:1px solid #333; padding:5px 6px; text-align:left; width:30%;">Subject</th>' +
+                  '<th style="border:1px solid #333; padding:5px 6px; text-align:center; width:22%;">Time</th>' +
+                '</tr>' +
+              '</thead>' +
+              '<tbody>' + tableRows + '</tbody>' +
+            '</table>' +
+            '<div style="display:flex; justify-content:space-between; align-items:flex-end; font-size:0.75rem;">' +
+              '<div style="max-width:55%;">' +
+                '<p style="margin:0 0 3px; font-weight:600;">Instructions:</p>' +
+                '<ul style="margin:0; padding-left:15px;">' + instHtml + '</ul>' +
+              '</div>' +
+              (principal_sign ?
+                '<div style="text-align:center;">' +
+                  '<img src="' + principal_sign + '" alt="Principal Sign" style="max-height:30px; max-width:60px; opacity:0.7; margin-bottom:2px;">' +
+                  '<div style="border-top:1px solid #333; width:100px; margin:0 auto; padding-top:3px; font-size:0.7rem; color:#555;">Principal Signature</div>' +
+                '</div>'
+              :
+                '<div style="text-align:center;">' +
+                  '<div style="height:30px;"></div>' +
+                  '<div style="border-top:1px solid #333; width:100px; margin:0 auto; padding-top:3px; font-size:0.7rem; color:#555;">Principal Signature</div>' +
+                '</div>'
+              ) +
+            '</div>' +
+          '</div>';
         });
 
         document.getElementById('rollno-printable-content').innerHTML = slipsHtml;
@@ -2634,8 +3949,22 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnPrintRollno) {
     btnPrintRollno.addEventListener('click', () => {
       const content = document.getElementById('rollno-printable-content').innerHTML;
-      const originalBody = document.body.innerHTML;
-      document.body.innerHTML = `<div style="padding:40px; background:white; color:black; font-family:sans-serif; min-height:100vh;">${content}</div>`;
+      document.body.innerHTML =
+        '<style>' +
+          '@page { size: A4 landscape; margin: 8mm; }' +
+          '@media print { ' +
+            'body { margin: 0; padding: 0; }' +
+            'div.rollno-slip { page-break-inside: avoid; break-inside: avoid; width: 48%; display: inline-block; vertical-align: top; box-sizing: border-box; margin: 0; padding: 12px; border: 2px solid #333; font-family: sans-serif; font-size: 0.78rem; }' +
+            'div.rollno-slip:nth-child(odd) { margin-right: 2%; }' +
+            'div.rollno-slip h1 { font-size: 1.2rem; }' +
+            'div.rollno-slip h2 { font-size: 0.95rem; }' +
+            'div.rollno-slip table { font-size: 0.75rem; }' +
+            'div.rollno-slip table th, div.rollno-slip table td { padding: 5px 6px; }' +
+            'div.rollno-slip img { max-height: 50px; max-width: 70px; }' +
+            'div.rollno-slip img[alt="Photo"] { max-height: 75px; max-width: 60px; }' +
+          '}' +
+        '</style>' +
+        '<div style="padding:5px; background:white; color:black;">' + content + '</div>';
       window.print();
       window.location.reload();
     });
@@ -3074,6 +4403,593 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast(err.message, true);
     }
   }
+
+  // ==========================================
+  // MODULE: STAFF MANAGEMENT (Teachers, Parents, Timetable)
+  // ==========================================
+
+  // -- Card click navigation for Admin Settings panels --
+  document.querySelectorAll('[data-opt="manage-teachers"], [data-opt="manage-parents"], [data-opt="manage-timetable"], [data-opt="manage-announcements"]').forEach(card => {
+    card.addEventListener('click', () => {
+      const opt = card.getAttribute('data-opt');
+      const adminScreen = document.getElementById('screen-admin-settings');
+      adminScreen.querySelectorAll(':scope > .card, :scope > .grid-3').forEach(c => c.style.display = 'none');
+      document.getElementById('panel-' + opt).style.display = 'block';
+      if (opt === 'manage-teachers') loadTeachersList();
+      if (opt === 'manage-parents') { loadParentsList(); }
+      if (opt === 'manage-timetable') { populateTimetableDropdowns(); }
+      if (opt === 'manage-announcements') { loadAnnouncementsList(); }
+    });
+  });
+
+  document.querySelectorAll('.btn-back-settings').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const panel = btn.closest('.fee-option-panel');
+      if (panel) panel.style.display = 'none';
+      const adminScreen = document.getElementById('screen-admin-settings');
+      if (adminScreen) adminScreen.querySelectorAll(':scope > .card, :scope > .grid-3').forEach(c => c.style.display = '');
+    });
+  });
+
+  // ==========================================
+  // TEACHERS
+  // ==========================================
+  async function loadTeachersList() {
+    try {
+      const teachers = await apiCall('/staff/teachers');
+      const tbody = document.querySelector('#table-teachers tbody');
+      if (!tbody) return;
+      if (teachers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No teachers added yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = teachers.map(t => {
+        // Build assignments display
+        let assignmentsHtml = '<span style="color: var(--text-muted); font-size: 0.85rem;">Not assigned</span>';
+        if (t.assignments && t.assignments.length > 0) {
+          const grouped = {};
+          t.assignments.forEach(a => {
+            const key = `${a.class_name}${a.section_name ? ' - ' + a.section_name : ''}`;
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(a.subject);
+          });
+          assignmentsHtml = Object.entries(grouped).map(([cls, subjects]) => {
+            const uniqueSubjects = [...new Set(subjects)];
+            return `<div style="margin-bottom:3px;"><strong style="color:var(--primary);">${cls}</strong> <span style="color:var(--text-muted);">— ${uniqueSubjects.join(', ')}</span></div>`;
+          }).join('');
+        }
+        return `
+        <tr>
+          <td><strong>${t.name}</strong></td>
+          <td>${t.phone}</td>
+          <td>${t.subject || '-'}</td>
+          <td>${assignmentsHtml}</td>
+          <td><span class="badge ${t.status === 'Active' ? 'badge-green' : 'badge-red'}">${t.status}</span></td>
+          <td>
+            <button class="btn btn-outline btn-sm btn-edit-teacher" data-id="${t.id}" data-name="${t.name}" data-phone="${t.phone}" data-qualification="${t.qualification || ''}" data-status="${t.status}">Edit</button>
+            <button class="btn btn-danger btn-sm btn-delete-teacher" data-id="${t.id}">Delete</button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      tbody.querySelectorAll('.btn-edit-teacher').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.getElementById('teacher-edit-id').value = btn.dataset.id;
+          document.getElementById('teacher-name').value = btn.dataset.name;
+          document.getElementById('teacher-phone').value = btn.dataset.phone;
+          document.getElementById('teacher-qualification').value = btn.dataset.qualification;
+          document.getElementById('teacher-password').value = '';
+          document.getElementById('teacher-form-title').textContent = 'Edit Teacher';
+          document.getElementById('btn-teacher-submit').textContent = 'Update Teacher';
+          document.getElementById('btn-teacher-cancel').style.display = 'inline-block';
+        });
+      });
+
+      tbody.querySelectorAll('.btn-delete-teacher').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this teacher?')) return;
+          try {
+            await apiCall(`/staff/teachers/${btn.dataset.id}`, 'DELETE');
+            showToast('Teacher deleted');
+            loadTeachersList();
+          } catch (e) { showToast(e.message, true); }
+        });
+      });
+    } catch (e) {}
+  }
+
+  document.getElementById('form-teacher').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const editId = document.getElementById('teacher-edit-id').value;
+    const name = document.getElementById('teacher-name').value.trim();
+    const phone = document.getElementById('teacher-phone').value.trim();
+    const password = document.getElementById('teacher-password').value;
+    const qualification = document.getElementById('teacher-qualification').value.trim();
+
+    if (!name || !phone) return;
+    if (!editId && !password) { showToast('Password is required for new teacher', true); return; }
+
+    try {
+      if (editId) {
+        const body = { name, phone, qualification };
+        if (password) body.password = password;
+        await apiCall(`/staff/teachers/${editId}`, 'PUT', body);
+        showToast('Teacher updated');
+      } else {
+        await apiCall('/staff/teachers', 'POST', { name, phone, password, qualification });
+        showToast('Teacher added');
+      }
+      document.getElementById('form-teacher').reset();
+      document.getElementById('teacher-edit-id').value = '';
+      document.getElementById('teacher-form-title').textContent = 'Add New Teacher';
+      document.getElementById('btn-teacher-submit').textContent = 'Add Teacher';
+      document.getElementById('btn-teacher-cancel').style.display = 'none';
+      loadTeachersList();
+    } catch (err) { showToast(err.message, true); }
+  });
+
+  document.getElementById('btn-teacher-cancel').addEventListener('click', () => {
+    document.getElementById('form-teacher').reset();
+    document.getElementById('teacher-edit-id').value = '';
+    document.getElementById('teacher-form-title').textContent = 'Add New Teacher';
+    document.getElementById('btn-teacher-submit').textContent = 'Add Teacher';
+    document.getElementById('btn-teacher-cancel').style.display = 'none';
+  });
+
+  // ==========================================
+  // PARENTS
+  // ==========================================
+  async function loadParentsList() {
+    try {
+      const parents = await apiCall('/staff/parents');
+      const tbody = document.querySelector('#table-parents tbody');
+      if (!tbody) return;
+      if (parents.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No parent accounts created yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = parents.map(p => `
+        <tr>
+          <td><strong>${p.name}</strong></td>
+          <td>${p.phone}</td>
+          <td>${p.children || 'No children linked'}</td>
+          <td><span class="badge ${p.status === 'Active' ? 'badge-green' : 'badge-red'}">${p.status}</span></td>
+          <td>
+            <button class="btn btn-outline btn-sm btn-edit-parent" data-id="${p.id}" data-name="${p.name}" data-phone="${p.phone}" data-status="${p.status}">Edit</button>
+            <button class="btn btn-danger btn-sm btn-delete-parent" data-id="${p.id}">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+
+      tbody.querySelectorAll('.btn-edit-parent').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.getElementById('parent-edit-id').value = btn.dataset.id;
+          document.getElementById('parent-phone').value = btn.dataset.phone;
+          document.getElementById('parent-password').value = '';
+          document.getElementById('parent-form-title').textContent = 'Edit Parent Account';
+          document.getElementById('btn-parent-submit').textContent = 'Update Account';
+          document.getElementById('btn-parent-cancel').style.display = 'inline-block';
+        });
+      });
+
+      tbody.querySelectorAll('.btn-delete-parent').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this parent and all their links?')) return;
+          try {
+            await apiCall(`/staff/parents/${btn.dataset.id}`, 'DELETE');
+            showToast('Parent deleted');
+            loadParentsList();
+          } catch (e) { showToast(e.message, true); }
+        });
+      });
+    } catch (e) {}
+  }
+
+  document.getElementById('form-parent').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const editId = document.getElementById('parent-edit-id').value;
+    const phone = document.getElementById('parent-phone').value.trim();
+    const password = document.getElementById('parent-password').value;
+
+    if (!phone) return;
+    if (!editId && !password) { showToast('Password is required for new parent', true); return; }
+
+    try {
+      if (editId) {
+        const body = { name: '', phone, status: 'Active' };
+        if (password) body.password = password;
+        await apiCall(`/staff/parents/${editId}`, 'PUT', body);
+        showToast('Parent account updated');
+      } else {
+        await apiCall('/staff/parents', 'POST', { phone, password });
+        showToast('Parent account created & students auto-linked');
+      }
+      document.getElementById('form-parent').reset();
+      document.getElementById('parent-edit-id').value = '';
+      document.getElementById('parent-form-title').textContent = 'Create Parent Account';
+      document.getElementById('btn-parent-submit').textContent = 'Create Account';
+      document.getElementById('btn-parent-cancel').style.display = 'none';
+      loadParentsList();
+    } catch (err) { showToast(err.message, true); }
+  });
+
+  document.getElementById('btn-parent-cancel').addEventListener('click', () => {
+    document.getElementById('form-parent').reset();
+    document.getElementById('parent-edit-id').value = '';
+    document.getElementById('parent-form-title').textContent = 'Create Parent Account';
+    document.getElementById('btn-parent-submit').textContent = 'Create Account';
+    document.getElementById('btn-parent-cancel').style.display = 'none';
+  });
+
+  // ==========================================
+  // TIMETABLE
+  // ==========================================
+  async function populateTimetableDropdowns() {
+    try {
+      const classes = await apiCall('/students/classes');
+      const teachers = await apiCall('/staff/teachers');
+      const ttClass = document.getElementById('tt-class');
+      const ttTeacher = document.getElementById('tt-teacher');
+      if (ttClass) {
+        ttClass.innerHTML = '<option value="">-- All Classes --</option>';
+        classes.forEach(c => {
+          const name = typeof c === 'object' ? c.class_name : c;
+          ttClass.innerHTML += `<option value="${name}">${name}</option>`;
+        });
+      }
+      if (ttTeacher) {
+        ttTeacher.innerHTML = '<option value="">-- Select Teacher --</option>';
+        teachers.forEach(t => { ttTeacher.innerHTML += `<option value="${t.id}">${t.name}</option>`; });
+      }
+    } catch (e) {}
+  }
+
+  document.getElementById('tt-class').addEventListener('change', async () => {
+    const class_name = document.getElementById('tt-class').value;
+    const ttSection = document.getElementById('tt-section');
+    ttSection.innerHTML = '<option value="">-- All Sections --</option>';
+    if (!class_name) return;
+    try {
+      const sections = await apiCall(`/students/sections/${encodeURIComponent(class_name)}`);
+      sections.forEach(s => { ttSection.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`; });
+    } catch (e) {}
+  });
+
+  document.getElementById('btn-load-timetable').addEventListener('click', loadTimetableGrid);
+
+  async function loadTimetableGrid() {
+    const class_name = document.getElementById('tt-class').value;
+    const section_name = document.getElementById('tt-section').value;
+
+    const allDays = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const selectedDays = Array.from(document.querySelectorAll('.tt-day-filter:checked')).map(cb => cb.value);
+    if (selectedDays.length === 0) { showToast('Select at least one day', true); return; }
+
+    try {
+      let url = `/staff/timetable?`;
+      if (class_name) url += `class_name=${encodeURIComponent(class_name)}&`;
+      if (section_name) url += `section_name=${encodeURIComponent(section_name)}&`;
+      const entries = await apiCall(url);
+
+      const periods = [1,2,3,4,5,6,7,8];
+      const dayAbbr = {Monday:'Mon',Tuesday:'Tue',Wednesday:'Wed',Thursday:'Thu',Friday:'Fri',Saturday:'Sat'};
+      const headerCols = selectedDays.map(d => {
+        const bg = allDays.indexOf(d) % 2 === 0 ? 'rgba(99,102,241,0.15)' : 'rgba(139,92,246,0.15)';
+        return `<th style="background: ${bg}; text-align: center;">${dayAbbr[d] || d}</th>`;
+      }).join('');
+
+      // Update dynamic header
+      document.getElementById('timetable-head').innerHTML = `<tr>
+        <th style="background: rgba(255,255,255,0.08); text-align: center; min-width: 50px;">Period</th>
+        ${headerCols}
+      </tr>`;
+
+      if (class_name) {
+        // Grid view for a specific class
+        const grid = {};
+        const allDayEntries = {};
+        entries.forEach(e => {
+          if (e.day === 'all') {
+            allDayEntries[e.period] = e;
+          } else {
+            grid[`${e.day}-${e.period}`] = e;
+          }
+        });
+
+        // Merge old per-day duplicates into allDayEntries
+        const allDays = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        periods.forEach(p => {
+          if (allDayEntries[p]) return;
+          const dayEntries = allDays.map(d => grid[`${d}-${p}`]).filter(e => e && e.subject);
+          if (dayEntries.length >= 6) {
+            const first = dayEntries[0];
+            const isSame = dayEntries.every(e =>
+              e.subject === first.subject && e.teacher_id === first.teacher_id &&
+              e.start_time === first.start_time && e.end_time === first.end_time
+            );
+            if (isSame) {
+              allDayEntries[p] = first;
+              allDays.forEach(d => delete grid[`${d}-${p}`]);
+            }
+          }
+        });
+
+        const tbody = document.getElementById('timetable-body');
+        tbody.innerHTML = periods.map(p => {
+          // "All Days" entry — show once as merged cell
+          const allEntry = allDayEntries[p];
+          if (allEntry && allEntry.subject) {
+            const teacherText = allEntry.teacher_name ? `<br><span style="color:#8b5cf6; font-weight:600;">${allEntry.teacher_name}</span>` : '';
+            const timeText = (allEntry.start_time || allEntry.end_time) ? `<br><span style="opacity:0.6; font-size:0.7rem;">${allEntry.start_time || ''}${allEntry.start_time && allEntry.end_time ? ' - ' : ''}${allEntry.end_time || ''}</span>` : '';
+            const colSpan = selectedDays.length;
+            return `<tr>
+              <td style="font-weight: 700; text-align: center; background: rgba(255,255,255,0.05);">${p}</td>
+              <td colspan="${colSpan}" style="background: rgba(34,197,94,0.1); border-left: 3px solid #22c55e; text-align: center; cursor: pointer;" class="tt-cell"
+                data-id="${allEntry.id}" data-day="all" data-period="${p}" data-subject="${allEntry.subject || ''}"
+                data-teacher="${allEntry.teacher_id || ''}" data-start="${allEntry.start_time || ''}"
+                data-end="${allEntry.end_time || ''}" data-class="${allEntry.class_name || ''}" data-section="${allEntry.section_name || ''}">
+                <div style="font-size: 0.8rem;">
+                  <strong style="color: #4ade80;">${allEntry.subject}</strong>
+                  ${teacherText}
+                  ${timeText}
+                </div>
+                <div class="tt-cell-actions">
+                  <button class="tt-btn-edit" title="Edit" onclick="ttEditEntry(${allEntry.id}, 'all', ${p}, '${(allEntry.subject||'').replace(/'/g,"\\'")}', '${allEntry.teacher_id||''}', '${(allEntry.start_time||'').replace(/'/g,"\\'")}', '${(allEntry.end_time||'').replace(/'/g,"\\'")}', '${(allEntry.class_name||'').replace(/'/g,"\\'")}', '${(allEntry.section_name||'').replace(/'/g,"\\'")}')">&#9998;</button>
+                  <button class="tt-btn-delete" title="Delete" onclick="ttDeleteEntry(${allEntry.id})">&#10005;</button>
+                </div>
+              </td>
+            </tr>`;
+          }
+
+          // Normal per-day entries
+          const tds = selectedDays.map(d => {
+            const e = grid[`${d}-${p}`];
+            if (e && e.subject) {
+              const teacherText = e.teacher_name ? `<br><span style="color:#8b5cf6; font-weight:600;">${e.teacher_name}</span>` : '';
+              const timeText = (e.start_time || e.end_time) ? `<br><span style="opacity:0.6; font-size:0.7rem;">${e.start_time || ''}${e.start_time && e.end_time ? ' - ' : ''}${e.end_time || ''}</span>` : '';
+              return `<td style="background: rgba(99,102,241,0.08); border-left: 3px solid #6366f1; position: relative;" class="tt-cell"
+                data-id="${e.id}" data-day="${d}" data-period="${p}" data-subject="${e.subject || ''}"
+                data-teacher="${e.teacher_id || ''}" data-start="${e.start_time || ''}"
+                data-end="${e.end_time || ''}" data-class="${e.class_name || ''}" data-section="${e.section_name || ''}">
+                <div style="font-size: 0.8rem;">
+                  <strong style="color: #a5b4fc;">${e.subject}</strong>
+                  ${teacherText}
+                  ${timeText}
+                </div>
+                <div class="tt-cell-actions">
+                  <button class="tt-btn-edit" title="Edit" onclick="ttEditEntry(${e.id}, '${(e.day||'').replace(/'/g,"\\'")}', ${e.period}, '${(e.subject||'').replace(/'/g,"\\'")}', '${e.teacher_id||''}', '${(e.start_time||'').replace(/'/g,"\\'")}', '${(e.end_time||'').replace(/'/g,"\\'")}', '${(e.class_name||'').replace(/'/g,"\\'")}', '${(e.section_name||'').replace(/'/g,"\\'")}')">&#9998;</button>
+                  <button class="tt-btn-delete" title="Delete" onclick="ttDeleteEntry(${e.id})">&#10005;</button>
+                </div>
+              </td>`;
+            }
+            return `<td style="background: rgba(255,255,255,0.02); cursor: pointer;"
+              class="tt-cell" data-day="${d}" data-period="${p}" onclick="ttCellClick('${(d||'').replace(/'/g,"\\'")}', ${p})">-</td>`;
+          }).join('');
+          return `<tr><td style="font-weight: 700; text-align: center; background: rgba(255,255,255,0.05);">${p}</td>${tds}</tr>`;
+        }).join('');
+
+        document.getElementById('teacher-timetable-summary').style.display = 'none';
+      } else {
+        // All classes - teacher-wise summary with edit/delete
+        document.getElementById('timetable-body').innerHTML = `<tr><td colspan="${selectedDays.length + 1}" style="text-align: center; color: var(--text-muted);">Showing teacher-wise summary below.</td></tr>`;
+        document.getElementById('teacher-timetable-summary').style.display = 'block';
+
+        const teacherSummary = document.getElementById('teacher-timetable-body');
+        if (entries.length === 0) {
+          teacherSummary.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No timetable entries found.</td></tr>';
+        } else {
+          teacherSummary.innerHTML = entries.map(e => {
+            const time = (e.start_time || e.end_time) ? `${e.start_time || ''}${e.start_time && e.end_time ? ' - ' : ''}${e.end_time || ''}` : '-';
+            const dayLabel = e.day === 'all' ? 'Mon-Sat' : e.day;
+            const dayBadgeClass = e.day === 'all' ? 'badge-green' : 'badge-blue';
+            return `<tr>
+              <td style="font-weight:600; color:#8b5cf6;">${e.teacher_name || '-'}</td>
+              <td>${e.class_name || '-'}</td>
+              <td>${e.section_name || '-'}</td>
+              <td><span class="badge ${dayBadgeClass}">${dayLabel}</span></td>
+              <td style="text-align:center;">${e.period}</td>
+              <td>${e.subject || '-'}</td>
+              <td style="opacity:0.7;">${time}</td>
+              <td>
+                <button class="tt-btn-edit" title="Edit" onclick="ttEditEntry(${e.id}, '${(e.day||'').replace(/'/g,"\\'")}', ${e.period}, '${(e.subject||'').replace(/'/g,"\\'")}', '${e.teacher_id||''}', '${(e.start_time||'').replace(/'/g,"\\'")}', '${(e.end_time||'').replace(/'/g,"\\'")}', '${(e.class_name||'').replace(/'/g,"\\'")}', '${(e.section_name||'').replace(/'/g,"\\'")}')">&#9998;</button>
+                <button class="tt-btn-delete" title="Delete" onclick="ttDeleteEntry(${e.id})">&#10005;</button>
+              </td>
+            </tr>`;
+          }).join('');
+        }
+      }
+    } catch (e) { showToast('Failed to load timetable', true); }
+  }
+
+  // Day filter quick buttons
+  document.getElementById('tt-select-all-days').addEventListener('click', () => {
+    document.querySelectorAll('.tt-day-filter').forEach(cb => cb.checked = true);
+    loadTimetableGrid();
+  });
+  document.getElementById('tt-select-weekdays').addEventListener('click', () => {
+    document.querySelectorAll('.tt-day-filter').forEach(cb => {
+      cb.checked = cb.value !== 'Saturday';
+    });
+    loadTimetableGrid();
+  });
+  document.querySelectorAll('.tt-day-filter').forEach(cb => {
+    cb.addEventListener('change', () => loadTimetableGrid());
+  });
+
+  // Click cell to load into form (for new entry)
+  window.ttCellClick = function(day, period) {
+    document.getElementById('tt-day').value = day;
+    document.getElementById('tt-period').value = period;
+    document.getElementById('tt-subject').value = '';
+    document.getElementById('tt-teacher').value = '';
+    document.getElementById('tt-start-time').value = '';
+    document.getElementById('tt-end-time').value = '';
+    document.getElementById('btn-tt-cancel').style.display = 'inline-block';
+    document.getElementById('tt-subject').focus();
+  };
+
+  // Edit existing entry - load into form
+  window.ttEditEntry = function(id, day, period, subject, teacher_id, start_time, end_time, class_name, section_name) {
+    document.getElementById('tt-day').value = day;
+    document.getElementById('tt-period').value = period;
+    document.getElementById('tt-subject').value = subject;
+    document.getElementById('tt-teacher').value = teacher_id;
+    document.getElementById('tt-start-time').value = start_time;
+    document.getElementById('tt-end-time').value = end_time;
+    document.getElementById('btn-tt-cancel').style.display = 'inline-block';
+    showToast('Editing: ' + subject + ' (Period ' + period + ' ' + day + ')');
+  };
+
+  // Delete single entry
+  window.ttDeleteEntry = async function(id) {
+    if (!confirm('Delete this timetable entry?')) return;
+    try {
+      await apiCall('/staff/timetable/' + id, 'DELETE');
+      showToast('Entry deleted');
+      loadTimetableGrid();
+    } catch (err) { showToast(err.message, true); }
+  };
+
+  document.getElementById('form-timetable').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const class_name = document.getElementById('tt-class').value;
+    const section_name = document.getElementById('tt-section').value;
+    const day = document.getElementById('tt-day').value;
+    const period = parseInt(document.getElementById('tt-period').value);
+    const subject = document.getElementById('tt-subject').value.trim();
+    const teacher_id = document.getElementById('tt-teacher').value || null;
+    const start_time = document.getElementById('tt-start-time').value;
+    const end_time = document.getElementById('tt-end-time').value;
+
+    if (!class_name || !subject) { showToast('Class and subject are required', true); return; }
+
+    try {
+      await apiCall('/staff/timetable', 'POST', {
+        class_name, section_name, day, period, start_time, end_time,
+        subject, teacher_id: teacher_id ? parseInt(teacher_id) : null
+      });
+      showToast('Period saved');
+      document.getElementById('form-timetable').reset();
+      document.getElementById('btn-tt-cancel').style.display = 'none';
+      loadTimetableGrid();
+    } catch (err) { showToast(err.message, true); }
+  });
+
+  document.getElementById('btn-tt-cancel').addEventListener('click', () => {
+    document.getElementById('form-timetable').reset();
+    document.getElementById('btn-tt-cancel').style.display = 'none';
+  });
+
+  document.getElementById('btn-clear-timetable').addEventListener('click', async () => {
+    const class_name = document.getElementById('tt-class').value;
+    const section_name = document.getElementById('tt-section').value;
+    const target = class_name ? `timetable for class ${class_name}` : 'ALL timetable entries';
+    if (!confirm(`Clear ${target}?`)) return;
+    try {
+      let url = `/staff/timetable?`;
+      if (class_name) url += `class_name=${encodeURIComponent(class_name)}&`;
+      if (section_name) url += `section_name=${encodeURIComponent(section_name)}&`;
+      await apiCall(url, 'DELETE');
+      showToast('Timetable cleared');
+      loadTimetableGrid();
+    } catch (err) { showToast(err.message, true); }
+  });
+
+  // ==========================================
+  // ANNOUNCEMENTS
+  // ==========================================
+
+  async function loadAnnouncementsList() {
+    try {
+      const announcements = await apiCall('/staff/announcements');
+      const container = document.getElementById('announcements-admin-list');
+      if (!container) return;
+
+      if (announcements.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No announcements yet.</p>';
+        return;
+      }
+
+      container.innerHTML = announcements.map(a => {
+        const date = a.created_at ? new Date(a.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+        const targetBadge = a.target_role === 'all' ? 'badge-blue' : a.target_role === 'teachers' ? 'badge-green' : 'badge-purple';
+        const targetLabel = a.target_role === 'all' ? 'All' : a.target_role === 'teachers' ? 'Teachers' : 'Parents';
+        return `
+        <div style="border: 1px solid var(--border-glow); border-radius: 12px; padding: 16px; margin-bottom: 12px; background: rgba(255,255,255,0.02);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <div>
+              <h4 style="margin: 0; color: var(--text-primary);">${a.title}</h4>
+              <div style="display: flex; gap: 8px; margin-top: 4px;">
+                <span class="badge ${targetBadge}" style="font-size: 0.75rem;">${targetLabel}</span>
+                <small style="color: var(--text-muted);">${date}</small>
+                <small style="color: var(--text-muted);">By: ${a.created_by || 'Admin'}</small>
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-outline btn-sm btn-edit-announcement" data-id="${a.id}" data-title="${a.title}" data-message="${a.message}" data-target="${a.target_role}">Edit</button>
+              <button class="btn btn-danger btn-sm btn-delete-announcement" data-id="${a.id}">Delete</button>
+            </div>
+          </div>
+          <p style="color: var(--text-muted); margin: 8px 0 0; font-size: 0.95rem; white-space: pre-wrap;">${a.message}</p>
+        </div>`;
+      }).join('');
+
+      container.querySelectorAll('.btn-edit-announcement').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.getElementById('announcement-edit-id').value = btn.dataset.id;
+          document.getElementById('announcement-title').value = btn.dataset.title;
+          document.getElementById('announcement-message').value = btn.dataset.message;
+          document.getElementById('announcement-target').value = btn.dataset.target;
+          document.getElementById('announcement-form-title').textContent = 'Edit Announcement';
+          document.getElementById('btn-announcement-submit').textContent = 'Update Announcement';
+          document.getElementById('btn-announcement-cancel').style.display = 'inline-block';
+        });
+      });
+
+      container.querySelectorAll('.btn-delete-announcement').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this announcement?')) return;
+          try {
+            await apiCall(`/staff/announcements/${btn.dataset.id}`, 'DELETE');
+            showToast('Announcement deleted');
+            loadAnnouncementsList();
+          } catch (e) { showToast(e.message, true); }
+        });
+      });
+    } catch (e) { showToast('Failed to load announcements', true); }
+  }
+
+  document.getElementById('form-announcement').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const editId = document.getElementById('announcement-edit-id').value;
+    const title = document.getElementById('announcement-title').value.trim();
+    const message = document.getElementById('announcement-message').value.trim();
+    const target_role = document.getElementById('announcement-target').value;
+
+    try {
+      if (editId) {
+        await apiCall(`/staff/announcements/${editId}`, 'PUT', { title, message, target_role });
+        showToast('Announcement updated');
+      } else {
+        await apiCall('/staff/announcements', 'POST', { title, message, target_role });
+        showToast('Announcement posted');
+      }
+      document.getElementById('form-announcement').reset();
+      document.getElementById('announcement-edit-id').value = '';
+      document.getElementById('announcement-form-title').textContent = 'Post New Announcement';
+      document.getElementById('btn-announcement-submit').textContent = 'Post Announcement';
+      document.getElementById('btn-announcement-cancel').style.display = 'none';
+      loadAnnouncementsList();
+    } catch (err) { showToast(err.message, true); }
+  });
+
+  document.getElementById('btn-announcement-cancel').addEventListener('click', () => {
+    document.getElementById('form-announcement').reset();
+    document.getElementById('announcement-edit-id').value = '';
+    document.getElementById('announcement-form-title').textContent = 'Post New Announcement';
+    document.getElementById('btn-announcement-submit').textContent = 'Post Announcement';
+    document.getElementById('btn-announcement-cancel').style.display = 'none';
+  });
 
   // ==========================================
   // INITIALIZATIONS

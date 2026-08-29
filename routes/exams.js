@@ -445,25 +445,21 @@ router.get('/dmc/:studentId', authenticateToken, async (req, res) => {
     const student = await querySchoolOne(schoolId, 'SELECT * FROM students WHERE id = ?', [studentId]);
     if (!student) return res.status(404).json({ error: 'Student not found' });
 
-    // 2. Get overall calculated result summary
-    const summary = await querySchoolOne(
-      schoolId,
-      'SELECT total, obtained, percentage, grade, position, remarks FROM results WHERE student_id = ? AND exam_id = ? AND term = ?',
-      [studentId, parseInt(exam_id), term]
-    );
-
-    if (!summary) {
-      return res.status(404).json({ error: 'Results have not been calculated yet. Go to Result Calculator first.' });
-    }
-
-    // 3. Get list of subjects
-    const subjects = await querySchool(
+    // 2. Get list of subjects (try exam_subjects first, fallback to timetable)
+    let subjects = await querySchool(
       schoolId,
       'SELECT subject, max_marks FROM exam_subjects WHERE exam_id = ? AND class = ? AND term = ? ORDER BY subject',
       [parseInt(exam_id), student.class_name, term]
     );
+    if (subjects.length === 0) {
+      subjects = await querySchool(
+        schoolId,
+        `SELECT DISTINCT subject, 100 as max_marks FROM timetable WHERE class_name = ? AND subject IS NOT NULL AND subject != '' ORDER BY subject`,
+        [student.class_name]
+      );
+    }
 
-    // 4. Get student's individual marks per subject
+    // 3. Get student's individual marks per subject
     const marks = await querySchool(
       schoolId,
       'SELECT subject, marks FROM marks WHERE student_id = ? AND exam_id = ? AND term = ?',
@@ -471,27 +467,210 @@ router.get('/dmc/:studentId', authenticateToken, async (req, res) => {
     );
 
     const marksMap = {};
-    marks.forEach(m => {
-      marksMap[m.subject.toUpperCase()] = m.marks;
-    });
+    marks.forEach(m => { marksMap[m.subject.toUpperCase()] = m.marks; });
 
     const reportDetails = subjects.map(sub => {
       const obMarks = marksMap[sub.subject.toUpperCase()] !== undefined ? marksMap[sub.subject.toUpperCase()] : 0;
-      const status = obMarks >= (sub.max_marks * 0.33) ? 'Pass' : 'Fail'; // Standard 33% passing rule
-      return {
-        subject: sub.subject,
-        max_marks: sub.max_marks,
-        obtained_marks: obMarks,
-        status
-      };
+      const status = obMarks >= (sub.max_marks * 0.33) ? 'Pass' : 'Fail';
+      return { subject: sub.subject, max_marks: sub.max_marks, obtained_marks: obMarks, status };
     });
 
-    res.json({
-      student,
-      summary,
-      reportDetails
-    });
+    // 4. Calculate summary on-the-fly from marks data
+    let total = 0, obtained = 0;
+    reportDetails.forEach(r => { total += r.max_marks; obtained += r.obtained_marks; });
+    const percentage = total > 0 ? ((obtained / total) * 100).toFixed(1) : 0;
+    let grade = 'F';
+    if (percentage >= 90) grade = 'A+';
+    else if (percentage >= 80) grade = 'A';
+    else if (percentage >= 70) grade = 'B';
+    else if (percentage >= 60) grade = 'C';
+    else if (percentage >= 50) grade = 'D';
+    else if (percentage >= 33) grade = 'E';
 
+    // Try to get saved result, or use calculated
+    const savedResult = await querySchoolOne(
+      schoolId,
+      'SELECT position, remarks FROM results WHERE student_id = ? AND exam_id = ? AND term = ?',
+      [studentId, parseInt(exam_id), term]
+    );
+
+    // If no saved result, calculate position on-the-fly from marks
+    let position = savedResult ? savedResult.position : null;
+    if (!position || position === 0) {
+      // First try from results table
+      const rankRow = await querySchoolOne(
+        schoolId,
+        `SELECT COUNT(*) + 1 as position FROM results r
+         JOIN students s ON s.id = r.student_id
+         WHERE r.exam_id = ? AND r.term = ? AND s.class_name = ?
+         AND r.obtained > ?`,
+        [parseInt(exam_id), term, student.class_name, obtained]
+      );
+      position = rankRow ? rankRow.position : null;
+
+      // If results table is empty, calculate from marks directly
+      if (!position || position === 1) {
+        const allStudents = await querySchool(
+          schoolId,
+          `SELECT s.id FROM students s
+           WHERE s.class_name = ? AND (s.status IS NULL OR s.status != 'Left')`,
+          [student.class_name]
+        );
+        let rank = 1;
+        for (const other of allStudents) {
+          if (other.id === student.id) continue;
+          const otherMarks = await querySchool(
+            schoolId,
+            'SELECT COALESCE(SUM(marks), 0) as total_obt FROM marks WHERE student_id = ? AND exam_id = ? AND term = ?',
+            [other.id, parseInt(exam_id), term]
+          );
+          const otherObt = otherMarks[0] ? otherMarks[0].total_obt : 0;
+          if (otherObt > obtained) rank++;
+        }
+        position = rank;
+      }
+    }
+
+    const summary = {
+      total,
+      obtained,
+      percentage,
+      grade,
+      position: position || '-',
+      remarks: savedResult ? savedResult.remarks : (percentage >= 33 ? 'Pass' : 'Fail')
+    };
+
+    res.json({ student, summary, reportDetails });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /exams/dmc/class/:className - Get DMC data for ALL students in a class
+router.get('/dmc/class/:className', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const className = req.params.className;
+  const { exam_id, term, section_name } = req.query;
+
+  if (!exam_id || !term) {
+    return res.status(400).json({ error: 'exam_id and term are required' });
+  }
+
+  try {
+    let studentsQuery = "SELECT * FROM students WHERE class_name = ? AND (status IS NULL OR status != 'Left')";
+    const params = [className];
+    if (section_name && section_name !== 'All Sections') {
+      studentsQuery += " AND section_name = ?";
+      params.push(section_name);
+    }
+    studentsQuery += " ORDER BY CAST(roll_no AS INTEGER), name";
+    const students = await querySchool(schoolId, studentsQuery, params);
+
+    // Get subjects for this class (from timetable as fallback)
+    let subjects = await querySchool(
+      schoolId,
+      'SELECT subject, max_marks FROM exam_subjects WHERE exam_id = ? AND class = ? AND term = ? ORDER BY subject',
+      [parseInt(exam_id), className, term]
+    );
+    if (subjects.length === 0) {
+      subjects = await querySchool(
+        schoolId,
+        `SELECT DISTINCT subject, 100 as max_marks FROM timetable WHERE class_name = ? AND subject IS NOT NULL AND subject != '' ORDER BY subject`,
+        [className]
+      );
+    }
+
+    const results = [];
+    for (const student of students) {
+      // Get summary
+      const summary = await querySchoolOne(
+        schoolId,
+        'SELECT total, obtained, percentage, grade, position, remarks FROM results WHERE student_id = ? AND exam_id = ? AND term = ?',
+        [student.id, parseInt(exam_id), term]
+      );
+
+      // Get marks
+      const marks = await querySchool(
+        schoolId,
+        'SELECT subject, marks FROM marks WHERE student_id = ? AND exam_id = ? AND term = ?',
+        [student.id, parseInt(exam_id), term]
+      );
+      const marksMap = {};
+      marks.forEach(m => { marksMap[m.subject.toUpperCase()] = m.marks; });
+
+      const reportDetails = subjects.map(sub => {
+        const obMarks = marksMap[sub.subject.toUpperCase()] !== undefined ? marksMap[sub.subject.toUpperCase()] : 0;
+        const status = obMarks >= (sub.max_marks * 0.33) ? 'Pass' : 'Fail';
+        return { subject: sub.subject, max_marks: sub.max_marks, obtained_marks: obMarks, status };
+      });
+
+      // Calculate summary on-the-fly
+      let total = 0, obtained = 0;
+      reportDetails.forEach(r => { total += r.max_marks; obtained += r.obtained_marks; });
+      const percentage = total > 0 ? ((obtained / total) * 100).toFixed(1) : 0;
+      let grade = 'F';
+      if (percentage >= 90) grade = 'A+';
+      else if (percentage >= 80) grade = 'A';
+      else if (percentage >= 70) grade = 'B';
+      else if (percentage >= 60) grade = 'C';
+      else if (percentage >= 50) grade = 'D';
+      else if (percentage >= 33) grade = 'E';
+
+      const savedResult = summary || {};
+
+      // Calculate position on-the-fly if not saved
+      let position = savedResult.position || null;
+      if (!position || position === 0) {
+        // First try from results table
+        const rankRow = await querySchoolOne(
+          schoolId,
+          `SELECT COUNT(*) + 1 as position FROM results r
+           JOIN students s ON s.id = r.student_id
+           WHERE r.exam_id = ? AND r.term = ? AND s.class_name = ?
+           AND r.obtained > ?`,
+          [parseInt(exam_id), term, className, obtained]
+        );
+        position = rankRow ? rankRow.position : null;
+
+        // If results table is empty, calculate from marks directly
+        if (!position || position === 1) {
+          const allClassStudents = await querySchool(
+            schoolId,
+            `SELECT s.id FROM students s
+             WHERE s.class_name = ? AND (s.status IS NULL OR s.status != 'Left')`,
+            [className]
+          );
+          let rank = 1;
+          for (const other of allClassStudents) {
+            if (other.id === student.id) continue;
+            const otherMarks = await querySchool(
+              schoolId,
+              'SELECT COALESCE(SUM(marks), 0) as total_obt FROM marks WHERE student_id = ? AND exam_id = ? AND term = ?',
+              [other.id, parseInt(exam_id), term]
+            );
+            const otherObt = otherMarks[0] ? otherMarks[0].total_obt : 0;
+            if (otherObt > obtained) rank++;
+          }
+          position = rank;
+        }
+      }
+
+      results.push({
+        student,
+        summary: {
+          total,
+          obtained,
+          percentage,
+          grade,
+          position: position || '-',
+          remarks: savedResult.remarks || (percentage >= 33 ? 'Pass' : 'Fail')
+        },
+        reportDetails
+      });
+    }
+
+    res.json(results);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -501,7 +680,7 @@ router.get('/dmc/:studentId', authenticateToken, async (req, res) => {
 // DATE SHEET ENDPOINTS
 // ==========================================
 
-// POST /exams/datesheets - Create date sheet template
+// POST /exams/datesheets - Create or merge date sheet template (same name = merge subjects)
 router.post('/datesheets', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { name, template_json } = req.body;
@@ -511,19 +690,37 @@ router.post('/datesheets', authenticateToken, async (req, res) => {
   }
 
   try {
-    // Ensure table exists (migration safety net for existing schools)
+    // Ensure table exists
     await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS date_sheet_templates (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT,
       template_json TEXT,
       is_active INTEGER DEFAULT 0
     )`);
-    const result = await runSchool(
-      schoolId,
-      'INSERT INTO date_sheet_templates (name, template_json) VALUES (?, ?)',
-      [name, template_json]
-    );
-    res.status(201).json({ message: 'Date sheet template saved!', id: result.id });
+
+    // Check if template with same name already exists
+    const existing = await querySchoolOne(schoolId, 'SELECT * FROM date_sheet_templates WHERE name = ?', [name]);
+
+    const newTemplate = JSON.parse(template_json);
+
+    if (existing) {
+      // Merge: combine existing subjects with new ones
+      const existingTemplate = JSON.parse(existing.template_json || '{}');
+      const existingSubjects = existingTemplate.subjects || [];
+      const newSubjects = newTemplate.subjects || [];
+      const mergedSubjects = [...existingSubjects, ...newSubjects];
+      const merged = {
+        exam_id: newTemplate.exam_id || existingTemplate.exam_id,
+        term: newTemplate.term || existingTemplate.term,
+        subjects: mergedSubjects
+      };
+      await runSchool(schoolId, 'UPDATE date_sheet_templates SET template_json = ? WHERE id = ?', [JSON.stringify(merged), existing.id]);
+      res.status(200).json({ message: 'Template updated — ' + mergedSubjects.length + ' total subjects', id: existing.id });
+    } else {
+      // Create new
+      const result = await runSchool(schoolId, 'INSERT INTO date_sheet_templates (name, template_json) VALUES (?, ?)', [name, template_json]);
+      res.status(201).json({ message: 'Template created!', id: result.id });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -549,6 +746,25 @@ router.get('/datesheets', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /exams/datesheets/active - Get the currently active datesheet
+router.get('/datesheets/active', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  try {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS date_sheet_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      template_json TEXT,
+      is_active INTEGER DEFAULT 0
+    )`);
+    const tpl = await querySchoolOne(schoolId, 'SELECT * FROM date_sheet_templates WHERE is_active = 1');
+    if (!tpl) return res.json(null);
+    try { tpl.template = JSON.parse(tpl.template_json || '{}'); } catch (e) { tpl.template = {}; }
+    res.json(tpl);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /exams/datesheets/:id - Delete date sheet template
 router.delete('/datesheets/:id', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
@@ -556,6 +772,133 @@ router.delete('/datesheets/:id', authenticateToken, async (req, res) => {
   try {
     await runSchool(schoolId, 'DELETE FROM date_sheet_templates WHERE id = ?', [id]);
     res.json({ message: 'Date sheet template deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /exams/datesheets/:id/activate - Activate a datesheet template (deactivates others)
+router.put('/datesheets/:id/activate', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const id = req.params.id;
+  try {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS date_sheet_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      template_json TEXT,
+      is_active INTEGER DEFAULT 0
+    )`);
+    await runSchool(schoolId, 'UPDATE date_sheet_templates SET is_active = 0');
+    await runSchool(schoolId, 'UPDATE date_sheet_templates SET is_active = 1 WHERE id = ?', [parseInt(id)]);
+    res.json({ message: 'Datesheet activated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /exams/marks/spreadsheet - Get multi-subject marks spreadsheet
+router.get('/marks/spreadsheet', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { exam_id, class_name, section_name, term } = req.query;
+
+  if (!exam_id || !class_name || !term) {
+    return res.status(400).json({ error: 'exam_id, class_name, and term are required' });
+  }
+
+  try {
+    let studentsQuery = "SELECT id, name, roll_no, class_name, section_name FROM students WHERE class_name = ? AND (status IS NULL OR status != 'Left')";
+    const studentsParams = [class_name];
+
+    if (section_name && section_name !== 'All Sections') {
+      if (section_name === 'No Section') {
+        studentsQuery += " AND (section_name IS NULL OR section_name = '')";
+      } else {
+        studentsQuery += " AND section_name = ?";
+        studentsParams.push(section_name);
+      }
+    }
+    studentsQuery += " ORDER BY CAST(roll_no AS INTEGER), name";
+    const students = await querySchool(schoolId, studentsQuery, studentsParams);
+
+    // First try exam_subjects table (manual setup)
+    let subjects = await querySchool(
+      schoolId,
+      'SELECT subject, max_marks FROM exam_subjects WHERE exam_id = ? AND class = ? AND term = ? ORDER BY subject',
+      [parseInt(exam_id), class_name, term]
+    );
+
+    // If no exam_subjects found, fetch from timetable for this class
+    if (subjects.length === 0) {
+      const timetableSubjects = await querySchool(
+        schoolId,
+        `SELECT DISTINCT subject, 100 as max_marks FROM timetable WHERE class_name = ? AND subject IS NOT NULL AND subject != '' ORDER BY subject`,
+        [class_name]
+      );
+      subjects = timetableSubjects;
+    }
+
+    const allMarks = await querySchool(
+      schoolId,
+      'SELECT student_id, subject, marks FROM marks WHERE exam_id = ? AND term = ?',
+      [parseInt(exam_id), term]
+    );
+    const marksMap = {};
+    allMarks.forEach(m => {
+      const key = `${m.student_id}__${m.subject.toUpperCase()}`;
+      marksMap[key] = m.marks;
+    });
+
+    const grid = students.map(student => {
+      const row = { id: student.id, name: student.name, roll_no: student.roll_no, class_name: student.class_name, section_name: student.section_name, marks: {} };
+      subjects.forEach(sub => {
+        const key = `${student.id}__${sub.subject.toUpperCase()}`;
+        row.marks[sub.subject] = marksMap[key] !== undefined ? marksMap[key] : '';
+      });
+      return row;
+    });
+
+    res.json({ subjects, grid });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /exams/marks/spreadsheet - Save multi-subject marks spreadsheet
+router.post('/marks/spreadsheet', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { exam_id, term, marksData } = req.body;
+
+  if (!exam_id || !term || !marksData || !Array.isArray(marksData)) {
+    return res.status(400).json({ error: 'Invalid parameters' });
+  }
+
+  try {
+    for (const entry of marksData) {
+      const studentId = entry.student_id;
+      const subjectMarks = entry.marks;
+      for (const [subject, marks] of Object.entries(subjectMarks)) {
+        const marksVal = (marks === '' || marks === null || marks === undefined) ? null : parseInt(marks);
+        if (marksVal === null) {
+          await runSchool(
+            schoolId,
+            'DELETE FROM marks WHERE student_id = ? AND exam_id = ? AND subject = ? AND term = ?',
+            [studentId, parseInt(exam_id), subject, term]
+          );
+        } else {
+          await runSchool(
+            schoolId,
+            'DELETE FROM marks WHERE student_id = ? AND exam_id = ? AND subject = ? AND term = ?',
+            [studentId, parseInt(exam_id), subject, term]
+          );
+          await runSchool(
+            schoolId,
+            'INSERT INTO marks (student_id, exam_id, subject, marks, term) VALUES (?, ?, ?, ?, ?)',
+            [studentId, parseInt(exam_id), subject, marksVal, term]
+          );
+        }
+      }
+    }
+    res.json({ message: 'Marks saved successfully!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

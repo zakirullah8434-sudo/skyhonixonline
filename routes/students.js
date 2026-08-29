@@ -99,7 +99,9 @@ router.get('/sections/:className', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const className = req.params.className;
   try {
-    const rows = await querySchool(schoolId, 'SELECT section_name FROM sections WHERE class_name = ?', [className]);
+    const rows = await querySchool(schoolId,
+      `SELECT DISTINCT section_name FROM students WHERE class_name = ? AND section_name IS NOT NULL AND section_name != '' AND (status IS NULL OR status != 'Left') ORDER BY section_name`,
+      [className]);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -305,6 +307,109 @@ router.get('/sibling-candidates/all', authenticateToken, async (req, res) => {
     res.json(candidates);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /students/:id/profile - Complete student profile with fees, exams, attendance
+router.get('/:id/profile', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const studentId = req.params.id;
+
+  try {
+    // 1. Basic student info
+    const student = await querySchoolOne(schoolId,
+      'SELECT * FROM students WHERE id = ?', [studentId]
+    );
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    // 2. Fee ledger
+    const feeLedger = await querySchool(schoolId,
+      `SELECT * FROM fee_ledger WHERE student_id = ? ORDER BY year DESC, month DESC`, [studentId]
+    );
+
+    // 3. Payments
+    const payments = await querySchool(schoolId,
+      `SELECT * FROM fee_payments WHERE student_id = ? ORDER BY payment_date DESC`, [studentId]
+    );
+
+    // 4. Marks
+    const marks = await querySchool(schoolId,
+      `SELECT m.*, e.exam_name, e.year
+       FROM marks m
+       JOIN exams e ON e.id = m.exam_id
+       WHERE m.student_id = ?
+       ORDER BY e.year DESC, e.exam_name, m.term, m.subject`, [studentId]
+    );
+
+    // 5. Results
+    const results = await querySchool(schoolId,
+      `SELECT r.*, e.exam_name, e.year
+       FROM results r
+       JOIN exams e ON e.id = r.exam_id
+       WHERE r.student_id = ?
+       ORDER BY e.year DESC, e.exam_name`, [studentId]
+    );
+
+    // 6. Attendance
+    const attendance = await querySchool(schoolId,
+      `SELECT * FROM attendance WHERE student_id = ? ORDER BY date DESC`, [studentId]
+    );
+
+    // 7. Fee exceptions/discounts
+    const exceptions = await querySchool(schoolId,
+      `SELECT * FROM student_fee_exceptions WHERE student_id = ?`, [studentId]
+    );
+
+    // 8. Dues
+    const dues = await querySchool(schoolId,
+      `SELECT * FROM fee_dues WHERE student_id = ?`, [studentId]
+    );
+
+    // Calculate stats
+    let totalPaid = 0;
+    payments.forEach(p => totalPaid += (p.amount || 0));
+
+    let totalDue = 0;
+    feeLedger.forEach(f => totalDue += ((f.total_payable || 0) - (f.paid_amount || 0)));
+    if (totalDue < 0) totalDue = 0;
+
+    let presentDays = attendance.filter(a => a.status === 'present' || a.status === 'Present').length;
+    let absentDays = attendance.filter(a => a.status === 'absent' || a.status === 'Absent').length;
+    let attendanceRate = attendance.length > 0 ? ((presentDays / attendance.length) * 100).toFixed(1) : 0;
+
+    let totalMarksObtained = 0;
+    let totalMaxMarks = 0;
+    marks.forEach(m => {
+      totalMarksObtained += (m.marks || 0);
+      totalMaxMarks += (m.max_marks || 100);
+    });
+    let avgPercentage = totalMaxMarks > 0 ? ((totalMarksObtained / totalMaxMarks) * 100).toFixed(1) : 0;
+
+    res.json({
+      student,
+      feeLedger,
+      payments,
+      marks,
+      results,
+      attendance,
+      exceptions,
+      dues,
+      stats: {
+        totalPaid,
+        totalDue,
+        presentDays,
+        absentDays,
+        attendanceRate,
+        totalMarksObtained,
+        totalMaxMarks,
+        avgPercentage
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching student profile:', err);
+    res.status(500).json({ error: 'Failed to load student profile: ' + err.message });
   }
 });
 

@@ -666,6 +666,45 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
+/* Generic badges */
+.badge {
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.badge-green {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.badge-red {
+  background: rgba(255, 82, 82, 0.15);
+  color: #ff5252;
+  border: 1px solid rgba(255, 82, 82, 0.3);
+}
+
+.badge-yellow {
+  background: rgba(255, 193, 7, 0.15);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.badge-blue {
+  background: rgba(33, 150, 243, 0.15);
+  color: #2196f3;
+  border: 1px solid rgba(33, 150, 243, 0.3);
+}
+
+.badge-purple {
+  background: rgba(156, 39, 176, 0.15);
+  color: #9c27b0;
+  border: 1px solid rgba(156, 39, 176, 0.3);
+}
+
 .status-partial, .status-late {
   background: rgba(245, 158, 11, 0.15);
   color: var(--warning);
@@ -1006,5 +1045,805 @@ h1, h2, h3, h4, h5, h6 {
     background: #ffffff !important;
     color: #000000 !important;
   }
+  .portal-header, .sidebar, .btn-back-fee-dash,
+  #btn-print-fee-slip, #btn-back-slip-list,
+  #fee-panel-fee-slip .card, #slip-student-list-container {
+    display: none !important;
+  }
+  .fee-slip-wrapper {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .fee-slip {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Fee Slip Styles */
+.fee-slip-wrapper {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+/* A4 page layout: 2x2 grid for 4 slips */
+.a4-page {
+  background: #fff;
+  padding: 15px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.fee-slip {
+  border: 2px solid #000;
+  padding: 10px;
+  font-family: 'Arial', sans-serif;
+  color: #000;
+  font-size: 0.75rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.slip-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 2px solid #000;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+}
+
+.slip-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #ccc;
+}
+
+.slip-header-text h2 {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #000;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.slip-header-text p {
+  font-size: 0.6rem;
+  color: #333;
+  margin: 1px 0 0 0;
+}
+
+.slip-student-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
+
+.slip-student-info {
+  font-size: 0.65rem;
+  color: #000;
+  line-height: 1.5;
+}
+
+.slip-student-info strong {
+  display: inline-block;
+  min-width: 40px;
+}
+
+.slip-badge {
+  background: #000;
+  color: #fff;
+  padding: 4px 8px;
+  font-weight: 700;
+  font-size: 0.6rem;
+  border: 1px solid #000;
+  white-space: nowrap;
+}
+
+.fee-slip .data-table th {
+  background: #f5f5f5;
+  color: #000;
+  padding: 3px 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  border: 1px solid #ccc;
+  text-align: center;
+}
+
+.fee-slip .data-table td {
+  padding: 2px 4px;
+  font-size: 0.6rem;
+  border: 1px solid #ccc;
+  text-align: center;
+  color: #000;
+}
+
+.fee-slip .data-table td:first-child {
+  text-align: left;
+  font-weight: 600;
+  background: #f9f9f9;
+  font-size: 0.58rem;
+}
+
+.slip-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 2px solid #000;
+}
+
+.slip-sign {
+  font-size: 0.6rem;
+  color: #000;
+  font-weight: 500;
+}
+
+.slip-net-total {
+  background: #000;
+  color: #fff;
+  padding: 3px 10px;
+  font-weight: 800;
+  font-size: 0.65rem;
+  border: 1px solid #000;
+}
+
+@media print {
+  .a4-page {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
+  .fee-slip {
+    border: 2px solid #000;
+    font-size: 0.65rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .a4-page {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVE STYLES
+   ========================================================================== */
+
+/* -- Mobile hamburger button -- */
+#btn-sidebar-toggle {
+  display: none !important;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.6rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: var(--transition);
+}
+#btn-sidebar-toggle:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* -- Sidebar overlay backdrop -- */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 499;
+  backdrop-filter: blur(4px);
+}
+.sidebar-overlay.active {
+  display: block;
+}
+
+/* -- Landing page hamburger -- */
+.nav-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.6rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+  .nav-hamburger {
+    display: block;
+  }
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: 80px;
+    right: 0;
+    left: 0;
+    background: rgba(11, 15, 25, 0.98);
+    backdrop-filter: blur(20px);
+    flex-direction: column;
+    padding: 20px;
+    gap: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    z-index: 200;
+  }
+  .nav-links.open {
+    display: flex;
+  }
+  .nav-links li {
+    width: 100%;
+  }
+  .nav-links .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .navbar {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 992px) {
+  /* Show hamburger */
+  #btn-sidebar-toggle {
+    display: block !important;
+  }
+
+  /* Sidebar off-canvas */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 280px;
+    transform: translateX(-100%);
+    z-index: 500;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Main content full width */
+  .main-content {
+    margin-left: 0 !important;
+    width: 100%;
+  }
+
+  /* Header adjustments */
+  .portal-header {
+    padding: 0 16px !important;
+  }
+  .portal-header h2 {
+    font-size: 1.1rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+  }
+
+  /* Portal body */
+  .portal-body {
+    padding: 16px !important;
+  }
+
+  /* Grid stacks - override inline styles */
+  .grid-2, .grid-3, .grid-4, .grid-5 {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+  }
+  .portal-body .grid-2[style],
+  .portal-body .grid-3[style],
+  .portal-body .grid-4[style],
+  .portal-body .grid-5[style] {
+    grid-template-columns: 1fr !important;
+  }
+  .portal-body [style*="grid-template-columns: 1."],
+  .portal-body [style*="grid-template-columns: 2fr"],
+  .portal-body [style*="grid-template-columns: repeat(auto-fit"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Specific inline grid overrides */
+  .portal-body div[style*="grid-template-columns: 1.3fr 1fr"],
+  .portal-body div[style*="grid-template-columns: 1fr 1fr"],
+  .portal-body div[style*="grid-template-columns: 1fr 2fr"],
+  .portal-body div[style*="grid-template-columns: 1.5fr 1.5fr"],
+  .portal-body div[style*="grid-template-columns: 1.5fr 1fr"],
+  .portal-body div[style*="grid-template-columns: 2fr 1fr"],
+  .portal-body div[style*="grid-template-columns: 1.5fr 1.5fr 1."],
+  .portal-body div[style*="grid-template-columns: 1fr 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Horizontal scroll for filter rows instead of stacking */
+  .portal-body .tab-content [style*="grid-template-columns"] {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .portal-body .tab-content [style*="grid-template-columns"] > * {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  /* Info grids in exam/datesheet */
+  .info-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stats grid */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    padding: 16px;
+    gap: 12px;
+  }
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 1.3rem;
+  }
+  .stat-info h3 {
+    font-size: 1.3rem;
+  }
+  .stat-info p {
+    font-size: 0.75rem;
+  }
+
+  /* Tables scroll */
+  .table-container {
+    margin-left: -8px;
+    margin-right: -8px;
+    border-radius: 12px;
+  }
+  .data-table th,
+  .data-table td {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  /* Fee dashboard */
+  .fees-dash-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+  .fees-dash-card {
+    min-height: 120px;
+    padding: 24px 16px;
+  }
+  .fees-card-title {
+    font-size: 1.2rem;
+  }
+
+  /* Tab container scrollable */
+  .tab-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 8px;
+    padding-bottom: 8px;
+  }
+  .tab-container::-webkit-scrollbar {
+    display: none;
+  }
+  .tab-btn {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  /* Forms */
+  .form-control {
+    font-size: 16px; /* Prevents iOS zoom */
+    padding: 10px 14px;
+  }
+
+  /* Modals */
+  .modal-content {
+    max-width: 100%;
+    margin: 10px;
+    padding: 20px;
+    max-height: 85vh;
+  }
+  .modal {
+    padding: 10px;
+  }
+
+  /* Drawer full width */
+  .drawer {
+    width: 100% !important;
+    right: -100% !important;
+    padding: 20px;
+  }
+
+  /* Buttons */
+  .btn {
+    font-size: 0.9rem;
+    padding: 10px 16px;
+  }
+  .btn-sm {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+
+  /* Marks input */
+  .marks-input {
+    width: 55px;
+    padding: 5px 6px;
+    font-size: 0.85rem;
+  }
+
+  /* Editable due input */
+  .editable-due-input {
+    width: 75px;
+    padding: 5px 6px;
+    font-size: 0.85rem;
+  }
+
+  /* Subscription lock card */
+  .lock-card {
+    padding: 24px;
+  }
+
+  /* Header user badge - hide on small screens */
+  #header-user-badge {
+    display: none;
+  }
+}
+
+@media (max-width: 576px) {
+  /* Stats grid single column on very small */
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Hero */
+  .hero {
+    padding: 30px 5% !important;
+    gap: 30px;
+  }
+  .hero-title {
+    font-size: 2rem !important;
+  }
+  .hero-desc {
+    font-size: 1rem;
+  }
+  .hero-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .hero-actions .btn {
+    width: 100%;
+  }
+
+  /* Pricing */
+  .section-title {
+    font-size: 1.8rem;
+  }
+  .pricing-card {
+    padding: 32px 24px;
+  }
+  .price {
+    font-size: 2.5rem;
+  }
+
+  /* Navbar mobile */
+  .navbar {
+    padding: 0 4%;
+  }
+  .nav-links {
+    gap: 15px;
+  }
+  .logo {
+    font-size: 1.3rem;
+  }
+
+  /* Tables - tighter */
+  .data-table th,
+  .data-table td {
+    padding: 8px 8px;
+    font-size: 0.78rem;
+  }
+
+  /* Portal header */
+  .portal-header h2 {
+    font-size: 0.95rem !important;
+    max-width: 140px;
+  }
+
+  /* Card padding */
+  .card {
+    padding: 16px;
+  }
+
+  /* Filter grids */
+  .grid-3[style*="grid-template-columns: 1.5fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Grid in fee options with inline style */
+  .fee-option-panel .grid-2,
+  .fee-option-panel .grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Alert boxes */
+  .alert-box {
+    padding: 12px;
+    font-size: 0.85rem;
+  }
+}
+
+/* ==================== Teacher Portal Styles ==================== */
+
+/* Login Role Toggle */
+.login-role-btn {
+  transition: all 0.2s ease;
+}
+
+/* Teacher Portal Layout */
+.main-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
+  background: rgba(11, 15, 25, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-glow);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 1000;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-badge {
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid var(--border-glow);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Sidebar */
+.sidebar {
+  position: fixed;
+  top: var(--header-height);
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-width);
+  background: rgba(17, 24, 39, 0.8);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid var(--border-glow);
+  padding: 20px 0;
+  z-index: 999;
+  overflow-y: auto;
+  transition: transform 0.3s ease;
+}
+
+.sidebar-brand {
+  padding: 0 20px 20px;
+  border-bottom: 1px solid var(--border-glow);
+  margin-bottom: 16px;
+}
+
+.sidebar-brand span {
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.sidebar-brand small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 8px;
+}
+
+.nav-item {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-family: var(--font-body);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-item:hover {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* Main Content Area */
+.main-content {
+  margin-left: var(--sidebar-width);
+  margin-top: var(--header-height);
+  padding: 30px;
+  min-height: calc(100vh - var(--header-height));
+}
+
+.content-panel {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.content-panel.active {
+  display: block;
+}
+
+/* Text muted utility */
+.text-muted {
+  color: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .main-content {
+    margin-left: 0;
+    padding: 20px 16px;
+  }
+  .main-header {
+    padding: 0 16px;
+  }
+  .header-title {
+    font-size: 1rem;
+  }
+  .user-badge {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+  }
+}
+
+/* ==================== Timetable Cell Actions ==================== */
+
+.tt-cell {
+  position: relative;
+  min-height: 60px;
+}
+
+.tt-cell-actions {
+  display: none;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  gap: 3px;
+  z-index: 10;
+}
+
+.tt-cell:hover .tt-cell-actions {
+  display: flex;
+}
+
+.tt-btn-edit, .tt-btn-delete {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.tt-btn-edit {
+  background: rgba(59,130,246,0.8);
+  color: #fff;
+}
+.tt-btn-edit:hover {
+  background: #3b82f6;
+  transform: scale(1.1);
+}
+
+.tt-btn-delete {
+  background: rgba(239,68,68,0.8);
+  color: #fff;
+}
+.tt-btn-delete:hover {
+  background: #ef4444;
+  transform: scale(1.1);
+}
+
+/* ==================== COMPREHENSIVE MOBILE FIXES ==================== */
+
+/* Teacher Portal - Tables horizontal scroll */
+@media (max-width: 768px) {
+  .main-content { padding: 16px 12px !important; }
+  .content-panel table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .content-panel table th, .content-panel table td { padding: 6px 8px; font-size: 0.78rem; white-space: nowrap; }
+  .content-panel .card { padding: 14px !important; }
+  .header-title { font-size: 0.9rem !important; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Parent Portal */
+  .portal-main { padding: 14px 10px !important; }
+  .portal-header { flex-wrap: wrap; gap: 8px; padding: 12px 0 !important; }
+  .portal-header h2 { font-size: 1rem !important; }
+  .child-selector { flex-direction: column; align-items: stretch !important; }
+  .child-selector select { max-width: 100% !important; min-width: 0 !important; }
+  .stat-card { padding: 14px !important; }
+  .stat-card h3 { font-size: 1.4rem !important; }
+  .fee-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important; gap: 8px !important; }
+  .month-card { padding: 10px 8px !important; }
+  .record-card { padding: 12px !important; }
+  .record-card table { display: block; overflow-x: auto; }
+  .data-table th, .data-table td { padding: 6px 8px !important; font-size: 0.75rem !important; white-space: nowrap; }
+
+  /* Landing Page Pricing Grid */
+  .pricing-section > div[style*="grid-template-columns"] { grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
+}
+
+@media (max-width: 480px) {
+  .pricing-section > div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+  .fee-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important; }
+  .stat-card h3 { font-size: 1.2rem !important; }
+  .portal-header h2 { font-size: 0.9rem !important; }
+  .record-card h4 { font-size: 0.9rem !important; }
+  .record-card table th, .record-card table td { font-size: 0.7rem !important; padding: 5px 6px !important; }
 }
 

@@ -69,15 +69,16 @@ async function ensureDbInitialized() {
   return dbInitializationPromise;
 }
 
-// Middleware to ensure DB is initialized
-app.use(async (req, res, next) => {
-  try {
-    await ensureDbInitialized();
-    next();
-  } catch (err) {
-    console.error('Failed to initialize database:', err);
-    res.status(500).json({ error: 'Database initialization failed', details: err.message });
-  }
+// Middleware to ensure DB is initialized (wrapped to catch async errors for Express 4)
+app.use((req, res, next) => {
+  ensureDbInitialized()
+    .then(() => next())
+    .catch(err => {
+      console.error('Failed to initialize database:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Database initialization failed', details: err.message });
+      }
+    });
 });
 
 // Serve static uploaded assets
@@ -92,6 +93,9 @@ const examsRoutes = require('./routes/exams');
 const billingRoutes = require('./routes/billing');
 const settingsRoutes = require('./routes/settings');
 const adminRoutes = require('./routes/admin');
+const staffRoutes = require('./routes/staff');
+const teacherRoutes = require('./routes/teachers');
+const parentRoutes = require('./routes/parents');
 
 // Mount API routes
 app.use('/api/auth', authRoutes);
@@ -102,22 +106,25 @@ app.use('/api/exams', examsRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/staff', staffRoutes);
+app.use('/api/teachers', teacherRoutes);
+app.use('/api/parents', parentRoutes);
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Catch-all for ALL methods (GET, POST, PUT, DELETE) - return JSON for API, HTML for pages
+app.all('*', (req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'Endpoint not found: ' + req.method + ' ' + req.path });
+  }
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // Global error handler - always return JSON, never HTML
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: err.message || 'Internal server error' });
-});
-
-// Catch-all route to serve landing page or dashboard
-app.get('*', (req, res) => {
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ error: 'Endpoint not found' });
-  }
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Start Server after initializing main registry database

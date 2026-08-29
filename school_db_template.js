@@ -291,6 +291,118 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
+      // 23. Teachers table (for teacher portal login)
+      db.run(`
+        CREATE TABLE IF NOT EXISTS teachers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          phone TEXT UNIQUE NOT NULL,
+          password TEXT NOT NULL,
+          subject TEXT,
+          qualification TEXT,
+          status TEXT DEFAULT 'Active',
+          school_id INTEGER,
+          created_at TEXT
+        )
+      `);
+
+      // 24. Parents table (for parent portal login)
+      db.run(`
+        CREATE TABLE IF NOT EXISTS parents (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          phone TEXT UNIQUE NOT NULL,
+          password TEXT NOT NULL,
+          cnic TEXT,
+          address TEXT,
+          status TEXT DEFAULT 'Active',
+          created_at TEXT
+        )
+      `);
+
+      // 25. Student-Parent mapping
+      db.run(`
+        CREATE TABLE IF NOT EXISTS student_parents (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          student_id INTEGER NOT NULL,
+          parent_id INTEGER NOT NULL,
+          relation TEXT DEFAULT 'Father',
+          UNIQUE(student_id, parent_id)
+        )
+      `);
+
+      // 26. Timetable
+      db.run(`
+        CREATE TABLE IF NOT EXISTS timetable (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          class_name TEXT NOT NULL,
+          section_name TEXT,
+          day TEXT NOT NULL,
+          period INTEGER NOT NULL,
+          start_time TEXT,
+          end_time TEXT,
+          subject TEXT,
+          teacher_id INTEGER,
+          room TEXT,
+          UNIQUE(class_name, section_name, day, period)
+        )
+      `);
+
+      // 27. Saved Fee Reminders
+      db.run(`
+        CREATE TABLE IF NOT EXISTS fee_reminders (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT,
+          class_name TEXT,
+          section_name TEXT,
+          year INTEGER,
+          student_ids TEXT,
+          total_amount REAL DEFAULT 0,
+          student_count INTEGER DEFAULT 0,
+          status TEXT DEFAULT 'Draft',
+          created_at TEXT,
+          printed_at TEXT
+        )
+      `);
+
+      // 27. Announcements table
+      db.run(`
+        CREATE TABLE IF NOT EXISTS announcements (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          message TEXT,
+          target_role TEXT DEFAULT 'all',
+          created_by TEXT,
+          created_at TEXT
+        )
+      `);
+
+      // Migrations: Add teacher_id to marks if missing
+      db.all("PRAGMA table_info(marks)", (err, columns) => {
+        if (!err && Array.isArray(columns)) {
+          const hasTeacherId = columns.some(c => c.name === 'teacher_id');
+          if (!hasTeacherId) {
+            db.run("ALTER TABLE marks ADD COLUMN teacher_id INTEGER", (e) => {
+              if (e) console.error('Migration: failed to add teacher_id to marks:', e.message);
+              else console.log('Migration: added teacher_id to marks table');
+            });
+          }
+        }
+      });
+
+      // Migration: Add school_id to teachers if missing
+      db.all("PRAGMA table_info(teachers)", (err, columns) => {
+        if (!err && Array.isArray(columns)) {
+          const hasSchoolId = columns.some(c => c.name === 'school_id');
+          if (!hasSchoolId) {
+            db.run("ALTER TABLE teachers ADD COLUMN school_id INTEGER", (e) => {
+              if (e) console.error('Migration: failed to add school_id to teachers:', e.message);
+              else console.log('Migration: added school_id to teachers table');
+            });
+          }
+        }
+      });
+
       // Populate default settings & master user
       db.get("SELECT COUNT(*) as count FROM users", (err, row) => {
         if (!err && row.count === 0) {
