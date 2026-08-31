@@ -1,23 +1,6 @@
 {
   "version": 2,
-  "installCommand": "npm install && npm rebuild sqlite3",
-  "builds": [
-    {
-      "src": "server.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": [
-          "config.js",
-          "main_db_init.js",
-          "database_manager.js",
-          "school_db_template.js",
-          "sync_manager.js",
-          "routes/**",
-          "public/**"
-        ]
-      }
-    }
-  ],
+  "installCommand": "npm install --ignore-scripts && npm rebuild sqlite3",
   "routes": [
     {
       "src": "/api/(.*)",
