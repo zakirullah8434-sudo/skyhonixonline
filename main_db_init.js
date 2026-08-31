@@ -34,7 +34,7 @@ function initMainDb() {
             email TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             db_file TEXT UNIQUE NOT NULL,
-            subscription_status TEXT DEFAULT 'suspended', -- 'active', 'suspended', 'trial'
+            subscription_status TEXT DEFAULT 'pending', -- 'active', 'pending', 'suspended', 'trial'
             subscription_amount REAL DEFAULT 1500,
             next_due_date TEXT,
             created_at TEXT,
@@ -45,6 +45,7 @@ function initMainDb() {
           if (!err) {
             db.run(`ALTER TABLE schools ADD COLUMN phone TEXT`, () => {});
             db.run(`ALTER TABLE schools ADD COLUMN school_code TEXT`, () => {});
+            db.run(`ALTER TABLE schools ADD COLUMN selected_package TEXT`, () => {});
           }
         });
 

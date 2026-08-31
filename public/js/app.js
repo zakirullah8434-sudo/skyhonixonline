@@ -4992,6 +4992,360 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================
+  // ==========================================
+  // RESULT POST CREATOR LOGIC
+  // ==========================================
+  let rpRowCount = 0;
+
+  // Mode switching
+  const btnRpModeUpload = document.getElementById('rp-mode-upload');
+  const btnRpModeManual = document.getElementById('rp-mode-manual');
+  const rpOcrSection = document.getElementById('rp-ocr-section');
+  const rpManualSection = document.getElementById('rp-manual-section');
+
+  if (btnRpModeUpload) {
+    btnRpModeUpload.addEventListener('click', () => {
+      btnRpModeUpload.className = 'btn btn-primary btn-sm';
+      btnRpModeManual.className = 'btn btn-outline btn-sm';
+      rpOcrSection.style.display = 'block';
+      rpManualSection.style.display = 'none';
+    });
+  }
+  if (btnRpModeManual) {
+    btnRpModeManual.addEventListener('click', () => {
+      btnRpModeManual.className = 'btn btn-primary btn-sm';
+      btnRpModeUpload.className = 'btn btn-outline btn-sm';
+      rpOcrSection.style.display = 'none';
+      rpManualSection.style.display = 'block';
+    });
+  }
+
+  function addRpRow(roll, name, father, marks) {
+    rpRowCount++;
+    const id = rpRowCount;
+    const container = document.getElementById('rp-rows-container');
+    const div = document.createElement('div');
+    div.id = 'rp-row-' + id;
+    div.style.cssText = 'display:grid; grid-template-columns:1.2fr 1.5fr 1.5fr 0.8fr auto; gap:8px; margin-bottom:8px; align-items:center;';
+    div.innerHTML =
+      '<input type="text" class="form-control" placeholder="Roll No" value="' + (roll||'') + '" style="font-size:0.85rem; padding:6px 8px;">' +
+      '<input type="text" class="form-control" placeholder="Student Name" value="' + (name||'') + '" style="font-size:0.85rem; padding:6px 8px;">' +
+      '<input type="text" class="form-control" placeholder="Father Name" value="' + (father||'') + '" style="font-size:0.85rem; padding:6px 8px;">' +
+      '<input type="number" class="form-control" placeholder="Marks" value="' + (marks||'') + '" style="font-size:0.85rem; padding:6px 8px;">' +
+      '<button type="button" class="btn btn-danger btn-sm" onclick="document.getElementById(\'rp-row-'+id+'\').remove();" style="padding:4px 8px;">&times;</button>';
+    container.appendChild(div);
+  }
+
+  const btnRpAddRow = document.getElementById('btn-rp-add-row');
+  if (btnRpAddRow) btnRpAddRow.addEventListener('click', () => addRpRow());
+
+  // OCR Extract
+  const btnRpExtract = document.getElementById('btn-rp-extract');
+  if (btnRpExtract) {
+    btnRpExtract.addEventListener('click', async () => {
+      const fileInput = document.getElementById('rp-result-image');
+      if (!fileInput.files[0]) { showToast('Please select an image first', true); return; }
+
+      const statusEl = document.getElementById('rp-ocr-status');
+      const previewEl = document.getElementById('rp-ocr-preview');
+      statusEl.style.display = 'block';
+      previewEl.style.display = 'none';
+      statusEl.textContent = '⏳ Loading OCR engine...';
+      btnRpExtract.disabled = true;
+
+      try {
+        statusEl.textContent = '⏳ Loading OCR engine...';
+
+        // Read image as data URL first
+        const imageDataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = e => resolve(e.target.result);
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsDataURL(fileInput.files[0]);
+        });
+
+        statusEl.textContent = '⏳ Recognizing text... This may take a moment.';
+
+        // Use simple recognize API
+        const result = await Tesseract.recognize(imageDataUrl, 'eng', {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              statusEl.textContent = '⏳ Recognizing text... ' + Math.round(m.progress * 100) + '%';
+            }
+          }
+        });
+
+        const ocrText = (result.data && result.data.text) ? result.data.text : '';
+        document.getElementById('rp-ocr-text').value = ocrText;
+        previewEl.style.display = 'block';
+        statusEl.textContent = '✅ Text extracted! Review below and click Parse.';
+      } catch (e) {
+        console.error('OCR Error:', e);
+        const errMsg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Unknown error');
+        statusEl.textContent = '❌ OCR failed: ' + errMsg;
+        showToast('OCR failed: ' + errMsg, true);
+      }
+      btnRpExtract.disabled = false;
+    });
+  }
+
+  // Parse OCR text into student rows
+  const btnRpParseText = document.getElementById('btn-rp-parse-text');
+  if (btnRpParseText) {
+    btnRpParseText.addEventListener('click', () => {
+      const text = document.getElementById('rp-ocr-text').value;
+      if (!text.trim()) { showToast('No text to parse', true); return; }
+
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+      const students = [];
+
+      lines.forEach(line => {
+        // Skip headers and short lines
+        if (/^(roll|name|father|marks|#|no|sr|serial|class|exam|term|result|position|total|obtained)/i.test(line)) return;
+        if (line.length < 5) return;
+
+        // Clean line: remove pipes, dashes used as separators, normalize spaces
+        let cleaned = line
+          .replace(/\|/g, ' ')           // pipe to space
+          .replace(/\s*[-–—]\s*/g, ' ')  // dashes to space
+          .replace(/\s{2,}/g, '  ')      // normalize multiple spaces to double-space
+          .trim();
+
+        // Strategy 1: Split by double-space (most tabular OCR output)
+        let parts = cleaned.split(/\s{2,}/).map(p => p.trim()).filter(p => p);
+        if (parts.length < 2) {
+          // Strategy 2: Split by single space
+          parts = cleaned.split(/\s+/).map(p => p.trim()).filter(p => p);
+        }
+
+        if (parts.length < 2) return;
+
+        // Find the last numeric part (marks)
+        const lastPart = parts[parts.length - 1];
+        const marks = parseInt(lastPart.replace(/[^0-9]/g, ''));
+
+        if (isNaN(marks) || marks < 1 || marks > 10000) return;
+
+        // Remove the marks part, remaining is: roll?, name, father?
+        const dataParts = parts.slice(0, parts.length - 1);
+        if (dataParts.length < 1) return;
+
+        let roll = '', name = '', father = '';
+
+        if (dataParts.length === 1) {
+          // Only name
+          name = dataParts[0];
+        } else if (dataParts.length === 2) {
+          // name + father (or roll + name)
+          const firstIsNum = /^\d{3,}$/.test(dataParts[0]);
+          if (firstIsNum) {
+            roll = dataParts[0];
+            name = dataParts[1];
+          } else {
+            name = dataParts[0];
+            father = dataParts[1];
+          }
+        } else if (dataParts.length === 3) {
+          // roll + name + father
+          const firstIsNum = /^\d{3,}$/.test(dataParts[0]);
+          if (firstIsNum) {
+            roll = dataParts[0];
+            name = dataParts[1];
+            father = dataParts[2];
+          } else {
+            // Could be name + middle + father, treat first as name
+            name = dataParts[0];
+            father = dataParts.slice(1).join(' ');
+          }
+        } else {
+          // 4+ parts: roll + name + father + extra
+          const firstIsNum = /^\d{3,}$/.test(dataParts[0]);
+          if (firstIsNum) {
+            roll = dataParts[0];
+            name = dataParts[1];
+            father = dataParts.slice(2).join(' ');
+          } else {
+            name = dataParts[0];
+            father = dataParts.slice(1).join(' ');
+          }
+        }
+
+        // Validate: name must have letters
+        if (name && /[a-zA-Z]{2,}/.test(name)) {
+          students.push({ roll, name, father, marks });
+        }
+      });
+
+      if (students.length === 0) {
+        showToast('Could not parse students. Try editing the text or use Manual Entry.', true);
+        return;
+      }
+
+      // Sort by marks descending
+      students.sort((a, b) => b.marks - a.marks);
+
+      // Clear existing rows and fill
+      document.getElementById('rp-rows-container').innerHTML = '';
+      rpRowCount = 0;
+      students.forEach(s => addRpRow(s.roll, s.name, s.father, s.marks));
+
+      showToast(students.length + ' students parsed and added!');
+    });
+  }
+
+  // Generate Result Post
+  const btnRpGenerate = document.getElementById('btn-rp-generate');
+  if (btnRpGenerate) {
+    btnRpGenerate.addEventListener('click', () => {
+      const className = document.getElementById('rp-class-name').value.trim();
+      const examName = document.getElementById('rp-exam-name').value.trim();
+      if (!className || !examName) { showToast('Please fill class and exam name', true); return; }
+
+      const rows = document.querySelectorAll('#rp-rows-container > div');
+      if (rows.length === 0) { showToast('Add at least one student', true); return; }
+
+      const students = [];
+      rows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        const roll = inputs[0].value.trim();
+        const name = inputs[1].value.trim();
+        const father = inputs[2].value.trim();
+        const marks = parseInt(inputs[3].value) || 0;
+        if (name) students.push({ roll, name, father, marks });
+      });
+      if (students.length === 0) { showToast('Enter at least one student name', true); return; }
+
+      students.sort((a, b) => b.marks - a.marks);
+
+      const schoolName = currentUser ? currentUser.schoolName : 'School Name';
+
+      apiCall('/settings').then(set => {
+        const logoUrl = set.logo_path ? '/' + set.logo_path : 'school_assets/school_logo.png';
+        renderResultPost(schoolName, logoUrl, className, examName, students);
+      }).catch(() => {
+        renderResultPost(schoolName, 'school_assets/school_logo.png', className, examName, students);
+      });
+    });
+  }
+
+  function renderResultPost(schoolName, logoUrl, className, examName, students) {
+    const tableRows = students.map((s, i) => {
+      const bg = i % 2 === 0 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)';
+      return '<tr style="background:' + bg + ';">' +
+        '<td style="padding:9px 12px; border-bottom:1px solid rgba(255,255,255,0.1); font-size:0.82rem; text-align:center;">' + (i + 1) + '</td>' +
+        '<td style="padding:9px 12px; border-bottom:1px solid rgba(255,255,255,0.1); font-size:0.82rem;">' + s.roll + '</td>' +
+        '<td style="padding:9px 12px; border-bottom:1px solid rgba(255,255,255,0.1); font-size:0.82rem; font-weight:600;">' + s.name + '</td>' +
+        '<td style="padding:9px 12px; border-bottom:1px solid rgba(255,255,255,0.1); font-size:0.82rem;">' + s.father + '</td>' +
+        '<td style="padding:9px 12px; border-bottom:1px solid rgba(255,255,255,0.1); font-size:0.82rem; font-weight:700; text-align:center; color:#ffd700;">' + s.marks + '</td>' +
+        '</tr>';
+    }).join('');
+
+    const html =
+      '<div id="rp-result-post" style="width:700px; font-family:Georgia,Times,serif; color:#fff; background:linear-gradient(170deg, #1a3a1a 0%, #0d260d 40%, #1a3a1a 60%, #2d5a1e 100%); position:relative; overflow:hidden;">' +
+        '<div style="position:absolute; top:-80px; right:-80px; width:300px; height:300px; border-radius:50%; border:3px solid rgba(212,175,55,0.3); pointer-events:none;"></div>' +
+        '<div style="position:absolute; top:-40px; right:-40px; width:200px; height:200px; border-radius:50%; border:2px solid rgba(212,175,55,0.2); pointer-events:none;"></div>' +
+        '<div style="position:absolute; bottom:-60px; left:-60px; width:250px; height:250px; border-radius:50%; border:3px solid rgba(212,175,55,0.3); pointer-events:none;"></div>' +
+        '<div style="height:4px; background:linear-gradient(90deg, transparent, #d4af37, transparent);"></div>' +
+        '<div style="text-align:center; padding:28px 30px 18px;">' +
+          '<div style="display:flex; align-items:center; justify-content:center; gap:16px;">' +
+            '<img src="' + logoUrl + '" style="width:70px; height:70px; border-radius:50%; border:2px solid #d4af37; object-fit:cover;" onerror="this.style.display=\'none\'">' +
+            '<h1 style="margin:0; font-size:1.8rem; font-weight:900; color:#fff; text-shadow:2px 2px 4px rgba(0,0,0,0.5); letter-spacing:1px; font-family:Georgia,serif;">' + schoolName + '</h1>' +
+          '</div>' +
+        '</div>' +
+        '<div style="text-align:center; padding:12px 20px; margin:0 30px; background:linear-gradient(90deg, #2d5a1e, #3a7a28, #2d5a1e); border:1px solid #d4af37; border-radius:6px;">' +
+          '<h2 style="margin:0; font-size:1.15rem; font-weight:700; color:#d4af37; letter-spacing:1px; font-family:Georgia,serif;">' + className + ' ' + examName + '</h2>' +
+        '</div>' +
+        '<div style="padding:18px 30px;">' +
+          '<table style="width:100%; border-collapse:collapse;">' +
+            '<thead><tr style="background:rgba(212,175,55,0.15);">' +
+              '<th style="padding:10px 12px; text-align:center; font-size:0.8rem; color:#d4af37; border-bottom:2px solid #d4af37; width:5%;">#</th>' +
+              '<th style="padding:10px 12px; text-align:left; font-size:0.8rem; color:#d4af37; border-bottom:2px solid #d4af37; width:12%;">Roll No</th>' +
+              '<th style="padding:10px 12px; text-align:left; font-size:0.8rem; color:#d4af37; border-bottom:2px solid #d4af37; width:30%;">Name</th>' +
+              '<th style="padding:10px 12px; text-align:left; font-size:0.8rem; color:#d4af37; border-bottom:2px solid #d4af37;">Father Name</th>' +
+              '<th style="padding:10px 12px; text-align:center; font-size:0.8rem; color:#d4af37; border-bottom:2px solid #d4af37; width:12%;">Marks</th>' +
+            '</tr></thead>' +
+            '<tbody>' + tableRows + '</tbody>' +
+          '</table>' +
+        '</div>' +
+        '<div style="height:4px; background:linear-gradient(90deg, transparent, #d4af37, transparent);"></div>' +
+        '<div style="display:flex; justify-content:space-between; align-items:center; padding:22px 30px; background:linear-gradient(135deg, #1a3a1a, #2d5a1e);">' +
+          '<div style="display:flex; align-items:center; gap:10px;">' +
+            '<div style="font-size:1.8rem;">📚</div>' +
+            '<div style="font-size:0.7rem; color:#d4af37; font-weight:700; line-height:1.3; text-transform:uppercase;">Education<br>is the key to<br>success</div>' +
+          '</div>' +
+          '<div style="text-align:center; font-size:2rem;">🏆</div>' +
+          '<div style="text-align:right;">' +
+            '<p style="margin:0; font-size:1.05rem; font-style:italic; color:#d4af37; font-family:Georgia,serif;">Congratulations to all</p>' +
+            '<p style="margin:0; font-size:0.9rem; font-style:italic; color:#fff; font-family:Georgia,serif;">our brilliant students!</p>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    document.getElementById('rp-preview').innerHTML = html;
+    document.getElementById('rp-preview').style.cssText = 'padding:0; display:block; background:#111;';
+    document.getElementById('btn-rp-download').style.display = 'block';
+  }
+
+  // Download as image
+  const btnRpDownload = document.getElementById('btn-rp-download');
+  if (btnRpDownload) {
+    btnRpDownload.addEventListener('click', async () => {
+      const postEl = document.getElementById('rp-result-post');
+      if (!postEl) { showToast('Generate a post first', true); return; }
+
+      showToast('Preparing download...');
+
+      try {
+        // Use html-to-image approach via canvas
+        const scale = 2;
+        const w = 700;
+        const h = postEl.offsetHeight;
+
+        // Create a serialized HTML document
+        const htmlContent = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+          '<style>*{margin:0;padding:0;box-sizing:border-box;}body{width:' + w + 'px;background:transparent;}</style>' +
+          '</head><body>' + postEl.outerHTML + '</body></html>';
+
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          canvas.width = w * scale;
+          canvas.height = h * scale;
+          const ctx = canvas.getContext('2d');
+          ctx.scale(scale, scale);
+          ctx.fillStyle = '#1a3a1a';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          URL.revokeObjectURL(url);
+
+          canvas.toBlob(function(b) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(b);
+            a.download = 'result-post.png';
+            a.click();
+            URL.revokeObjectURL(a.href);
+            showToast('Image downloaded!');
+          }, 'image/png');
+        };
+        img.onerror = function() {
+          URL.revokeObjectURL(url);
+          // Fallback: open print dialog
+          const w2 = window.open('', '_blank');
+          w2.document.write('<!DOCTYPE html><html><head><title>Result Post</title><style>@page{margin:0;}body{margin:0;padding:0;width:700px;}</style></head><body>' + postEl.outerHTML + '</body></html>');
+          w2.document.close();
+          w2.print();
+          showToast('Use Save as PDF from print dialog');
+        };
+        img.src = url;
+      } catch(e) {
+        showToast('Download failed. Try browser screenshot.', true);
+      }
+    });
+  }
+
   // INITIALIZATIONS
   // ==========================================
   checkBillingStatus();

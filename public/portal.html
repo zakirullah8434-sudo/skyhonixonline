@@ -12,6 +12,7 @@
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 </head>
 <body>
 
@@ -100,6 +101,9 @@
         </li>
         <li class="sidebar-menu-item" data-screen="subscription">
           <a href="#" class="sidebar-menu-link">💳 Billing & Sub</a>
+        </li>
+        <li class="sidebar-menu-item" data-screen="post-creator">
+          <a href="#" class="sidebar-menu-link">🎨 Post Creator</a>
         </li>
       </ul>
       
@@ -2296,6 +2300,80 @@
                 </div>
               </div>
 
+            </div>
+          </div>
+        </article>
+
+        <!-- ==================== SCREEN: POST CREATOR ==================== -->
+        <article class="screen-section" id="screen-post-creator" style="display: none;">
+          <h2 style="margin-bottom: 24px;">Post Creator</h2>
+
+          <!-- Sub-tabs -->
+          <div class="tab-container" style="margin-bottom: 20px;">
+            <button class="tab-btn active" data-tab="result-post">Result Post Creator</button>
+          </div>
+
+          <!-- Result Post Creator Tab -->
+          <div class="tab-content" id="tab-result-post">
+            <div class="grid-2" style="grid-template-columns: 1fr 1.2fr; gap: 24px; align-items: flex-start;">
+
+              <!-- Left: Form -->
+              <div class="card">
+                <h3>Create Result Post</h3>
+
+                <!-- Mode Switch -->
+                <div style="display:flex; gap:8px; margin-bottom:16px;">
+                  <button type="button" class="btn btn-primary btn-sm" id="rp-mode-upload" style="flex:1;">📷 Upload Image (OCR)</button>
+                  <button type="button" class="btn btn-outline btn-sm" id="rp-mode-manual" style="flex:1;">✍️ Manual Entry</button>
+                </div>
+
+                <!-- OCR Upload Section -->
+                <div id="rp-ocr-section">
+                  <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px;">Upload a photo of the result sheet. The system will automatically extract student data.</p>
+                  <div class="form-group">
+                    <label class="form-label">Upload Result Image</label>
+                    <input type="file" class="form-control" id="rp-result-image" accept="image/*" style="font-size:0.85rem;">
+                  </div>
+                  <button type="button" class="btn btn-primary" id="btn-rp-extract" style="width:100%;">🔍 Extract Data from Image</button>
+                  <div id="rp-ocr-status" style="margin-top:10px; font-size:0.85rem; color:var(--text-muted); display:none;"></div>
+                  <div id="rp-ocr-preview" style="margin-top:12px; display:none;">
+                    <label class="form-label">Extracted Text (edit if needed):</label>
+                    <textarea id="rp-ocr-text" rows="8" class="form-control" style="font-size:0.8rem; font-family:monospace;"></textarea>
+                    <button type="button" class="btn btn-success btn-sm" id="btn-rp-parse-text" style="width:100%; margin-top:8px;">✅ Parse & Fill Students</button>
+                  </div>
+                </div>
+
+                <!-- Manual Entry Section -->
+                <div id="rp-manual-section" style="display:none;">
+                  <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px;">Enter class details and student results manually. Students will be sorted by marks (highest first).</p>
+                </div>
+
+                <!-- Common Fields -->
+                <div class="form-group" style="margin-top:12px;">
+                  <label class="form-label">Class Name</label>
+                  <input type="text" class="form-control" id="rp-class-name" placeholder="e.g. Class 10th">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Exam / Term Name</label>
+                  <input type="text" class="form-control" id="rp-exam-name" placeholder="e.g. Annual-I Result 2026">
+                </div>
+
+                <h3 style="margin-top: 20px; margin-bottom: 12px;">Student Results</h3>
+                <div id="rp-rows-container"></div>
+                <button type="button" class="btn btn-outline btn-sm" id="btn-rp-add-row" style="margin-top: 10px; width: 100%;">+ Add Student</button>
+
+                <div style="margin-top: 20px; display: flex; gap: 10px;">
+                  <button class="btn btn-primary" id="btn-rp-generate" style="flex: 1;">Generate Post</button>
+                  <button class="btn btn-success" id="btn-rp-download" style="flex: 1; display: none;">📥 Download Image</button>
+                </div>
+              </div>
+
+              <!-- Right: Preview -->
+              <div class="card" style="padding: 0; overflow: hidden;">
+                <div id="rp-preview" style="min-height: 400px; display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
+                  <p>Fill the form and click Generate Post to preview</p>
+                </div>
+              </div>
             </div>
           </div>
         </article>

@@ -35,6 +35,14 @@ function authenticateToken(req, res, next) {
       req.user.subscriptionStatus = school.subscription_status;
       req.user.nextDueDate = school.next_due_date;
 
+      // Block pending schools from all endpoints
+      if (school.subscription_status === 'pending') {
+        return res.status(403).json({ 
+          error: 'Your school registration is pending admin approval. Please wait for activation.', 
+          pending: true 
+        });
+      }
+
       // Allow access to billing endpoints even if suspended, but block others
       const isBillingRoute = req.path.startsWith('/billing') || req.path.startsWith('/subscription');
       if (school.subscription_status === 'suspended' && !isBillingRoute) {
@@ -88,11 +96,11 @@ router.post('/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Insert tenant registration into main.db with status 'suspended' (pending admin activation)
+    // Insert tenant registration into main.db with status 'pending' (awaiting admin approval)
     const mainResult = await runMain(
       `INSERT INTO schools (school_name, email, password, db_file, subscription_status, subscription_amount, next_due_date, created_at, phone, school_code)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [schoolName, email, hashedPassword, dbFile, 'suspended', 1500, null, new Date().toISOString(), phone, schoolCode]
+      [schoolName, email, hashedPassword, dbFile, 'pending', 1500, null, new Date().toISOString(), phone, schoolCode]
     );
 
     const schoolId = mainResult.id;
@@ -135,6 +143,11 @@ router.post('/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, school.password);
     if (!isMatch) {
       return res.status(401).json({ error: 'Incorrect password' });
+    }
+
+    // Block pending schools from logging in
+    if (school.subscription_status === 'pending') {
+      return res.status(403).json({ error: 'Your school registration is pending admin approval. Please wait for activation.' });
     }
 
     const schoolId = school.id;
@@ -233,6 +246,14 @@ router.post('/teacher-login', async (req, res) => {
 
     if (foundTeacher.status !== 'Active') {
       return res.status(403).json({ error: 'Teacher account is inactive. Contact admin.' });
+    }
+
+    // Block login for pending or suspended schools
+    if (foundSchool.subscription_status === 'pending') {
+      return res.status(403).json({ error: 'School registration is pending admin approval.' });
+    }
+    if (foundSchool.subscription_status === 'suspended') {
+      return res.status(403).json({ error: 'School access is suspended. Contact admin.' });
     }
 
     // 3. Verify password

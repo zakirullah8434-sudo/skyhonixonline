@@ -768,7 +768,7 @@
 
   function updateStats(schools) {
     document.getElementById('stat-total').textContent = schools.length;
-    document.getElementById('stat-pending').textContent = schools.filter(s => s.subscription_status === 'suspended').length;
+    document.getElementById('stat-pending').textContent = schools.filter(s => s.subscription_status === 'pending').length;
     document.getElementById('stat-active').textContent = schools.filter(s => s.subscription_status === 'active').length;
     document.getElementById('stat-suspended').textContent = schools.filter(s => s.subscription_status === 'suspended').length;
   }

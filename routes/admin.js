@@ -203,6 +203,7 @@ router.get('/statistics', authenticateAdmin, async (req, res) => {
       SELECT
         COUNT(*) as total_schools,
         SUM(CASE WHEN subscription_status = 'active' THEN 1 ELSE 0 END) as active_count,
+        SUM(CASE WHEN subscription_status = 'pending' THEN 1 ELSE 0 END) as pending_count,
         SUM(CASE WHEN subscription_status = 'suspended' THEN 1 ELSE 0 END) as suspended_count,
         SUM(CASE WHEN subscription_status = 'trial' THEN 1 ELSE 0 END) as trial_count,
         SUM(subscription_amount) as total_revenue
@@ -214,6 +215,7 @@ router.get('/statistics', authenticateAdmin, async (req, res) => {
       statistics: stats[0] || {
         total_schools: 0,
         active_count: 0,
+        pending_count: 0,
         suspended_count: 0,
         trial_count: 0,
         total_revenue: 0

@@ -36,6 +36,14 @@ function authenticateTeacherToken(req, res, next) {
       }
 
       req.teacher.subscriptionStatus = school.subscription_status;
+
+      if (school.subscription_status === 'pending') {
+        return res.status(403).json({ error: 'School registration is pending admin approval.' });
+      }
+      if (school.subscription_status === 'suspended') {
+        return res.status(403).json({ error: 'School access is suspended.' });
+      }
+
       next();
     } catch (dbErr) {
       console.error('Teacher auth middleware DB error:', dbErr);
