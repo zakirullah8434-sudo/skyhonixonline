@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "installCommand": "npm install && npm rebuild sqlite3",
   "builds": [
     {
       "src": "server.js",
