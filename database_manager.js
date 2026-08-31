@@ -11,6 +11,9 @@ const schoolDbCache = {};
 // Helper to open main.db
 function getMainDb() {
   if (!mainDb) {
+    if (!fs.existsSync(mainDbPath)) {
+      console.warn('main.db not found at', mainDbPath, '- will be created by initMainDb');
+    }
     mainDb = new sqlite3.Database(mainDbPath, (err) => {
       if (err) {
         console.error('CRITICAL: Failed to open main.db:', err);
@@ -18,6 +21,14 @@ function getMainDb() {
     });
   }
   return mainDb;
+}
+
+// Reset mainDb connection (used when DB file changes, e.g. on Vercel)
+function resetMainDb() {
+  if (mainDb) {
+    try { mainDb.close(); } catch (e) {}
+    mainDb = null;
+  }
 }
 
 // Promisified query helper for mainDb
@@ -69,6 +80,13 @@ function getSchoolDb(schoolId) {
       }
 
       const schoolDbPath = path.join(config.DATABASES_DIR, school.db_file);
+
+      // Ensure directory exists
+      const dir = path.dirname(schoolDbPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
       const schoolDb = new sqlite3.Database(schoolDbPath, (dbErr) => {
         if (dbErr) {
           console.error(`Failed to connect to tenant database ${school.db_file}:`, dbErr);
@@ -181,5 +199,6 @@ module.exports = {
   querySchoolOne,
   runSchool,
   runSchoolTransaction,
-  closeSchoolDb
+  closeSchoolDb,
+  resetMainDb
 };

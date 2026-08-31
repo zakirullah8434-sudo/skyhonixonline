@@ -132,7 +132,14 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ schoolName, email, password, phone, selectedPackage })
       });
 
-      const result = await response.json();
+      let result;
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(text.includes('The page') ? 'Server is restarting. Please try again in a few seconds.' : (text || 'Server returned an unexpected response. Please try again.'));
+      }
 
       if (!response.ok) {
         throw new Error(result.error || 'Failed to register school');
@@ -173,7 +180,14 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ schoolEmail, password })
       });
 
-      const result = await response.json();
+      let result;
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(text.includes('The page') ? 'Server is restarting. Please try again in a few seconds.' : (text || 'Server returned an unexpected response.'));
+      }
 
       if (!response.ok) {
         throw new Error(result.error || 'Login failed');

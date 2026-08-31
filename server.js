@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const config = require('./config');
 const { initMainDb } = require('./main_db_init');
+const { resetMainDb } = require('./database_manager');
 
 const app = express();
 
@@ -60,6 +61,7 @@ async function ensureDbInitialized() {
           copyDirRecursive(config.READONLY_UPLOADS_DIR, config.UPLOADS_DIR);
         }
         await initMainDb();
+        resetMainDb(); // Reset cached connection to ensure fresh connection to new DB
         dbInitialized = true;
       } catch (initErr) {
         console.error('DB initialization error:', initErr);
