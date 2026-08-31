@@ -190,8 +190,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (response.status === 401 || response.status === 403) {
-        if (result.suspended) {
-          // Trigger billing lock overlay
+        if (result.suspended || result.pending) {
+          // Trigger billing lock overlay for suspended/pending schools
           lockOverlay.style.display = 'flex';
         } else {
           // Token expired, log out
@@ -236,6 +236,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           sidebarSubBadge.classList.add('status-absent');
           lockOverlay.style.display = 'flex';
+          const lockReason = document.getElementById('lock-reason-text');
+          if (lockReason) {
+            if (sub === 'pending') {
+              lockReason.innerHTML = 'Your school registration is <strong>pending admin approval</strong>. Please upload a payment receipt below, or wait for admin activation.';
+            } else {
+              lockReason.innerHTML = 'Your school subscription is <strong>suspended or overdue</strong>. Billed at <strong>1500 PKR monthly</strong>. Please upload your payment transfer receipt to restore full system access.';
+            }
+          }
           const codeEl = document.getElementById('lock-school-code-display');
           if (codeEl && data.school.school_code) {
             codeEl.innerHTML = `Your Unique School Code: <strong>${data.school.school_code}</strong>`;

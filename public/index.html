@@ -105,7 +105,7 @@
           <li>Parent & Teacher Portals</li>
           <li>Online Backups</li>
         </ul>
-        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
+        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('signup-package').value='Package 1'; document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
       </div>
 
       <!-- Package 2 -->
@@ -121,7 +121,7 @@
           <li>Parent & Teacher Portals</li>
           <li>Online Backups</li>
         </ul>
-        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
+        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('signup-package').value='Package 2'; document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
       </div>
 
       <!-- Package 3 -->
@@ -138,7 +138,7 @@
           <li>Parent & Teacher Portals</li>
           <li>Online Backups</li>
         </ul>
-        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
+        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('signup-package').value='Package 3'; document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
       </div>
 
       <!-- Package 4 -->
@@ -154,7 +154,7 @@
           <li>Parent & Teacher Portals</li>
           <li>Online Backups</li>
         </ul>
-        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
+        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('signup-package').value='Package 4'; document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
       </div>
 
       <!-- Package 5 -->
@@ -170,7 +170,7 @@
           <li>Parent & Teacher Portals</li>
           <li>Online Backups</li>
         </ul>
-        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
+        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('signup-package').value='Package 5'; document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
       </div>
 
       <!-- Package 6 -->
@@ -187,7 +187,7 @@
           <li>Parent & Teacher Portals</li>
           <li>Online Backups</li>
         </ul>
-        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
+        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="document.getElementById('signup-package').value='Package 6'; document.getElementById('drawer-signup').classList.add('open')">Start Free Trial</button>
       </div>
     </div>
   </section>
@@ -291,6 +291,19 @@
       <div class="form-group">
         <label class="form-label" for="signup-password">Admin Password</label>
         <input type="password" class="form-control" id="signup-password" placeholder="Create admin password" required autocomplete="new-password">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="signup-package">Select Package</label>
+        <select class="form-control" id="signup-package" required>
+          <option value="">-- Choose a Package --</option>
+          <option value="Package 1">Package 1 — 50-200 Students (800 PKR/mo)</option>
+          <option value="Package 2">Package 2 — 201-400 Students (1,200 PKR/mo)</option>
+          <option value="Package 3">Package 3 — 401-600 Students (1,500 PKR/mo)</option>
+          <option value="Package 4">Package 4 — 601-800 Students (1,800 PKR/mo)</option>
+          <option value="Package 5">Package 5 — 801-1,000 Students (2,000 PKR/mo)</option>
+          <option value="Package 6">Package 6 — 1,001-1,500 Students (2,400 PKR/mo)</option>
+        </select>
       </div>
       
       <div style="margin-top: 30px;">

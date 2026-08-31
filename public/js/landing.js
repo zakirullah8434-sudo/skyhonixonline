@@ -117,12 +117,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const phone = document.getElementById('signup-phone').value.trim();
     const email = document.getElementById('signup-email').value.trim();
     const password = document.getElementById('signup-password').value;
+    const selectedPackage = document.getElementById('signup-package').value;
+
+    if (!selectedPackage) {
+      errorMsg.innerText = 'Please select a package before registering.';
+      errorMsg.style.display = 'block';
+      return;
+    }
 
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schoolName, email, password, phone })
+        body: JSON.stringify({ schoolName, email, password, phone, selectedPackage })
       });
 
       const result = await response.json();

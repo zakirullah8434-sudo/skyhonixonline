@@ -35,16 +35,18 @@ function authenticateToken(req, res, next) {
       req.user.subscriptionStatus = school.subscription_status;
       req.user.nextDueDate = school.next_due_date;
 
-      // Block pending schools from all endpoints
-      if (school.subscription_status === 'pending') {
+      // Allow access to billing endpoints even if pending/suspended
+      const isBillingRoute = req.originalUrl.includes('/billing') || req.originalUrl.includes('/subscription');
+
+      // Block pending schools from non-billing endpoints
+      if (school.subscription_status === 'pending' && !isBillingRoute) {
         return res.status(403).json({ 
           error: 'Your school registration is pending admin approval. Please wait for activation.', 
           pending: true 
         });
       }
 
-      // Allow access to billing endpoints even if suspended, but block others
-      const isBillingRoute = req.path.startsWith('/billing') || req.path.startsWith('/subscription');
+      // Block suspended schools from non-billing endpoints
       if (school.subscription_status === 'suspended' && !isBillingRoute) {
         return res.status(403).json({ 
           error: 'Subscription suspended. Access locked. Please proceed to Billing to renew.', 
@@ -62,7 +64,7 @@ function authenticateToken(req, res, next) {
 
 // School Registration (Multi-Tenant SignUp)
 router.post('/register', async (req, res) => {
-  const { schoolName, email, password, phone } = req.body;
+  const { schoolName, email, password, phone, selectedPackage } = req.body;
 
   if (!schoolName || !email || !password || !phone) {
     return res.status(400).json({ error: 'All fields (including Phone Number) are required' });
@@ -98,9 +100,9 @@ router.post('/register', async (req, res) => {
 
     // Insert tenant registration into main.db with status 'pending' (awaiting admin approval)
     const mainResult = await runMain(
-      `INSERT INTO schools (school_name, email, password, db_file, subscription_status, subscription_amount, next_due_date, created_at, phone, school_code)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [schoolName, email, hashedPassword, dbFile, 'pending', 1500, null, new Date().toISOString(), phone, schoolCode]
+      `INSERT INTO schools (school_name, email, password, db_file, subscription_status, subscription_amount, next_due_date, created_at, phone, school_code, selected_package)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [schoolName, email, hashedPassword, dbFile, 'pending', 1500, null, new Date().toISOString(), phone, schoolCode, selectedPackage || null]
     );
 
     const schoolId = mainResult.id;
