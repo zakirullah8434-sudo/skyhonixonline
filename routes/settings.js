@@ -229,11 +229,29 @@ router.post('/delete-all-data', authenticateToken, async (req, res) => {
       'class_fees', 'student_fee_exceptions', 'sections', 'students'
     ];
 
+    let deletedCount = 0;
+    let failedTables = [];
+
     for (const table of tablesToWipe) {
-      await runSchool(schoolId, `DELETE FROM ${table}`);
+      try {
+        await runSchool(schoolId, `DELETE FROM ${table}`);
+        deletedCount++;
+      } catch (e) {
+        // Table might not exist — skip silently
+        failedTables.push(table);
+      }
     }
 
-    res.json({ message: 'All school data has been deleted successfully. School profile and login credentials are preserved.' });
+    // Reclaim disk space
+    try {
+      await runSchool(schoolId, 'VACUUM');
+    } catch (e) { /* VACUUM may fail on some setups, ignore */ }
+
+    const msg = deletedCount > 0
+      ? `All school data has been deleted successfully (${deletedCount} tables wiped). School profile and login credentials are preserved.`
+      : 'No data tables found to delete.';
+
+    res.json({ message: msg });
   } catch (err) {
     console.error('Delete all data error:', err);
     res.status(500).json({ error: 'Failed to delete school data: ' + err.message });

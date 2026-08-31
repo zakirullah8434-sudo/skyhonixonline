@@ -4047,9 +4047,38 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Database Backup download
-  document.getElementById('btn-settings-backup').addEventListener('click', () => {
-    // Redirect browser directly to token authorized download endpoint
-    window.location.href = `/api/settings/backup?token=${token}`;
+  document.getElementById('btn-settings-backup').addEventListener('click', async () => {
+    try {
+      showToast('Preparing backup download...');
+      const response = await fetch('/api/settings/backup', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Backup failed');
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get('Content-Disposition');
+      let filename = 'school_backup.db';
+      if (disposition) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match) filename = match[1];
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Backup downloaded successfully!');
+    } catch (err) {
+      showToast('Backup failed: ' + err.message, true);
+    }
   });
 
   // Database Restore upload
@@ -4083,6 +4112,78 @@ document.addEventListener('DOMContentLoaded', () => {
       feedback.innerText = 'Database restoration failed: ' + err.message;
     }
   });
+
+  // Delete All School Data
+  document.getElementById('form-settings-delete-all').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const confirmInput = document.getElementById('delete-confirm-input');
+    const feedback = document.getElementById('delete-feedback');
+
+    if (confirmInput.value !== 'DELETE ALL DATA') {
+      feedback.style.display = 'block';
+      feedback.style.color = '#ff5252';
+      feedback.innerText = 'Please type "DELETE ALL DATA" exactly as shown.';
+      return;
+    }
+
+    if (!confirm('FINAL WARNING: This will permanently delete ALL students, fees, attendance, exams, marks, and results. This cannot be undone. Continue?')) {
+      return;
+    }
+
+    feedback.style.display = 'block';
+    feedback.style.color = 'var(--accent)';
+    feedback.innerText = 'Deleting all school data...';
+
+    try {
+      const res = await apiCall('/settings/delete-all-data', 'POST', { confirm_text: 'DELETE ALL DATA' });
+      feedback.style.color = '#4caf50';
+      feedback.innerText = res.message;
+      showToast(res.message);
+      confirmInput.value = '';
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (err) {
+      feedback.style.color = '#ff5252';
+      feedback.innerText = 'Failed to delete data: ' + err.message;
+    }
+  });
+
+  // Backup Before Delete button (same backup, triggered from danger zone)
+  const btnDeleteZoneBackup = document.getElementById('btn-delete-zone-backup');
+  if (btnDeleteZoneBackup) {
+    btnDeleteZoneBackup.addEventListener('click', async () => {
+      try {
+        showToast('Preparing backup download...');
+        const response = await fetch('/api/settings/backup', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Backup failed');
+        }
+
+        const blob = await response.blob();
+        const disposition = response.headers.get('Content-Disposition');
+        let filename = 'school_backup_before_delete.db';
+        if (disposition) {
+          const match = disposition.match(/filename="?([^"]+)"?/);
+          if (match) filename = match[1];
+        }
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Backup downloaded! Now safe to delete.');
+      } catch (err) {
+        showToast('Backup failed: ' + err.message, true);
+      }
+    });
+  }
 
 
   // ==========================================
