@@ -33,7 +33,7 @@ router.get('/status', authenticateToken, async (req, res) => {
 
   try {
     const school = await queryMainOne(
-      'SELECT id, school_name, email, subscription_status, subscription_amount, next_due_date, phone, school_code FROM schools WHERE id = ?',
+      'SELECT id, school_name, email, subscription_status, subscription_amount, next_due_date, phone, school_code, selected_package FROM schools WHERE id = ?',
       [schoolId]
     );
 
@@ -51,7 +51,7 @@ router.get('/status', authenticateToken, async (req, res) => {
       school,
       paymentHistory: history,
       paymentInstructions: {
-        amount: 1500,
+        amount: school.subscription_amount || 1500,
         methods: [
           { name: 'EasyPaisa Mobile Account', account_no: '03459191224', title: 'Golden Sun Academy' },
           { name: 'JazzCash Wallet Account', account_no: '03459191224', title: 'Golden Sun Academy' },

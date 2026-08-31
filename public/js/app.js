@@ -236,14 +236,17 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           sidebarSubBadge.classList.add('status-absent');
           lockOverlay.style.display = 'flex';
+          const monthlyRate = data.school.subscription_amount || 1500;
           const lockReason = document.getElementById('lock-reason-text');
           if (lockReason) {
             if (sub === 'pending') {
-              lockReason.innerHTML = 'Your school registration is <strong>pending admin approval</strong>. Please upload a payment receipt below, or wait for admin activation.';
+              lockReason.innerHTML = `Your school registration is <strong>pending admin approval</strong> (${data.school.selected_package || 'No package'} at <strong>${monthlyRate.toLocaleString()} PKR/month</strong>). Please upload a payment receipt below, or wait for admin activation.`;
             } else {
-              lockReason.innerHTML = 'Your school subscription is <strong>suspended or overdue</strong>. Billed at <strong>1500 PKR monthly</strong>. Please upload your payment transfer receipt to restore full system access.';
+              lockReason.innerHTML = `Your school subscription is <strong>suspended or overdue</strong>. Billed at <strong>${monthlyRate.toLocaleString()} PKR monthly</strong>. Please upload your payment transfer receipt to restore full system access.`;
             }
           }
+          const lockPayAmount = document.getElementById('lock-pay-amount');
+          if (lockPayAmount) lockPayAmount.value = monthlyRate;
           const codeEl = document.getElementById('lock-school-code-display');
           if (codeEl && data.school.school_code) {
             codeEl.innerHTML = `Your Unique School Code: <strong>${data.school.school_code}</strong>`;
@@ -4193,6 +4196,8 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const data = await apiCall('/billing/status');
       
+      const monthlyRate = data.school.subscription_amount || 1500;
+
       // Update billing labels
       const statusText = document.getElementById('sub-status-text');
       statusText.innerText = data.school.subscription_status.toUpperCase();
@@ -4207,6 +4212,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       document.getElementById('sub-due-text').innerText = data.school.next_due_date || 'N/A';
+
+      // Update dynamic monthly rate display
+      const monthlyRateEl = document.getElementById('sub-monthly-rate');
+      if (monthlyRateEl) monthlyRateEl.innerText = `${monthlyRate.toLocaleString()} PKR`;
+
+      const transferMsgEl = document.getElementById('sub-transfer-msg');
+      if (transferMsgEl) transferMsgEl.innerText = `Transfer ${monthlyRate.toLocaleString()} PKR to any of the verified payment accounts, then upload a screenshot of your transaction confirmation.`;
+
+      const billAmountEl = document.getElementById('bill-amount');
+      if (billAmountEl) billAmountEl.value = monthlyRate;
 
       // Render payment history
       const tbody = document.querySelector('#table-billing-slips tbody');

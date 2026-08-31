@@ -98,11 +98,22 @@ router.post('/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Map selected package to monthly amount
+    const packagePrices = {
+      'Package 1': 800,
+      'Package 2': 1200,
+      'Package 3': 1500,
+      'Package 4': 1800,
+      'Package 5': 2000,
+      'Package 6': 2400
+    };
+    const subscriptionAmount = packagePrices[selectedPackage] || 1500;
+
     // Insert tenant registration into main.db with status 'pending' (awaiting admin approval)
     const mainResult = await runMain(
       `INSERT INTO schools (school_name, email, password, db_file, subscription_status, subscription_amount, next_due_date, created_at, phone, school_code, selected_package)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [schoolName, email, hashedPassword, dbFile, 'pending', 1500, null, new Date().toISOString(), phone, schoolCode, selectedPackage || null]
+      [schoolName, email, hashedPassword, dbFile, 'pending', subscriptionAmount, null, new Date().toISOString(), phone, schoolCode, selectedPackage || null]
     );
 
     const schoolId = mainResult.id;

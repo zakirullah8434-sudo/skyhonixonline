@@ -144,6 +144,11 @@
       color: #dc3545;
     }
 
+    .status-pending {
+      background: rgba(255, 193, 7, 0.2);
+      color: #ffc107;
+    }
+
     .status-active {
       background: rgba(40, 167, 69, 0.2);
       color: #28a745;
@@ -610,6 +615,7 @@
             <th>School Name</th>
             <th>Email</th>
             <th>Code</th>
+            <th>Package</th>
             <th>Status</th>
             <th>Created</th>
             <th>Actions</th>
@@ -621,15 +627,16 @@
               <td><strong>${s.school_name}</strong></td>
               <td>${s.email}</td>
               <td><code style="background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px;">${s.school_code}</code></td>
+              <td>${s.selected_package || '-'}<br><small style="color:#666;">${s.subscription_amount || 1500} PKR/mo</small></td>
               <td><span class="status-badge status-${s.subscription_status}">${s.subscription_status.toUpperCase()}</span></td>
               <td>${new Date(s.created_at).toLocaleDateString()}</td>
               <td>
                 <div class="action-buttons">
                   <button class="btn btn-view" onclick="viewSchool(${s.id})">View</button>
-                  ${s.subscription_status === 'suspended' ? `
+                  ${(s.subscription_status === 'suspended' || s.subscription_status === 'pending') ? `
                     <button class="btn btn-approve" onclick="approveSchool(${s.id})">Approve</button>
                   ` : ''}
-                  ${s.subscription_status !== 'suspended' ? `
+                  ${s.subscription_status !== 'suspended' && s.subscription_status !== 'pending' ? `
                     <button class="btn btn-suspend" onclick="suspendSchool(${s.id})">Suspend</button>
                   ` : ''}
                 </div>
@@ -694,6 +701,10 @@
           <div class="info-item">
             <div class="info-label">Subscription Amount</div>
             <div class="info-value">PKR ${school.subscription_amount}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Selected Package</div>
+            <div class="info-value">${school.selected_package || 'Not selected'}</div>
           </div>
           <div class="info-item">
             <div class="info-label">Created</div>

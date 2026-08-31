@@ -89,7 +89,7 @@ router.post('/authenticate', async (req, res) => {
 router.get('/schools', authenticateAdmin, async (req, res) => {
   try {
     const status = req.query.status;
-    let query = 'SELECT id, school_name, email, phone, school_code, subscription_status, subscription_amount, next_due_date, created_at FROM schools';
+    let query = 'SELECT id, school_name, email, phone, school_code, subscription_status, subscription_amount, next_due_date, created_at, selected_package FROM schools';
     let params = [];
 
     if (status) {
@@ -117,7 +117,7 @@ router.get('/schools/:schoolId', authenticateAdmin, async (req, res) => {
     const schoolId = req.params.schoolId;
 
     const school = await queryMainOne(
-      'SELECT id, school_name, email, phone, school_code, subscription_status, subscription_amount, next_due_date, created_at, db_file FROM schools WHERE id = ?',
+      'SELECT id, school_name, email, phone, school_code, subscription_status, subscription_amount, next_due_date, created_at, db_file, selected_package FROM schools WHERE id = ?',
       [schoolId]
     );
 
