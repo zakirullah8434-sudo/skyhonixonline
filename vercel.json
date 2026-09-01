@@ -1,22 +1,39 @@
 {
   "version": 2,
-  "installCommand": "npm install --ignore-scripts && node scripts/build-sqlite3.js",
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "config.js",
+          "main_db_init.js",
+          "database_manager.js",
+          "school_db_template.js",
+          "sync_manager.js",
+          "routes/**",
+          "public/**",
+          "node_modules/sqlite3/**",
+          "node_modules/.package-lock.json"
+        ]
+      }
+    }
+  ],
   "routes": [
     {
-      "src": "/api/test",
-      "dest": "/api/test.js"
-    },
-    {
       "src": "/api/(.*)",
-      "dest": "/api/index.js"
+      "dest": "server.js"
     },
     {
       "src": "/uploads/(.*)",
-      "dest": "/api/index.js"
+      "dest": "server.js"
+    },
+    {
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
-      "dest": "/api/index.js"
+      "dest": "server.js"
     }
   ]
 }

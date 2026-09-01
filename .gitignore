@@ -28,3 +28,12 @@ logs/
 
 # Temporary files
 .claude/
+
+# User uploads and generated data
+uploads/
+public/uploads/student_photos/
+public/uploads/logos/
+public/uploads/reminders/
+public/backups/
+image/result/
+pkg_check.txt
