@@ -4,11 +4,27 @@ const fs = require('fs');
 const config = require('./config');
 const { createSchoolDatabaseSchema } = require('./school_db_template');
 
+let libsql = null;
+if (config.useTurso) {
+  libsql = require('@libsql/client');
+}
+
 const mainDbPath = path.join(config.DATABASES_DIR, 'main.db');
 let mainDb = null;
 const schoolDbCache = {};
 
-// Helper to open main.db
+let tursoClient = null;
+
+function getTursoClient() {
+  if (!tursoClient) {
+    tursoClient = libsql.createClient({
+      url: config.TURSO_URL,
+      authToken: config.TURSO_AUTH_TOKEN,
+    });
+  }
+  return tursoClient;
+}
+
 function getMainDb() {
   if (!mainDb) {
     if (!fs.existsSync(mainDbPath)) {
@@ -23,7 +39,6 @@ function getMainDb() {
   return mainDb;
 }
 
-// Reset mainDb connection (used when DB file changes, e.g. on Vercel)
 function resetMainDb() {
   if (mainDb) {
     try { mainDb.close(); } catch (e) {}
@@ -31,8 +46,11 @@ function resetMainDb() {
   }
 }
 
-// Promisified query helper for mainDb
-function queryMain(sql, params = []) {
+async function queryMain(sql, params = []) {
+  if (config.useTurso) {
+    const result = await getTursoClient().execute({ sql, args: params });
+    return result.rows;
+  }
   const db = getMainDb();
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
@@ -42,7 +60,11 @@ function queryMain(sql, params = []) {
   });
 }
 
-function queryMainOne(sql, params = []) {
+async function queryMainOne(sql, params = []) {
+  if (config.useTurso) {
+    const result = await getTursoClient().execute({ sql, args: params });
+    return result.rows[0] || null;
+  }
   const db = getMainDb();
   return new Promise((resolve, reject) => {
     db.get(sql, params, (err, row) => {
@@ -52,7 +74,11 @@ function queryMainOne(sql, params = []) {
   });
 }
 
-function runMain(sql, params = []) {
+async function runMain(sql, params = []) {
+  if (config.useTurso) {
+    const result = await getTursoClient().execute({ sql, args: params });
+    return { id: Number(result.lastInsertRowid), changes: result.rowsAffected };
+  }
   const db = getMainDb();
   return new Promise((resolve, reject) => {
     db.run(sql, params, function (err) {
@@ -69,19 +95,30 @@ function getSchoolDb(schoolId) {
       return resolve(schoolDbCache[schoolId]);
     }
 
-    // Lookup school's db_file in mainDb
-    const db = getMainDb();
-    db.get('SELECT db_file FROM schools WHERE id = ?', [schoolId], (err, school) => {
-      if (err) {
-        return reject(new Error('Failed to query school database information'));
+    const lookupAndConnect = async () => {
+      let school;
+      if (config.useTurso) {
+        const result = await getTursoClient().execute({
+          sql: 'SELECT db_file FROM schools WHERE id = ?',
+          args: [schoolId]
+        });
+        school = result.rows[0] || null;
+      } else {
+        school = await new Promise((res, rej) => {
+          const db = getMainDb();
+          db.get('SELECT db_file FROM schools WHERE id = ?', [schoolId], (err, row) => {
+            if (err) rej(err);
+            else res(row);
+          });
+        });
       }
+
       if (!school) {
-        return reject(new Error('School not found or invalid tenant ID'));
+        throw new Error('School not found or invalid tenant ID');
       }
 
       const schoolDbPath = path.join(config.DATABASES_DIR, school.db_file);
 
-      // Ensure directory exists
       const dir = path.dirname(schoolDbPath);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
@@ -93,7 +130,6 @@ function getSchoolDb(schoolId) {
           return reject(dbErr);
         }
 
-        // Initialize schema (ensures all tables exist)
         createSchoolDatabaseSchema(schoolDb)
           .then(() => {
             schoolDbCache[schoolId] = schoolDb;
@@ -104,7 +140,9 @@ function getSchoolDb(schoolId) {
             reject(schemaErr);
           });
       });
-    });
+    };
+
+    lookupAndConnect().catch(reject);
   });
 }
 
