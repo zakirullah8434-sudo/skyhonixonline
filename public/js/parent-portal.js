@@ -334,21 +334,26 @@
   document.getElementById('att-year').addEventListener('change', loadAttendance);
 
   // ========== ANNOUNCEMENTS ==========
+  let cachedAnnouncements = [];
+
   async function loadAnnouncements() {
     const container = document.getElementById('announcements-container');
     try {
       const announcements = await apiCall('/api/parents/announcements');
+      cachedAnnouncements = announcements;
+
+      // Render full announcements list in the announcements panel
       if (announcements.length === 0) {
         container.innerHTML = '<p style="color: var(--text-muted);">No announcements.</p>';
-        return;
+      } else {
+        container.innerHTML = announcements.map(a => `
+          <div class="record-card">
+            <h4>${a.title}</h4>
+            <p style="margin: 6px 0; color: var(--text);">${a.message}</p>
+            <small style="color: var(--text-muted);">${a.created_at ? new Date(a.created_at).toLocaleDateString() : ''} | by ${a.created_by || 'Admin'}</small>
+          </div>
+        `).join('');
       }
-      container.innerHTML = announcements.map(a => `
-        <div class="record-card">
-          <h4>${a.title}</h4>
-          <p style="margin: 6px 0; color: var(--text);">${a.message}</p>
-          <small style="color: var(--text-muted);">${a.created_at ? new Date(a.created_at).toLocaleDateString() : ''} | by ${a.created_by || 'Admin'}</small>
-        </div>
-      `).join('');
 
       // News ticker
       if (announcements.length > 0) {
@@ -358,9 +363,67 @@
         const items = announcements.map(a => `<span class="ticker-item"><span class="ticker-label">NEWS</span>${a.title} - ${a.message.substring(0, 80)}</span>`).join('');
         tickerContent.innerHTML = items + items;
       }
+
+      // Render dashboard announcements
+      renderDashboardAnnouncements(announcements);
     } catch (e) {
       container.innerHTML = `<p style="color: var(--danger);">${e.message}</p>`;
     }
+  }
+
+  function renderDashboardAnnouncements(announcements) {
+    const container = document.getElementById('dashboard-announcements-container');
+    if (!container) return;
+
+    if (announcements.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:40px 20px; background:rgba(255,255,255,0.02); border-radius:16px; border:1px dashed var(--border-glow);">
+          <div style="font-size:2.5rem; margin-bottom:10px;">📭</div>
+          <p style="color:var(--text-muted);">No announcements yet.</p>
+        </div>`;
+      return;
+    }
+
+    const colors = [
+      { bg: 'rgba(99, 102, 241, 0.08)', border: 'rgba(99, 102, 241, 0.25)', accent: '#6366f1', icon: '📋' },
+      { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.25)', accent: '#10b981', icon: '✅' },
+      { bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.25)', accent: '#f59e0b', icon: '⚠️' },
+      { bg: 'rgba(236, 72, 153, 0.08)', border: 'rgba(236, 72, 153, 0.25)', accent: '#ec4899', icon: '📢' }
+    ];
+
+    let html = '';
+    announcements.slice(0, 5).forEach((a, idx) => {
+      const c = colors[idx % colors.length];
+      const date = a.created_at ? new Date(a.created_at) : null;
+      const dateStr = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+      const timeStr = date ? date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+
+      html += `
+        <div class="record-card" style="background:${c.bg}; border:1px solid ${c.border}; border-left:4px solid ${c.accent}; padding:18px 20px; margin-bottom:12px; transition:transform 0.2s, box-shadow 0.2s; cursor:default;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='none'; this.style.boxShadow='none'">
+          <div style="display:flex; align-items:flex-start; gap:14px;">
+            <div style="font-size:1.6rem; line-height:1; flex-shrink:0; margin-top:2px;">${c.icon}</div>
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+                <h4 style="margin:0; font-size:1rem; font-weight:700; color:var(--text-primary);">${a.title}</h4>
+              </div>
+              ${a.message ? `<p style="margin:8px 0 0; font-size:0.88rem; color:var(--text-muted); line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${a.message}</p>` : ''}
+              <div style="display:flex; align-items:center; gap:12px; margin-top:10px; font-size:0.75rem; color:var(--text-muted);">
+                <span>📅 ${dateStr}</span>
+                <span>🕐 ${timeStr}</span>
+                ${a.created_by ? `<span>👤 ${a.created_by}</span>` : ''}
+              </div>
+            </div>
+          </div>
+        </div>`;
+    });
+
+    if (announcements.length > 5) {
+      html += `<div style="text-align:center; padding:12px; color:var(--text-muted); font-size:0.85rem; cursor:pointer;" onclick="showPanel('announcements')">
+        View all ${announcements.length} announcements →
+      </div>`;
+    }
+
+    container.innerHTML = html;
   }
 
   // ========== INIT ==========

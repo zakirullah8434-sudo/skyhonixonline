@@ -102,9 +102,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==================== NEWS TICKER ====================
+  let cachedAnnouncements = [];
+
   async function loadNewsTicker() {
     try {
       const announcements = await apiCall('/api/teachers/announcements');
+      cachedAnnouncements = announcements;
       const ticker = document.getElementById('news-ticker');
       const tickerContent = document.getElementById('news-ticker-content');
       if (!ticker || !tickerContent) return;
@@ -119,9 +122,70 @@ document.addEventListener('DOMContentLoaded', () => {
         const date = a.created_at ? new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
         return `<span style="color: #fff; font-size: 0.9rem;"><strong>${a.title}</strong> — ${a.message ? a.message.substring(0, 80) : ''}${a.message && a.message.length > 80 ? '...' : ''} <small style="opacity: 0.7;">(${date})</small></span>`;
       }).join('');
+
+      renderDashboardAnnouncements(announcements);
     } catch (e) {}
   }
   loadNewsTicker();
+
+  function renderDashboardAnnouncements(announcements) {
+    const container = document.getElementById('dashboard-announcements-container');
+    if (!container) return;
+
+    if (announcements.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:40px 20px; background:rgba(255,255,255,0.02); border-radius:16px; border:1px dashed var(--border-glow);">
+          <div style="font-size:2.5rem; margin-bottom:10px;">📭</div>
+          <p style="color:var(--text-muted);">No announcements yet.</p>
+        </div>`;
+      return;
+    }
+
+    const colors = [
+      { bg: 'rgba(99, 102, 241, 0.08)', border: 'rgba(99, 102, 241, 0.25)', accent: '#6366f1', icon: '📋' },
+      { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.25)', accent: '#10b981', icon: '✅' },
+      { bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.25)', accent: '#f59e0b', icon: '⚠️' },
+      { bg: 'rgba(236, 72, 153, 0.08)', border: 'rgba(236, 72, 153, 0.25)', accent: '#ec4899', icon: '📢' }
+    ];
+
+    let html = '';
+    announcements.slice(0, 5).forEach((a, idx) => {
+      const c = colors[idx % colors.length];
+      const date = a.created_at ? new Date(a.created_at) : null;
+      const dateStr = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+      const timeStr = date ? date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+      const targetBadge = a.target_role === 'all' ? 'All Staff' : a.target_role === 'teachers' ? 'Teachers' : 'Parents';
+
+      html += `
+        <div style="background:${c.bg}; border:1px solid ${c.border}; border-left:4px solid ${c.accent}; border-radius:12px; padding:18px 20px; margin-bottom:12px; transition:transform 0.2s, box-shadow 0.2s; cursor:default;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='none'; this.style.boxShadow='none'">
+          <div style="display:flex; align-items:flex-start; gap:14px;">
+            <div style="font-size:1.6rem; line-height:1; flex-shrink:0; margin-top:2px;">${c.icon}</div>
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+                <h3 style="margin:0; font-size:1rem; font-weight:700; color:var(--text-primary);">${a.title}</h3>
+                <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
+                  <span style="background:${c.accent}22; color:${c.accent}; padding:3px 10px; border-radius:12px; font-size:0.7rem; font-weight:600;">${targetBadge}</span>
+                </div>
+              </div>
+              ${a.message ? `<p style="margin:8px 0 0; font-size:0.88rem; color:var(--text-muted); line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${a.message}</p>` : ''}
+              <div style="display:flex; align-items:center; gap:12px; margin-top:10px; font-size:0.75rem; color:var(--text-muted);">
+                <span>📅 ${dateStr}</span>
+                <span>🕐 ${timeStr}</span>
+                ${a.created_by ? `<span>👤 ${a.created_by}</span>` : ''}
+              </div>
+            </div>
+          </div>
+        </div>`;
+    });
+
+    if (announcements.length > 5) {
+      html += `<div style="text-align:center; padding:12px; color:var(--text-muted); font-size:0.85rem; cursor:pointer;" onclick="document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active')); document.querySelector('[data-opt=announcements]').classList.add('active'); document.querySelectorAll('.content-panel').forEach(p=>p.classList.remove('active')); document.getElementById('panel-announcements').classList.add('active');">
+        View all ${announcements.length} announcements →
+      </div>`;
+    }
+
+    container.innerHTML = html;
+  }
 
   // ==================== MY SUBJECTS ====================
   async function loadMySubjects() {
