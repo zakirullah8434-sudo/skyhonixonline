@@ -1,5 +1,7 @@
 // Teacher Portal - SkyHonix School System
 
+function esc(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+
 document.addEventListener('DOMContentLoaded', () => {
   // Auth Guard
   const token = localStorage.getItem('skyhonix_token');
@@ -389,8 +391,211 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // ==================== ASSIGNMENTS ====================
+  let cachedAssignments = [];
+  let cachedTimetableClasses = [];
+
+  async function loadAssignments() {
+    const container = document.getElementById('assignments-list');
+    try {
+      const assignments = await apiCall('/api/teachers/assignments');
+      cachedAssignments = assignments;
+
+      if (assignments.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:40px; color:var(--text-muted);">
+            <div style="font-size:3rem; margin-bottom:12px;">📚</div>
+            <h3 style="font-weight:500;">No Assignments Yet</h3>
+            <p style="font-size:0.9rem;">Click "New Assignment" to create homework, tests, or projects for your students.</p>
+          </div>`;
+        return;
+      }
+
+      const typeLabels = { homework: 'Homework', monthly_test: 'Monthly Test', class_test: 'Class Test', quiz: 'Quiz', project: 'Project', other: 'Other' };
+      const typeColors = { homework: '#6366f1', monthly_test: '#f59e0b', class_test: '#ef4444', quiz: '#10b981', project: '#8b5cf6', other: '#64748b' };
+      const priorityColors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444' };
+
+      container.innerHTML = assignments.map(a => {
+        const due = a.due_date ? new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date';
+        const created = new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const isOverdue = a.due_date && new Date(a.due_date) < new Date();
+        return `
+          <div class="card" style="margin-bottom:12px; border-left: 4px solid ${typeColors[a.type] || '#6366f1'};">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+              <div style="flex:1; min-width:200px;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                  <span style="background:${typeColors[a.type] || '#6366f1'}; color:#fff; padding:2px 10px; border-radius:20px; font-size:0.75rem; font-weight:600;">${typeLabels[a.type] || a.type}</span>
+                  <span style="background:${priorityColors[a.priority] || '#f59e0b'}; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">${(a.priority || 'medium').toUpperCase()}</span>
+                  ${isOverdue ? '<span style="background:#ef4444; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">OVERDUE</span>' : ''}
+                </div>
+                <h4 style="margin:0 0 4px;">${esc(a.title)}</h4>
+                <div style="font-size:0.85rem; color:var(--text-muted);">
+                  📘 ${esc(a.subject)} &nbsp;|&nbsp; 📋 ${esc(a.class_name)}${a.section_name ? ' - ' + esc(a.section_name) : ''}
+                </div>
+                ${a.description ? `<p style="margin:8px 0 0; font-size:0.85rem; color:var(--text-secondary); white-space:pre-line;">${esc(a.description)}</p>` : ''}
+                <div style="margin-top:8px; font-size:0.8rem; color:var(--text-muted);">
+                  📅 Due: <strong style="color:${isOverdue ? 'var(--danger)' : 'var(--text-primary)'}">${due}</strong> &nbsp;|&nbsp; Created: ${created}
+                </div>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-sm" style="background:var(--primary); font-size:0.75rem;" onclick="editAssignment(${a.id})">Edit</button>
+                <button class="btn btn-sm" style="background:var(--danger); font-size:0.75rem;" onclick="deleteAssignment(${a.id})">Delete</button>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+    } catch (err) {
+      container.innerHTML = `<p style="color:var(--danger);">Error loading assignments: ${err.message}</p>`;
+    }
+  }
+
+  async function loadAssignmentForm() {
+    try {
+      const data = await apiCall('/api/teachers/my-subjects');
+      const allEntries = data.allEntries || [];
+      const subjects = [...new Set(allEntries.map(e => e.subject))];
+      const classes = [...new Set(allEntries.map(e => e.class_name))];
+      const sections = [...new Set(allEntries.map(e => e.section_name))];
+
+      cachedTimetableClasses = allEntries;
+
+      const subjectSel = document.getElementById('assignment-subject');
+      subjectSel.innerHTML = '<option value="">Select subject...</option>' + subjects.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+
+      const classSel = document.getElementById('assignment-class');
+      classSel.innerHTML = '<option value="">Select class...</option>' + classes.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+
+      classSel.addEventListener('change', () => {
+        const selectedClass = classSel.value;
+        const filteredSections = [...new Set(allEntries.filter(e => e.class_name === selectedClass).map(e => e.section_name))];
+        const sectionSel = document.getElementById('assignment-section');
+        sectionSel.innerHTML = '<option value="">All Sections</option>' + filteredSections.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+      });
+
+      classSel.dispatchEvent(new Event('change'));
+    } catch (err) {
+      console.error('Error loading assignment form data:', err);
+    }
+  }
+
+  document.getElementById('btn-new-assignment').addEventListener('click', async () => {
+    document.getElementById('assignment-form-card').style.display = 'block';
+    document.getElementById('assignment-form-title').textContent = 'New Assignment';
+    document.getElementById('form-assignment').reset();
+    document.getElementById('assignment-edit-id').value = '';
+    await loadAssignmentForm();
+    document.getElementById('assignment-form-card').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  document.getElementById('btn-cancel-assignment').addEventListener('click', () => {
+    document.getElementById('assignment-form-card').style.display = 'none';
+  });
+
+  document.getElementById('form-assignment').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const editId = document.getElementById('assignment-edit-id').value;
+    const payload = {
+      title: document.getElementById('assignment-title').value.trim(),
+      type: document.getElementById('assignment-type').value,
+      subject: document.getElementById('assignment-subject').value,
+      class_name: document.getElementById('assignment-class').value,
+      section_name: document.getElementById('assignment-section').value,
+      due_date: document.getElementById('assignment-due-date').value,
+      priority: document.getElementById('assignment-priority').value,
+      description: document.getElementById('assignment-description').value.trim()
+    };
+
+    if (!payload.title || !payload.subject || !payload.class_name) {
+      showToast('Please fill in title, subject, and class', true);
+      return;
+    }
+
+    try {
+      if (editId) {
+        await apiCall('/api/teachers/assignments/' + editId, 'PUT', payload);
+        showToast('Assignment updated successfully!');
+      } else {
+        await apiCall('/api/teachers/assignments', 'POST', payload);
+        showToast('Assignment created successfully!');
+      }
+      document.getElementById('assignment-form-card').style.display = 'none';
+      loadAssignments();
+    } catch (err) {
+      showToast('Error: ' + err.message, true);
+    }
+  });
+
+  window.editAssignment = async function(id) {
+    const a = cachedAssignments.find(x => x.id === id);
+    if (!a) return;
+
+    await loadAssignmentForm();
+
+    document.getElementById('assignment-form-card').style.display = 'block';
+    document.getElementById('assignment-form-title').textContent = 'Edit Assignment';
+    document.getElementById('assignment-edit-id').value = a.id;
+    document.getElementById('assignment-title').value = a.title;
+    document.getElementById('assignment-type').value = a.type;
+    document.getElementById('assignment-subject').value = a.subject;
+    document.getElementById('assignment-class').value = a.class_name;
+    document.getElementById('assignment-due-date').value = a.due_date || '';
+    document.getElementById('assignment-priority').value = a.priority || 'medium';
+    document.getElementById('assignment-description').value = a.description || '';
+
+    // Trigger section population
+    setTimeout(() => {
+      document.getElementById('assignment-class').dispatchEvent(new Event('change'));
+      setTimeout(() => { document.getElementById('assignment-section').value = a.section_name || ''; }, 100);
+    }, 100);
+
+    document.getElementById('assignment-form-card').scrollIntoView({ behavior: 'smooth' });
+  };
+
+  window.deleteAssignment = async function(id) {
+    if (!confirm('Delete this assignment? This cannot be undone.')) return;
+    try {
+      await apiCall('/api/teachers/assignments/' + id, 'DELETE');
+      showToast('Assignment deleted');
+      loadAssignments();
+    } catch (err) {
+      showToast('Error: ' + err.message, true);
+    }
+  };
+
+  // Load assignments when nav clicked
+  document.querySelector('[data-opt="assignments"]').addEventListener('click', () => {
+    loadAssignments();
+  });
+
+  // Dashboard assignments summary
+  async function loadDashboardAssignments() {
+    const container = document.getElementById('dashboard-assignments-container');
+    if (!container) return;
+    try {
+      const assignments = await apiCall('/api/teachers/assignments');
+      if (assignments.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding:30px 20px; background:rgba(255,255,255,0.02); border-radius:16px; border:1px dashed var(--border-glow);"><div style="font-size:2.5rem; margin-bottom:10px;">📚</div><p style="color:var(--text-muted);">No assignments created yet.</p><p style="color:var(--text-muted); font-size:0.85rem;">Click "Assignments" in the sidebar to create your first assignment.</p></div>`;
+        return;
+      }
+      const typeLabels = { homework: 'Homework', monthly_test: 'Monthly Test', class_test: 'Class Test', quiz: 'Quiz', project: 'Project', other: 'Other' };
+      const typeColors = { homework: '#6366f1', monthly_test: '#f59e0b', class_test: '#ef4444', quiz: '#10b981', project: '#8b5cf6', other: '#64748b' };
+      const recent = assignments.slice(0, 3);
+      container.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">` +
+        recent.map(a => {
+          const due = a.due_date ? new Date(a.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+          const isOverdue = a.due_date && new Date(a.due_date) < new Date();
+          return `<div class="card" style="border-left:4px solid ${typeColors[a.type] || '#6366f1'}; cursor:pointer;" onclick="document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active')); document.querySelector('[data-opt=assignments]').classList.add('active'); document.querySelectorAll('.content-panel').forEach(p=>p.classList.remove('active')); document.getElementById('panel-assignments').classList.add('active'); loadAssignments();">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;"><span style="background:${typeColors[a.type]}; color:#fff; padding:1px 8px; border-radius:12px; font-size:0.7rem;">${typeLabels[a.type]}</span>${isOverdue ? '<span style="color:#ef4444; font-size:0.7rem;">OVERDUE</span>' : ''}</div>
+            <h4 style="margin:0; font-size:0.95rem;">${esc(a.title)}</h4>
+            <div style="font-size:0.8rem; color:var(--text-muted);">${esc(a.subject)} · ${esc(a.class_name)}${a.section_name ? ' - ' + esc(a.section_name) : ''} ${due ? '· Due ' + due : ''}</div>
+          </div>`;
+        }).join('') + `</div>`;
+    } catch (err) {}
+  }
+
   // ==================== INIT ====================
   loadMySubjects();
   loadMarksFilters();
   loadAnnouncements();
+  loadDashboardAssignments();
 });

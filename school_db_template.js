@@ -377,6 +377,24 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
+      // 28. Assignments table (homework, tests, projects shared by teachers)
+      db.run(`
+        CREATE TABLE IF NOT EXISTS assignments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          teacher_id INTEGER,
+          teacher_name TEXT,
+          subject TEXT,
+          class_name TEXT,
+          section_name TEXT,
+          title TEXT NOT NULL,
+          description TEXT,
+          type TEXT DEFAULT 'homework',
+          due_date TEXT,
+          priority TEXT DEFAULT 'medium',
+          created_at TEXT
+        )
+      `);
+
       // Migrations: Add teacher_id to marks if missing
       db.all("PRAGMA table_info(marks)", (err, columns) => {
         if (!err && Array.isArray(columns)) {

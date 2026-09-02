@@ -340,4 +340,90 @@ router.get('/exam-subjects', authenticateTeacherToken, async (req, res) => {
   }
 });
 
+// ============ ASSIGNMENTS (Homework, Tests, Projects) ============
+
+// GET /api/teachers/assignments - Get all assignments created by this teacher
+router.get('/assignments', authenticateTeacherToken, async (req, res) => {
+  const schoolId = req.teacher.schoolId;
+  const teacherId = req.teacher.teacherId;
+  try {
+    const rows = await querySchool(
+      schoolId,
+      `SELECT * FROM assignments WHERE teacher_id = ? ORDER BY created_at DESC`,
+      [teacherId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching assignments:', err);
+    res.status(500).json({ error: 'Failed to load assignments' });
+  }
+});
+
+// POST /api/teachers/assignments - Create a new assignment
+router.post('/assignments', authenticateTeacherToken, async (req, res) => {
+  const schoolId = req.teacher.schoolId;
+  const teacherId = req.teacher.teacherId;
+  const { subject, class_name, section_name, title, description, type, due_date, priority } = req.body;
+
+  if (!title || !subject || !class_name) {
+    return res.status(400).json({ error: 'Title, subject, and class are required' });
+  }
+
+  try {
+    const teacherInfo = await querySchoolOne(schoolId, 'SELECT name FROM teachers WHERE id = ?', [teacherId]);
+    const teacherName = teacherInfo ? teacherInfo.name : 'Teacher';
+
+    const result = await runSchool(
+      schoolId,
+      `INSERT INTO assignments (teacher_id, teacher_name, subject, class_name, section_name, title, description, type, due_date, priority, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+      [teacherId, teacherName, subject, class_name, section_name || '', title, description || '', type || 'homework', due_date || '', priority || 'medium']
+    );
+    res.json({ success: true, id: result.lastID });
+  } catch (err) {
+    console.error('Error creating assignment:', err);
+    res.status(500).json({ error: 'Failed to create assignment' });
+  }
+});
+
+// PUT /api/teachers/assignments/:id - Update an assignment
+router.put('/assignments/:id', authenticateTeacherToken, async (req, res) => {
+  const schoolId = req.teacher.schoolId;
+  const teacherId = req.teacher.teacherId;
+  const assignmentId = req.params.id;
+  const { subject, class_name, section_name, title, description, type, due_date, priority } = req.body;
+
+  try {
+    await runSchool(
+      schoolId,
+      `UPDATE assignments SET subject=?, class_name=?, section_name=?, title=?, description=?, type=?, due_date=?, priority=?
+       WHERE id=? AND teacher_id=?`,
+      [subject, class_name, section_name || '', title, description || '', type || 'homework', due_date || '', priority || 'medium', assignmentId, teacherId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating assignment:', err);
+    res.status(500).json({ error: 'Failed to update assignment' });
+  }
+});
+
+// DELETE /api/teachers/assignments/:id - Delete an assignment
+router.delete('/assignments/:id', authenticateTeacherToken, async (req, res) => {
+  const schoolId = req.teacher.schoolId;
+  const teacherId = req.teacher.teacherId;
+  const assignmentId = req.params.id;
+
+  try {
+    await runSchool(
+      schoolId,
+      `DELETE FROM assignments WHERE id=? AND teacher_id=?`,
+      [assignmentId, teacherId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting assignment:', err);
+    res.status(500).json({ error: 'Failed to delete assignment' });
+  }
+});
+
 module.exports = router;

@@ -258,4 +258,58 @@ router.get('/announcements', authenticateParentToken, async (req, res) => {
   }
 });
 
+// GET /parents/my-assignments - Get assignments for all children of this parent
+router.get('/my-assignments', authenticateParentToken, async (req, res) => {
+  const schoolId = req.parent.schoolId;
+  const parentId = req.parent.parentId;
+
+  try {
+    // Get parent phone to find children
+    const parentInfo = await querySchoolOne(schoolId, 'SELECT phone FROM parents WHERE id = ?', [parentId]);
+    const parentPhone = parentInfo ? parentInfo.phone : '';
+
+    // Find children
+    const children = await querySchool(schoolId,
+      `SELECT DISTINCT s.id, s.class_name, s.section_name
+       FROM students s
+       LEFT JOIN student_parents sp ON s.id = sp.student_id AND sp.parent_id = ?
+       WHERE (sp.id IS NOT NULL OR s.phone = ?) AND (s.status IS NULL OR s.status != 'Left')`,
+      [parentId, parentPhone]
+    );
+
+    if (children.length === 0) {
+      return res.json([]);
+    }
+
+    // Get assignments for each child's class
+    const allAssignments = [];
+    for (const child of children) {
+      const assignments = await querySchool(schoolId,
+        `SELECT a.*, s.name as student_name
+         FROM assignments a
+         CROSS JOIN students s
+         WHERE s.id = ? AND a.class_name = s.class_name
+           AND (a.section_name = '' OR a.section_name = s.section_name)
+         ORDER BY a.created_at DESC`,
+        [child.id]
+      );
+      allAssignments.push(...assignments);
+    }
+
+    // Remove duplicates (same assignment for same class)
+    const seen = new Set();
+    const unique = allAssignments.filter(a => {
+      const key = `${a.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    res.json(unique);
+  } catch (err) {
+    console.error('Error fetching parent assignments:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

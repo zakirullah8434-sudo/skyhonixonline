@@ -63,6 +63,7 @@
         <a data-panel="fees" onclick="showPanel('fees')">💰 Fees</a>
         <a data-panel="exams" onclick="showPanel('exams')">📝 Exams</a>
         <a data-panel="attendance" onclick="showPanel('attendance')">📋 Attendance</a>
+        <a data-panel="assignments" onclick="showPanel('assignments')">📚 Homework & Tests</a>
         <a data-panel="announcements" onclick="showPanel('announcements')">📢 Announcements</a>
       </nav>
     </aside>
@@ -123,6 +124,18 @@
           <div id="dashboard-announcements-container"></div>
         </div>
 
+        <!-- Upcoming Assignments -->
+        <div style="margin-bottom: 24px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:1.3rem;">📚</span>
+              <h3 style="margin:0;">Homework & Tests</h3>
+            </div>
+            <button class="btn btn-primary" style="font-size:0.8rem; padding:6px 14px;" onclick="showPanel('assignments')">View All →</button>
+          </div>
+          <div id="dashboard-assignments-container"></div>
+        </div>
+
         <div class="card">
           <h3 style="margin: 0 0 16px;">Children Overview</h3>
           <div id="children-overview-container"></div>
@@ -163,6 +176,29 @@
             <p style="color: var(--text-muted);">Select a child to view attendance.</p>
           </div>
         </div>
+      </div>
+
+      <!-- PANEL: Assignments (Homework & Tests) -->
+      <div id="panel-assignments" class="screen-section" style="display:none;">
+        <div class="card" style="margin-bottom: 20px;">
+          <h3 style="margin: 0 0 16px;">📚 Homework & Tests</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0 0 16px;">View homework, class tests, monthly tests, and projects assigned by teachers.</p>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+            <select id="assignment-filter-type" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary); font-size: 0.85rem;">
+              <option value="">All Types</option>
+              <option value="homework">Homework</option>
+              <option value="monthly_test">Monthly Test</option>
+              <option value="class_test">Class Test</option>
+              <option value="quiz">Quiz</option>
+              <option value="project">Project</option>
+              <option value="other">Other</option>
+            </select>
+            <select id="assignment-filter-subject" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary); font-size: 0.85rem;">
+              <option value="">All Subjects</option>
+            </select>
+          </div>
+        </div>
+        <div id="parent-assignments-list"></div>
       </div>
 
       <!-- PANEL: Announcements -->

@@ -31,6 +31,7 @@
     <nav class="sidebar-nav">
       <button class="nav-item active" data-opt="my-subjects">My Subjects</button>
       <button class="nav-item" data-opt="marks-entry">Marks Entry</button>
+      <button class="nav-item" data-opt="assignments">Assignments</button>
       <button class="nav-item" data-opt="announcements">Announcements</button>
     </nav>
   </aside>
@@ -68,6 +69,18 @@
           <h2 style="margin:0;">Latest Announcements</h2>
         </div>
         <div id="dashboard-announcements-container"></div>
+      </div>
+
+      <!-- Assignments Quick Summary on Dashboard -->
+      <div style="margin-top:30px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.3rem;">📚</span>
+            <h2 style="margin:0;">My Assignments</h2>
+          </div>
+          <button class="btn btn-primary" style="font-size:0.8rem; padding:6px 14px;" onclick="document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active')); document.querySelector('[data-opt=assignments]').classList.add('active'); document.querySelectorAll('.content-panel').forEach(p=>p.classList.remove('active')); document.getElementById('panel-assignments').classList.add('active');">View All →</button>
+        </div>
+        <div id="dashboard-assignments-container"></div>
       </div>
     </section>
 
@@ -135,6 +148,83 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- Assignments Panel -->
+    <section class="content-panel" id="panel-assignments">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px;">
+        <div>
+          <h2 style="margin: 0;">📚 Assignments & Homework</h2>
+          <p class="text-muted" style="margin: 4px 0 0;">Create and manage homework, tests, and projects for your students.</p>
+        </div>
+        <button class="btn btn-primary" id="btn-new-assignment">+ New Assignment</button>
+      </div>
+
+      <!-- Assignment Form (hidden by default) -->
+      <div id="assignment-form-card" class="card" style="display: none; margin-bottom: 24px;">
+        <h3 id="assignment-form-title" style="margin-bottom: 16px;">New Assignment</h3>
+        <form id="form-assignment">
+          <input type="hidden" id="assignment-edit-id" value="">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div>
+              <label>Title *</label>
+              <input type="text" id="assignment-title" required placeholder="e.g. Chapter 5 Exercise" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary);">
+            </div>
+            <div>
+              <label>Type *</label>
+              <select id="assignment-type" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary);">
+                <option value="homework">Homework</option>
+                <option value="monthly_test">Monthly Test</option>
+                <option value="class_test">Class Test</option>
+                <option value="quiz">Quiz</option>
+                <option value="project">Project</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label>Subject *</label>
+              <select id="assignment-subject" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary);">
+                <option value="">Select subject...</option>
+              </select>
+            </div>
+            <div>
+              <label>Class *</label>
+              <select id="assignment-class" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary);">
+                <option value="">Select class...</option>
+              </select>
+            </div>
+            <div>
+              <label>Section</label>
+              <select id="assignment-section" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary);">
+                <option value="">All Sections</option>
+              </select>
+            </div>
+            <div>
+              <label>Due Date</label>
+              <input type="date" id="assignment-due-date" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary);">
+            </div>
+            <div>
+              <label>Priority</label>
+              <select id="assignment-priority" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary);">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top: 16px;">
+            <label>Description / Instructions</label>
+            <textarea id="assignment-description" rows="4" placeholder="Write detailed instructions for students and parents..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary); resize: vertical;"></textarea>
+          </div>
+          <div style="display: flex; gap: 12px; margin-top: 16px;">
+            <button type="submit" class="btn btn-primary" id="btn-save-assignment">Save Assignment</button>
+            <button type="button" class="btn" id="btn-cancel-assignment" style="background: var(--text-muted);">Cancel</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Assignments List -->
+      <div id="assignments-list"></div>
     </section>
 
     <!-- Announcements Panel -->

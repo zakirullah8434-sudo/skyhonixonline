@@ -1,4 +1,6 @@
 (() => {
+  function esc(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+
   const token = localStorage.getItem('skyhonix_token');
   const userJson = localStorage.getItem('skyhonix_user');
   if (!token || !userJson) {
@@ -70,7 +72,7 @@
     document.getElementById(`panel-${name}`).style.display = '';
     document.querySelectorAll('.portal-sidebar nav a').forEach(a => a.classList.remove('active'));
     document.querySelector(`.portal-sidebar nav a[data-panel="${name}"]`).classList.add('active');
-    const titles = { dashboard: 'Dashboard', fees: 'Fee Records', exams: 'Exam Results', attendance: 'Attendance', announcements: 'Announcements' };
+    const titles = { dashboard: 'Dashboard', fees: 'Fee Records', exams: 'Exam Results', attendance: 'Attendance', assignments: 'Homework & Tests', announcements: 'Announcements' };
     headerTitle.textContent = titles[name] || name;
     document.getElementById('sidebar').classList.remove('open');
     loadPanelData(name);
@@ -118,6 +120,7 @@
       case 'fees': loadFees(); break;
       case 'exams': loadExams(); break;
       case 'attendance': loadAttendance(); break;
+      case 'assignments': loadParentAssignments(); break;
       case 'announcements': loadAnnouncements(); break;
     }
   }
@@ -157,6 +160,39 @@
         document.getElementById('stat-exams').textContent = totalMarks;
       } catch (e) {}
     }
+
+    // Load dashboard assignments summary
+    loadDashboardAssignments();
+  }
+
+  async function loadDashboardAssignments() {
+    const container = document.getElementById('dashboard-assignments-container');
+    if (!container) return;
+    try {
+      const assignments = await apiCall('/api/parents/my-assignments');
+      if (assignments.length === 0) {
+        container.innerHTML = `<div class="card" style="text-align:center; padding:30px;"><div style="font-size:2rem; margin-bottom:8px;">📚</div><p style="color:var(--text-muted);">No homework or tests assigned yet.</p></div>`;
+        return;
+      }
+      const typeLabels = { homework: 'Homework', monthly_test: 'Monthly Test', class_test: 'Class Test', quiz: 'Quiz', project: 'Project', other: 'Other' };
+      const typeColors = { homework: '#6366f1', monthly_test: '#f59e0b', class_test: '#ef4444', quiz: '#10b981', project: '#8b5cf6', other: '#64748b' };
+      const recent = assignments.slice(0, 4);
+      container.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px;">` +
+        recent.map(a => {
+          const due = a.due_date ? new Date(a.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+          const isOverdue = a.due_date && new Date(a.due_date) < new Date();
+          const daysLeft = a.due_date ? Math.ceil((new Date(a.due_date) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+          let dueInfo = '';
+          if (isOverdue) dueInfo = '<span style="color:#ef4444; font-size:0.75rem; font-weight:600;">OVERDUE</span>';
+          else if (daysLeft !== null && daysLeft <= 2 && daysLeft >= 0) dueInfo = '<span style="color:#f59e0b; font-size:0.75rem; font-weight:600;">DUE SOON</span>';
+
+          return `<div class="card" style="border-left:4px solid ${typeColors[a.type] || '#6366f1'}; cursor:pointer;" onclick="showPanel('assignments')">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;"><span style="background:${typeColors[a.type]}; color:#fff; padding:1px 8px; border-radius:12px; font-size:0.7rem;">${typeLabels[a.type]}</span> ${dueInfo}</div>
+            <h4 style="margin:0; font-size:0.9rem;">${esc(a.title)}</h4>
+            <div style="font-size:0.8rem; color:var(--text-muted);">${esc(a.subject)} · ${esc(a.teacher_name || 'Teacher')} ${due ? '· Due ' + due : ''}</div>
+          </div>`;
+        }).join('') + `</div>`;
+    } catch (err) {}
   }
 
   // ========== FEES ==========
@@ -332,6 +368,93 @@
 
   document.getElementById('att-month').addEventListener('change', loadAttendance);
   document.getElementById('att-year').addEventListener('change', loadAttendance);
+
+  // ========== ASSIGNMENTS (Homework & Tests) ==========
+  let cachedParentAssignments = [];
+
+  async function loadParentAssignments() {
+    const container = document.getElementById('parent-assignments-list');
+    try {
+      const assignments = await apiCall('/api/parents/my-assignments');
+      cachedParentAssignments = assignments;
+
+      // Populate subject filter
+      const subjects = [...new Set(assignments.map(a => a.subject))];
+      const subjectSel = document.getElementById('assignment-filter-subject');
+      const currentSubject = subjectSel.value;
+      subjectSel.innerHTML = '<option value="">All Subjects</option>' + subjects.map(s => `<option value="${esc(s)}" ${s === currentSubject ? 'selected' : ''}>${esc(s)}</option>`).join('');
+
+      renderParentAssignments();
+    } catch (err) {
+      container.innerHTML = `<p style="color: var(--danger);">${err.message}</p>`;
+    }
+  }
+
+  function renderParentAssignments() {
+    const container = document.getElementById('parent-assignments-list');
+    let filtered = cachedParentAssignments;
+
+    const typeFilter = document.getElementById('assignment-filter-type').value;
+    const subjectFilter = document.getElementById('assignment-filter-subject').value;
+
+    if (typeFilter) filtered = filtered.filter(a => a.type === typeFilter);
+    if (subjectFilter) filtered = filtered.filter(a => a.subject === subjectFilter);
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div class="card" style="text-align:center; padding:40px;">
+          <div style="font-size:3rem; margin-bottom:12px;">📚</div>
+          <h3 style="color:var(--text-muted); font-weight:500;">No Assignments Found</h3>
+          <p style="color:var(--text-muted); font-size:0.9rem;">${cachedParentAssignments.length === 0 ? 'No homework or tests have been assigned yet.' : 'No assignments match your filters.'}</p>
+        </div>`;
+      return;
+    }
+
+    const typeLabels = { homework: 'Homework', monthly_test: 'Monthly Test', class_test: 'Class Test', quiz: 'Quiz', project: 'Project', other: 'Other' };
+    const typeColors = { homework: '#6366f1', monthly_test: '#f59e0b', class_test: '#ef4444', quiz: '#10b981', project: '#8b5cf6', other: '#64748b' };
+    const typeIcons = { homework: '📝', monthly_test: '📊', class_test: '📋', quiz: '❓', project: '🎯', other: '📌' };
+    const priorityColors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444' };
+
+    container.innerHTML = filtered.map(a => {
+      const due = a.due_date ? new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date';
+      const created = new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const isOverdue = a.due_date && new Date(a.due_date) < new Date();
+      const daysUntilDue = a.due_date ? Math.ceil((new Date(a.due_date) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+
+      let dueBadge = '';
+      if (isOverdue) {
+        dueBadge = '<span style="background:#ef4444; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">OVERDUE</span>';
+      } else if (daysUntilDue !== null && daysUntilDue <= 2 && daysUntilDue >= 0) {
+        dueBadge = '<span style="background:#f59e0b; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">DUE SOON</span>';
+      }
+
+      return `
+        <div class="card" style="margin-bottom:12px; border-left: 4px solid ${typeColors[a.type] || '#6366f1'};">
+          <div style="display:flex; align-items:flex-start; gap:12px;">
+            <div style="font-size:2rem; line-height:1;">${typeIcons[a.type] || '📌'}</div>
+            <div style="flex:1;">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+                <span style="background:${typeColors[a.type] || '#6366f1'}; color:#fff; padding:2px 10px; border-radius:20px; font-size:0.75rem; font-weight:600;">${typeLabels[a.type] || a.type}</span>
+                <span style="background:${priorityColors[a.priority] || '#f59e0b'}; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">${(a.priority || 'medium').toUpperCase()}</span>
+                ${dueBadge}
+              </div>
+              <h4 style="margin:0 0 4px; font-size:1.05rem;">${esc(a.title)}</h4>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:6px;">
+                📘 ${esc(a.subject)} &nbsp;|&nbsp; 👨‍🏫 ${esc(a.teacher_name || 'Teacher')} &nbsp;|&nbsp; 📋 ${esc(a.class_name)}${a.section_name ? ' - ' + esc(a.section_name) : ''}
+              </div>
+              ${a.description ? `<div style="background:var(--glass-bg); border:1px solid var(--border-glow); border-radius:8px; padding:10px 14px; margin:8px 0; font-size:0.85rem; color:var(--text-secondary); white-space:pre-line;">${esc(a.description)}</div>` : ''}
+              ${a.student_name ? `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">👦 Student: <strong>${esc(a.student_name)}</strong></div>` : ''}
+              <div style="margin-top:8px; font-size:0.8rem; color:var(--text-muted);">
+                📅 Due: <strong style="color:${isOverdue ? 'var(--danger)' : 'var(--text-primary)'}">${due}</strong> &nbsp;|&nbsp; Posted: ${created}
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  document.getElementById('assignment-filter-type').addEventListener('change', renderParentAssignments);
+  document.getElementById('assignment-filter-subject').addEventListener('change', renderParentAssignments);
 
   // ========== ANNOUNCEMENTS ==========
   let cachedAnnouncements = [];

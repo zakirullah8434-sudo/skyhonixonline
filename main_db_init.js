@@ -441,6 +441,22 @@ async function initSchoolTablesTurso(client) {
     created_at TEXT
   )`);
 
+  await t(`CREATE TABLE IF NOT EXISTS assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    school_id INTEGER NOT NULL,
+    teacher_id INTEGER,
+    teacher_name TEXT,
+    subject TEXT,
+    class_name TEXT,
+    section_name TEXT,
+    title TEXT NOT NULL,
+    description TEXT,
+    type TEXT DEFAULT 'homework',
+    due_date TEXT,
+    priority TEXT DEFAULT 'medium',
+    created_at TEXT
+  )`);
+
   await t(`CREATE TABLE IF NOT EXISTS roll_slip_templates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     school_id INTEGER NOT NULL,
