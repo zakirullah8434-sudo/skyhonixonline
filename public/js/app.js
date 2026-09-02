@@ -2584,10 +2584,12 @@ document.addEventListener('DOMContentLoaded', () => {
               <td><strong>${s.name}</strong></td>
               <td>${s.class_name} ${s.section_name ? '(' + s.section_name + ')' : ''}</td>
               <td>${s.father_name || '-'}</td>
-              <td><button class="btn btn-primary btn-sm btn-generate-slip" data-id="${s.id}">Generate Slip</button></td>
+              <td>${s.family_head_id ? '<span style="color:var(--text-muted);font-size:0.8rem;">Linked (No Slip)</span>' : `<button class="btn btn-primary btn-sm btn-generate-slip" data-id="${s.id}">Generate Slip</button>`}</td>
             </tr>
           `;
         });
+
+        const nonLinkedStudents = slipStudentsCache.filter(s => !s.family_head_id);
 
         document.querySelectorAll('.btn-generate-slip').forEach(btn => {
           btn.addEventListener('click', () => {
@@ -2596,8 +2598,10 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         });
 
-        if (slipStudentsCache.length > 0) {
-          generateSlipsForStudents([...slipStudentsCache]);
+        if (nonLinkedStudents.length > 0) {
+          generateSlipsForStudents([...nonLinkedStudents]);
+        } else {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No students with generated ledgers found in this class.</td></tr>';
         }
       } catch (e) {
         showToast('Failed to load students: ' + (e.message || 'Unknown error'), true);
@@ -2758,7 +2762,27 @@ document.addEventListener('DOMContentLoaded', () => {
         </style></head><body><div class="a4-page">${printHTML}</div></body></html>
       `);
       printWindow.document.close();
-      printWindow.print();
+      const images = printWindow.document.querySelectorAll('img');
+      if (images.length === 0) {
+        printWindow.print();
+      } else {
+        let loaded = 0;
+        images.forEach(img => {
+          if (img.complete) {
+            loaded++;
+            if (loaded === images.length) printWindow.print();
+          } else {
+            img.onload = () => {
+              loaded++;
+              if (loaded === images.length) printWindow.print();
+            };
+            img.onerror = () => {
+              loaded++;
+              if (loaded === images.length) printWindow.print();
+            };
+          }
+        });
+      }
     });
   }
 
