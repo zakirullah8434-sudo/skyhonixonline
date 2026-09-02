@@ -886,6 +886,23 @@ router.get('/analytics', authenticateToken, async (req, res) => {
       overall_collection_rate: schoolTotalDue > 0 ? parseFloat(((schoolTotalCollected / schoolTotalDue) * 100).toFixed(1)) : 0
     };
 
+    // Compute total outstanding across ALL months (matches dashboard logic)
+    const allLedger = await querySchool(
+      schoolId,
+      `SELECT SUM(COALESCE(total_payable,0) - COALESCE(paid_amount,0)) AS total_outstanding
+       FROM fee_ledger`
+    );
+    const totalOutstanding = allLedger[0] ? (allLedger[0].total_outstanding || 0) : 0;
+
+    // Also include opening dues from fee_dues table
+    const openingDuesRow = await querySchool(
+      schoolId,
+      `SELECT COALESCE(SUM(due_amount), 0) AS total_opening_dues FROM fee_dues`
+    );
+    const totalOpeningDues = openingDuesRow[0] ? (openingDuesRow[0].total_opening_dues || 0) : 0;
+
+    schoolWise.total_outstanding_all = totalOutstanding + totalOpeningDues;
+
     res.json({ classWise, schoolWise });
   } catch (err) {
     res.status(500).json({ error: err.message });

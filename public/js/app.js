@@ -2359,6 +2359,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (statSchoolRemaining) statSchoolRemaining.innerText = `${data.schoolWise.total_remaining.toLocaleString()} PKR`;
       const statSchoolRate = document.getElementById('stat-school-rate');
       if (statSchoolRate) statSchoolRate.innerText = `${data.schoolWise.overall_collection_rate}%`;
+      const statSchoolOutstandingAll = document.getElementById('stat-school-outstanding-all');
+      if (statSchoolOutstandingAll) statSchoolOutstandingAll.innerText = `${(data.schoolWise.total_outstanding_all || 0).toLocaleString()} PKR`;
 
       // Render Chart.js Bar Chart
       renderAnalyticsChart(data.classWise);
