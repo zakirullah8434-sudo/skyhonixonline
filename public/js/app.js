@@ -596,18 +596,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnCloseStudentModal.addEventListener('click', () => modalStudent.classList.remove('open'));
 
-  // Compress image to under 50KB using Canvas
+  // Compress image to target KB using Canvas with quality scaling
   function compressImage(file, maxKB) {
     return new Promise((resolve, reject) => {
-      maxKB = maxKB || 50;
+      maxKB = maxKB || 100;
       const reader = new FileReader();
       reader.onload = function(e) {
         const img = new Image();
         img.onload = function() {
           let width = img.width;
           let height = img.height;
-          // Scale down if larger than 800px on any side
-          const maxDim = 800;
+          // Scale down if larger than 1024px on any side for good quality
+          const maxDim = 1024;
           if (width > maxDim || height > maxDim) {
             if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
             else { width = Math.round(width * maxDim / height); height = maxDim; }
@@ -617,14 +617,13 @@ document.addEventListener('DOMContentLoaded', () => {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
-          // Start with high quality, reduce if still too large
-          let quality = 0.9;
-          let blob;
+          // Start with high quality, reduce incrementally
+          let quality = 0.85;
           const tryCompress = () => {
-            canvas.toBlob(function(b) {
-              blob = b;
+            canvas.toBlob(function(blob) {
+              if (!blob) { reject(new Error('Canvas compression failed')); return; }
               if (blob.size > maxKB * 1024 && quality > 0.1) {
-                quality -= 0.1;
+                quality -= 0.05;
                 tryCompress();
               } else {
                 resolve(blob);
@@ -671,10 +670,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('stud-photo-file');
     if (fileInput.files[0]) {
       try {
-        const compressed = await compressImage(fileInput.files[0], 50);
+        const compressed = await compressImage(fileInput.files[0], 100);
         formData.append('photo', compressed, 'photo.jpg');
       } catch (e) {
-        formData.append('photo', fileInput.files[0]);
+        // Fallback: try with 200KB limit
+        try {
+          const compressed = await compressImage(fileInput.files[0], 200);
+          formData.append('photo', compressed, 'photo.jpg');
+        } catch (e2) {
+          formData.append('photo', fileInput.files[0]);
+        }
       }
     }
 
