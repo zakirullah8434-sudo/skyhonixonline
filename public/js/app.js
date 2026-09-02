@@ -2612,6 +2612,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function buildSlipHTML(studentData, schoolData, year) {
     const allMonths = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
     const d = studentData;
+    const logoSrc = schoolData.logo ? (schoolData.logo.startsWith('data:') ? schoolData.logo : '/' + schoolData.logo) : '';
 
     // Only include months that have actual ledger data (not null)
     const activeMonths = allMonths.filter(m => d.monthlyFee[m] !== null && d.monthlyFee[m] !== undefined);
@@ -2620,7 +2621,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return `
         <div class="fee-slip">
           <div class="slip-header">
-            <img src="/${schoolData.logo || 'school_assets/school_logo.png'}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
+            ${logoSrc ? `<img src="${logoSrc}" class="slip-logo">` : ''}
             <div class="slip-header-text">
               <h2>${schoolData.name || 'School Name'}</h2>
               <p>Contact: ${schoolData.phone || '-'} | Reg No: ${schoolData.reg || '-'}</p>
@@ -2666,7 +2667,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return `
       <div class="fee-slip">
         <div class="slip-header">
-          <img src="/${schoolData.logo || 'school_assets/school_logo.png'}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
+          ${logoSrc ? `<img src="${logoSrc}" class="slip-logo">` : ''}
           <div class="slip-header-text">
             <h2>${schoolData.name || 'School Name'}</h2>
             <p>Contact: ${schoolData.phone || '-'} | Reg No: ${schoolData.reg || '-'}</p>

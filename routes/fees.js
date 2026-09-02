@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const fs = require('fs');
+const path = require('path');
 const { authenticateToken } = require('./auth');
 const { querySchool, querySchoolOne, runSchool, runSchoolTransaction } = require('../database_manager');
 const syncManager = require('../sync_manager');
@@ -1006,6 +1008,19 @@ router.get('/slip/:student_id', authenticateToken, async (req, res) => {
 
     const settings = await querySchoolOne(schoolId, 'SELECT * FROM fee_settings LIMIT 1');
 
+    let logoBase64 = '';
+    if (settings && settings.logo_path) {
+      try {
+        const logoFullPath = path.join(__dirname, '..', 'public', settings.logo_path);
+        if (fs.existsSync(logoFullPath)) {
+          const ext = path.extname(logoFullPath).toLowerCase().replace('.', '');
+          const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+          const data = fs.readFileSync(logoFullPath);
+          logoBase64 = `data:${mime};base64,${data.toString('base64')}`;
+        }
+      } catch (e) {}
+    }
+
     const slipYear = parseInt(year) || new Date().getFullYear();
     const months = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
     const fullMonthMap = {
@@ -1068,7 +1083,7 @@ router.get('/slip/:student_id', authenticateToken, async (req, res) => {
         name: settings ? settings.school_name : '',
         phone: settings ? settings.phone : '',
         reg: settings ? settings.registration_number : '',
-        logo: settings ? settings.logo_path : ''
+        logo: logoBase64 || (settings ? settings.logo_path : '')
       },
       year: slipYear,
       months,
