@@ -3232,23 +3232,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const schoolLogo = imgSrc(set.logo_path, 'school_assets/school_logo.png');
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const posLabel = sum.position && sum.position !== '-' ? sum.position : '-';
+      const schoolDisplayName = set.school_name || currentUser.schoolName;
 
       const html = `
         <div style="font-family: Arial, Helvetica, sans-serif; color: #111; padding: 30px; background: white;">
-          <div style="text-align: center; margin-bottom: 20px;">
+          <div style="text-align: center; margin-bottom: 16px;">
             <img src="${schoolLogo}" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; margin-bottom: 8px;" onerror="this.style.display='none'">
-            <h1 style="margin: 0; font-size: 1.5rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">${currentUser.schoolName}</h1>
-            <div style="border-top: 2px solid #111; margin: 12px 0;"></div>
-            <h2 style="margin: 0; font-size: 1.1rem; font-weight: 700; text-transform: uppercase;">DETAILED MARKS CERTIFICATE</h2>
+            <h1 style="margin: 0; font-size: 1.5rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">${schoolDisplayName}</h1>
+            <h2 style="margin: 6px 0 0; font-size: 1.1rem; font-weight: 700; text-transform: uppercase;">DETAILED MARKS CERTIFICATE</h2>
             <p style="margin: 5px 0 0; font-size: 0.95rem; color: #333;">${term} Examination ${new Date().getFullYear()}</p>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; font-size: 0.95rem;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; font-size: 0.95rem;">
             <div style="flex: 1;">
               <p style="margin: 4px 0;"><strong>Name:</strong> ${s.name}</p>
               <p style="margin: 4px 0;"><strong>Father Name:</strong> ${s.father_name || '-'}</p>
               <p style="margin: 4px 0;"><strong>Roll No:</strong> ${s.roll_no || '-'}</p>
-              <p style="margin: 4px 0;"><strong>Class:</strong> ${s.class_name} ${s.section_name ? '- ' + s.section_name : ''}</p>
+              <p style="margin: 4px 0;"><strong>Class:</strong> ${s.class_name}${s.section_name ? ' - ' + s.section_name : ''}</p>
             </div>
             <div style="text-align: right; flex-shrink: 0; margin-left: 20px;">
               ${photoUrl ? `<img src="${photoUrl}" style="width: 80px; height: 100px; border: 1px solid #ccc; object-fit: cover;">` : '<div style="width: 80px; height: 100px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #999;">No Photo</div>'}
@@ -3260,9 +3260,9 @@ document.addEventListener('DOMContentLoaded', () => {
               <tr style="background: #f0f0f0;">
                 <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 6%;">No</th>
                 <th style="border: 1px solid #111; padding: 8px 10px; text-align: left;">Subject</th>
-                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 18%;">Total Marks</th>
-                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 18%;">Obtained Marks</th>
-                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 25%;">Remarks</th>
+                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 15%;">Total Marks</th>
+                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 15%;">Obtained Marks</th>
+                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 22%;">Remarks</th>
               </tr>
             </thead>
             <tbody>
@@ -3271,7 +3271,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="border: 1px solid #111; padding: 8px 10px;">${r.subject}</td>
                 <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.max_marks}</td>
                 <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.obtained_marks}</td>
-                <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${i === 0 ? (sum.remarks || '') : ''}</td>
+                <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;"></td>
               </tr>`).join('')}
               <tr style="font-weight: 700; background: #f9f9f9;">
                 <td style="border: 1px solid #111; padding: 8px 10px;" colspan="2">Total</td>
@@ -3283,17 +3283,17 @@ document.addEventListener('DOMContentLoaded', () => {
           </table>
 
           <div style="display: flex; gap: 0; margin-bottom: 25px; border: 2px solid #111; border-radius: 6px; overflow: hidden;">
-            <div style="flex: 1; padding: 14px 10px; text-align: center; border-right: 2px solid #111; background: #f9f9f9;">
-              <div style="font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Percentage</div>
-              <div style="font-size: 1.5rem; font-weight: 900; color: #111; margin-top: 4px;">${sum.percentage}%</div>
+            <div style="flex: 1; padding: 12px 10px; text-align: center; border-right: 2px solid #111; background: #f9f9f9;">
+              <span style="font-size: 0.85rem; font-weight: 700;">Percentage:</span>
+              <span style="font-size: 1.1rem; font-weight: 900; color: #111;"> ${sum.percentage}%</span>
             </div>
-            <div style="flex: 1; padding: 14px 10px; text-align: center; border-right: 2px solid #111; background: #f9f9f9;">
-              <div style="font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Class Position</div>
-              <div style="font-size: 1.5rem; font-weight: 900; color: #111; margin-top: 4px;">${posLabel}</div>
+            <div style="flex: 1; padding: 12px 10px; text-align: center; border-right: 2px solid #111; background: #f9f9f9;">
+              <span style="font-size: 0.85rem; font-weight: 700;">Grade:</span>
+              <span style="font-size: 1.1rem; font-weight: 900; color: #111;"> ${sum.grade}</span>
             </div>
-            <div style="flex: 1; padding: 14px 10px; text-align: center; background: #f9f9f9;">
-              <div style="font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Grade</div>
-              <div style="font-size: 1.5rem; font-weight: 900; color: #111; margin-top: 4px;">${sum.grade}</div>
+            <div style="flex: 1; padding: 12px 10px; text-align: center; background: #f9f9f9;">
+              <span style="font-size: 0.85rem; font-weight: 700;">Position:</span>
+              <span style="font-size: 1.1rem; font-weight: 900; color: #111;"> ${posLabel}</span>
             </div>
           </div>
 
@@ -3307,7 +3307,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Parent</div>
             </div>
             <div style="text-align: center;">
-              <p style="margin-bottom: 35px;"></p>
+              <div style="margin-bottom: 8px; font-size: 0.85rem;">Principal Sign: _______________</div>
               <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Principal</div>
             </div>
           </div>
@@ -3334,6 +3334,7 @@ document.addEventListener('DOMContentLoaded', () => {
     apiCall('/settings').then(set => {
       const schoolLogo = imgSrc(set.logo_path, 'school_assets/school_logo.png');
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const schoolDisplayName = set.school_name || currentUser.schoolName;
       let html = '';
 
       allDmcs.forEach((dmc, idx) => {
@@ -3349,20 +3350,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         html += `
           <div style="font-family: Arial, Helvetica, sans-serif; color: #111; padding: 30px; background: white;">
-            <div style="text-align: center; margin-bottom: 20px;">
+            <div style="text-align: center; margin-bottom: 16px;">
               <img src="${schoolLogo}" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; margin-bottom: 8px;" onerror="this.style.display='none'">
-              <h1 style="margin: 0; font-size: 1.5rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">${currentUser.schoolName}</h1>
-              <div style="border-top: 2px solid #111; margin: 12px 0;"></div>
-              <h2 style="margin: 0; font-size: 1.1rem; font-weight: 700; text-transform: uppercase;">DETAILED MARKS CERTIFICATE</h2>
+              <h1 style="margin: 0; font-size: 1.5rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">${schoolDisplayName}</h1>
+              <h2 style="margin: 6px 0 0; font-size: 1.1rem; font-weight: 700; text-transform: uppercase;">DETAILED MARKS CERTIFICATE</h2>
               <p style="margin: 5px 0 0; font-size: 0.95rem; color: #333;">${term} Examination ${new Date().getFullYear()}</p>
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; font-size: 0.95rem;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; font-size: 0.95rem;">
               <div style="flex: 1;">
                 <p style="margin: 4px 0;"><strong>Name:</strong> ${s.name}</p>
                 <p style="margin: 4px 0;"><strong>Father Name:</strong> ${s.father_name || '-'}</p>
                 <p style="margin: 4px 0;"><strong>Roll No:</strong> ${s.roll_no || '-'}</p>
-                <p style="margin: 4px 0;"><strong>Class:</strong> ${s.class_name} ${s.section_name ? '- ' + s.section_name : ''}</p>
+                <p style="margin: 4px 0;"><strong>Class:</strong> ${s.class_name}${s.section_name ? ' - ' + s.section_name : ''}</p>
               </div>
               <div style="text-align: right; flex-shrink: 0; margin-left: 20px;">
                 ${photoUrl ? `<img src="${photoUrl}" style="width: 80px; height: 100px; border: 1px solid #ccc; object-fit: cover;">` : '<div style="width: 80px; height: 100px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #999;">No Photo</div>'}
@@ -3374,9 +3374,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <tr style="background: #f0f0f0;">
                   <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 6%;">No</th>
                   <th style="border: 1px solid #111; padding: 8px 10px; text-align: left;">Subject</th>
-                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 18%;">Total Marks</th>
-                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 18%;">Obtained Marks</th>
-                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 25%;">Remarks</th>
+                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 15%;">Total Marks</th>
+                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 15%;">Obtained Marks</th>
+                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 22%;">Remarks</th>
                 </tr>
               </thead>
               <tbody>
@@ -3385,7 +3385,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   <td style="border: 1px solid #111; padding: 8px 10px;">${r.subject}</td>
                   <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.max_marks}</td>
                   <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.obtained_marks}</td>
-                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${i === 0 ? (sum.remarks || '') : ''}</td>
+                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;"></td>
                 </tr>`).join('')}
                 <tr style="font-weight: 700; background: #f9f9f9;">
                   <td style="border: 1px solid #111; padding: 8px 10px;" colspan="2">Total</td>
@@ -3397,17 +3397,17 @@ document.addEventListener('DOMContentLoaded', () => {
             </table>
 
             <div style="display: flex; gap: 0; margin-bottom: 25px; border: 2px solid #111; border-radius: 6px; overflow: hidden;">
-              <div style="flex: 1; padding: 14px 10px; text-align: center; border-right: 2px solid #111; background: #f9f9f9;">
-                <div style="font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Percentage</div>
-                <div style="font-size: 1.5rem; font-weight: 900; color: #111; margin-top: 4px;">${sum.percentage}%</div>
+              <div style="flex: 1; padding: 12px 10px; text-align: center; border-right: 2px solid #111; background: #f9f9f9;">
+                <span style="font-size: 0.85rem; font-weight: 700;">Percentage:</span>
+                <span style="font-size: 1.1rem; font-weight: 900; color: #111;"> ${sum.percentage}%</span>
               </div>
-              <div style="flex: 1; padding: 14px 10px; text-align: center; border-right: 2px solid #111; background: #f9f9f9;">
-                <div style="font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Class Position</div>
-                <div style="font-size: 1.5rem; font-weight: 900; color: #111; margin-top: 4px;">${posLabel}</div>
+              <div style="flex: 1; padding: 12px 10px; text-align: center; border-right: 2px solid #111; background: #f9f9f9;">
+                <span style="font-size: 0.85rem; font-weight: 700;">Grade:</span>
+                <span style="font-size: 1.1rem; font-weight: 900; color: #111;"> ${sum.grade}</span>
               </div>
-              <div style="flex: 1; padding: 14px 10px; text-align: center; background: #f9f9f9;">
-                <div style="font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Grade</div>
-                <div style="font-size: 1.5rem; font-weight: 900; color: #111; margin-top: 4px;">${sum.grade}</div>
+              <div style="flex: 1; padding: 12px 10px; text-align: center; background: #f9f9f9;">
+                <span style="font-size: 0.85rem; font-weight: 700;">Position:</span>
+                <span style="font-size: 1.1rem; font-weight: 900; color: #111;"> ${posLabel}</span>
               </div>
             </div>
 
@@ -3421,7 +3421,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Parent</div>
               </div>
               <div style="text-align: center;">
-                <p style="margin-bottom: 35px;"></p>
+                <div style="margin-bottom: 8px; font-size: 0.85rem;">Principal Sign: _______________</div>
                 <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Principal</div>
               </div>
             </div>
