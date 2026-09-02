@@ -1,5 +1,12 @@
 ﻿// SkyHonix Workspace Application Logic (SPA Router & REST Clients)
 
+// Helper: resolve image src for both data URIs and relative file paths
+function imgSrc(val, fallback) {
+  if (!val) return '/' + (fallback || 'school_assets/school_logo.png');
+  if (val.startsWith('data:') || val.startsWith('http://') || val.startsWith('https://') || val.startsWith('/')) return val;
+  return '/' + val;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Authentication Guard
   const token = localStorage.getItem('skyhonix_token');
@@ -429,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('dash-school-reg').innerText = `Reg No: ${settings.registration_number || 'N/A'}`;
       document.getElementById('dash-school-id').innerText = `School ID: ${currentUser.schoolId || 'N/A'}`;
       if (settings.logo_path) {
-        document.getElementById('dash-school-logo').src = '/' + settings.logo_path;
+        document.getElementById('dash-school-logo').src = imgSrc(settings.logo_path);
       }
 
     } catch (e) {
@@ -542,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td><strong>${s.roll_no || '-'}</strong></td>
             <td>
               <div style="display:flex; align-items:center; gap: 10px;">
-                <img src="/${s.photo || 'school_assets/school_logo.png'}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;" onerror="this.src='/school_assets/school_logo.png'">
+                <img src="${imgSrc(s.photo, 'school_assets/school_logo.png')}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;" onerror="this.src='/school_assets/school_logo.png'">
                 <strong>${s.name}</strong>
               </div>
             </td>
@@ -922,7 +929,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const avatarPhoto = document.getElementById('sp-avatar-photo');
       const avatarText = document.getElementById('sp-avatar-text');
       if (s.photo) {
-        avatarPhoto.src = '/' + s.photo;
+        avatarPhoto.src = imgSrc(s.photo);
         avatarPhoto.style.display = 'block';
         avatarText.style.display = 'none';
       } else {
@@ -1105,7 +1112,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td><strong>${s.roll_no || '-'}</strong></td>
             <td>
               <div style="display:flex; align-items:center; gap:10px;">
-                <img src="/${s.photo || 'school_assets/school_logo.png'}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;">
+                <img src="${imgSrc(s.photo, 'school_assets/school_logo.png')}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;">
                 <span>${s.name}</span>
               </div>
             </td>
@@ -1188,7 +1195,7 @@ document.addEventListener('DOMContentLoaded', () => {
           document.getElementById('scan-name').innerText = result.student.name;
           document.getElementById('scan-roll-class').innerText = `Roll No: ${result.student.roll_no || '-'} | Class: ${result.student.class_name}`;
           document.getElementById('scan-time').innerText = `Checked in: ${result.student.time}`;
-          document.getElementById('scan-photo').src = '/' + (result.student.photo || 'school_assets/school_logo.png');
+          document.getElementById('scan-photo').src = imgSrc(result.student.photo);
           scanFeedback.style.display = 'block';
 
           // Append to log table
@@ -1997,7 +2004,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function buildReminderHTML(studentData, schoolData, year) {
     const allMonths = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
     const d = studentData;
-    const studentPhoto = d.student.photo ? '/' + d.student.photo : '';
+    const studentPhoto = imgSrc(d.student.photo, '');
 
     // Only include months that have actual ledger data (not null)
     const activeMonths = allMonths.filter(m => d.monthlyFee[m] !== null && d.monthlyFee[m] !== undefined);
@@ -2006,7 +2013,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return `
         <div class="fee-slip">
           <div class="slip-header">
-            <img src="/${schoolData.logo || 'school_assets/school_logo.png'}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
+            <img src="${imgSrc(schoolData.logo, 'school_assets/school_logo.png')}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
             <div class="slip-header-text">
               <h2>${schoolData.name || 'School Name'}</h2>
               <p>Contact: ${schoolData.phone || '-'} | Reg No: ${schoolData.reg || '-'}</p>
@@ -2053,7 +2060,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return `
       <div class="fee-slip">
         <div class="slip-header">
-          <img src="/${schoolData.logo || 'school_assets/school_logo.png'}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
+          <img src="${imgSrc(schoolData.logo, 'school_assets/school_logo.png')}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
           <div class="slip-header-text">
             <h2>${schoolData.name || 'School Name'}</h2>
             <p>Contact: ${schoolData.phone || '-'} | Reg No: ${schoolData.reg || '-'}</p>
@@ -2625,8 +2632,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function buildSlipHTML(studentData, schoolData, year) {
     const allMonths = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
     const d = studentData;
-    const logoSrc = schoolData.logo ? (schoolData.logo.startsWith('data:') ? schoolData.logo : '/' + schoolData.logo) : '';
-    const studentPhoto = d.student.photo ? '/' + d.student.photo : '';
+    const logoSrc = imgSrc(schoolData.logo, '');
+    const studentPhoto = imgSrc(d.student.photo, '');
 
     // Only include months that have actual ledger data (not null)
     const activeMonths = allMonths.filter(m => d.monthlyFee[m] !== null && d.monthlyFee[m] !== undefined);
@@ -3216,7 +3223,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const s = res.student;
     const sum = res.summary;
     const details = res.reportDetails || [];
-    const photoUrl = s.photo ? '/' + s.photo : '';
+        const photoUrl = imgSrc(s.photo, '');
 
     let totalMax = 0, totalObt = 0;
     details.forEach(r => { totalMax += r.max_marks; totalObt += r.obtained_marks; });
@@ -3333,7 +3340,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const s = dmc.student;
         const sum = dmc.summary;
         const details = dmc.reportDetails || [];
-        const photoUrl = s.photo ? '/' + s.photo : '';
+    const photoUrl = imgSrc(s.photo, '');
         let totalMax = 0, totalObt = 0;
         details.forEach(r => { totalMax += r.max_marks; totalObt += r.obtained_marks; });
         const posLabel = sum.position && sum.position !== '-' ? sum.position : '-';
@@ -3962,7 +3969,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ];
           let instHtml = instructions.map(inst => '<li style="margin:3px 0;">' + inst + '</li>').join('');
 
-          const studentPhoto = s.photo ? '/' + s.photo : '';
+          const studentPhoto = imgSrc(s.photo, '');
 
           slipsHtml += '<div class="rollno-slip">' +
             '<div style="text-align:center; margin-bottom:3px;">' +

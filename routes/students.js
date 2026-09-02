@@ -8,24 +8,10 @@ const { authenticateToken } = require('./auth');
 const { querySchool, querySchoolOne, runSchool } = require('../database_manager');
 const syncManager = require('../sync_manager');
 
-// Setup multer storage for student photos
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const studentPhotosDir = path.join(config.UPLOADS_DIR, 'student_photos');
-    if (!fs.existsSync(studentPhotosDir)) {
-      fs.mkdirSync(studentPhotosDir, { recursive: true });
-    }
-    cb(null, studentPhotosDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, 'student-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ 
-  storage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+// Setup multer memory storage for student photos (base64 in DB, not file on disk)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -36,6 +22,13 @@ const upload = multer({
     cb(new Error('Only images are allowed'));
   }
 });
+
+function fileToDataUri(file) {
+  if (!file) return '';
+  const ext = path.extname(file.originalname).toLowerCase().replace('.', '');
+  const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+  return `data:${mime};base64,${file.buffer.toString('base64')}`;
+}
 
 // GET /students - Search, filter, and list students
 router.get('/', authenticateToken, async (req, res) => {
@@ -148,10 +141,7 @@ router.post('/', authenticateToken, upload.single('photo'), async (req, res) => 
   const schoolId = req.user.schoolId;
   const data = req.body;
 
-  let photoPath = '';
-  if (req.file) {
-    photoPath = 'uploads/student_photos/' + req.file.filename;
-  }
+  const photoDataUri = fileToDataUri(req.file);
 
   try {
     // Generate unique custom student_id if not provided
@@ -191,7 +181,7 @@ router.post('/', authenticateToken, upload.single('photo'), async (req, res) => 
         parseFloat(data.discount_percent) || 0,
         parseInt(data.is_free) || 0,
         parseFloat(data.transport_fee) || 0,
-        photoPath,
+        photoDataUri,
         data.family_head_id ? parseInt(data.family_head_id) : null
       ]
     );
@@ -221,14 +211,7 @@ router.put('/:id', authenticateToken, upload.single('photo'), async (req, res) =
 
     let photoPath = existing.photo;
     if (req.file) {
-      photoPath = 'uploads/student_photos/' + req.file.filename;
-      // Delete old photo if it exists
-      if (existing.photo) {
-        const oldPath = path.join(config.DATABASES_DIR, '..', existing.photo);
-        if (fs.existsSync(oldPath)) {
-          try { fs.unlinkSync(oldPath); } catch (e) {}
-        }
-      }
+      photoPath = fileToDataUri(req.file);
     }
 
     await runSchool(

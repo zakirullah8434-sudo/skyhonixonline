@@ -8,21 +8,25 @@ const config = require('../config');
 const { authenticateToken } = require('./auth');
 const { querySchool, querySchoolOne, runSchool, closeSchoolDb, getSchoolDb } = require('../database_manager');
 
-// Setup multer for uploading school logo & backups
-const logoStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const logosDir = path.join(config.UPLOADS_DIR, 'logos');
-    if (!fs.existsSync(logosDir)) {
-      fs.mkdirSync(logosDir, { recursive: true });
-    }
-    cb(null, logosDir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, 'logo-' + Date.now() + path.extname(file.originalname));
+// Setup multer for uploading school logo & backups (memory storage for Vercel compatibility)
+const uploadLogo = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) return cb(null, true);
+    cb(new Error('Only images are allowed'));
   }
 });
 
-const uploadLogo = multer({ storage: logoStorage });
+function logoToDataUri(file) {
+  if (!file) return '';
+  const ext = path.extname(file.originalname).toLowerCase().replace('.', '');
+  const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+  return `data:${mime};base64,${file.buffer.toString('base64')}`;
+}
 
 const dbStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -107,11 +111,11 @@ router.post('/logo', authenticateToken, uploadLogo.single('logo'), async (req, r
     return res.status(400).json({ error: 'No logo file provided' });
   }
 
-  const logoUrl = 'uploads/logos/' + req.file.filename;
+  const logoDataUri = logoToDataUri(req.file);
 
   try {
-    await runSchool(schoolId, 'UPDATE fee_settings SET logo_path = ?', [logoUrl]);
-    res.json({ message: 'School logo updated successfully!', logo_path: logoUrl });
+    await runSchool(schoolId, 'UPDATE fee_settings SET logo_path = ?', [logoDataUri]);
+    res.json({ message: 'School logo updated successfully!', logo_path: logoDataUri });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

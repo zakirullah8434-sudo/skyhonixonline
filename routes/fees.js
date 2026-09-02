@@ -1010,15 +1010,19 @@ router.get('/slip/:student_id', authenticateToken, async (req, res) => {
 
     let logoBase64 = '';
     if (settings && settings.logo_path) {
-      try {
-        const logoFullPath = path.join(__dirname, '..', 'public', settings.logo_path);
-        if (fs.existsSync(logoFullPath)) {
-          const ext = path.extname(logoFullPath).toLowerCase().replace('.', '');
-          const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
-          const data = fs.readFileSync(logoFullPath);
-          logoBase64 = `data:${mime};base64,${data.toString('base64')}`;
-        }
-      } catch (e) {}
+      if (settings.logo_path.startsWith('data:')) {
+        logoBase64 = settings.logo_path;
+      } else {
+        try {
+          const logoFullPath = path.join(__dirname, '..', 'public', settings.logo_path);
+          if (fs.existsSync(logoFullPath)) {
+            const ext = path.extname(logoFullPath).toLowerCase().replace('.', '');
+            const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+            const data = fs.readFileSync(logoFullPath);
+            logoBase64 = `data:${mime};base64,${data.toString('base64')}`;
+          }
+        } catch (e) {}
+      }
     }
 
     const slipYear = parseInt(year) || new Date().getFullYear();
