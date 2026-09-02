@@ -1000,7 +1000,7 @@ router.get('/slip/:student_id', authenticateToken, async (req, res) => {
   try {
     const student = await querySchoolOne(
       schoolId,
-      `SELECT id, name, roll_no, father_name, class_name, section_name, admission_no 
+      `SELECT id, name, roll_no, father_name, class_name, section_name, admission_no, photo 
        FROM students WHERE id = ?`,
       [studentId]
     );
@@ -1108,7 +1108,7 @@ router.get('/unpaid-students', authenticateToken, async (req, res) => {
 
   try {
     let query = `
-      SELECT s.id, s.name, s.roll_no, s.father_name, s.class_name, s.section_name, s.admission_no,
+      SELECT s.id, s.name, s.roll_no, s.father_name, s.class_name, s.section_name, s.admission_no, s.photo,
              COALESCE(SUM(CASE WHEN f.total_payable IS NOT NULL THEN f.total_payable - f.paid_amount ELSE 0 END), 0) as total_unpaid,
              COUNT(f.id) as ledger_entries
       FROM students s
@@ -1143,7 +1143,7 @@ router.post('/reminders', authenticateToken, async (req, res) => {
   try {
     const result = await runSchool(schoolId,
       `INSERT INTO fee_reminders (title, class_name, section_name, year, student_ids, total_amount, student_count, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'Active', datetime('now'))`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'Active', ?)`,
       [
         title || `Fee Reminder - ${class_name || 'All'} - ${year}`,
         class_name || '',
@@ -1151,7 +1151,8 @@ router.post('/reminders', authenticateToken, async (req, res) => {
         year || new Date().getFullYear(),
         JSON.stringify(student_ids || []),
         total_amount || 0,
-        student_count || 0
+        student_count || 0,
+        new Date().toISOString().slice(0, 19).replace('T', ' ')
       ]
     );
     res.json({ id: result.id, message: 'Reminder saved successfully' });

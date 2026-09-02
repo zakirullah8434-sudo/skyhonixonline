@@ -51,8 +51,8 @@ router.post('/teachers', authenticateToken, async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await runSchool(schoolId,
       `INSERT INTO teachers (name, phone, password, subject, qualification, status, school_id, created_at)
-       VALUES (?, ?, ?, ?, ?, 'Active', ?, datetime('now'))`,
-      [name, phone, hashedPassword, subject || '', qualification || '', schoolId]
+       VALUES (?, ?, ?, ?, ?, 'Active', ?, ?)`,
+      [name, phone, hashedPassword, subject || '', qualification || '', schoolId, new Date().toISOString().slice(0, 19).replace('T', ' ')]
     );
 
     res.json({ id: result.id, message: 'Teacher created successfully' });
@@ -148,8 +148,8 @@ router.post('/parents', authenticateToken, async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await runSchool(schoolId,
       `INSERT INTO parents (name, phone, password, cnic, address, status, created_at)
-       VALUES (?, ?, ?, '', '', 'Active', datetime('now'))`,
-      [parentName, phone, hashedPassword]
+       VALUES (?, ?, ?, '', '', 'Active', ?)`,
+      [parentName, phone, hashedPassword, new Date().toISOString().slice(0, 19).replace('T', ' ')]
     );
 
     // Auto-link all students with matching phone
@@ -409,8 +409,8 @@ router.post('/announcements', authenticateToken, async (req, res) => {
   try {
     const result = await runSchool(schoolId,
       `INSERT INTO announcements (title, message, target_role, created_by, created_at)
-       VALUES (?, ?, ?, ?, datetime('now'))`,
-      [title, message, target_role || 'all', req.user.username || 'Admin']
+       VALUES (?, ?, ?, ?, ?)`,
+      [title, message, target_role || 'all', req.user.username || 'Admin', new Date().toISOString().slice(0, 19).replace('T', ' ')]
     );
     res.json({ id: result.id, message: 'Announcement posted successfully' });
   } catch (err) {
