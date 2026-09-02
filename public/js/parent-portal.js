@@ -30,6 +30,25 @@
     return data;
   }
 
+  // Load school settings (logo + name)
+  async function loadSchoolSettings() {
+    try {
+      const settings = await apiCall('/api/parents/settings');
+      const schoolName = settings.school_name || currentUser.schoolName;
+      document.getElementById('sidebar-school-name').textContent = schoolName;
+      if (settings.logo_path) {
+        const logoSrc = settings.logo_path.startsWith('data:') ? settings.logo_path : '/' + settings.logo_path;
+        const headerLogo = document.getElementById('header-school-logo');
+        const sidebarLogo = document.getElementById('sidebar-school-logo');
+        headerLogo.src = logoSrc;
+        headerLogo.style.display = 'inline-block';
+        sidebarLogo.src = logoSrc;
+        sidebarLogo.style.display = 'block';
+      }
+    } catch (e) {}
+  }
+  loadSchoolSettings();
+
   function showToast(msg, isError = false) {
     const t = document.getElementById('toast');
     t.textContent = msg;

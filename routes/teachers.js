@@ -52,6 +52,22 @@ function authenticateTeacherToken(req, res, next) {
   });
 }
 
+// GET /api/teachers/settings - Get school settings (logo, name)
+router.get('/settings', authenticateTeacherToken, async (req, res) => {
+  const schoolId = req.teacher.schoolId;
+  try {
+    const settings = await querySchoolOne(schoolId, 'SELECT school_name, logo_path, phone, registration_number FROM fee_settings LIMIT 1');
+    res.json({
+      school_name: settings ? settings.school_name : '',
+      logo_path: settings ? settings.logo_path : '',
+      phone: settings ? settings.phone : '',
+      registration_number: settings ? settings.registration_number : ''
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/teachers/my-subjects - Fetch teacher's assigned timetable
 router.get('/my-subjects', authenticateTeacherToken, async (req, res) => {
   const schoolId = req.teacher.schoolId;

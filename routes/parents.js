@@ -37,6 +37,22 @@ function authenticateParentToken(req, res, next) {
   }
 }
 
+// GET /parents/settings - Get school settings (logo, name)
+router.get('/settings', authenticateParentToken, async (req, res) => {
+  const schoolId = req.parent.schoolId;
+  try {
+    const settings = await querySchoolOne(schoolId, 'SELECT school_name, logo_path, phone, registration_number FROM fee_settings LIMIT 1');
+    res.json({
+      school_name: settings ? settings.school_name : '',
+      logo_path: settings ? settings.logo_path : '',
+      phone: settings ? settings.phone : '',
+      registration_number: settings ? settings.registration_number : ''
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /parents/login - Parent login (school_id + phone + password)
 router.post('/login', async (req, res) => {
   const { school_id, phone, password } = req.body;
