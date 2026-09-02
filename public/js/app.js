@@ -1,5 +1,29 @@
 ﻿// SkyHonix Workspace Application Logic (SPA Router & REST Clients)
 
+function debounce(fn, ms) { let t; return function(...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); }; }
+
+let _classCache = null, _classCacheTime = 0;
+async function getCachedClasses(apiCall) {
+  const now = Date.now();
+  if (_classCache && (now - _classCacheTime) < 300000) return _classCache;
+  try {
+    _classCache = await apiCall('/students/classes');
+    _classCacheTime = Date.now();
+    return _classCache;
+  } catch (e) { return _classCache || []; }
+}
+
+let _settingsCache = null, _settingsCacheTime = 0;
+async function getCachedSettings(apiCall) {
+  const now = Date.now();
+  if (_settingsCache && (now - _settingsCacheTime) < 300000) return _settingsCache;
+  try {
+    _settingsCache = await apiCall('/settings');
+    _settingsCacheTime = Date.now();
+    return _settingsCache;
+  } catch (e) { return _settingsCache || {}; }
+}
+
 // Helper: resolve image src for both data URIs and relative file paths
 function imgSrc(val, fallback) {
   if (!val) return '/' + (fallback || 'school_assets/school_logo.png');
@@ -397,11 +421,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   async function loadDashboardStats() {
     try {
-      const totalStudents = await apiCall('/students');
+      const dateStr = new Date().toISOString().split('T')[0];
+      const [totalStudents, attStats, ledger, settings] = await Promise.all([
+        apiCall('/students'),
+        apiCall(`/attendance/analytics?date=${dateStr}`),
+        apiCall('/fees/ledger'),
+        apiCall('/settings')
+      ]);
+
       document.getElementById('stat-total-students').innerText = totalStudents.length;
 
-      const dateStr = new Date().toISOString().split('T')[0];
-      const attStats = await apiCall(`/attendance/analytics?date=${dateStr}`);
       let presentCount = 0;
       let totalAttLogs = 0;
       attStats.stats.forEach(s => {
@@ -412,8 +441,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const rate = totalAttLogs > 0 ? Math.round((presentCount / totalAttLogs) * 100) : 0;
       document.getElementById('stat-attendance-rate').innerText = totalAttLogs > 0 ? `${rate}%` : '0%';
 
-      // Fees Collections
-      const ledger = await apiCall('/fees/ledger');
       let totalPending = 0;
       let totalCollected = 0;
       const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
@@ -429,8 +456,6 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('stat-month-fees').innerText = `${totalCollected.toLocaleString()} PKR`;
       document.getElementById('stat-pending-dues').innerText = `${totalPending.toLocaleString()} PKR`;
 
-      // Load School Details
-      const settings = await apiCall('/settings');
       document.getElementById('dash-school-title').innerText = settings.school_name;
       document.getElementById('dash-school-phone').innerText = `Phone: ${settings.phone || 'N/A'}`;
       document.getElementById('dash-school-reg').innerText = `Reg No: ${settings.registration_number || 'N/A'}`;
@@ -467,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadClassesList() {
     try {
-      const classes = await apiCall('/students/classes');
+      const classes = await getCachedClasses(apiCall);
       cachedClasses = classes;
       
       const filterClass = document.getElementById('student-filter-class');
@@ -491,6 +516,8 @@ document.addEventListener('DOMContentLoaded', () => {
         slipClassSelect, datesheetClassSelect, rollnoClassSelect, rollnoGenClass
       ];
 
+      const optsHtml = classes.map(cls => `<option value="${cls}">${cls}</option>`).join('');
+
       selects.forEach(sel => {
         if (!sel) return;
         const currentVal = sel.value;
@@ -498,16 +525,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const isSelectPlaceholder = ['reminder-filter-class', 'slip-class'].includes(sel.id);
         
         if (isAllClasses) {
-          sel.innerHTML = '<option value="All Classes">All Classes</option>';
+          sel.innerHTML = '<option value="All Classes">All Classes</option>' + optsHtml;
         } else if (isSelectPlaceholder) {
-          sel.innerHTML = '<option value="">-- Select Class --</option>';
+          sel.innerHTML = '<option value="">-- Select Class --</option>' + optsHtml;
         } else {
-          sel.innerHTML = '';
+          sel.innerHTML = optsHtml;
         }
-        
-        classes.forEach(cls => {
-          sel.innerHTML += `<option value="${cls}">${cls}</option>`;
-        });
         if (currentVal) sel.value = currentVal;
       });
 
@@ -578,7 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Filter Listeners
   document.getElementById('student-filter-class').addEventListener('change', loadStudentsList);
   document.getElementById('student-filter-section').addEventListener('change', loadStudentsList);
-  document.getElementById('student-search').addEventListener('input', loadStudentsList);
+  document.getElementById('student-search').addEventListener('input', debounce(loadStudentsList, 300));
 
   // Student Modals and forms setup
   const modalStudent = document.getElementById('modal-student');
@@ -2893,7 +2916,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('exam-class-checkboxes');
     if (!container) return;
     try {
-      const classes = await apiCall('/students/classes');
+      const classes = await getCachedClasses(apiCall);
       container.innerHTML = `
         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
           <input type="checkbox" id="exam-class-all" value="All Classes"> <span>All Classes</span>
@@ -3184,9 +3207,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Text search also works with class filter
-  document.getElementById('dmc-student-search').addEventListener('input', () => {
-    loadDmcStudents();
-  });
+  document.getElementById('dmc-student-search').addEventListener('input', debounce(loadDmcStudents, 300));
 
   // Load detailed DMC report card (single student or whole class)
   document.getElementById('btn-load-dmc-report').addEventListener('click', async () => {
@@ -3235,7 +3256,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let totalMax = 0, totalObt = 0;
     details.forEach(r => { totalMax += r.max_marks; totalObt += r.obtained_marks; });
 
-    apiCall('/settings').then(set => {
+    getCachedSettings(apiCall).then(set => {
       const schoolLogo = imgSrc(set.logo_path, 'school_assets/school_logo.png');
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const posLabel = sum.position && sum.position !== '-' ? sum.position : '-';
@@ -3335,7 +3356,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const examText = examEl.options[examEl.selectedIndex] ? examEl.options[examEl.selectedIndex].text : '';
     const term = document.getElementById('dmc-select-term').value;
 
-    apiCall('/settings').then(set => {
+    getCachedSettings(apiCall).then(set => {
       const schoolLogo = imgSrc(set.logo_path, 'school_assets/school_logo.png');
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const schoolDisplayName = set.school_name || currentUser.schoolName;
@@ -3648,11 +3669,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!tpl) { showToast('Template not found', true); return; }
 
         const t = tpl.template;
-        const exams = await apiCall('/exams');
+        const [exams, settings] = await Promise.all([
+          apiCall('/exams'),
+          apiCall('/settings').catch(() => ({}))
+        ]);
         const exam = exams.find(ex => ex.id == t.exam_id);
-
-        let settings = {};
-        try { settings = await apiCall('/settings'); } catch (e) {}
         const logoUrl = imgSrc(settings.logo_path, 'school_assets/school_logo.png');
 
         const subjects = t.subjects || [];
@@ -3914,22 +3935,22 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           students = await apiCall(`/students?class_name=${encodeURIComponent(class_name)}`);
         }
-        const exam = (await apiCall('/exams')).find(e => e.id == exam_id);
 
-        let settings = {};
-        try { settings = await apiCall('/settings'); } catch (e) {}
+        let settings = {}, activeDatesheet = null, principal_sign = null;
+        const [examsRaw, settingsRaw, activeDatesheetRaw, rollnoTemplatesRaw] = await Promise.all([
+          apiCall('/exams'),
+          apiCall('/settings').catch(() => ({})),
+          apiCall('/exams/datesheets/active').catch(() => null),
+          apiCall('/exams/rollno-templates').catch(() => [])
+        ]);
+
+        const exam = examsRaw.find(e => e.id == exam_id);
+        settings = settingsRaw;
+        activeDatesheet = activeDatesheetRaw;
+        if (rollnoTemplatesRaw.length > 0) {
+          principal_sign = rollnoTemplatesRaw[0].template.principal_sign || null;
+        }
         const logoUrl = imgSrc(settings.logo_path, 'school_assets/school_logo.png');
-
-        let activeDatesheet = null;
-        try { activeDatesheet = await apiCall('/exams/datesheets/active'); } catch (e) {}
-
-        let principal_sign = null;
-        try {
-          const rollnoTemplates = await apiCall('/exams/rollno-templates');
-          if (rollnoTemplates.length > 0) {
-            principal_sign = rollnoTemplates[0].template.principal_sign || null;
-          }
-        } catch (e) {}
 
         if (students.length === 0) {
           showToast('No students found', true);
@@ -4905,8 +4926,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   async function populateTimetableDropdowns() {
     try {
-      const classes = await apiCall('/students/classes');
-      const teachers = await apiCall('/staff/teachers');
+      const [classes, teachers] = await Promise.all([
+        apiCall('/students/classes'),
+        apiCall('/staff/teachers')
+      ]);
       const ttClass = document.getElementById('tt-class');
       const ttTeacher = document.getElementById('tt-teacher');
       if (ttClass) {
@@ -5498,7 +5521,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const schoolName = currentUser ? currentUser.schoolName : 'School Name';
 
-      apiCall('/settings').then(set => {
+      getCachedSettings(apiCall).then(set => {
         const logoUrl = imgSrc(set.logo_path, 'school_assets/school_logo.png');
         renderResultPost(schoolName, logoUrl, className, examName, students);
       }).catch(() => {
