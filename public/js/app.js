@@ -1666,6 +1666,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sec = document.getElementById('history-filter-section').value;
     const month = document.getElementById('history-filter-month').value;
     const year = document.getElementById('history-filter-year').value;
+    if (!month || !year) return;
 
     let url = `/fees/history-management?month=${month}&year=${year}`;
     if (cls && cls !== 'All Classes') url += `&class_name=${encodeURIComponent(cls)}`;
@@ -2338,6 +2339,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function refreshFeeAnalytics() {
     const month = document.getElementById('analytics-filter-month').value;
     const year = document.getElementById('analytics-filter-year').value;
+    if (!month || !year) return;
 
     try {
       const data = await apiCall(`/fees/analytics?month=${month}&year=${year}`);
