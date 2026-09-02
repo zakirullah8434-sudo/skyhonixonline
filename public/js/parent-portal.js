@@ -346,13 +346,26 @@
       if (announcements.length === 0) {
         container.innerHTML = '<p style="color: var(--text-muted);">No announcements.</p>';
       } else {
-        container.innerHTML = announcements.map(a => `
+        container.innerHTML = announcements.map(a => {
+          const date = a.created_at ? new Date(a.created_at) : null;
+          const dateStr = date ? date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+          const timeStr = date ? date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+          return `
           <div class="record-card">
-            <h4>${a.title}</h4>
-            <p style="margin: 6px 0; color: var(--text);">${a.message}</p>
-            <small style="color: var(--text-muted);">${a.created_at ? new Date(a.created_at).toLocaleDateString() : ''} | by ${a.created_by || 'Admin'}</small>
-          </div>
-        `).join('');
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+              <h4 style="margin:0;">${a.title}</h4>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <span style="background:rgba(99,102,241,0.15); color:var(--primary); padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">${a.target_role === 'all' ? '📢 All' : a.target_role === 'parents' ? '👨‍👩‍👧 Parents' : '👩‍🏫 Teachers'}</span>
+              </div>
+            </div>
+            <p style="margin: 8px 0; color: var(--text); line-height:1.5;">${a.message || ''}</p>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:10px; font-size:0.78rem; color:var(--text-muted); padding-top:10px; border-top:1px solid var(--border-glow);">
+              <span>📅 ${dateStr}</span>
+              <span>🕐 ${timeStr}</span>
+              ${a.created_by ? `<span>👤 ${a.created_by}</span>` : ''}
+            </div>
+          </div>`;
+        }).join('');
       }
 
       // News ticker
