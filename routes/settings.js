@@ -144,22 +144,63 @@ router.post('/users/password', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /settings/backup - Download raw SQLite database file
+// GET /settings/backup - Download backup (SQLite file locally, SQL dump on Turso/Vercel)
 router.get('/backup', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
-  const { queryMainOne } = require('../database_manager');
+  const { queryMainOne, querySchool } = require('../database_manager');
 
   try {
     const school = await queryMainOne('SELECT db_file, school_name FROM schools WHERE id = ?', [schoolId]);
     if (!school) return res.status(404).json({ error: 'School database file reference not found' });
 
-    const dbPath = path.join(config.DATABASES_DIR, school.db_file);
-    if (!fs.existsSync(dbPath)) {
-      return res.status(404).json({ error: 'Database file does not exist' });
+    const cleanName = school.school_name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+    // On local (non-Turso), try to download the raw .db file
+    if (!config.useTurso) {
+      const dbPath = path.join(config.DATABASES_DIR, school.db_file);
+      if (fs.existsSync(dbPath)) {
+        return res.download(dbPath, `${cleanName}_backup_${Date.now()}.db`);
+      }
     }
 
-    const cleanName = school.school_name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    res.download(dbPath, `${cleanName}_backup_${Date.now()}.db`);
+    // Turso / Vercel: export all table data as SQL dump
+    const tables = [
+      'fee_settings', 'users', 'settings', 'students', 'sections', 'class_fees',
+      'student_fee_exceptions', 'fee_ledger', 'attendance', 'fee_payments',
+      'fee_dues', 'past_dues', 'exams', 'exam_subjects', 'marks', 'results',
+      'result_sections', 'student_promotion_history', 'teachers', 'parents',
+      'student_parents', 'timetable', 'fee_reminders', 'announcements',
+      'roll_slip_templates', 'fee_reminder_templates', 'date_sheet_templates', 'dmc_templates'
+    ];
+
+    let sqlDump = `-- SkyHonix School Backup\n-- School: ${school.school_name}\n-- Date: ${new Date().toISOString()}\n\n`;
+
+    for (const table of tables) {
+      try {
+        const rows = await querySchool(schoolId, `SELECT * FROM ${table}`);
+        if (rows.length === 0) continue;
+
+        sqlDump += `DELETE FROM ${table};\n`;
+
+        const cols = Object.keys(rows[0]);
+        for (const row of rows) {
+          const values = cols.map(c => {
+            const v = row[c];
+            if (v === null || v === undefined) return 'NULL';
+            if (typeof v === 'number') return String(v);
+            return "'" + String(v).replace(/'/g, "''") + "'";
+          });
+          sqlDump += `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${values.join(', ')});\n`;
+        }
+        sqlDump += '\n';
+      } catch (e) {
+        // Table might not exist in remote DB, skip
+      }
+    }
+
+    res.setHeader('Content-Type', 'application/sql');
+    res.setHeader('Content-Disposition', `attachment; filename="${cleanName}_backup_${Date.now()}.sql"`);
+    res.send(sqlDump);
 
   } catch (err) {
     res.status(500).json({ error: err.message });
