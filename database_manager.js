@@ -301,6 +301,26 @@ function runSchool(schoolId, sql, params = []) {
 // Transaction runner for school db
 function runSchoolTransaction(schoolId, statements) {
   return getSchoolDb(schoolId).then((db) => {
+    // Turso proxy does not support BEGIN/COMMIT over HTTP — execute sequentially
+    if (config.useTurso) {
+      return new Promise(async (resolve, reject) => {
+        for (const { sql, params } of statements) {
+          try {
+            await new Promise((res, rej) => {
+              db.run(sql, params || [], function (err) {
+                if (err) rej(err);
+                else res();
+              });
+            });
+          } catch (err) {
+            return reject(err);
+          }
+        }
+        resolve();
+      });
+    }
+
+    // Local SQLite — use real transactions
     return new Promise((resolve, reject) => {
       db.serialize(() => {
         db.run('BEGIN TRANSACTION');
