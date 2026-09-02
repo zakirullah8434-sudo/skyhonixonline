@@ -341,7 +341,7 @@ router.post('/pay', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Ledger record not found' });
     }
 
-    const newPaidAmount = ledger.paid_amount + parsedAmount;
+    let newPaidAmount = ledger.paid_amount + parsedAmount;
     let newStatus = 'Unpaid';
     if (newPaidAmount >= ledger.total_payable) {
       newStatus = 'Paid';
