@@ -39,6 +39,17 @@ class SchoolDbTursoProxy {
     return null;
   }
 
+  _insertWhereBefore(sql, qualified, params, sid) {
+    const markers = [/\bGROUP\s+BY\b/i, /\bHAVING\b/i, /\bORDER\s+BY\b/i, /\bLIMIT\b/i];
+    for (const p of markers) {
+      const idx = sql.search(p);
+      if (idx !== -1) {
+        return { sql: sql.slice(0, idx) + `WHERE ${qualified} = ? ` + sql.slice(idx), params: [sid, ...params] };
+      }
+    }
+    return { sql: sql.trimEnd().replace(/;?\s*$/, '') + ` WHERE ${qualified} = ?`, params: [...params, sid] };
+  }
+
   _rewrite(sql, params) {
     const sid = this.schoolId;
 
@@ -56,13 +67,7 @@ class SchoolDbTursoProxy {
     if (/^\s*SELECT\b/i.test(sql) && !/\bWHERE\b/i.test(sql)) {
       const tbl = this._getFirstTable(sql);
       const qualified = tbl ? `${tbl}.school_id` : 'school_id';
-      for (const p of [/\bORDER\s+BY\b/i, /\bGROUP\s+BY\b/i, /\bLIMIT\b/i]) {
-        const idx = sql.search(p);
-        if (idx !== -1) {
-          return { sql: sql.slice(0, idx) + `WHERE ${qualified} = ? ` + sql.slice(idx), params: [sid, ...params] };
-        }
-      }
-      return { sql: sql.trimEnd().replace(/;?\s*$/, '') + ` WHERE ${qualified} = ?`, params: [...params, sid] };
+      return this._insertWhereBefore(sql, qualified, params, sid);
     }
 
     if (/\bWHERE\b/i.test(sql)) {
