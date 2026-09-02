@@ -3245,10 +3245,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; font-size: 0.95rem;">
             <div style="flex: 1;">
-              <p style="margin: 4px 0;"><strong>Name:</strong> ${s.name}</p>
-              <p style="margin: 4px 0;"><strong>Father Name:</strong> ${s.father_name || '-'}</p>
-              <p style="margin: 4px 0;"><strong>Roll No:</strong> ${s.roll_no || '-'}</p>
-              <p style="margin: 4px 0;"><strong>Class:</strong> ${s.class_name}${s.section_name ? ' - ' + s.section_name : ''}</p>
+              <p style="margin: 4px 0;"><strong>Name:</strong> ${s.name} &nbsp;&nbsp;&nbsp; <strong>Father Name:</strong> ${s.father_name || '-'}</p>
+              <p style="margin: 4px 0;"><strong>Roll No:</strong> ${s.roll_no || '-'} &nbsp;&nbsp;&nbsp; <strong>Class:</strong> ${s.class_name}${s.section_name ? ' - ' + s.section_name : ''}</p>
             </div>
             <div style="text-align: right; flex-shrink: 0; margin-left: 20px;">
               ${photoUrl ? `<img src="${photoUrl}" style="width: 80px; height: 100px; border: 1px solid #ccc; object-fit: cover;">` : '<div style="width: 80px; height: 100px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #999;">No Photo</div>'}
@@ -3297,13 +3295,12 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           </div>
 
-          <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 0.85rem; color: #333;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; font-size: 0.85rem; color: #333;">
             <div style="text-align: center;">
-              <p style="margin-bottom: 35px;">Signatures of:</p>
+              <div style="margin-bottom: 35px; font-size: 0.85rem;">Signatures of:</div>
               <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Teacher incharge</div>
             </div>
             <div style="text-align: center;">
-              <p style="margin-bottom: 35px;"></p>
               <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Parent</div>
             </div>
             <div style="text-align: center;">
@@ -3359,10 +3356,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; font-size: 0.95rem;">
               <div style="flex: 1;">
-                <p style="margin: 4px 0;"><strong>Name:</strong> ${s.name}</p>
-                <p style="margin: 4px 0;"><strong>Father Name:</strong> ${s.father_name || '-'}</p>
-                <p style="margin: 4px 0;"><strong>Roll No:</strong> ${s.roll_no || '-'}</p>
-                <p style="margin: 4px 0;"><strong>Class:</strong> ${s.class_name}${s.section_name ? ' - ' + s.section_name : ''}</p>
+                <p style="margin: 4px 0;"><strong>Name:</strong> ${s.name} &nbsp;&nbsp;&nbsp; <strong>Father Name:</strong> ${s.father_name || '-'}</p>
+                <p style="margin: 4px 0;"><strong>Roll No:</strong> ${s.roll_no || '-'} &nbsp;&nbsp;&nbsp; <strong>Class:</strong> ${s.class_name}${s.section_name ? ' - ' + s.section_name : ''}</p>
               </div>
               <div style="text-align: right; flex-shrink: 0; margin-left: 20px;">
                 ${photoUrl ? `<img src="${photoUrl}" style="width: 80px; height: 100px; border: 1px solid #ccc; object-fit: cover;">` : '<div style="width: 80px; height: 100px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #999;">No Photo</div>'}
@@ -3411,13 +3406,12 @@ document.addEventListener('DOMContentLoaded', () => {
               </div>
             </div>
 
-            <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 0.85rem; color: #333;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; font-size: 0.85rem; color: #333;">
               <div style="text-align: center;">
-                <p style="margin-bottom: 35px;">Signatures of:</p>
+                <div style="margin-bottom: 35px; font-size: 0.85rem;">Signatures of:</div>
                 <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Teacher incharge</div>
               </div>
               <div style="text-align: center;">
-                <p style="margin-bottom: 35px;"></p>
                 <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Parent</div>
               </div>
               <div style="text-align: center;">
