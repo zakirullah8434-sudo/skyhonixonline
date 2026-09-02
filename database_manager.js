@@ -31,6 +31,14 @@ class SchoolDbTursoProxy {
     this.schoolId = schoolId;
   }
 
+  _getFirstTable(sql) {
+    const m = sql.match(/\bFROM\s+(\w+)(?:\s+(\w+))?/i);
+    if (m) return m[2] || m[1];
+    const um = sql.match(/\bUPDATE\s+(\w+)/i);
+    if (um) return um[1];
+    return null;
+  }
+
   _rewrite(sql, params) {
     const sid = this.schoolId;
 
@@ -46,16 +54,20 @@ class SchoolDbTursoProxy {
     }
 
     if (/^\s*SELECT\b/i.test(sql) && !/\bWHERE\b/i.test(sql)) {
+      const tbl = this._getFirstTable(sql);
+      const qualified = tbl ? `${tbl}.school_id` : 'school_id';
       for (const p of [/\bORDER\s+BY\b/i, /\bGROUP\s+BY\b/i, /\bLIMIT\b/i]) {
         const idx = sql.search(p);
         if (idx !== -1) {
-          return { sql: sql.slice(0, idx) + 'WHERE school_id = ? ' + sql.slice(idx), params: [sid, ...params] };
+          return { sql: sql.slice(0, idx) + `WHERE ${qualified} = ? ` + sql.slice(idx), params: [sid, ...params] };
         }
       }
-      return { sql: sql.trimEnd().replace(/;?\s*$/, '') + ' WHERE school_id = ?', params: [...params, sid] };
+      return { sql: sql.trimEnd().replace(/;?\s*$/, '') + ` WHERE ${qualified} = ?`, params: [...params, sid] };
     }
 
     if (/\bWHERE\b/i.test(sql)) {
+      const tbl = this._getFirstTable(sql);
+      const qualified = tbl ? `${tbl}.school_id` : 'school_id';
       const whereIdx = sql.search(/\bWHERE\b/i);
       const before = sql.slice(0, whereIdx + 5);
       let after = sql.slice(whereIdx + 5);
@@ -66,11 +78,19 @@ class SchoolDbTursoProxy {
       }
       const cond = after.slice(0, endIdx).trim();
       const rest = after.slice(endIdx);
-      return { sql: before + ' (' + cond + ') AND school_id = ?' + rest, params: [...params, sid] };
+      return { sql: before + ' (' + cond + ') AND ' + qualified + ' = ?' + rest, params: [...params, sid] };
     }
 
-    if (/^\s*(UPDATE|DELETE)\s+/i.test(sql)) {
-      return { sql: sql + ' WHERE school_id = ?', params: [...params, sid] };
+    if (/^\s*UPDATE\s+/i.test(sql)) {
+      const tbl = this._getFirstTable(sql);
+      const qualified = tbl ? `${tbl}.school_id` : 'school_id';
+      return { sql: sql + ` WHERE ${qualified} = ?`, params: [...params, sid] };
+    }
+
+    if (/^\s*DELETE\s+/i.test(sql)) {
+      const tbl = this._getFirstTable(sql);
+      const qualified = tbl ? `${tbl}.school_id` : 'school_id';
+      return { sql: sql + ` WHERE ${qualified} = ?`, params: [...params, sid] };
     }
 
     return { sql, params };

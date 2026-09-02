@@ -56,7 +56,7 @@ router.get('/', authenticateToken, async (req, res) => {
       feeSettings = await querySchoolOne(schoolId, 'SELECT * FROM fee_settings LIMIT 1');
     }
 
-    const masterPinRow = await querySchoolOne(schoolId, 'SELECT value FROM settings WHERE key = "master_pin"');
+    const masterPinRow = await querySchoolOne(schoolId, "SELECT value FROM settings WHERE key = 'master_pin'");
     const masterPin = masterPinRow ? masterPinRow.value : 'goldensunbk';
 
     res.json({

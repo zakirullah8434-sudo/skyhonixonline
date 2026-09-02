@@ -191,7 +191,7 @@ router.post('/admin/verify', checkMasterPin, async (req, res) => {
 
     if (action === 'approve') {
       // 1. Mark slip approved
-      await runMain('UPDATE payment_slips SET status = "approved", notes = ? WHERE id = ?', [notes || 'Approved by Master Admin', slip_id]);
+      await runMain("UPDATE payment_slips SET status = 'approved', notes = ? WHERE id = ?", [notes || 'Approved by Master Admin', slip_id]);
 
       // 2. Fetch current next_due_date for school
       const school = await queryMainOne('SELECT subscription_status, next_due_date FROM schools WHERE id = ?', [slip.school_id]);
@@ -214,7 +214,7 @@ router.post('/admin/verify', checkMasterPin, async (req, res) => {
       res.json({ message: 'Payment approved. School subscription activated/extended successfully!' });
     } else {
       // Reject slip
-      await runMain('UPDATE payment_slips SET status = "rejected", notes = ? WHERE id = ?', [notes || 'Rejected by Admin', slip_id]);
+      await runMain("UPDATE payment_slips SET status = 'rejected', notes = ? WHERE id = ?", [notes || 'Rejected by Admin', slip_id]);
       res.json({ message: 'Payment receipt rejected.' });
     }
 
