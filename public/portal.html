@@ -1329,17 +1329,28 @@
             <!-- Tab: Fee Slips -->
             <div class="tab-content" id="tab-slip-form" style="display: none;">
               <div class="card" style="margin-bottom: 20px;">
-                <div class="grid-3" style="grid-template-columns: 2fr 1fr 1fr; gap: 15px; align-items: flex-end;">
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Search Student</label>
-                    <input type="text" class="form-control" id="slip-search" placeholder="Type name or roll number...">
-                  </div>
+                <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; align-items: flex-end;">
                   <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label">Academic Year</label>
                     <select class="form-control" id="slip-year"></select>
                   </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Month</label>
+                    <select class="form-control" id="slip-month">
+                      <option>January</option><option>February</option><option>March</option>
+                      <option>April</option><option>May</option><option>June</option>
+                      <option>July</option><option>August</option><option>September</option>
+                      <option>October</option><option>November</option><option>December</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Class</label>
+                    <select class="form-control" id="slip-class">
+                      <option value="">-- Select Class --</option>
+                    </select>
+                  </div>
                   <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
-                    <button class="btn btn-primary" id="btn-search-slip-student" style="width: 100%;">Search</button>
+                    <button class="btn btn-primary" id="btn-generate-class-slips" style="width: 100%;">Generate Fee Slips</button>
                   </div>
                 </div>
               </div>
@@ -1357,7 +1368,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Search for a student above...</td></tr>
+                      <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Select Year, Month and Class, then click Generate Fee Slips...</td></tr>
                     </tbody>
                   </table>
                 </div>

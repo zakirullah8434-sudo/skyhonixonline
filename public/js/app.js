@@ -472,6 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const historyFilterClass = document.getElementById('history-filter-class');
       const studentFeeClass = document.getElementById('student-fee-class');
       const reminderFilterClass = document.getElementById('reminder-filter-class');
+      const slipClassSelect = document.getElementById('slip-class');
       const datesheetClassSelect = document.getElementById('datesheet-class-select');
       const rollnoClassSelect = document.getElementById('rollno-class-select');
       const rollnoGenClass = document.getElementById('rollno-gen-class');
@@ -480,14 +481,14 @@ document.addEventListener('DOMContentLoaded', () => {
         filterClass, attClassSelect, attHistoryClass, ledgerFilterClass,
         marksSelectClass, calcClassSelect,
         historyFilterClass, studentFeeClass, reminderFilterClass,
-        datesheetClassSelect, rollnoClassSelect, rollnoGenClass
+        slipClassSelect, datesheetClassSelect, rollnoClassSelect, rollnoGenClass
       ];
 
       selects.forEach(sel => {
         if (!sel) return;
         const currentVal = sel.value;
         const isAllClasses = ['student-filter-class', 'history-filter-class', 'student-fee-class', 'datesheet-class-select', 'rollno-class-select', 'rollno-gen-class'].includes(sel.id);
-        const isSelectPlaceholder = ['reminder-filter-class'].includes(sel.id);
+        const isSelectPlaceholder = ['reminder-filter-class', 'slip-class'].includes(sel.id);
         
         if (isAllClasses) {
           sel.innerHTML = '<option value="All Classes">All Classes</option>';
@@ -1430,9 +1431,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         slipYearSelect.value = currentYear;
       }
-      // Reset slip search and containers
-      const searchInput = document.getElementById('slip-search');
-      if (searchInput) searchInput.value = '';
+      // Initialize slip month
+      const slipMonthSelect = document.getElementById('slip-month');
+      if (slipMonthSelect) slipMonthSelect.value = currentMonth;
+      // Reset slip class and containers
+      const slipClassSelect = document.getElementById('slip-class');
+      if (slipClassSelect) slipClassSelect.value = '';
       const listContainer = document.getElementById('slip-student-list-container');
       if (listContainer) listContainer.style.display = 'block';
       const previewContainer = document.getElementById('slip-preview-container');
@@ -2538,21 +2542,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const slipStudentsCache = [];
 
-  const btnSearchSlipStudent = document.getElementById('btn-search-slip-student');
-  if (btnSearchSlipStudent) {
-    btnSearchSlipStudent.addEventListener('click', async () => {
-      const search = document.getElementById('slip-search').value.trim();
-      if (!search) return;
+  const btnGenerateClassSlips = document.getElementById('btn-generate-class-slips');
+  if (btnGenerateClassSlips) {
+    btnGenerateClassSlips.addEventListener('click', async () => {
+      const className = document.getElementById('slip-class').value;
+      const year = document.getElementById('slip-year').value;
+      const month = document.getElementById('slip-month').value;
+      if (!className) {
+        showToast('Please select a class', true);
+        return;
+      }
 
       try {
-        const students = await apiCall(`/students?search=${encodeURIComponent(search)}`);
+        const students = await apiCall(`/students?class_name=${encodeURIComponent(className)}`);
         slipStudentsCache.length = 0;
         const tbody = document.querySelector('#table-slip-students tbody');
         if (!tbody) return;
         tbody.innerHTML = '';
 
         if (students.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No students found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No students found in this class.</td></tr>';
           return;
         }
 
@@ -2575,7 +2584,13 @@ document.addEventListener('DOMContentLoaded', () => {
             generateSlipsForStudents([slipStudentsCache.find(s => s.id == studentId)]);
           });
         });
-      } catch (e) {}
+
+        if (slipStudentsCache.length > 0) {
+          generateSlipsForStudents([...slipStudentsCache]);
+        }
+      } catch (e) {
+        showToast('Failed to load students: ' + (e.message || 'Unknown error'), true);
+      }
     });
   }
 
