@@ -86,7 +86,7 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/classes', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
-    const rows = await querySchool(schoolId, 'SELECT DISTINCT class_name FROM students WHERE status != "Left" OR status IS NULL');
+    const rows = await querySchool(schoolId, "SELECT DISTINCT class_name FROM students WHERE status != 'Left' OR status IS NULL");
     const classes = rows.map(r => r.class_name).filter(Boolean);
     res.json(classes);
   } catch (err) {

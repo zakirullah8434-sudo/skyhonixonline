@@ -150,7 +150,7 @@ router.post('/admin/allow', checkMasterPin, async (req, res) => {
     const extendedDueDate = baseDate.toISOString().split('T')[0];
 
     await runMain(
-      'UPDATE schools SET subscription_status = "active", next_due_date = ? WHERE id = ?',
+      "UPDATE schools SET subscription_status = 'active', next_due_date = ? WHERE id = ?",
       [extendedDueDate, schoolIdInt]
     );
 
@@ -207,7 +207,7 @@ router.post('/admin/verify', checkMasterPin, async (req, res) => {
 
       // 3. Activate/extend school subscription status
       await runMain(
-        'UPDATE schools SET subscription_status = "active", next_due_date = ? WHERE id = ?',
+        "UPDATE schools SET subscription_status = 'active', next_due_date = ? WHERE id = ?",
         [extendedDueDate, slip.school_id]
       );
 

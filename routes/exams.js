@@ -253,7 +253,7 @@ router.post('/calculate', authenticateToken, async (req, res) => {
     if (class_name) {
       classes = [class_name];
     } else {
-      const rows = await querySchool(schoolId, 'SELECT DISTINCT class_name FROM students WHERE status != "Left" OR status IS NULL');
+      const rows = await querySchool(schoolId, "SELECT DISTINCT class_name FROM students WHERE status != 'Left' OR status IS NULL");
       classes = rows.map(r => r.class_name).filter(Boolean);
     }
 
