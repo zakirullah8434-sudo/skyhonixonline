@@ -1455,12 +1455,23 @@ document.addEventListener('DOMContentLoaded', () => {
       if (yearSelect) {
         yearSelect.innerHTML = '';
         for (let y = currentYear; y >= currentYear - 5; y--) {
-          yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+          const opt = document.createElement('option');
+          opt.value = y;
+          opt.textContent = y;
+          if (y === currentYear) opt.selected = true;
+          yearSelect.appendChild(opt);
         }
-        yearSelect.value = currentYear;
       }
       const monthSelect = document.getElementById('analytics-filter-month');
-      if (monthSelect) monthSelect.value = currentMonth;
+      if (monthSelect) {
+        const opts = monthSelect.options;
+        for (let i = 0; i < opts.length; i++) {
+          if (opts[i].text === currentMonth) {
+            opts[i].selected = true;
+            break;
+          }
+        }
+      }
       refreshFeeAnalytics();
     }
   }
