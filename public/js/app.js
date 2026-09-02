@@ -3229,7 +3229,7 @@ document.addEventListener('DOMContentLoaded', () => {
     details.forEach(r => { totalMax += r.max_marks; totalObt += r.obtained_marks; });
 
     apiCall('/settings').then(set => {
-      const schoolLogo = set.logo_path ? '/' + set.logo_path : 'school_assets/school_logo.png';
+      const schoolLogo = imgSrc(set.logo_path, 'school_assets/school_logo.png');
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const posLabel = sum.position && sum.position !== '-' ? sum.position : '-';
 
@@ -3332,7 +3332,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const term = document.getElementById('dmc-select-term').value;
 
     apiCall('/settings').then(set => {
-      const schoolLogo = set.logo_path ? '/' + set.logo_path : 'school_assets/school_logo.png';
+      const schoolLogo = imgSrc(set.logo_path, 'school_assets/school_logo.png');
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
       let html = '';
 
@@ -3652,7 +3652,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let settings = {};
         try { settings = await apiCall('/settings'); } catch (e) {}
-        const logoUrl = settings.logo_path ? '/' + settings.logo_path : 'school_assets/school_logo.png';
+        const logoUrl = imgSrc(settings.logo_path, 'school_assets/school_logo.png');
 
         const subjects = t.subjects || [];
 
@@ -3917,7 +3917,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let settings = {};
         try { settings = await apiCall('/settings'); } catch (e) {}
-        const logoUrl = settings.logo_path ? '/' + settings.logo_path : 'school_assets/school_logo.png';
+        const logoUrl = imgSrc(settings.logo_path, 'school_assets/school_logo.png');
 
         let activeDatesheet = null;
         try { activeDatesheet = await apiCall('/exams/datesheets/active'); } catch (e) {}
@@ -5498,7 +5498,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const schoolName = currentUser ? currentUser.schoolName : 'School Name';
 
       apiCall('/settings').then(set => {
-        const logoUrl = set.logo_path ? '/' + set.logo_path : 'school_assets/school_logo.png';
+        const logoUrl = imgSrc(set.logo_path, 'school_assets/school_logo.png');
         renderResultPost(schoolName, logoUrl, className, examName, students);
       }).catch(() => {
         renderResultPost(schoolName, 'school_assets/school_logo.png', className, examName, students);
