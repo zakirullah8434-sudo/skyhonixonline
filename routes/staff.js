@@ -146,10 +146,11 @@ router.post('/parents', authenticateToken, async (req, res) => {
     const parentName = name || (matchedStudents.length > 0 ? matchedStudents[0].father_name : 'Parent');
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
     const result = await runSchool(schoolId,
       `INSERT INTO parents (name, phone, password, cnic, address, status, created_at)
-       VALUES (?, ?, ?, '', '', 'Active', datetime('now'))`,
-      [parentName, phone, hashedPassword]
+       VALUES (?, ?, ?, '', '', 'Active', ?)`,
+      [parentName, phone, hashedPassword, now]
     );
 
     // Auto-link all students with matching phone
@@ -192,10 +193,11 @@ router.post('/parents/create-with-student', authenticateToken, async (req, res) 
     const parentName = (student && student.father_name) ? student.father_name : 'Parent';
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
     const result = await runSchool(schoolId,
       `INSERT INTO parents (name, phone, password, cnic, address, status, created_at)
-       VALUES (?, ?, ?, '', '', 'Active', datetime('now'))`,
-      [parentName, phone, hashedPassword]
+       VALUES (?, ?, ?, '', '', 'Active', ?)`,
+      [parentName, phone, hashedPassword, now]
     );
 
     // Link the specific student to this parent
