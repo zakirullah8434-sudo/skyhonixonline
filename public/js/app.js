@@ -542,7 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td><strong>${s.roll_no || '-'}</strong></td>
             <td>
               <div style="display:flex; align-items:center; gap: 10px;">
-                <img src="/${s.photo || 'school_assets/school_logo.png'}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;">
+                <img src="/${s.photo || 'school_assets/school_logo.png'}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;" onerror="this.src='/school_assets/school_logo.png'">
                 <strong>${s.name}</strong>
               </div>
             </td>
@@ -919,7 +919,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const stats = data.stats;
 
       // Header
-      document.getElementById('sp-avatar').innerText = (s.name || 'S')[0].toUpperCase();
+      const avatarPhoto = document.getElementById('sp-avatar-photo');
+      const avatarText = document.getElementById('sp-avatar-text');
+      if (s.photo) {
+        avatarPhoto.src = '/' + s.photo;
+        avatarPhoto.style.display = 'block';
+        avatarText.style.display = 'none';
+      } else {
+        avatarPhoto.style.display = 'none';
+        avatarText.style.display = 'block';
+        avatarText.innerText = (s.name || 'S')[0].toUpperCase();
+      }
       document.getElementById('sp-student-name').innerText = s.name || 'Unknown';
       document.getElementById('sp-class-info').innerText = `Class: ${s.class_name || '-'}${s.section_name ? ' - ' + s.section_name : ''}`;
       document.getElementById('sp-roll-info').innerText = `Roll No: ${s.roll_no || '-'}`;
@@ -1987,6 +1997,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function buildReminderHTML(studentData, schoolData, year) {
     const allMonths = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
     const d = studentData;
+    const studentPhoto = d.student.photo ? '/' + d.student.photo : '';
 
     // Only include months that have actual ledger data (not null)
     const activeMonths = allMonths.filter(m => d.monthlyFee[m] !== null && d.monthlyFee[m] !== undefined);
@@ -2002,6 +2013,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           </div>
           <div class="slip-student-row">
+            ${studentPhoto ? `<img src="${studentPhoto}" style="width:45px; height:55px; border-radius:4px; object-fit:cover; border:1px solid #ccc;" onerror="this.style.display='none'">` : ''}
             <div class="slip-student-info">
               <div><strong>Name:</strong> ${d.student.name}</div>
               <div><strong>F-Name:</strong> ${d.student.father_name || '-'}</div>
@@ -2048,6 +2060,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
         <div class="slip-student-row">
+          ${studentPhoto ? `<img src="${studentPhoto}" style="width:45px; height:55px; border-radius:4px; object-fit:cover; border:1px solid #ccc;" onerror="this.style.display='none'">` : ''}
           <div class="slip-student-info">
             <div><strong>Name:</strong> ${d.student.name}</div>
             <div><strong>F-Name:</strong> ${d.student.father_name || '-'}</div>
@@ -2613,6 +2626,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const allMonths = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
     const d = studentData;
     const logoSrc = schoolData.logo ? (schoolData.logo.startsWith('data:') ? schoolData.logo : '/' + schoolData.logo) : '';
+    const studentPhoto = d.student.photo ? '/' + d.student.photo : '';
 
     // Only include months that have actual ledger data (not null)
     const activeMonths = allMonths.filter(m => d.monthlyFee[m] !== null && d.monthlyFee[m] !== undefined);
@@ -2628,6 +2642,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           </div>
           <div class="slip-student-row">
+            ${studentPhoto ? `<img src="${studentPhoto}" style="width:45px; height:55px; border-radius:4px; object-fit:cover; border:1px solid #ccc;" onerror="this.style.display='none'">` : ''}
             <div class="slip-student-info">
               <div><strong>Name:</strong> ${d.student.name}</div>
               <div><strong>F-Name:</strong> ${d.student.father_name || '-'}</div>
@@ -2674,6 +2689,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
         <div class="slip-student-row">
+          ${studentPhoto ? `<img src="${studentPhoto}" style="width:45px; height:55px; border-radius:4px; object-fit:cover; border:1px solid #ccc;" onerror="this.style.display='none'">` : ''}
           <div class="slip-student-info">
             <div><strong>Name:</strong> ${d.student.name}</div>
             <div><strong>F-Name:</strong> ${d.student.father_name || '-'}</div>
@@ -4718,6 +4734,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   async function loadParentsList() {
     try {
+      // Load classes for parent class selector
+      const classes = await apiCall('/students/classes');
+      const parentClassSelect = document.getElementById('parent-class-select');
+      if (parentClassSelect) {
+        parentClassSelect.innerHTML = '<option value="">-- Select Class --</option>';
+        classes.forEach(cls => {
+          parentClassSelect.innerHTML += `<option value="${cls}">${cls}</option>`;
+        });
+      }
+
+      // Load existing parents list
       const parents = await apiCall('/staff/parents');
       const tbody = document.querySelector('#table-parents tbody');
       if (!tbody) return;
@@ -4762,13 +4789,75 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   }
 
+  // Parent class selector -> load students for that class
+  document.getElementById('parent-class-select').addEventListener('change', async function() {
+    const className = this.value;
+    const studentSelect = document.getElementById('parent-student-select');
+    const passwordField = document.getElementById('parent-password');
+    const submitBtn = document.getElementById('btn-parent-submit');
+    const studentInfo = document.getElementById('parent-student-info');
+
+    studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
+    studentSelect.disabled = true;
+    passwordField.disabled = true;
+    submitBtn.disabled = true;
+    studentInfo.style.display = 'none';
+    document.getElementById('parent-student-id').value = '';
+
+    if (!className) return;
+
+    try {
+      const students = await apiCall(`/students?class_name=${encodeURIComponent(className)}`);
+      if (students.length === 0) {
+        studentSelect.innerHTML = '<option value="">-- No students in this class --</option>';
+        return;
+      }
+      students.forEach(s => {
+        studentSelect.innerHTML += `<option value="${s.id}" data-phone="${s.phone || ''}" data-name="${s.name}" data-father="${s.father_name || '-'}">${s.name} (${s.roll_no || '-'})</option>`;
+      });
+      studentSelect.disabled = false;
+    } catch (e) {
+      showToast('Failed to load students', true);
+    }
+  });
+
+  // Parent student selector -> show student info and enable password
+  document.getElementById('parent-student-select').addEventListener('change', function() {
+    const option = this.options[this.selectedIndex];
+    const passwordField = document.getElementById('parent-password');
+    const submitBtn = document.getElementById('btn-parent-submit');
+    const studentInfo = document.getElementById('parent-student-info');
+
+    if (!this.value) {
+      passwordField.disabled = true;
+      submitBtn.disabled = true;
+      studentInfo.style.display = 'none';
+      document.getElementById('parent-student-id').value = '';
+      return;
+    }
+
+    document.getElementById('parent-student-id').value = this.value;
+    document.getElementById('parent-student-name').textContent = option.dataset.name || '-';
+    document.getElementById('parent-student-phone').textContent = option.dataset.phone || '-';
+    document.getElementById('parent-student-father').textContent = option.dataset.father || '-';
+    studentInfo.style.display = 'block';
+    passwordField.disabled = false;
+    submitBtn.disabled = false;
+  });
+
   document.getElementById('form-parent').addEventListener('submit', async (e) => {
     e.preventDefault();
     const editId = document.getElementById('parent-edit-id').value;
-    const phone = document.getElementById('parent-phone').value.trim();
+    const studentId = document.getElementById('parent-student-id').value;
     const password = document.getElementById('parent-password').value;
+    const studentSelect = document.getElementById('parent-student-select');
+    const selectedOption = studentSelect.options[studentSelect.selectedIndex];
+    const phone = selectedOption ? selectedOption.dataset.phone : '';
 
-    if (!phone) return;
+    if (!studentId || !phone) {
+      showToast('Please select a student first', true);
+      return;
+    }
     if (!editId && !password) { showToast('Password is required for new parent', true); return; }
 
     try {
@@ -4778,25 +4867,30 @@ document.addEventListener('DOMContentLoaded', () => {
         await apiCall(`/staff/parents/${editId}`, 'PUT', body);
         showToast('Parent account updated');
       } else {
-        await apiCall('/staff/parents', 'POST', { phone, password });
-        showToast('Parent account created & students auto-linked');
+        await apiCall('/staff/parents/create-with-student', 'POST', { student_id: studentId, phone, password });
+        showToast('Parent account created & linked to student');
       }
-      document.getElementById('form-parent').reset();
-      document.getElementById('parent-edit-id').value = '';
-      document.getElementById('parent-form-title').textContent = 'Create Parent Account';
-      document.getElementById('btn-parent-submit').textContent = 'Create Account';
-      document.getElementById('btn-parent-cancel').style.display = 'none';
+      resetParentForm();
       loadParentsList();
     } catch (err) { showToast(err.message, true); }
   });
 
-  document.getElementById('btn-parent-cancel').addEventListener('click', () => {
+  function resetParentForm() {
     document.getElementById('form-parent').reset();
     document.getElementById('parent-edit-id').value = '';
+    document.getElementById('parent-student-id').value = '';
+    document.getElementById('parent-class-select').value = '';
+    document.getElementById('parent-student-select').innerHTML = '<option value="">-- Select Student --</option>';
+    document.getElementById('parent-student-select').disabled = true;
+    document.getElementById('parent-password').disabled = true;
+    document.getElementById('btn-parent-submit').disabled = true;
+    document.getElementById('parent-student-info').style.display = 'none';
     document.getElementById('parent-form-title').textContent = 'Create Parent Account';
     document.getElementById('btn-parent-submit').textContent = 'Create Account';
     document.getElementById('btn-parent-cancel').style.display = 'none';
-  });
+  }
+
+  document.getElementById('btn-parent-cancel').addEventListener('click', resetParentForm);
 
   // ==========================================
   // TIMETABLE

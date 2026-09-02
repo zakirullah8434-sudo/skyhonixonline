@@ -310,7 +310,7 @@
 
             <div class="card" style="margin-bottom: 20px; background: rgba(16, 185, 129, 0.08); border: 1px dashed var(--accent);">
               <p style="font-size: 0.9rem; color: var(--text-primary); margin: 0;">
-                <strong>Auto-Link:</strong> Enter the parent's phone number (same as in student directory). All students with this phone number will be automatically linked. Just set a password for portal access.
+                <strong>Create Parent Account:</strong> Select a class, then select a student. The student's phone number will be used for the parent login. Just set a password to create the parent account.
               </p>
             </div>
 
@@ -318,25 +318,42 @@
               <h3 id="parent-form-title">Create Parent Account</h3>
               <form id="form-parent" style="margin-top: 15px;">
                 <input type="hidden" id="parent-edit-id" value="">
+                <input type="hidden" id="parent-student-id" value="">
                 <div class="grid-3" style="gap: 15px;">
                   <div class="form-group">
-                    <label class="form-label">Phone Number * (must match student directory)</label>
-                    <input type="text" class="form-control" id="parent-phone" required placeholder="e.g. 03001234567">
+                    <label class="form-label">Select Class *</label>
+                    <select class="form-control" id="parent-class-select" required>
+                      <option value="">-- Select Class --</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Select Student *</label>
+                    <select class="form-control" id="parent-student-select" required disabled>
+                      <option value="">-- Select Student --</option>
+                    </select>
                   </div>
                   <div class="form-group">
                     <label class="form-label">Password * (for portal login)</label>
-                    <input type="password" class="form-control" id="parent-password" placeholder="Min 6 characters">
+                    <input type="password" class="form-control" id="parent-password" placeholder="Min 6 characters" disabled>
                   </div>
-                  <div class="form-group" style="display: flex; align-items: flex-end; gap: 10px;">
-                    <button type="submit" class="btn btn-primary" id="btn-parent-submit" style="flex: 1;">Create Account</button>
-                    <button type="button" class="btn btn-outline" id="btn-parent-cancel" style="display: none;">Cancel</button>
+                </div>
+                <div id="parent-student-info" style="display:none; margin-top:12px; padding:12px; background:rgba(99,102,241,0.08); border-radius:8px; border-left:3px solid var(--primary);">
+                  <div style="font-size:0.9rem; color:var(--text-primary);">
+                    <strong id="parent-student-name">-</strong> | 
+                    <span style="color:var(--text-muted);">Phone: <span id="parent-student-phone">-</span></span> | 
+                    <span style="color:var(--text-muted);">Father: <span id="parent-student-father">-</span></span>
                   </div>
+                </div>
+                <div style="margin-top: 15px; display: flex; gap: 10px;">
+                  <button type="submit" class="btn btn-primary" id="btn-parent-submit" style="flex: 1;" disabled>Create Account</button>
+                  <button type="button" class="btn btn-outline" id="btn-parent-cancel" style="display: none;">Cancel</button>
                 </div>
                 <p id="parent-feedback" style="margin-top: 10px; display: none;"></p>
               </form>
             </div>
 
             <div class="card">
+              <h3 style="margin-bottom: 12px;">Parent Accounts List</h3>
               <div class="table-container">
                 <table class="data-table" id="table-parents">
                   <thead>
@@ -636,7 +653,10 @@
             <!-- Student Header Card -->
             <div class="card" style="margin-bottom: 24px; background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(236,72,153,0.1) 100%); border: 1px solid var(--border-glow);">
               <div style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
-                <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: white; flex-shrink: 0;" id="sp-avatar">🎓</div>
+                <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: white; flex-shrink: 0; overflow: hidden; position: relative;" id="sp-avatar">
+                  <img id="sp-avatar-photo" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                  <span id="sp-avatar-text">🎓</span>
+                </div>
                 <div style="flex: 1;">
                   <h2 style="margin: 0; font-size: 1.5rem;" id="sp-student-name">Student Name</h2>
                   <div style="display: flex; gap: 16px; margin-top: 8px; flex-wrap: wrap;">
