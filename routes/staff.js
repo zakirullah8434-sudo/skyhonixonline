@@ -148,8 +148,8 @@ router.post('/parents', authenticateToken, async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await runSchool(schoolId,
       `INSERT INTO parents (name, phone, password, cnic, address, status, created_at)
-       VALUES (?, ?, ?, '', '', 'Active', ?)`,
-      [parentName, phone, hashedPassword, new Date().toISOString().slice(0, 19).replace('T', ' ')]
+       VALUES (?, ?, ?, '', '', 'Active', datetime('now'))`,
+      [parentName, phone, hashedPassword]
     );
 
     // Auto-link all students with matching phone
@@ -164,6 +164,58 @@ router.post('/parents', authenticateToken, async (req, res) => {
     }
 
     res.json({ id: result.id, message: `Parent created and linked to ${students.length} student(s)` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /staff/parents/create-with-student - Create parent linked to a specific student
+router.post('/parents/create-with-student', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { student_id, phone, password } = req.body;
+
+  if (!student_id || !phone || !password) {
+    return res.status(400).json({ error: 'Student, phone, and password are required' });
+  }
+
+  try {
+    // Check if parent already exists with this phone
+    const existing = await querySchoolOne(schoolId, 'SELECT id FROM parents WHERE phone = ?', [phone]);
+    if (existing) {
+      return res.status(409).json({ error: 'A parent with this phone number already exists' });
+    }
+
+    // Get student info for parent name
+    const student = await querySchoolOne(schoolId,
+      'SELECT father_name FROM students WHERE id = ?', [student_id]
+    );
+    const parentName = (student && student.father_name) ? student.father_name : 'Parent';
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await runSchool(schoolId,
+      `INSERT INTO parents (name, phone, password, cnic, address, status, created_at)
+       VALUES (?, ?, ?, '', '', 'Active', datetime('now'))`,
+      [parentName, phone, hashedPassword]
+    );
+
+    // Link the specific student to this parent
+    await runSchool(schoolId,
+      'INSERT OR IGNORE INTO student_parents (student_id, parent_id, relation) VALUES (?, ?, ?)',
+      [student_id, result.id, 'Father']
+    );
+
+    // Also link any other students with matching phone
+    const otherStudents = await querySchool(schoolId,
+      'SELECT id FROM students WHERE phone = ? AND id != ?', [phone, student_id]
+    );
+    for (const s of otherStudents) {
+      await runSchool(schoolId,
+        'INSERT OR IGNORE INTO student_parents (student_id, parent_id, relation) VALUES (?, ?, ?)',
+        [s.id, result.id, 'Father']
+      );
+    }
+
+    res.json({ id: result.id, message: `Parent created and linked to student` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
