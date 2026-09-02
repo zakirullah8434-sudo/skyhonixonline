@@ -25,6 +25,88 @@ function getTursoClient() {
   return tursoClient;
 }
 
+class SchoolDbTursoProxy {
+  constructor(client, schoolId) {
+    this.client = client;
+    this.schoolId = schoolId;
+  }
+
+  _rewrite(sql, params) {
+    const sid = this.schoolId;
+
+    if (/^\s*INSERT\s+/i.test(sql)) {
+      const m = sql.match(/INSERT\s+INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/i);
+      if (m) {
+        const cols = m[2].split(',').map(c => c.trim());
+        const vals = m[3].split(',').map(v => v.trim());
+        cols.push('school_id');
+        vals.push('?');
+        return { sql: `INSERT INTO ${m[1]} (${cols.join(', ')}) VALUES (${vals.join(', ')})`, params: [...params, sid] };
+      }
+    }
+
+    if (/^\s*SELECT\b/i.test(sql) && !/\bWHERE\b/i.test(sql)) {
+      for (const p of [/\bORDER\s+BY\b/i, /\bGROUP\s+BY\b/i, /\bLIMIT\b/i]) {
+        const idx = sql.search(p);
+        if (idx !== -1) {
+          return { sql: sql.slice(0, idx) + 'WHERE school_id = ? ' + sql.slice(idx), params: [sid, ...params] };
+        }
+      }
+      return { sql: sql.trimEnd().replace(/;?\s*$/, '') + ' WHERE school_id = ?', params: [...params, sid] };
+    }
+
+    if (/\bWHERE\b/i.test(sql)) {
+      const whereIdx = sql.search(/\bWHERE\b/i);
+      const before = sql.slice(0, whereIdx + 5);
+      let after = sql.slice(whereIdx + 5);
+      let endIdx = after.length;
+      for (const p of [/\bORDER\s+BY\b/i, /\bGROUP\s+BY\b/i, /\bLIMIT\b/i]) {
+        const idx = after.search(p);
+        if (idx !== -1 && idx < endIdx) endIdx = idx;
+      }
+      const cond = after.slice(0, endIdx).trim();
+      const rest = after.slice(endIdx);
+      return { sql: before + ' (' + cond + ') AND school_id = ?' + rest, params: [...params, sid] };
+    }
+
+    if (/^\s*(UPDATE|DELETE)\s+/i.test(sql)) {
+      return { sql: sql + ' WHERE school_id = ?', params: [...params, sid] };
+    }
+
+    return { sql, params };
+  }
+
+  all(sql, params = [], callback) {
+    if (typeof params === 'function') { callback = params; params = []; }
+    const { sql: s, params: p } = this._rewrite(sql, params);
+    this.client.execute({ sql: s, args: p })
+      .then(r => callback(null, r.rows))
+      .catch(e => callback(e));
+  }
+
+  get(sql, params = [], callback) {
+    if (typeof params === 'function') { callback = params; params = []; }
+    const { sql: s, params: p } = this._rewrite(sql, params);
+    this.client.execute({ sql: s, args: p })
+      .then(r => callback(null, r.rows[0] || undefined))
+      .catch(e => callback(e));
+  }
+
+  run(sql, params = [], callback) {
+    if (typeof params === 'function') { callback = params; params = []; }
+    const { sql: s, params: p } = this._rewrite(sql, params);
+    this.client.execute({ sql: s, args: p })
+      .then(r => {
+        const ctx = { lastID: Number(r.lastInsertRowid), changes: r.rowsAffected };
+        if (callback) callback.call(ctx, null);
+      })
+      .catch(e => { if (callback) callback(e); else console.error('Turso run error:', e); });
+  }
+
+  serialize(callback) { callback(); }
+  close(callback) { if (callback) callback(); }
+}
+
 function getMainDb() {
   if (!mainDb) {
     if (!fs.existsSync(mainDbPath)) {
@@ -95,23 +177,21 @@ function getSchoolDb(schoolId) {
       return resolve(schoolDbCache[schoolId]);
     }
 
+    if (config.useTurso) {
+      const proxy = new SchoolDbTursoProxy(getTursoClient(), schoolId);
+      schoolDbCache[schoolId] = proxy;
+      return resolve(proxy);
+    }
+
     const lookupAndConnect = async () => {
       let school;
-      if (config.useTurso) {
-        const result = await getTursoClient().execute({
-          sql: 'SELECT db_file FROM schools WHERE id = ?',
-          args: [schoolId]
+      school = await new Promise((res, rej) => {
+        const db = getMainDb();
+        db.get('SELECT db_file FROM schools WHERE id = ?', [schoolId], (err, row) => {
+          if (err) rej(err);
+          else res(row);
         });
-        school = result.rows[0] || null;
-      } else {
-        school = await new Promise((res, rej) => {
-          const db = getMainDb();
-          db.get('SELECT db_file FROM schools WHERE id = ?', [schoolId], (err, row) => {
-            if (err) rej(err);
-            else res(row);
-          });
-        });
-      }
+      });
 
       if (!school) {
         throw new Error('School not found or invalid tenant ID');
