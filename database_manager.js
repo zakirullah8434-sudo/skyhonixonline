@@ -32,8 +32,21 @@ class SchoolDbTursoProxy {
   }
 
   _getFirstTable(sql) {
+    const SQL_KEYWORDS = new Set([
+      'WHERE', 'SET', 'VALUES', 'ORDER', 'GROUP', 'HAVING',
+      'LIMIT', 'OFFSET', 'UNION', 'EXCEPT', 'INTERSECT',
+      'INNER', 'LEFT', 'RIGHT', 'OUTER', 'CROSS', 'JOIN',
+      'ON', 'AND', 'OR', 'NOT', 'INSERT', 'UPDATE', 'DELETE',
+      'SELECT', 'FROM', 'INTO', 'CREATE', 'DROP', 'ALTER',
+      'INDEX', 'TABLE', 'DISTINCT', 'AS', 'CASE', 'WHEN',
+      'THEN', 'ELSE', 'END', 'IN', 'BETWEEN', 'LIKE', 'IS',
+      'NULL', 'ASC', 'DESC', 'REPLACE', 'INTO'
+    ]);
     const m = sql.match(/\bFROM\s+(\w+)(?:\s+(\w+))?/i);
-    if (m) return m[2] || m[1];
+    if (m) {
+      if (m[2] && !SQL_KEYWORDS.has(m[2].toUpperCase())) return m[2];
+      return m[1];
+    }
     const um = sql.match(/\bUPDATE\s+(\w+)/i);
     if (um) return um[1];
     return null;
@@ -54,7 +67,7 @@ class SchoolDbTursoProxy {
     const sid = this.schoolId;
 
     if (/^\s*INSERT\s+/i.test(sql)) {
-      const m = sql.match(/INSERT\s+INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/i);
+      const m = sql.match(/INSERT\s+(?:OR\s+REPLACE\s+)?INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/i);
       if (m) {
         const cols = m[2].split(',').map(c => c.trim());
         const vals = m[3].split(',').map(v => v.trim());
