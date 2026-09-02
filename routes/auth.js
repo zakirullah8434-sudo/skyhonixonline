@@ -119,8 +119,11 @@ router.post('/register', async (req, res) => {
     const schoolId = mainResult.id;
 
     // Connect to the tenant database (this will trigger file creation and schema initialization)
-    // The default admin password in template will be updated to the user's password
-    await runSchool(schoolId, 'UPDATE users SET password = ? WHERE role = ?', [hashedPassword, 'admin']);
+    // Use INSERT OR REPLACE to guarantee admin user exists (schema init callbacks may not have finished)
+    await runSchool(schoolId,
+      'INSERT OR REPLACE INTO users (username, password, role) VALUES (?, ?, ?)',
+      ['admin', hashedPassword, 'admin']
+    );
 
     res.status(201).json({
       message: `School registered successfully! Unique Code: ${schoolCode}. Please share this code with the administrator to request access activation.`,
@@ -166,11 +169,24 @@ router.post('/login', async (req, res) => {
     const schoolId = school.id;
 
     // 3. Get admin user from school's tenant database for username/role info
-    const user = await querySchoolOne(
+    let user = await querySchoolOne(
       schoolId,
       'SELECT id, username, role FROM users WHERE role = ?',
       ['admin']
     );
+
+    // If admin user is missing (schema init race condition), create it now
+    if (!user) {
+      await runSchool(schoolId,
+        'INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)',
+        ['admin', school.password, 'admin']
+      );
+      user = await querySchoolOne(
+        schoolId,
+        'SELECT id, username, role FROM users WHERE role = ?',
+        ['admin']
+      );
+    }
 
     if (!user) {
       return res.status(401).json({ error: 'No admin user found for this school' });
