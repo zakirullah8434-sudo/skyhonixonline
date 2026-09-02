@@ -771,6 +771,13 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 20px;
 }
 
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
 /* Responsive Styles */
 @media (max-width: 992px) {
   .hero {
@@ -1845,5 +1852,290 @@ h1, h2, h3, h4, h5, h6 {
   .portal-header h2 { font-size: 0.9rem !important; }
   .record-card h4 { font-size: 0.9rem !important; }
   .record-card table th, .record-card table td { font-size: 0.7rem !important; padding: 5px 6px !important; }
+}
+
+/* ==========================================================================
+   COMPREHENSIVE MOBILE OPTIMIZATIONS
+   ========================================================================== */
+
+/* ---------- Admin Portal: Parent Management Panel ---------- */
+@media (max-width: 768px) {
+  /* Parent form grid stacks vertically */
+  #panel-manage-parents .grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Student info box */
+  #parent-student-info {
+    padding: 10px 12px !important;
+    font-size: 0.82rem !important;
+    word-break: break-word;
+  }
+  #parent-student-info div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* Submit/cancel buttons full width */
+  #panel-manage-parents form > div[style*="display: flex"] {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  #panel-manage-parents form > div[style*="display: flex"] .btn {
+    width: 100% !important;
+    flex: none !important;
+  }
+
+  /* Parent table card */
+  #panel-manage-parents .card:last-child {
+    overflow: hidden;
+  }
+  #panel-manage-parents .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Teacher form grid stacks */
+  #panel-manage-teachers .grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  #panel-manage-teachers form > div[style*="display: flex"] {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  #panel-manage-teachers form > div[style*="display: flex"] .btn {
+    width: 100% !important;
+    flex: none !important;
+  }
+
+  /* Timetable panel */
+  #panel-manage-timetable .grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  #panel-manage-timetable .card div[style*="display: flex; gap: 10px"] {
+    flex-direction: column !important;
+  }
+  #panel-manage-timetable .card div[style*="display: flex; gap: 10px"] .btn {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Even tighter spacing on very small screens */
+  #panel-manage-parents .card,
+  #panel-manage-teachers .card,
+  #panel-manage-timetable .card {
+    padding: 12px !important;
+  }
+
+  #panel-manage-parents h2,
+  #panel-manage-teachers h2,
+  #panel-manage-timetable h2 {
+    font-size: 1.1rem !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* Form labels smaller */
+  #panel-manage-parents .form-label,
+  #panel-manage-teachers .form-label {
+    font-size: 0.8rem !important;
+  }
+}
+
+/* ---------- Parent Portal (parent-portal.html) ---------- */
+@media (max-width: 768px) {
+  .portal-layout {
+    flex-direction: column !important;
+  }
+  .portal-sidebar {
+    width: 100% !important;
+    height: auto !important;
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2000 !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.3s ease !important;
+  }
+  .portal-sidebar.open {
+    transform: translateX(0) !important;
+  }
+  .portal-main {
+    margin-left: 0 !important;
+    padding: 12px 10px !important;
+  }
+  .hamburger {
+    display: block !important;
+    font-size: 1.3rem;
+  }
+  .portal-header {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 10px 0 !important;
+    margin-bottom: 16px !important;
+  }
+  .portal-header h2 {
+    font-size: 1rem !important;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .user-badge {
+    font-size: 0.75rem !important;
+    padding: 4px 10px !important;
+  }
+
+  /* Child selector stacks */
+  .child-selector {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .child-selector select {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Stats grid */
+  .grid-4 {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+  .stat-card {
+    padding: 14px 10px !important;
+  }
+  .stat-card h3 {
+    font-size: 1.3rem !important;
+  }
+  .stat-card p {
+    font-size: 0.75rem !important;
+  }
+
+  /* Cards */
+  .card {
+    padding: 14px !important;
+  }
+  .card h3 {
+    font-size: 1rem !important;
+  }
+
+  /* Record cards */
+  .record-card {
+    padding: 12px !important;
+  }
+  .record-card h4 {
+    font-size: 0.95rem !important;
+  }
+
+  /* Fee grid */
+  .fee-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: 8px !important;
+  }
+  .month-card {
+    padding: 10px 8px !important;
+  }
+  .month-card .month-name {
+    font-size: 0.8rem !important;
+  }
+  .month-card .amount {
+    font-size: 0.7rem !important;
+  }
+
+  /* Tables */
+  .data-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .data-table th,
+  .data-table td {
+    padding: 6px 8px !important;
+    font-size: 0.75rem !important;
+    white-space: nowrap;
+  }
+
+  /* News ticker */
+  .news-ticker {
+    padding: 10px 14px !important;
+  }
+  .news-ticker .ticker-item {
+    font-size: 0.78rem !important;
+  }
+
+  /* Attendance filter row */
+  #panel-attendance .card > div[style*="display:flex"] {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  #panel-attendance .card > div[style*="display:flex"] select {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .portal-header h2 {
+    font-size: 0.9rem !important;
+    max-width: 120px;
+  }
+  .stat-card h3 {
+    font-size: 1.1rem !important;
+  }
+  .record-card h4 {
+    font-size: 0.88rem !important;
+  }
+  .record-card table th,
+  .record-card table td {
+    font-size: 0.7rem !important;
+    padding: 5px 6px !important;
+  }
+  .fee-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+  }
+}
+
+/* ---------- Fee Reminder & Slip Panels (mobile) ---------- */
+@media (max-width: 768px) {
+  .fee-option-panel .grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .fee-option-panel .card div[style*="display: flex; gap: 10px"],
+  .fee-option-panel .card div[style*="display:flex; gap:10px"] {
+    flex-wrap: wrap !important;
+  }
+  .fee-option-panel .card div[style*="display: flex; gap: 10px"] .btn,
+  .fee-option-panel .card div[style*="display:flex; gap:10px"] .btn {
+    flex: 1 1 45% !important;
+    min-width: 120px;
+  }
+}
+
+/* ---------- Button sizing on mobile ---------- */
+@media (max-width: 768px) {
+  .btn {
+    padding: 10px 16px !important;
+    font-size: 0.88rem !important;
+  }
+  .btn-sm {
+    padding: 7px 12px !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+/* ---------- Prevent iOS zoom on focus ---------- */
+@media (max-width: 768px) {
+  select.form-control,
+  textarea.form-control {
+    font-size: 16px !important;
+  }
 }
 

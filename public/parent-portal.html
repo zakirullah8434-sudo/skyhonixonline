@@ -39,11 +39,32 @@
     .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
     .hamburger:hover { background: rgba(255,255,255,0.1); }
     @media (max-width: 768px) {
-      .portal-sidebar { position: fixed; z-index: 1000; transform: translateX(-100%); transition: transform 0.3s; }
+      .portal-sidebar { position: fixed; z-index: 2000; transform: translateX(-100%); transition: transform 0.3s; width: 260px; }
       .portal-sidebar.open { transform: translateX(0); }
-      .portal-main { margin-left: 0; padding: 16px; }
-      .hamburger { display: block; }
-      .portal-header { flex-wrap: wrap; gap: 10px; }
+      .portal-main { margin-left: 0; padding: 12px 10px; }
+      .hamburger { display: block; font-size: 1.4rem; }
+      .portal-header { flex-wrap: wrap; gap: 8px; padding: 10px 0; }
+      .portal-header h2 { font-size: 1rem; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .user-badge { font-size: 0.75rem; padding: 4px 10px; }
+      .child-selector { flex-direction: column; align-items: stretch; gap: 8px; }
+      .child-selector select { max-width: 100%; min-width: 0; width: 100%; }
+      .grid-4 { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .stat-card { padding: 14px 10px; }
+      .stat-card h3 { font-size: 1.3rem; }
+      .stat-card p { font-size: 0.75rem; }
+      .card { padding: 14px; }
+      .card h3 { font-size: 1rem; }
+      .record-card { padding: 12px; }
+      .record-card h4 { font-size: 0.95rem; }
+      .fee-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+      .month-card { padding: 10px 8px; }
+      .data-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .data-table th, .data-table td { padding: 6px 8px; font-size: 0.75rem; white-space: nowrap; }
+    }
+    @media (max-width: 480px) {
+      .portal-header h2 { font-size: 0.9rem; max-width: 120px; }
+      .stat-card h3 { font-size: 1.1rem; }
+      .fee-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
     }
     @media (min-width: 16px) and (max-width: 768px) {
       input, select, textarea { font-size: 16px !important; }
@@ -51,6 +72,9 @@
   </style>
 </head>
 <body>
+  <!-- Sidebar Overlay (mobile backdrop) -->
+  <div id="sidebar-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1999;" onclick="document.getElementById('sidebar').classList.remove('open'); this.style.display='none';"></div>
+
   <div class="portal-layout">
     <aside class="portal-sidebar" id="sidebar">
       <div class="brand">
@@ -59,19 +83,19 @@
         <small>Parent Portal</small>
       </div>
       <nav>
-        <a class="active" data-panel="dashboard" onclick="showPanel('dashboard')">🏠 Dashboard</a>
-        <a data-panel="fees" onclick="showPanel('fees')">💰 Fees</a>
-        <a data-panel="exams" onclick="showPanel('exams')">📝 Exams</a>
-        <a data-panel="attendance" onclick="showPanel('attendance')">📋 Attendance</a>
-        <a data-panel="assignments" onclick="showPanel('assignments')">📚 Homework & Tests</a>
-        <a data-panel="announcements" onclick="showPanel('announcements')">📢 Announcements</a>
+        <a class="active" data-panel="dashboard" onclick="showPanel('dashboard'); if(window.innerWidth<=768){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').style.display='none';}">🏠 Dashboard</a>
+        <a data-panel="fees" onclick="showPanel('fees'); if(window.innerWidth<=768){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').style.display='none';}">💰 Fees</a>
+        <a data-panel="exams" onclick="showPanel('exams'); if(window.innerWidth<=768){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').style.display='none';}">📝 Exams</a>
+        <a data-panel="attendance" onclick="showPanel('attendance'); if(window.innerWidth<=768){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').style.display='none';}">📋 Attendance</a>
+        <a data-panel="assignments" onclick="showPanel('assignments'); if(window.innerWidth<=768){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').style.display='none';}">📚 Homework & Tests</a>
+        <a data-panel="announcements" onclick="showPanel('announcements'); if(window.innerWidth<=768){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').style.display='none';}">📢 Announcements</a>
       </nav>
     </aside>
 
     <main class="portal-main">
       <header class="portal-header">
         <div style="display:flex; align-items:center; gap:12px;">
-          <button class="hamburger" id="btn-hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+          <button class="hamburger" id="btn-hamburger" onclick="var s=document.getElementById('sidebar'); var o=document.getElementById('sidebar-overlay'); s.classList.toggle('open'); o.style.display=s.classList.contains('open')?'block':'none';">☰</button>
           <img id="header-school-logo" src="" alt="Logo" style="width:30px; height:30px; border-radius:50%; object-fit:cover; display:none;">
           <h2 id="header-title">Dashboard</h2>
         </div>
