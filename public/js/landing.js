@@ -81,26 +81,36 @@ document.addEventListener('DOMContentLoaded', () => {
   btnLoginTrigger.addEventListener('click', () => {
     drawerSignup.classList.remove('open');
     drawerLogin.classList.add('open');
+    if (window.innerWidth <= 768) document.body.classList.add('drawer-open');
   });
 
   btnSignupTrigger.addEventListener('click', () => {
     drawerLogin.classList.remove('open');
     drawerSignup.classList.add('open');
+    if (window.innerWidth <= 768) document.body.classList.add('drawer-open');
   });
 
-  btnLoginClose.addEventListener('click', () => drawerLogin.classList.remove('open'));
-  btnSignupClose.addEventListener('click', () => drawerSignup.classList.remove('open'));
+  btnLoginClose.addEventListener('click', () => {
+    drawerLogin.classList.remove('open');
+    document.body.classList.remove('drawer-open');
+  });
+  btnSignupClose.addEventListener('click', () => {
+    drawerSignup.classList.remove('open');
+    document.body.classList.remove('drawer-open');
+  });
 
   // Hero Actions scroll
   btnGetStarted.addEventListener('click', () => {
     drawerLogin.classList.remove('open');
     drawerSignup.classList.add('open');
+    if (window.innerWidth <= 768) document.body.classList.add('drawer-open');
   });
 
   if (btnPricingTrial) {
     btnPricingTrial.addEventListener('click', () => {
       drawerLogin.classList.remove('open');
       drawerSignup.classList.add('open');
+      if (window.innerWidth <= 768) document.body.classList.add('drawer-open');
     });
   }
 
@@ -156,6 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
         drawerLogin.classList.add('open');
         // Fill school email automatically for convenience
         document.getElementById('login-school-email').value = email;
+        if (window.innerWidth <= 768) document.body.classList.add('drawer-open');
       }, 1500);
 
     } catch (err) {
@@ -170,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorMsg = document.getElementById('login-error-msg');
     errorMsg.style.display = 'none';
 
-    const schoolEmail = document.getElementById('login-school-email').value.trim();
+    const schoolEmail = document.getElementById('login-school-email').value.trim().toLowerCase();
     const password = document.getElementById('login-password').value;
 
     try {
@@ -206,6 +217,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       errorMsg.innerText = err.message;
       errorMsg.style.display = 'block';
+      // Scroll error into view on mobile
+      errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   });
 
@@ -244,6 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       errorMsg.innerText = err.message;
       errorMsg.style.display = 'block';
+      errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   });
 
@@ -282,6 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       errorMsg.innerText = err.message;
       errorMsg.style.display = 'block';
+      errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   });
 });

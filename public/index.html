@@ -210,12 +210,12 @@
     <form id="form-login" class="login-form" data-role="school">
       <div class="form-group">
         <label class="form-label" for="login-school-email">School Email</label>
-        <input type="email" class="form-control" id="login-school-email" placeholder="school@example.com" required autocomplete="email">
+        <input type="email" class="form-control" id="login-school-email" placeholder="school@example.com" required autocomplete="email" autocapitalize="none" spellcheck="false" inputmode="email">
       </div>
 
       <div class="form-group">
         <label class="form-label" for="login-password">Password</label>
-        <input type="password" class="form-control" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+        <input type="password" class="form-control" id="login-password" placeholder="••••••••" required autocomplete="current-password" autocapitalize="none" spellcheck="false">
       </div>
 
       <div style="margin-top: 30px;">
@@ -229,12 +229,12 @@
     <form id="form-login-teacher" class="login-form" data-role="teacher" style="display:none;">
       <div class="form-group">
         <label class="form-label" for="login-teacher-phone">Phone Number</label>
-        <input type="text" class="form-control" id="login-teacher-phone" placeholder="e.g. 03114918272" required autocomplete="tel">
+        <input type="text" class="form-control" id="login-teacher-phone" placeholder="e.g. 03114918272" required autocomplete="tel" autocapitalize="none" inputmode="tel">
       </div>
 
       <div class="form-group">
         <label class="form-label" for="login-teacher-password">Password</label>
-        <input type="password" class="form-control" id="login-teacher-password" placeholder="••••••••" required autocomplete="current-password">
+        <input type="password" class="form-control" id="login-teacher-password" placeholder="••••••••" required autocomplete="current-password" autocapitalize="none" spellcheck="false">
       </div>
 
       <div style="margin-top: 30px;">
@@ -248,15 +248,15 @@
     <form id="form-login-parent" class="login-form" data-role="parent" style="display:none;">
       <div class="form-group">
         <label class="form-label" for="login-parent-school-id">School ID</label>
-        <input type="number" class="form-control" id="login-parent-school-id" placeholder="e.g. 1" required>
+        <input type="number" class="form-control" id="login-parent-school-id" placeholder="e.g. 1" required inputmode="numeric">
       </div>
       <div class="form-group">
         <label class="form-label" for="login-parent-phone">Phone Number</label>
-        <input type="text" class="form-control" id="login-parent-phone" placeholder="e.g. 03114918272" required autocomplete="tel">
+        <input type="text" class="form-control" id="login-parent-phone" placeholder="e.g. 03114918272" required autocomplete="tel" autocapitalize="none" inputmode="tel">
       </div>
       <div class="form-group">
         <label class="form-label" for="login-parent-password">Password</label>
-        <input type="password" class="form-control" id="login-parent-password" placeholder="••••••••" required autocomplete="current-password">
+        <input type="password" class="form-control" id="login-parent-password" placeholder="••••••••" required autocomplete="current-password" autocapitalize="none" spellcheck="false">
       </div>
       <div style="margin-top: 30px;">
         <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In as Parent</button>
