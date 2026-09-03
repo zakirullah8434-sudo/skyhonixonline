@@ -3978,15 +3978,15 @@ document.addEventListener('DOMContentLoaded', () => {
               const dayName = dateObj ? dateObj.toLocaleDateString('en-US', { weekday: 'long' }) : '-';
               const dateFormatted = dateObj ? dateObj.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
               tableRows += '<tr>' +
-                '<td>' + (i + 1) + '</td>' +
-                '<td>' + dateFormatted + '</td>' +
-                '<td>' + dayName + '</td>' +
-                '<td style="text-align:left;">' + sub.subject + '</td>' +
-                '<td>' + (sub.time || '-') + '</td>' +
+                '<td style="border:1px solid #000; padding:5px 8px; text-align:center;">' + (i + 1) + '</td>' +
+                '<td style="border:1px solid #000; padding:5px 8px; text-align:center;">' + dateFormatted + '</td>' +
+                '<td style="border:1px solid #000; padding:5px 8px; text-align:center;">' + dayName + '</td>' +
+                '<td style="border:1px solid #000; padding:5px 8px; text-align:left;">' + sub.subject + '</td>' +
+                '<td style="border:1px solid #000; padding:5px 8px; text-align:center;">' + (sub.time || '-') + '</td>' +
                 '</tr>';
             });
           } else {
-            tableRows = '<tr><td colspan="5" style="padding:8px; color:#888;">No datesheet available</td></tr>';
+            tableRows = '<tr><td colspan="5" style="border:1px solid #000; padding:10px; text-align:center; color:#888;">No datesheet available</td></tr>';
           }
 
           const instructions = [
@@ -4003,51 +4003,65 @@ document.addEventListener('DOMContentLoaded', () => {
             slipsHtml += '<div class="rollno-page">';
           }
 
-          slipsHtml += '<div class="rollno-slip">' +
-            '<div class="slip-header-area">' +
-              '<h1>' + currentUser.schoolName + '</h1>' +
-              '<div class="slip-logo-title">' +
-                '<img src="' + logoUrl + '" alt="Logo" onerror="this.style.display=\'none\'">' +
+          const examName = exam ? exam.exam_name + ' Exam ' + exam.year : '';
+
+          slipsHtml +=
+            '<div style="width:100%; height:100%; display:flex; flex-direction:column; padding:0; font-family:Arial,sans-serif;">' +
+
+              // === HEADER: School name ===
+              '<div style="text-align:center; margin-bottom:6px;">' +
+                '<div style="font-size:18px; font-weight:900; color:#000; text-transform:uppercase; letter-spacing:1px;">' + currentUser.schoolName + '</div>' +
+              '</div>' +
+
+              // === Logo + ROLL NO SLIP title ===
+              '<div style="display:flex; align-items:center; gap:14px; margin-bottom:10px;">' +
+                '<img src="' + logoUrl + '" alt="Logo" style="width:55px; height:55px; border-radius:50%; flex-shrink:0;" onerror="this.style.display=\'none\'">' +
                 '<div>' +
-                  '<h2>ROLL NO SLIP</h2>' +
-                  '<p>' + (exam ? exam.exam_name + ' Exam ' + exam.year : '') + '</p>' +
+                  '<div style="font-size:15px; font-weight:800; letter-spacing:1px;">ROLL NO SLIP</div>' +
+                  '<div style="font-size:12px; color:#333; margin-top:2px;">' + examName + '</div>' +
                 '</div>' +
               '</div>' +
-            '</div>' +
-            '<div class="slip-student-info">' +
-              '<div><strong>Name:</strong> ' + (s.name || '-') + '</div>' +
-              '<div><strong>Class:</strong> ' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
-              '<div><strong>Father Name:</strong> ' + (s.father_name || '-') + '</div>' +
-              '<div><strong>Roll No:</strong> ' + (s.roll_no || '-') + '</div>' +
-            '</div>' +
-            '<div class="slip-table-wrap">' +
-              '<table>' +
-                '<thead>' +
-                  '<tr>' +
-                    '<th style="width:6%;">#</th>' +
-                    '<th style="width:22%;">Date</th>' +
-                    '<th style="width:20%;">Day</th>' +
-                    '<th style="width:30%;">Subject</th>' +
-                    '<th style="width:22%;">Time</th>' +
-                  '</tr>' +
-                '</thead>' +
-                '<tbody>' + tableRows + '</tbody>' +
-              '</table>' +
-            '</div>' +
-            '<div class="slip-footer">' +
-              '<div class="inst">' +
-                '<p>Instructions:</p>' +
-                '<ul style="margin:0; padding-left:16px;">' + instHtml + '</ul>' +
+
+              // === Student info ===
+              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:5px 24px; font-size:12px; padding:10px 0; margin-bottom:8px;">' +
+                '<div><strong>Name:</strong>&nbsp;&nbsp;' + (s.name || '-') + '</div>' +
+                '<div><strong>Class:</strong>&nbsp;&nbsp;' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
+                '<div><strong>Father Name:</strong>&nbsp;&nbsp;' + (s.father_name || '-') + '</div>' +
+                '<div><strong>Roll No:</strong>&nbsp;&nbsp;' + (s.roll_no || '-') + '</div>' +
               '</div>' +
-              '<div class="sign">' +
-                (principal_sign ?
-                  '<img src="' + principal_sign + '" alt="Sign" onerror="this.style.display=\'none\'">' :
-                  '<div style="height:35px;"></div>'
-                ) +
-                '<div class="sign-line">Principal Signature</div>' +
+
+              // === Exam table ===
+              '<div style="flex:1; overflow:hidden;">' +
+                '<table style="width:100%; border-collapse:collapse; font-size:11px;">' +
+                  '<thead>' +
+                    '<tr style="background:#f5f5f5;">' +
+                      '<th style="border:1px solid #000; padding:5px 8px; text-align:center; width:6%; font-weight:700;">#</th>' +
+                      '<th style="border:1px solid #000; padding:5px 8px; text-align:center; width:22%; font-weight:700;">Date</th>' +
+                      '<th style="border:1px solid #000; padding:5px 8px; text-align:center; width:20%; font-weight:700;">Day</th>' +
+                      '<th style="border:1px solid #000; padding:5px 8px; text-align:left; width:30%; font-weight:700;">Subject</th>' +
+                      '<th style="border:1px solid #000; padding:5px 8px; text-align:center; width:22%; font-weight:700;">Time</th>' +
+                    '</tr>' +
+                  '</thead>' +
+                  '<tbody>' + tableRows + '</tbody>' +
+                '</table>' +
               '</div>' +
-            '</div>' +
-          '</div>';
+
+              // === Footer: Instructions + Signature ===
+              '<div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:12px; margin-top:auto; font-size:11px;">' +
+                '<div style="max-width:50%;">' +
+                  '<div style="font-weight:700; margin-bottom:3px;">Instructions:</div>' +
+                  '<ul style="margin:0; padding-left:18px; list-style:disc;">' + instHtml + '</ul>' +
+                '</div>' +
+                '<div style="text-align:center;">' +
+                  (principal_sign ?
+                    '<img src="' + principal_sign + '" alt="Sign" style="max-height:40px; max-width:90px; opacity:0.8;" onerror="this.style.display=\'none\'">' :
+                    '<div style="height:40px;"></div>'
+                  ) +
+                  '<div style="border-top:1px solid #000; width:130px; margin:0 auto; padding-top:5px; font-size:10px;">Principal Signature</div>' +
+                '</div>' +
+              '</div>' +
+
+            '</div>';
 
           slipCount++;
 
@@ -4068,62 +4082,25 @@ document.addEventListener('DOMContentLoaded', () => {
     btnPrintRollno.addEventListener('click', () => {
       const content = document.getElementById('rollno-printable-content').innerHTML;
       const printHtml = '<!DOCTYPE html><html><head>' +
+        '<meta charset="utf-8">' +
         '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
         '<title>Roll No Slips</title>' +
         '<style>' +
-          '* { margin: 0; padding: 0; box-sizing: border-box; }' +
-          'html, body { background: #f0f0f0; font-family: Arial, sans-serif; width: 100%; height: 100%; }' +
-          '.rollno-page {' +
-            'width: 297mm; height: 210mm; margin: 0 auto 4mm; padding: 4mm 5mm;' +
-            'background: white; overflow: hidden;' +
-            'display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr;' +
-            'gap: 0 4mm; page-break-after: always;' +
-          '}' +
-          '.rollno-page:last-child { page-break-after: auto; }' +
-          '.rollno-slip {' +
-            'width: 100%; height: 100%;' +
-            'border: none; padding: 0; overflow: hidden;' +
-            'page-break-inside: avoid; break-inside: avoid;' +
-            'display: flex; flex-direction: column;' +
-          '}' +
-          '.slip-header-area { text-align: center; margin-bottom: 4px; }' +
-          '.slip-header-area h1 { font-size: 16px; font-weight: 900; color: #000; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }' +
-          '.slip-logo-title { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 6px; }' +
-          '.slip-logo-title img { height: 50px; width: 50px; border-radius: 50%; }' +
-          '.slip-logo-title div { text-align: center; }' +
-          '.slip-logo-title h2 { font-size: 14px; font-weight: 800; letter-spacing: 1px; margin: 0; }' +
-          '.slip-logo-title p { font-size: 11px; color: #333; margin: 2px 0 0; }' +
-          '.slip-student-info { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; font-size: 11px; padding: 8px 0; margin-bottom: 6px; }' +
-          '.slip-student-info div { display: flex; gap: 6px; }' +
-          '.slip-student-info strong { min-width: auto; }' +
-          '.slip-table-wrap { flex: 1; overflow: hidden; }' +
-          '.slip-table-wrap table { width: 100%; border-collapse: collapse; font-size: 10px; }' +
-          '.slip-table-wrap table th { background: #f5f5f5; font-weight: 700; }' +
-          '.slip-table-wrap table th, .slip-table-wrap table td { padding: 4px 8px; border: 1px solid #000; text-align: center; }' +
-          '.slip-table-wrap table td:nth-child(4) { text-align: left; }' +
-          '.slip-footer { flex-shrink: 0; display: flex; justify-content: space-between; align-items: flex-end; padding-top: 10px; font-size: 10px; }' +
-          '.slip-footer .inst { max-width: 50%; }' +
-          '.slip-footer .inst p { font-weight: 700; margin-bottom: 3px; }' +
-          '.slip-footer .inst li { margin: 2px 0; list-style: disc; }' +
-          '.slip-footer .sign { text-align: center; }' +
-          '.slip-footer .sign img { max-height: 35px; max-width: 80px; opacity: 0.8; }' +
-          '.slip-footer .sign-line { border-top: 1px solid #000; width: 120px; margin: 0 auto; padding-top: 4px; }' +
-          '@media print {' +
-            'html, body { background: white; margin: 0; padding: 0; width: 100%; height: 100%; }' +
-            '@page { size: A4 landscape; margin: 5mm; }' +
-            '.rollno-page { width: 100%; height: 100%; margin: 0; padding: 4mm 5mm; gap: 0 3mm; page-break-after: always; }' +
-            '.rollno-page:last-child { page-break-after: auto; }' +
-          '}' +
+          '@page { size: A4 landscape; margin: 5mm; }' +
+          'html, body { margin:0; padding:0; background:white; font-family:Arial,sans-serif; }' +
+          '.rollno-page { width:297mm; height:210mm; padding:5mm 6mm; display:grid; grid-template-columns:1fr 1fr; gap:0 5mm; page-break-after:always; overflow:hidden; }' +
+          '.rollno-page:last-child { page-break-after:auto; }' +
+          '@media print { html,body{margin:0;padding:0;} .rollno-page{width:100%;height:100%;padding:3mm 4mm;gap:0 3mm;} }' +
         '</style>' +
         '</head><body>' +
         content +
         '</body></html>';
 
-      const printWindow = window.open('', '_blank', 'width=1024,height=768');
+      const printWindow = window.open('', '_blank');
       if (printWindow) {
         printWindow.document.write(printHtml);
         printWindow.document.close();
-        setTimeout(() => { printWindow.print(); }, 500);
+        setTimeout(() => { printWindow.print(); }, 600);
       } else {
         document.body.innerHTML = printHtml;
         window.print();
