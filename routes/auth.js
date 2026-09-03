@@ -228,49 +228,39 @@ router.get('/session', authenticateToken, (req, res) => {
   });
 });
 
-// Teacher Login (phone + password only — school is auto-detected)
+// Teacher Login (school_id + phone + password)
 router.post('/teacher-login', async (req, res) => {
-  const { phone, password } = req.body;
+  const { school_id, phone, password } = req.body;
 
-  if (!phone || !password) {
-    return res.status(400).json({ error: 'Phone and Password are required' });
+  if (!school_id || !phone || !password) {
+    return res.status(400).json({ error: 'School ID, Phone, and Password are required' });
   }
 
   try {
-    // 1. Find all schools
-    const schools = await queryMain(
-      'SELECT id, school_name, subscription_status FROM schools'
+    // 1. Find the specific school
+    const school = await queryMainOne(
+      'SELECT id, school_name, subscription_status FROM schools WHERE id = ?',
+      [school_id]
     );
 
-    if (schools.length === 0) {
-      return res.status(404).json({ error: 'No schools registered' });
+    if (!school) {
+      return res.status(404).json({ error: 'School not found with this ID' });
     }
 
-    // 2. Search for teacher across all school databases
-    let foundSchool = null;
+    // 2. Find teacher in this school
     let foundTeacher = null;
-
-    for (const school of schools) {
-      try {
-        const teacher = await querySchoolOne(
-          school.id,
-          'SELECT id, name, phone, password, subject, status FROM teachers WHERE phone = ?',
-          [phone]
-        );
-
-        if (teacher) {
-          foundSchool = school;
-          foundTeacher = teacher;
-          break;
-        }
-      } catch (e) {
-        // Skip schools where teacher table doesn't exist or has errors
-        continue;
-      }
+    try {
+      foundTeacher = await querySchoolOne(
+        school.id,
+        'SELECT id, name, phone, password, subject, status FROM teachers WHERE phone = ?',
+        [phone]
+      );
+    } catch (e) {
+      return res.status(404).json({ error: 'Teacher not found in this school' });
     }
 
     if (!foundTeacher) {
-      return res.status(404).json({ error: 'Teacher not found with this phone number' });
+      return res.status(404).json({ error: 'Teacher not found in this school' });
     }
 
     if (foundTeacher.status !== 'Active') {
@@ -278,10 +268,10 @@ router.post('/teacher-login', async (req, res) => {
     }
 
     // Block login for pending or suspended schools
-    if (foundSchool.subscription_status === 'pending') {
+    if (school.subscription_status === 'pending') {
       return res.status(403).json({ error: 'School registration is pending admin approval.' });
     }
-    if (foundSchool.subscription_status === 'suspended') {
+    if (school.subscription_status === 'suspended') {
       return res.status(403).json({ error: 'School access is suspended. Contact admin.' });
     }
 
@@ -293,8 +283,8 @@ router.post('/teacher-login', async (req, res) => {
 
     // 4. Generate JWT
     const payload = {
-      schoolId: foundSchool.id,
-      schoolName: foundSchool.school_name,
+      schoolId: school.id,
+      schoolName: school.school_name,
       teacherId: foundTeacher.id,
       teacherName: foundTeacher.name,
       role: 'teacher'
@@ -310,8 +300,8 @@ router.post('/teacher-login', async (req, res) => {
         teacherName: foundTeacher.name,
         subject: foundTeacher.subject,
         role: 'teacher',
-        schoolName: foundSchool.school_name,
-        schoolId: foundSchool.id
+        schoolName: school.school_name,
+        schoolId: school.id
       }
     });
 

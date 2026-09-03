@@ -228,6 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorMsg = document.getElementById('login-teacher-error-msg');
     errorMsg.style.display = 'none';
 
+    const schoolId = document.getElementById('login-teacher-school-id').value.trim();
     const phone = document.getElementById('login-teacher-phone').value.trim();
     const password = document.getElementById('login-teacher-password').value;
 
@@ -235,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('/api/auth/teacher-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, password })
+        body: JSON.stringify({ school_id: parseInt(schoolId), phone, password })
       });
 
       const result = await response.json();
