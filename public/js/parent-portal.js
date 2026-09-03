@@ -74,17 +74,25 @@
     document.querySelector(`.portal-sidebar nav a[data-panel="${name}"]`).classList.add('active');
     const titles = { dashboard: 'Dashboard', fees: 'Fee Records', exams: 'Exam Results', attendance: 'Attendance', assignments: 'Homework & Tests', announcements: 'Announcements' };
     headerTitle.textContent = titles[name] || name;
-    document.getElementById('sidebar').classList.remove('open');
+    // Close sidebar only on mobile
+    if (window.innerWidth <= 768) {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebar-overlay').style.display = 'none';
+    }
     loadPanelData(name);
   };
 
   // Close sidebar when clicking outside on mobile
   document.getElementById('btn-hamburger').addEventListener('click', (e) => {
     e.stopPropagation();
-    document.getElementById('sidebar').classList.toggle('open');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.toggle('open');
+    overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
   });
-  document.querySelector('.portal-main').addEventListener('click', () => {
+  document.getElementById('sidebar-overlay').addEventListener('click', () => {
     document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').style.display = 'none';
   });
 
   // Child selector change
