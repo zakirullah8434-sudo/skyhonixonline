@@ -3962,6 +3962,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let slipsHtml = '';
         let slipCount = 0;
+        // v2 - exact match to reference layout
         students.forEach((s, idx) => {
           let subjectsForClass = [];
           if (activeDatesheet && activeDatesheet.template && activeDatesheet.template.subjects) {
