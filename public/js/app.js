@@ -3992,34 +3992,34 @@ document.addEventListener('DOMContentLoaded', () => {
             'Students Must come on time.',
             'Dues Must be cleared.'
           ];
-          let instHtml = instructions.map(inst => '<li style="margin:3px 0;">' + inst + '</li>').join('');
+          let instHtml = instructions.map(inst => '<li style="margin:1px 0; font-size:9px;">' + inst + '</li>').join('');
 
           const studentPhoto = imgSrc(s.photo, '');
 
           slipsHtml += '<div class="rollno-slip">' +
             '<div style="text-align:center; margin-bottom:1px;">' +
-              '<h1 style="margin:0; font-size:0.82rem; font-weight:800; color:#1e293b; text-transform:uppercase; letter-spacing:0.5px;">' + currentUser.schoolName + '</h1>' +
+              '<h1 style="margin:0; font-size:13px; font-weight:800; color:#1e293b; text-transform:uppercase; letter-spacing:0.5px;">' + currentUser.schoolName + '</h1>' +
             '</div>' +
             '<div style="display:flex; align-items:center; justify-content:center; margin:2px 0 3px;">' +
               '<img src="' + logoUrl + '" alt="School Logo" style="max-height:30px; max-width:42px; border-radius:50%;" onerror="this.style.display=\'none\'">' +
             '</div>' +
             '<div style="text-align:center; margin-bottom:5px;">' +
-              '<h2 style="margin:0; font-size:0.72rem; font-weight:700; letter-spacing:0.5px;">ROLL NO SLIP</h2>' +
-              '<p style="margin:1px 0 0; font-size:0.65rem; color:#444;">' + (exam ? exam.exam_name + ' Exam ' + exam.year : '') + '</p>' +
+              '<h2 style="margin:0; font-size:11px; font-weight:700; letter-spacing:0.5px;">ROLL NO SLIP</h2>' +
+              '<p style="margin:1px 0 0; font-size:10px; color:#444;">' + (exam ? exam.exam_name + ' Exam ' + exam.year : '') + '</p>' +
             '</div>' +
             '<div style="display:flex; gap:6px; align-items:center; margin-bottom:5px; padding:4px; border:1px solid #ddd; border-radius:4px; background:#fafafa;">' +
               (studentPhoto ?
                 '<img src="' + studentPhoto + '" alt="Photo" style="width:38px; height:46px; border-radius:3px; object-fit:cover; border:1px solid #ccc;" onerror="this.style.display=\'none\'">' :
-                '<div style="width:38px; height:46px; border-radius:3px; border:1px solid #ccc; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-size:1rem; color:#94a3b8;">👤</div>'
+                '<div style="width:38px; height:46px; border-radius:3px; border:1px solid #ccc; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-size:16px; color:#94a3b8;">👤</div>'
               ) +
-              '<div style="flex:1; font-size:0.65rem; display:grid; grid-template-columns:1fr 1fr; gap:1px 6px;">' +
+              '<div style="flex:1; font-size:10px; display:grid; grid-template-columns:1fr 1fr; gap:1px 6px;">' +
                 '<div><strong>Name:</strong>&nbsp;' + (s.name || '-') + '</div>' +
                 '<div><strong>Roll No:</strong>&nbsp;' + (s.roll_no || '-') + '</div>' +
                 '<div><strong>Class:</strong>&nbsp;' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
                 '<div><strong>Father:</strong>&nbsp;' + (s.father_name || '-') + '</div>' +
               '</div>' +
             '</div>' +
-            '<table style="width:100%; border-collapse:collapse; margin-bottom:5px; font-size:0.58rem;">' +
+            '<table style="width:100%; border-collapse:collapse; margin-bottom:5px; font-size:9px;">' +
               '<thead>' +
                 '<tr style="background:#f0f0f0;">' +
                   '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:6%;">#</th>' +
@@ -4031,7 +4031,7 @@ document.addEventListener('DOMContentLoaded', () => {
               '</thead>' +
               '<tbody>' + tableRows + '</tbody>' +
             '</table>' +
-            '<div style="display:flex; justify-content:space-between; align-items:flex-end; font-size:0.6rem;">' +
+            '<div style="display:flex; justify-content:space-between; align-items:flex-end; font-size:9px;">' +
               '<div style="max-width:55%;">' +
                 '<p style="margin:0 0 1px; font-weight:600;">Instructions:</p>' +
                 '<ul style="margin:0; padding-left:12px;">' + instHtml + '</ul>' +
@@ -4039,12 +4039,12 @@ document.addEventListener('DOMContentLoaded', () => {
               (principal_sign ?
                 '<div style="text-align:center;">' +
                   '<img src="' + principal_sign + '" alt="Principal Sign" style="max-height:22px; max-width:45px; opacity:0.7; margin-bottom:1px;">' +
-                  '<div style="border-top:1px solid #333; width:80px; margin:0 auto; padding-top:2px; font-size:0.55rem; color:#555;">Principal Signature</div>' +
+                  '<div style="border-top:1px solid #333; width:80px; margin:0 auto; padding-top:2px; font-size:8px; color:#555;">Principal Signature</div>' +
                 '</div>'
               :
                 '<div style="text-align:center;">' +
                   '<div style="height:22px;"></div>' +
-                  '<div style="border-top:1px solid #333; width:80px; margin:0 auto; padding-top:2px; font-size:0.55rem; color:#555;">Principal Signature</div>' +
+                  '<div style="border-top:1px solid #333; width:80px; margin:0 auto; padding-top:2px; font-size:8px; color:#555;">Principal Signature</div>' +
                 '</div>'
               ) +
             '</div>' +
@@ -4061,30 +4061,55 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnPrintRollno) {
     btnPrintRollno.addEventListener('click', () => {
       const content = document.getElementById('rollno-printable-content').innerHTML;
-      document.body.innerHTML =
+      const printHtml = '<!DOCTYPE html><html><head>' +
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+        '<title>Roll No Slips</title>' +
         '<style>' +
-          '@page { size: A4 landscape; margin: 5mm; }' +
+          '* { margin: 0; padding: 0; box-sizing: border-box; }' +
+          'body { background: #f0f0f0; font-family: Arial, sans-serif; }' +
+          '.rollno-page {' +
+            'width: 297mm; min-height: 210mm; margin: 0 auto; padding: 4mm;' +
+            'background: white; display: flex; flex-wrap: wrap;' +
+            'justify-content: flex-start; align-content: flex-start;' +
+          '}' +
+          '.rollno-slip {' +
+            'width: calc(50% - 2mm); min-height: 98mm; max-height: 100mm;' +
+            'border: 1.5px solid #333; padding: 5px 7px; overflow: hidden;' +
+            'margin-bottom: 3mm; page-break-inside: avoid; break-inside: avoid;' +
+          '}' +
+          '.rollno-slip:nth-child(2n) { margin-left: 3mm; }' +
+          '.rollno-slip:nth-child(2n+1) { margin-left: 0; }' +
+          '.rollno-slip h1 { font-size: 13px; margin: 0 0 1px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; }' +
+          '.rollno-slip h2 { font-size: 11px; margin: 0 0 1px; font-weight: 700; letter-spacing: 0.5px; text-align: center; }' +
+          '.rollno-slip table { width: 100%; border-collapse: collapse; font-size: 9px; }' +
+          '.rollno-slip table th, .rollno-slip table td { padding: 1.5px 3px; border: 1px solid #333; }' +
+          '.rollno-slip img { max-height: 32px; max-width: 45px; }' +
+          '.rollno-slip img[alt="Photo"] { max-height: 45px; max-width: 38px; }' +
+          '.rollno-slip ul { padding-left: 12px; }' +
+          '.rollno-slip li { margin: 1px 0; }' +
           '@media print {' +
-            'html, body { margin: 0; padding: 0; width: 297mm; height: 210mm; }' +
-            '.rollno-page { width: 100%; display: flex; flex-wrap: wrap; justify-content: flex-start; align-content: flex-start; }' +
-            '.rollno-slip {' +
-              'page-break-inside: avoid; break-inside: avoid;' +
-              'width: 48.5%; min-height: 96mm; max-height: 98mm;' +
-              'box-sizing: border-box; margin: 0; margin-right: 1.5%; margin-bottom: 2mm;' +
-              'padding: 6px 8px; border: 1.5px solid #333; font-family: Arial, sans-serif; font-size: 0.68rem; overflow: hidden;' +
-            '}' +
-            '.rollno-slip:nth-child(2n) { margin-right: 0; }' +
-            '.rollno-slip h1 { font-size: 0.9rem; margin: 0 0 2px; }' +
-            '.rollno-slip h2 { font-size: 0.78rem; margin: 0 0 2px; }' +
-            '.rollno-slip table { font-size: 0.62rem; }' +
-            '.rollno-slip table th, .rollno-slip table td { padding: 2px 3px; }' +
-            '.rollno-slip img { max-height: 35px; max-width: 50px; }' +
-            '.rollno-slip img[alt="Photo"] { max-height: 50px; max-width: 40px; }' +
+            'body { background: white; }' +
+            '@page { size: A4 landscape; margin: 5mm; }' +
+            '.rollno-page { width: 100%; min-height: auto; margin: 0; padding: 0; }' +
+            '.rollno-slip { width: calc(50% - 1.5mm); min-height: 96mm; max-height: 98mm; margin-bottom: 2mm; }' +
+            '.rollno-slip:nth-child(2n) { margin-left: 2mm; }' +
+            '.rollno-slip:nth-child(2n+1) { margin-left: 0; }' +
           '}' +
         '</style>' +
-        '<div class="rollno-page" style="padding:3mm; background:white; color:black;">' + content + '</div>';
-      window.print();
-      window.location.reload();
+        '</head><body>' +
+        '<div class="rollno-page">' + content + '</div>' +
+        '</body></html>';
+
+      const printWindow = window.open('', '_blank', 'width=1024,height=768');
+      if (printWindow) {
+        printWindow.document.write(printHtml);
+        printWindow.document.close();
+        setTimeout(() => { printWindow.print(); }, 500);
+      } else {
+        document.body.innerHTML = printHtml;
+        window.print();
+        window.location.reload();
+      }
     });
   }
 
