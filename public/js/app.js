@@ -3961,6 +3961,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let slipsHtml = '';
+        let slipCount = 0;
         students.forEach((s, idx) => {
           let subjectsForClass = [];
           if (activeDatesheet && activeDatesheet.template && activeDatesheet.template.subjects) {
@@ -3976,15 +3977,15 @@ document.addEventListener('DOMContentLoaded', () => {
               const dayName = dateObj ? dateObj.toLocaleDateString('en-US', { weekday: 'long' }) : '-';
               const dateFormatted = dateObj ? dateObj.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
               tableRows += '<tr>' +
-                '<td style="border:1px solid #333; padding:5px 6px; text-align:center;">' + (i + 1) + '</td>' +
-                '<td style="border:1px solid #333; padding:5px 6px; text-align:center;">' + dateFormatted + '</td>' +
-                '<td style="border:1px solid #333; padding:5px 6px; text-align:center; font-weight:600;">' + dayName + '</td>' +
-                '<td style="border:1px solid #333; padding:5px 6px; font-weight:500;">' + sub.subject + '</td>' +
-                '<td style="border:1px solid #333; padding:5px 6px; text-align:center;">' + (sub.time || '-') + '</td>' +
+                '<td style="border:1px solid #333; padding:2px 3px; text-align:center;">' + (i + 1) + '</td>' +
+                '<td style="border:1px solid #333; padding:2px 3px; text-align:center;">' + dateFormatted + '</td>' +
+                '<td style="border:1px solid #333; padding:2px 3px; text-align:center; font-weight:600;">' + dayName + '</td>' +
+                '<td style="border:1px solid #333; padding:2px 3px; font-weight:500;">' + sub.subject + '</td>' +
+                '<td style="border:1px solid #333; padding:2px 3px; text-align:center;">' + (sub.time || '-') + '</td>' +
                 '</tr>';
             });
           } else {
-            tableRows = '<tr><td colspan="5" style="border:1px solid #333; padding:12px; text-align:center; color:#888;">No datesheet subjects available for this class</td></tr>';
+            tableRows = '<tr><td colspan="5" style="border:1px solid #333; padding:8px; text-align:center; color:#888;">No datesheet available</td></tr>';
           }
 
           const instructions = [
@@ -3995,6 +3996,11 @@ document.addEventListener('DOMContentLoaded', () => {
           let instHtml = instructions.map(inst => '<li style="margin:1px 0; font-size:9px;">' + inst + '</li>').join('');
 
           const studentPhoto = imgSrc(s.photo, '');
+
+          // Open a new page div every 2 slips
+          if (slipCount % 2 === 0) {
+            slipsHtml += '<div class="rollno-page">';
+          }
 
           slipsHtml += '<div class="rollno-slip">' +
             '<div class="slip-info">' +
@@ -4053,6 +4059,13 @@ document.addEventListener('DOMContentLoaded', () => {
               ) +
             '</div>' +
           '</div>';
+
+          slipCount++;
+
+          // Close page div after every 2 slips, or at the end
+          if (slipCount % 2 === 0 || idx === students.length - 1) {
+            slipsHtml += '</div>';
+          }
         });
 
         document.getElementById('rollno-printable-content').innerHTML = slipsHtml;
@@ -4072,11 +4085,12 @@ document.addEventListener('DOMContentLoaded', () => {
           '* { margin: 0; padding: 0; box-sizing: border-box; }' +
           'body { background: #f0f0f0; font-family: Arial, sans-serif; }' +
           '.rollno-page {' +
-            'width: 297mm; height: 210mm; margin: 0 auto; padding: 5mm;' +
+            'width: 297mm; height: 210mm; margin: 0 auto 4mm; padding: 5mm;' +
             'background: white; overflow: hidden;' +
             'display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr;' +
-            'gap: 0 4mm;' +
+            'gap: 0 4mm; page-break-after: always;' +
           '}' +
+          '.rollno-page:last-child { page-break-after: auto; }' +
           '.rollno-slip {' +
             'width: 100%; height: 100%;' +
             'border: 1.5px solid #333; padding: 6px 8px; overflow: hidden;' +
@@ -4095,13 +4109,14 @@ document.addEventListener('DOMContentLoaded', () => {
           '.slip-table-wrap { flex: 1; overflow: hidden; }' +
           '.slip-footer { flex-shrink: 0; }' +
           '@media print {' +
-            'body { background: white; }' +
+            'body { background: white; margin: 0; padding: 0; }' +
             '@page { size: A4 landscape; margin: 5mm; }' +
-            '.rollno-page { width: 100%; height: 100%; margin: 0; padding: 0; gap: 0 3mm; }' +
+            '.rollno-page { width: 100%; height: 100%; margin: 0; padding: 0; gap: 0 3mm; page-break-after: always; }' +
+            '.rollno-page:last-child { page-break-after: auto; }' +
           '}' +
         '</style>' +
         '</head><body>' +
-        '<div class="rollno-page">' + content + '</div>' +
+        content +
         '</body></html>';
 
       const printWindow = window.open('', '_blank', 'width=1024,height=768');
