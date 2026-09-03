@@ -523,9 +523,26 @@
   const API_BASE = '/api/admin';
   let authToken = localStorage.getItem('adminToken');
 
-  // Check if already logged in
+  // Check if already logged in - validate token first
   if (authToken) {
-    showDashboard();
+    validateAndShowDashboard();
+  }
+
+  async function validateAndShowDashboard() {
+    try {
+      const response = await fetch(`${API_BASE}/schools`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminEmail');
+        authToken = null;
+        return;
+      }
+      showDashboard();
+    } catch (err) {
+      showDashboard();
+    }
   }
 
   // Login Form Handler
@@ -593,9 +610,18 @@
 
   async function loadSchools() {
     try {
+      document.getElementById('admin-user-info').textContent = 'Loading...';
       const response = await fetch(`${API_BASE}/schools`, {
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
+
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminEmail');
+        authToken = null;
+        showLogin();
+        return;
+      }
 
       if (!response.ok) throw new Error('Failed to load schools');
       const data = await response.json();
@@ -615,8 +641,9 @@
 
   function renderSchoolsTable(schools, containerId) {
     const container = document.getElementById(containerId);
-    if (!schools.length) {
-      container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No schools found</p>';
+    if (!container) return;
+    if (!schools || !schools.length) {
+      container.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #888;"><p style="font-size: 16px; margin: 0;">No schools found</p><p style="font-size: 13px; margin: 8px 0 0 0;">Schools will appear here once registered</p></div>';
       return;
     }
 
@@ -674,6 +701,13 @@
       const response = await fetch(`${API_BASE}/schools?status=${status}`, {
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminEmail');
+        authToken = null;
+        showLogin();
+        return;
+      }
       const data = await response.json();
       renderSchoolsTable(data.schools, status + '-list');
     } catch (err) {
@@ -686,6 +720,12 @@
       const response = await fetch(`${API_BASE}/schools/${schoolId}`, {
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('adminToken');
+        authToken = null;
+        showLogin();
+        return;
+      }
       const data = await response.json();
       const school = data.school;
 
@@ -781,6 +821,13 @@
         body: JSON.stringify({ school_code: schoolCode.trim() })
       });
 
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('adminToken');
+        authToken = null;
+        showLogin();
+        return;
+      }
+
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
@@ -803,6 +850,13 @@
           'Content-Type': 'application/json'
         }
       });
+
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('adminToken');
+        authToken = null;
+        showLogin();
+        return;
+      }
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
