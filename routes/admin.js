@@ -2,8 +2,57 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
 const config = require('../config');
-const { queryMain, queryMainOne, runMain } = require('../database_manager');
+const { queryMain, queryMainOne, runMain, getSchoolDb } = require('../database_manager');
+
+// Helper: get student count from a school's database
+async function getStudentCount(schoolId) {
+  try {
+    const db = await getSchoolDb(schoolId);
+    return new Promise((resolve) => {
+      db.get("SELECT COUNT(*) as cnt FROM students WHERE status IS NULL OR status != 'Left'", [], (err, row) => {
+        resolve(err ? 0 : (row ? row.cnt : 0));
+      });
+    });
+  } catch (e) { return 0; }
+}
+
+// Helper: get DB file size in bytes
+function getDbFileSize(dbFile) {
+  try {
+    const filePath = path.join(config.DATABASES_DIR, dbFile);
+    const stat = fs.statSync(filePath);
+    return stat.size;
+  } catch (e) { return 0; }
+}
+
+// Helper: format bytes to human readable
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Helper: enrich schools with student count and resource usage
+async function enrichSchools(schools) {
+  const enriched = await Promise.all(schools.map(async (s) => {
+    const [studentCount, dbSize] = await Promise.all([
+      getStudentCount(s.id),
+      Promise.resolve(s.db_file ? getDbFileSize(s.db_file) : 0)
+    ]);
+    return {
+      ...s,
+      student_count: studentCount,
+      db_size: dbSize,
+      db_size_formatted: formatBytes(dbSize)
+    };
+  }));
+  return enriched;
+}
 
 // Admin Authentication Middleware
 function authenticateAdmin(req, res, next) {
@@ -85,11 +134,11 @@ router.post('/authenticate', async (req, res) => {
   }
 });
 
-// Get all schools or filter by status
+// Get all schools or filter by status (with student counts and resource usage)
 router.get('/schools', authenticateAdmin, async (req, res) => {
   try {
     const status = req.query.status;
-    let query = 'SELECT id, school_name, email, phone, school_code, subscription_status, subscription_amount, next_due_date, created_at, selected_package FROM schools';
+    let query = 'SELECT id, school_name, email, phone, school_code, subscription_status, subscription_amount, next_due_date, created_at, selected_package, db_file FROM schools';
     let params = [];
 
     if (status) {
@@ -100,10 +149,11 @@ router.get('/schools', authenticateAdmin, async (req, res) => {
     query += ' ORDER BY created_at DESC';
 
     const schools = await queryMain(query, params);
+    const enriched = await enrichSchools(schools || []);
 
     res.json({
       message: 'Schools retrieved successfully',
-      schools: schools || []
+      schools: enriched
     });
   } catch (err) {
     console.error('Error fetching schools:', err);
@@ -111,7 +161,7 @@ router.get('/schools', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Get specific school details
+// Get specific school details (with student count and resource usage)
 router.get('/schools/:schoolId', authenticateAdmin, async (req, res) => {
   try {
     const schoolId = req.params.schoolId;
@@ -124,6 +174,15 @@ router.get('/schools/:schoolId', authenticateAdmin, async (req, res) => {
     if (!school) {
       return res.status(404).json({ error: 'School not found' });
     }
+
+    const [studentCount, dbSize] = await Promise.all([
+      getStudentCount(school.id),
+      Promise.resolve(school.db_file ? getDbFileSize(school.db_file) : 0)
+    ]);
+
+    school.student_count = studentCount;
+    school.db_size = dbSize;
+    school.db_size_formatted = formatBytes(dbSize);
 
     res.json({
       message: 'School details retrieved',
@@ -225,15 +284,37 @@ router.get('/statistics', authenticateAdmin, async (req, res) => {
       FROM schools
     `, []);
 
+    // Get total student count and storage across all schools
+    const allSchools = await queryMain('SELECT id, db_file FROM schools', []);
+    let totalStudents = 0;
+    let totalStorage = 0;
+
+    const results = await Promise.all(allSchools.map(async (s) => {
+      const [count, size] = await Promise.all([
+        getStudentCount(s.id),
+        Promise.resolve(s.db_file ? getDbFileSize(s.db_file) : 0)
+      ]);
+      return { count, size };
+    }));
+
+    results.forEach(r => {
+      totalStudents += r.count;
+      totalStorage += r.size;
+    });
+
+    const stat = stats[0] || {};
     res.json({
       message: 'Statistics retrieved',
-      statistics: stats[0] || {
-        total_schools: 0,
-        active_count: 0,
-        pending_count: 0,
-        suspended_count: 0,
-        trial_count: 0,
-        total_revenue: 0
+      statistics: {
+        total_schools: stat.total_schools || 0,
+        active_count: stat.active_count || 0,
+        pending_count: stat.pending_count || 0,
+        suspended_count: stat.suspended_count || 0,
+        trial_count: stat.trial_count || 0,
+        total_revenue: stat.total_revenue || 0,
+        total_students: totalStudents,
+        total_storage: totalStorage,
+        total_storage_formatted: formatBytes(totalStorage)
       }
     });
   } catch (err) {
