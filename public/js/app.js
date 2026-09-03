@@ -3976,16 +3976,16 @@ document.addEventListener('DOMContentLoaded', () => {
               const dateObj = sub.date ? new Date(sub.date + 'T00:00:00') : null;
               const dayName = dateObj ? dateObj.toLocaleDateString('en-US', { weekday: 'long' }) : '-';
               const dateFormatted = dateObj ? dateObj.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
-              tableRows += '<tr>' +
-                '<td style="border:1px solid #333; padding:2px 3px; text-align:center;">' + (i + 1) + '</td>' +
-                '<td style="border:1px solid #333; padding:2px 3px; text-align:center;">' + dateFormatted + '</td>' +
-                '<td style="border:1px solid #333; padding:2px 3px; text-align:center; font-weight:600;">' + dayName + '</td>' +
-                '<td style="border:1px solid #333; padding:2px 3px; font-weight:500;">' + sub.subject + '</td>' +
-                '<td style="border:1px solid #333; padding:2px 3px; text-align:center;">' + (sub.time || '-') + '</td>' +
+              tableRows += '<tr style="height:18px;">' +
+                '<td style="border:1px solid #333; padding:3px 5px; text-align:center;">' + (i + 1) + '</td>' +
+                '<td style="border:1px solid #333; padding:3px 5px; text-align:center;">' + dateFormatted + '</td>' +
+                '<td style="border:1px solid #333; padding:3px 5px; text-align:center; font-weight:600;">' + dayName + '</td>' +
+                '<td style="border:1px solid #333; padding:3px 5px; font-weight:500;">' + sub.subject + '</td>' +
+                '<td style="border:1px solid #333; padding:3px 5px; text-align:center;">' + (sub.time || '-') + '</td>' +
                 '</tr>';
             });
           } else {
-            tableRows = '<tr><td colspan="5" style="border:1px solid #333; padding:8px; text-align:center; color:#888;">No datesheet available</td></tr>';
+            tableRows = '<tr style="height:18px;"><td colspan="5" style="border:1px solid #333; padding:8px; text-align:center; color:#888;">No datesheet available</td></tr>';
           }
 
           const instructions = [
@@ -4004,22 +4004,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
           slipsHtml += '<div class="rollno-slip">' +
             '<div class="slip-info">' +
-              '<div style="text-align:center; margin-bottom:1px;">' +
-                '<h1 style="margin:0; font-size:13px; font-weight:800; color:#1e293b; text-transform:uppercase; letter-spacing:0.5px;">' + currentUser.schoolName + '</h1>' +
+              '<div style="text-align:center; margin-bottom:2px;">' +
+                '<h1 style="margin:0; font-size:14px; font-weight:800; color:#1e293b; text-transform:uppercase; letter-spacing:0.5px;">' + currentUser.schoolName + '</h1>' +
               '</div>' +
-              '<div style="display:flex; align-items:center; justify-content:center; margin:2px 0 3px;">' +
-                '<img src="' + logoUrl + '" alt="School Logo" style="max-height:30px; max-width:42px; border-radius:50%;" onerror="this.style.display=\'none\'">' +
+              '<div style="display:flex; align-items:center; justify-content:center; margin:3px 0 4px;">' +
+                '<img src="' + logoUrl + '" alt="School Logo" style="max-height:32px; max-width:45px; border-radius:50%;" onerror="this.style.display=\'none\'">' +
               '</div>' +
-              '<div style="text-align:center; margin-bottom:5px;">' +
-                '<h2 style="margin:0; font-size:11px; font-weight:700; letter-spacing:0.5px;">ROLL NO SLIP</h2>' +
-                '<p style="margin:1px 0 0; font-size:10px; color:#444;">' + (exam ? exam.exam_name + ' Exam ' + exam.year : '') + '</p>' +
+              '<div style="text-align:center; margin-bottom:6px;">' +
+                '<h2 style="margin:0; font-size:12px; font-weight:700; letter-spacing:0.5px;">ROLL NO SLIP</h2>' +
+                '<p style="margin:2px 0 0; font-size:10px; color:#444;">' + (exam ? exam.exam_name + ' Exam ' + exam.year : '') + '</p>' +
               '</div>' +
-              '<div style="display:flex; gap:6px; align-items:center; margin-bottom:5px; padding:4px; border:1px solid #ddd; border-radius:4px; background:#fafafa;">' +
+              '<div style="display:flex; gap:8px; align-items:center; margin-bottom:6px; padding:5px; border:1px solid #ddd; border-radius:4px; background:#fafafa;">' +
                 (studentPhoto ?
-                  '<img src="' + studentPhoto + '" alt="Photo" style="width:38px; height:46px; border-radius:3px; object-fit:cover; border:1px solid #ccc;" onerror="this.style.display=\'none\'">' :
-                  '<div style="width:38px; height:46px; border-radius:3px; border:1px solid #ccc; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-size:16px; color:#94a3b8;">👤</div>'
+                  '<img src="' + studentPhoto + '" alt="Photo" style="width:42px; height:50px; border-radius:3px; object-fit:cover; border:1px solid #ccc;" onerror="this.style.display=\'none\'">' :
+                  '<div style="width:42px; height:50px; border-radius:3px; border:1px solid #ccc; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-size:18px; color:#94a3b8;">👤</div>'
                 ) +
-                '<div style="flex:1; font-size:10px; display:grid; grid-template-columns:1fr 1fr; gap:1px 6px;">' +
+                '<div style="flex:1; font-size:10px; display:grid; grid-template-columns:1fr 1fr; gap:2px 8px;">' +
                   '<div><strong>Name:</strong>&nbsp;' + (s.name || '-') + '</div>' +
                   '<div><strong>Roll No:</strong>&nbsp;' + (s.roll_no || '-') + '</div>' +
                   '<div><strong>Class:</strong>&nbsp;' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
@@ -4028,32 +4028,32 @@ document.addEventListener('DOMContentLoaded', () => {
               '</div>' +
             '</div>' +
             '<div class="slip-table-wrap">' +
-              '<table style="width:100%; border-collapse:collapse; font-size:9px;">' +
+              '<table style="width:100%; border-collapse:collapse; font-size:9px; height:100%;">' +
                 '<thead>' +
                   '<tr style="background:#f0f0f0;">' +
-                    '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:6%;">#</th>' +
-                    '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:22%;">Date</th>' +
-                    '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:20%;">Day</th>' +
-                    '<th style="border:1px solid #333; padding:2px 3px; text-align:left; width:30%;">Subject</th>' +
-                    '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:22%;">Time</th>' +
+                    '<th style="border:1px solid #333; padding:3px 4px; text-align:center; width:6%;">#</th>' +
+                    '<th style="border:1px solid #333; padding:3px 4px; text-align:center; width:22%;">Date</th>' +
+                    '<th style="border:1px solid #333; padding:3px 4px; text-align:center; width:20%;">Day</th>' +
+                    '<th style="border:1px solid #333; padding:3px 4px; text-align:left; width:30%;">Subject</th>' +
+                    '<th style="border:1px solid #333; padding:3px 4px; text-align:center; width:22%;">Time</th>' +
                   '</tr>' +
                 '</thead>' +
-                '<tbody>' + tableRows + '</tbody>' +
+                '<tbody style="height:100%;">' + tableRows + '</tbody>' +
               '</table>' +
             '</div>' +
-            '<div class="slip-footer" style="display:flex; justify-content:space-between; align-items:flex-end; font-size:9px; margin-top:auto;">' +
+            '<div class="slip-footer" style="display:flex; justify-content:space-between; align-items:flex-end; font-size:9px; padding-top:4px; border-top:1px dashed #ccc;">' +
               '<div style="max-width:55%;">' +
-                '<p style="margin:0 0 1px; font-weight:600;">Instructions:</p>' +
-                '<ul style="margin:0; padding-left:12px;">' + instHtml + '</ul>' +
+                '<p style="margin:0 0 2px; font-weight:600;">Instructions:</p>' +
+                '<ul style="margin:0; padding-left:14px;">' + instHtml + '</ul>' +
               '</div>' +
               (principal_sign ?
                 '<div style="text-align:center;">' +
-                  '<img src="' + principal_sign + '" alt="Principal Sign" style="max-height:22px; max-width:45px; opacity:0.7; margin-bottom:1px;">' +
+                  '<img src="' + principal_sign + '" alt="Principal Sign" style="max-height:24px; max-width:50px; opacity:0.7; margin-bottom:2px;">' +
                   '<div style="border-top:1px solid #333; width:80px; margin:0 auto; padding-top:2px; font-size:8px; color:#555;">Principal Signature</div>' +
                 '</div>'
               :
                 '<div style="text-align:center;">' +
-                  '<div style="height:22px;"></div>' +
+                  '<div style="height:24px;"></div>' +
                   '<div style="border-top:1px solid #333; width:80px; margin:0 auto; padding-top:2px; font-size:8px; color:#555;">Principal Signature</div>' +
                 '</div>'
               ) +
@@ -4083,7 +4083,7 @@ document.addEventListener('DOMContentLoaded', () => {
         '<title>Roll No Slips</title>' +
         '<style>' +
           '* { margin: 0; padding: 0; box-sizing: border-box; }' +
-          'body { background: #f0f0f0; font-family: Arial, sans-serif; }' +
+          'html, body { background: #f0f0f0; font-family: Arial, sans-serif; width: 100%; height: 100%; }' +
           '.rollno-page {' +
             'width: 297mm; height: 210mm; margin: 0 auto 4mm; padding: 5mm;' +
             'background: white; overflow: hidden;' +
@@ -4093,23 +4093,27 @@ document.addEventListener('DOMContentLoaded', () => {
           '.rollno-page:last-child { page-break-after: auto; }' +
           '.rollno-slip {' +
             'width: 100%; height: 100%;' +
-            'border: 1.5px solid #333; padding: 6px 8px; overflow: hidden;' +
+            'border: 1.5px solid #333; padding: 8px 10px; overflow: hidden;' +
             'page-break-inside: avoid; break-inside: avoid;' +
-            'display: flex; flex-direction: column;' +
+            'display: flex; flex-direction: column; justify-content: space-between;' +
           '}' +
-          '.rollno-slip h1 { font-size: 13px; margin: 0 0 1px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; }' +
-          '.rollno-slip h2 { font-size: 11px; margin: 0 0 1px; font-weight: 700; letter-spacing: 0.5px; text-align: center; }' +
-          '.rollno-slip table { width: 100%; border-collapse: collapse; font-size: 9px; flex-shrink: 0; }' +
-          '.rollno-slip table th, .rollno-slip table td { padding: 1.5px 3px; border: 1px solid #333; }' +
+          '.rollno-slip h1 { font-size: 14px; margin: 0 0 2px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; }' +
+          '.rollno-slip h2 { font-size: 12px; margin: 0 0 2px; font-weight: 700; letter-spacing: 0.5px; text-align: center; }' +
+          '.rollno-slip table { width: 100%; border-collapse: collapse; font-size: 9px; }' +
+          '.rollno-slip table th { background: #f0f0f0; }' +
+          '.rollno-slip table th, .rollno-slip table td { padding: 2px 4px; border: 1px solid #333; }' +
           '.rollno-slip img { max-height: 32px; max-width: 45px; }' +
-          '.rollno-slip img[alt="Photo"] { max-height: 45px; max-width: 38px; }' +
-          '.rollno-slip ul { padding-left: 12px; }' +
+          '.rollno-slip img[alt="Photo"] { max-height: 48px; max-width: 40px; }' +
+          '.rollno-slip ul { padding-left: 14px; }' +
           '.rollno-slip li { margin: 1px 0; }' +
+          '.slip-header { text-align: center; }' +
           '.slip-info { flex-shrink: 0; }' +
-          '.slip-table-wrap { flex: 1; overflow: hidden; }' +
-          '.slip-footer { flex-shrink: 0; }' +
+          '.slip-table-wrap { flex: 1; overflow: hidden; display: flex; flex-direction: column; }' +
+          '.slip-table-wrap table { flex: 1; }' +
+          '.slip-table-wrap table tbody { height: 100%; }' +
+          '.slip-footer { flex-shrink: 0; margin-top: auto; }' +
           '@media print {' +
-            'body { background: white; margin: 0; padding: 0; }' +
+            'html, body { background: white; margin: 0; padding: 0; width: 100%; height: 100%; }' +
             '@page { size: A4 landscape; margin: 5mm; }' +
             '.rollno-page { width: 100%; height: 100%; margin: 0; padding: 0; gap: 0 3mm; page-break-after: always; }' +
             '.rollno-page:last-child { page-break-after: auto; }' +
