@@ -404,11 +404,12 @@ router.post('/assignments', authenticateTeacherToken, async (req, res) => {
     const teacherInfo = await querySchoolOne(schoolId, 'SELECT name FROM teachers WHERE id = ?', [teacherId]);
     const teacherName = teacherInfo ? teacherInfo.name : 'Teacher';
 
+    const now = new Date().toISOString();
     const result = await runSchool(
       schoolId,
       `INSERT INTO assignments (teacher_id, teacher_name, subject, class_name, section_name, title, description, type, due_date, priority, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-      [teacherId, teacherName, subject, class_name, section_name || '', title, description || '', type || 'homework', due_date || '', priority || 'medium']
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [teacherId, teacherName, subject, class_name, section_name || '', title, description || '', type || 'homework', due_date || '', priority || 'medium', now]
     );
     res.json({ success: true, id: result.lastID });
   } catch (err) {
