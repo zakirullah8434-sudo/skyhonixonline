@@ -3997,41 +3997,45 @@ document.addEventListener('DOMContentLoaded', () => {
           const studentPhoto = imgSrc(s.photo, '');
 
           slipsHtml += '<div class="rollno-slip">' +
-            '<div style="text-align:center; margin-bottom:1px;">' +
-              '<h1 style="margin:0; font-size:13px; font-weight:800; color:#1e293b; text-transform:uppercase; letter-spacing:0.5px;">' + currentUser.schoolName + '</h1>' +
-            '</div>' +
-            '<div style="display:flex; align-items:center; justify-content:center; margin:2px 0 3px;">' +
-              '<img src="' + logoUrl + '" alt="School Logo" style="max-height:30px; max-width:42px; border-radius:50%;" onerror="this.style.display=\'none\'">' +
-            '</div>' +
-            '<div style="text-align:center; margin-bottom:5px;">' +
-              '<h2 style="margin:0; font-size:11px; font-weight:700; letter-spacing:0.5px;">ROLL NO SLIP</h2>' +
-              '<p style="margin:1px 0 0; font-size:10px; color:#444;">' + (exam ? exam.exam_name + ' Exam ' + exam.year : '') + '</p>' +
-            '</div>' +
-            '<div style="display:flex; gap:6px; align-items:center; margin-bottom:5px; padding:4px; border:1px solid #ddd; border-radius:4px; background:#fafafa;">' +
-              (studentPhoto ?
-                '<img src="' + studentPhoto + '" alt="Photo" style="width:38px; height:46px; border-radius:3px; object-fit:cover; border:1px solid #ccc;" onerror="this.style.display=\'none\'">' :
-                '<div style="width:38px; height:46px; border-radius:3px; border:1px solid #ccc; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-size:16px; color:#94a3b8;">👤</div>'
-              ) +
-              '<div style="flex:1; font-size:10px; display:grid; grid-template-columns:1fr 1fr; gap:1px 6px;">' +
-                '<div><strong>Name:</strong>&nbsp;' + (s.name || '-') + '</div>' +
-                '<div><strong>Roll No:</strong>&nbsp;' + (s.roll_no || '-') + '</div>' +
-                '<div><strong>Class:</strong>&nbsp;' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
-                '<div><strong>Father:</strong>&nbsp;' + (s.father_name || '-') + '</div>' +
+            '<div class="slip-info">' +
+              '<div style="text-align:center; margin-bottom:1px;">' +
+                '<h1 style="margin:0; font-size:13px; font-weight:800; color:#1e293b; text-transform:uppercase; letter-spacing:0.5px;">' + currentUser.schoolName + '</h1>' +
+              '</div>' +
+              '<div style="display:flex; align-items:center; justify-content:center; margin:2px 0 3px;">' +
+                '<img src="' + logoUrl + '" alt="School Logo" style="max-height:30px; max-width:42px; border-radius:50%;" onerror="this.style.display=\'none\'">' +
+              '</div>' +
+              '<div style="text-align:center; margin-bottom:5px;">' +
+                '<h2 style="margin:0; font-size:11px; font-weight:700; letter-spacing:0.5px;">ROLL NO SLIP</h2>' +
+                '<p style="margin:1px 0 0; font-size:10px; color:#444;">' + (exam ? exam.exam_name + ' Exam ' + exam.year : '') + '</p>' +
+              '</div>' +
+              '<div style="display:flex; gap:6px; align-items:center; margin-bottom:5px; padding:4px; border:1px solid #ddd; border-radius:4px; background:#fafafa;">' +
+                (studentPhoto ?
+                  '<img src="' + studentPhoto + '" alt="Photo" style="width:38px; height:46px; border-radius:3px; object-fit:cover; border:1px solid #ccc;" onerror="this.style.display=\'none\'">' :
+                  '<div style="width:38px; height:46px; border-radius:3px; border:1px solid #ccc; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-size:16px; color:#94a3b8;">👤</div>'
+                ) +
+                '<div style="flex:1; font-size:10px; display:grid; grid-template-columns:1fr 1fr; gap:1px 6px;">' +
+                  '<div><strong>Name:</strong>&nbsp;' + (s.name || '-') + '</div>' +
+                  '<div><strong>Roll No:</strong>&nbsp;' + (s.roll_no || '-') + '</div>' +
+                  '<div><strong>Class:</strong>&nbsp;' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
+                  '<div><strong>Father:</strong>&nbsp;' + (s.father_name || '-') + '</div>' +
+                '</div>' +
               '</div>' +
             '</div>' +
-            '<table style="width:100%; border-collapse:collapse; margin-bottom:5px; font-size:9px;">' +
-              '<thead>' +
-                '<tr style="background:#f0f0f0;">' +
-                  '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:6%;">#</th>' +
-                  '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:22%;">Date</th>' +
-                  '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:20%;">Day</th>' +
-                  '<th style="border:1px solid #333; padding:2px 3px; text-align:left; width:30%;">Subject</th>' +
-                  '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:22%;">Time</th>' +
-                '</tr>' +
-              '</thead>' +
-              '<tbody>' + tableRows + '</tbody>' +
-            '</table>' +
-            '<div style="display:flex; justify-content:space-between; align-items:flex-end; font-size:9px;">' +
+            '<div class="slip-table-wrap">' +
+              '<table style="width:100%; border-collapse:collapse; font-size:9px;">' +
+                '<thead>' +
+                  '<tr style="background:#f0f0f0;">' +
+                    '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:6%;">#</th>' +
+                    '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:22%;">Date</th>' +
+                    '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:20%;">Day</th>' +
+                    '<th style="border:1px solid #333; padding:2px 3px; text-align:left; width:30%;">Subject</th>' +
+                    '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:22%;">Time</th>' +
+                  '</tr>' +
+                '</thead>' +
+                '<tbody>' + tableRows + '</tbody>' +
+              '</table>' +
+            '</div>' +
+            '<div class="slip-footer" style="display:flex; justify-content:space-between; align-items:flex-end; font-size:9px; margin-top:auto;">' +
               '<div style="max-width:55%;">' +
                 '<p style="margin:0 0 1px; font-weight:600;">Instructions:</p>' +
                 '<ul style="margin:0; padding-left:12px;">' + instHtml + '</ul>' +
@@ -4068,32 +4072,32 @@ document.addEventListener('DOMContentLoaded', () => {
           '* { margin: 0; padding: 0; box-sizing: border-box; }' +
           'body { background: #f0f0f0; font-family: Arial, sans-serif; }' +
           '.rollno-page {' +
-            'width: 297mm; min-height: 210mm; margin: 0 auto; padding: 4mm;' +
-            'background: white; display: flex; flex-wrap: wrap;' +
-            'justify-content: flex-start; align-content: flex-start;' +
+            'width: 297mm; height: 210mm; margin: 0 auto; padding: 5mm;' +
+            'background: white; overflow: hidden;' +
+            'display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr;' +
+            'gap: 0 4mm;' +
           '}' +
           '.rollno-slip {' +
-            'width: calc(50% - 2mm); min-height: 98mm; max-height: 100mm;' +
-            'border: 1.5px solid #333; padding: 5px 7px; overflow: hidden;' +
-            'margin-bottom: 3mm; page-break-inside: avoid; break-inside: avoid;' +
+            'width: 100%; height: 100%;' +
+            'border: 1.5px solid #333; padding: 6px 8px; overflow: hidden;' +
+            'page-break-inside: avoid; break-inside: avoid;' +
+            'display: flex; flex-direction: column;' +
           '}' +
-          '.rollno-slip:nth-child(2n) { margin-left: 3mm; }' +
-          '.rollno-slip:nth-child(2n+1) { margin-left: 0; }' +
           '.rollno-slip h1 { font-size: 13px; margin: 0 0 1px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; }' +
           '.rollno-slip h2 { font-size: 11px; margin: 0 0 1px; font-weight: 700; letter-spacing: 0.5px; text-align: center; }' +
-          '.rollno-slip table { width: 100%; border-collapse: collapse; font-size: 9px; }' +
+          '.rollno-slip table { width: 100%; border-collapse: collapse; font-size: 9px; flex-shrink: 0; }' +
           '.rollno-slip table th, .rollno-slip table td { padding: 1.5px 3px; border: 1px solid #333; }' +
           '.rollno-slip img { max-height: 32px; max-width: 45px; }' +
           '.rollno-slip img[alt="Photo"] { max-height: 45px; max-width: 38px; }' +
           '.rollno-slip ul { padding-left: 12px; }' +
           '.rollno-slip li { margin: 1px 0; }' +
+          '.slip-info { flex-shrink: 0; }' +
+          '.slip-table-wrap { flex: 1; overflow: hidden; }' +
+          '.slip-footer { flex-shrink: 0; }' +
           '@media print {' +
             'body { background: white; }' +
             '@page { size: A4 landscape; margin: 5mm; }' +
-            '.rollno-page { width: 100%; min-height: auto; margin: 0; padding: 0; }' +
-            '.rollno-slip { width: calc(50% - 1.5mm); min-height: 96mm; max-height: 98mm; margin-bottom: 2mm; }' +
-            '.rollno-slip:nth-child(2n) { margin-left: 2mm; }' +
-            '.rollno-slip:nth-child(2n+1) { margin-left: 0; }' +
+            '.rollno-page { width: 100%; height: 100%; margin: 0; padding: 0; gap: 0 3mm; }' +
           '}' +
         '</style>' +
         '</head><body>' +
