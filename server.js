@@ -152,7 +152,15 @@ app.use('/api/teachers', teacherRoutes);
 app.use('/api/parents', parentRoutes);
 
 // Serve static frontend files
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // Catch-all for ALL methods (GET, POST, PUT, DELETE) - return JSON for API, HTML for pages
 app.all('*', (req, res) => {
