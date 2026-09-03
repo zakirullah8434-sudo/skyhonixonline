@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="description" content="SkyHonix Master Admin Panel - Manage school registrations and subscriptions">
   <title>SkyHonix Admin Panel | School Management</title>
   <link rel="stylesheet" href="css/styles.css">
@@ -524,6 +527,25 @@
   </div>
 </div>
 
+<!-- Edit School ID Modal -->
+<div id="edit-code-modal" class="modal">
+  <div class="modal-content" style="max-width: 400px;">
+    <div class="modal-header">
+      <h2>Edit School ID</h2>
+      <button class="close-modal" onclick="closeEditCodeModal()">&times;</button>
+    </div>
+    <div style="padding: 20px;">
+      <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">School ID (alphanumeric)</label>
+      <input type="text" id="edit-code-input" class="form-control" placeholder="e.g. SKH-A3F9K2" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+      <p id="edit-code-error" style="color: #dc3545; margin-top: 8px; display: none; font-size: 13px;"></p>
+      <div style="display: flex; gap: 10px; margin-top: 16px;">
+        <button onclick="saveSchoolId()" style="flex: 1; padding: 10px; background: #667eea; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Save</button>
+        <button onclick="closeEditCodeModal()" style="flex: 1; padding: 10px; background: #6c757d; color: #fff; border: none; border-radius: 8px; cursor: pointer;">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   const API_BASE = '/api/admin';
   let authToken = localStorage.getItem('adminToken');
@@ -687,7 +709,7 @@
               <td><strong>${s.school_name}</strong><br><small style="color:#888;">${s.email}</small></td>
               <td>
                 <code style="background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px;">${s.school_code || 'Not Assigned'}</code>
-                <button onclick="editSchoolId(${s.id}, '${(s.school_code || '').replace(/'/g, "\\'")}')" style="background: none; border: none; color: #667eea; cursor: pointer; font-size: 11px; margin-left: 4px;" title="Edit School ID">&#9998;</button>
+                <button onclick="editSchoolId(${s.id}, '${(s.school_code || '').replace(/'/g, "\\'")}')" style="background: #667eea; color: #fff; border: none; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 11px; margin-left: 6px;">Edit</button>
               </td>
               <td><strong>${s.student_count || 0}</strong></td>
               <td><small>${s.db_size_formatted || '0 B'}</small></td>
@@ -821,22 +843,38 @@
     }
   }
 
-  async function editSchoolId(schoolId, currentCode) {
-    const newCode = prompt('Enter new School ID:', currentCode || '');
-    if (newCode === null) return;
-    if (!newCode.trim()) {
-      alert('School ID cannot be empty.');
+  let editingSchoolId = null;
+
+  function editSchoolId(schoolId, currentCode) {
+    editingSchoolId = schoolId;
+    document.getElementById('edit-code-input').value = currentCode || '';
+    document.getElementById('edit-code-error').style.display = 'none';
+    document.getElementById('edit-code-modal').classList.add('show');
+  }
+
+  function closeEditCodeModal() {
+    document.getElementById('edit-code-modal').classList.remove('show');
+    editingSchoolId = null;
+  }
+
+  async function saveSchoolId() {
+    const newCode = document.getElementById('edit-code-input').value.trim();
+    const errorEl = document.getElementById('edit-code-error');
+
+    if (!newCode) {
+      errorEl.textContent = 'School ID is required.';
+      errorEl.style.display = 'block';
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE}/schools/${schoolId}/edit-code`, {
+      const response = await fetch(`${API_BASE}/schools/${editingSchoolId}/edit-code`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ school_code: newCode.trim() })
+        body: JSON.stringify({ school_code: newCode })
       });
 
       if (response.status === 401 || response.status === 403) {
@@ -847,12 +885,18 @@
       }
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
+      if (!response.ok) {
+        errorEl.textContent = data.error;
+        errorEl.style.display = 'block';
+        return;
+      }
 
       alert(`School ID updated to: ${data.school_code}`);
+      closeEditCodeModal();
       loadSchools();
     } catch (err) {
-      alert('Error: ' + err.message);
+      errorEl.textContent = 'Error: ' + err.message;
+      errorEl.style.display = 'block';
     }
   }
 
