@@ -148,6 +148,17 @@ router.get('/my-marks', authenticateTeacherToken, async (req, res) => {
       return res.status(403).json({ error: 'You are not assigned to teach this subject in this class' });
     }
 
+    // Get max_marks from exam_subjects if configured
+    let maxMarks = 100;
+    const examSubject = await querySchoolOne(
+      schoolId,
+      'SELECT max_marks FROM exam_subjects WHERE exam_id = ? AND class = ? AND subject = ? AND term = ?',
+      [parseInt(exam_id), class_name, subject, term]
+    );
+    if (examSubject && examSubject.max_marks) {
+      maxMarks = examSubject.max_marks;
+    }
+
     // Get students
     let studentsQuery = "SELECT id, name, roll_no, class_name, section_name FROM students WHERE class_name = ? AND (status IS NULL OR status != 'Left')";
     const params = [class_name];
@@ -176,7 +187,8 @@ router.get('/my-marks', authenticateTeacherToken, async (req, res) => {
       roll_no: student.roll_no,
       class_name: student.class_name,
       section_name: student.section_name,
-      marks: marksMap[student.id] !== undefined ? marksMap[student.id] : ''
+      marks: marksMap[student.id] !== undefined ? marksMap[student.id] : '',
+      max_marks: maxMarks
     }));
 
     res.json(grid);
@@ -190,7 +202,7 @@ router.get('/my-marks', authenticateTeacherToken, async (req, res) => {
 router.post('/my-marks', authenticateTeacherToken, async (req, res) => {
   const schoolId = req.teacher.schoolId;
   const teacherId = req.teacher.teacherId;
-  const { exam_id, subject, term, class_name, section_name, marksList } = req.body;
+  const { exam_id, subject, term, class_name, section_name, max_marks, marksList } = req.body;
 
   if (!exam_id || !subject || !term || !class_name || !marksList) {
     return res.status(400).json({ error: 'exam_id, subject, term, class_name, and marksList are required' });
@@ -206,6 +218,25 @@ router.post('/my-marks', authenticateTeacherToken, async (req, res) => {
 
     if (!assignment) {
       return res.status(403).json({ error: 'You are not assigned to teach this subject in this class' });
+    }
+
+    // Save max_marks to exam_subjects (upsert)
+    const maxMarksVal = parseInt(max_marks) || 100;
+    const existing = await querySchoolOne(
+      schoolId,
+      'SELECT id FROM exam_subjects WHERE exam_id = ? AND class = ? AND subject = ? AND term = ?',
+      [parseInt(exam_id), class_name, subject, term]
+    );
+    if (existing) {
+      await runSchool(schoolId,
+        'UPDATE exam_subjects SET max_marks = ? WHERE id = ?',
+        [maxMarksVal, existing.id]
+      );
+    } else {
+      await runSchool(schoolId,
+        'INSERT INTO exam_subjects (exam_id, class, subject, max_marks, term) VALUES (?, ?, ?, ?, ?)',
+        [parseInt(exam_id), class_name, subject, maxMarksVal, term]
+      );
     }
 
     const affectedStudents = [];

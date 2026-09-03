@@ -283,6 +283,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const grid = await apiCall(`/api/teachers/my-marks?exam_id=${examId}&class_name=${className}&subject=${subject}&term=${term}`);
       currentMarksData = grid;
 
+      // Use max_marks from backend response, fallback to 100
+      const maxMarks = grid.length > 0 && grid[0].max_marks !== undefined ? grid[0].max_marks : 100;
+      document.getElementById('marks-max-input').value = maxMarks;
+      document.getElementById('marks-max-label').textContent = `(out of ${maxMarks})`;
+
       document.getElementById('marks-grid-title').textContent = `${subject} - ${className} (${term})`;
       const tbody = document.getElementById('marks-grid-body');
       tbody.innerHTML = '';
@@ -294,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <td style="padding:10px; border-bottom:1px solid var(--border-glow); font-weight:500;">${student.roll_no || '-'}</td>
           <td style="padding:10px; border-bottom:1px solid var(--border-glow);">${student.name}</td>
           <td style="padding:10px; border-bottom:1px solid var(--border-glow); text-align:center;">
-            <input type="number" min="0" max="100" class="form-control" style="width:100px; margin:0 auto; text-align:center;"
+            <input type="number" min="0" max="${maxMarks}" class="form-control" style="width:100px; margin:0 auto; text-align:center;"
               value="${student.marks !== '' ? student.marks : ''}"
               data-student-id="${student.id}">
           </td>
@@ -308,11 +313,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Update max attribute on all inputs when max marks changes
+  document.getElementById('marks-max-input').addEventListener('input', function() {
+    const val = parseInt(this.value) || 100;
+    document.getElementById('marks-max-label').textContent = `(out of ${val})`;
+    document.querySelectorAll('#marks-grid-body input[type="number"]').forEach(input => {
+      input.setAttribute('max', val);
+    });
+  });
+
   document.getElementById('btn-save-marks').addEventListener('click', async () => {
     const examId = document.getElementById('marks-exam-select').value;
     const term = document.getElementById('marks-term-select').value;
     const className = document.getElementById('marks-class-select').value;
     const subject = document.getElementById('marks-subject-select').value;
+    const maxMarks = parseInt(document.getElementById('marks-max-input').value) || 100;
 
     const marksList = [];
     document.querySelectorAll('#marks-grid-body input[type="number"]').forEach(input => {
@@ -328,6 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         subject,
         term,
         class_name: className,
+        max_marks: maxMarks,
         marksList
       });
       showToast('Marks saved successfully!');
