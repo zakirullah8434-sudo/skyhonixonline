@@ -503,6 +503,11 @@
           <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase;">Total Revenue</div>
           <div style="font-size: 28px; color: #fd7e14; font-weight: 700; margin-top: 8px;" id="stat-total-revenue">0 PKR</div>
         </div>
+        <div style="background: rgba(32, 201, 151, 0.1); padding: 20px; border-radius: 12px; border-left: 4px solid #20c997;">
+          <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase;">Total Bandwidth</div>
+          <div style="font-size: 28px; color: #20c997; font-weight: 700; margin-top: 8px;" id="stat-total-bandwidth">0 B</div>
+        </div>
+        </div>
       </div>
     </div>
   </div>
@@ -611,11 +616,12 @@
   async function loadSchools() {
     try {
       document.getElementById('admin-user-info').textContent = 'Loading...';
-      const response = await fetch(`${API_BASE}/schools`, {
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      });
+      const [schoolsRes, bwRes] = await Promise.all([
+        fetch(`${API_BASE}/schools`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
+        fetch(`${API_BASE}/bandwidth`, { headers: { 'Authorization': `Bearer ${authToken}` } })
+      ]);
 
-      if (response.status === 401 || response.status === 403) {
+      if (schoolsRes.status === 401 || schoolsRes.status === 403) {
         localStorage.removeItem('adminToken');
         localStorage.removeItem('adminEmail');
         authToken = null;
@@ -623,17 +629,30 @@
         return;
       }
 
-      if (!response.ok) throw new Error('Failed to load schools');
-      const data = await response.json();
+      if (!schoolsRes.ok) throw new Error('Failed to load schools');
+      const data = await schoolsRes.json();
 
-      document.getElementById('admin-user-info').textContent = `Schools: ${data.schools.length}`;
+      // Merge bandwidth data into schools
+      let bwMap = {};
+      if (bwRes.ok) {
+        const bwData = await bwRes.json();
+        (bwData.stats || []).forEach(b => { bwMap[b.school_id] = b; });
+      }
 
-      renderSchoolsTable(data.schools, 'schools-list');
-      renderSchoolsByStatus(data.schools, 'pending', 'pending-list');
-      renderSchoolsByStatus(data.schools, 'active', 'active-list');
-      renderSchoolsByStatus(data.schools, 'suspended', 'suspended-list');
+      const schools = data.schools.map(s => ({
+        ...s,
+        request_count: bwMap[s.id] ? bwMap[s.id].requests : 0,
+        bandwidth_formatted: bwMap[s.id] ? bwMap[s.id].bandwidth_formatted : '0 B'
+      }));
 
-      updateStats(data.schools);
+      document.getElementById('admin-user-info').textContent = `Schools: ${schools.length}`;
+
+      renderSchoolsTable(schools, 'schools-list');
+      renderSchoolsByStatus(schools, 'pending', 'pending-list');
+      renderSchoolsByStatus(schools, 'active', 'active-list');
+      renderSchoolsByStatus(schools, 'suspended', 'suspended-list');
+
+      updateStats(schools);
     } catch (err) {
       console.error('Error loading schools:', err);
     }
@@ -655,6 +674,7 @@
             <th>School ID</th>
             <th>Students</th>
             <th>Storage</th>
+            <th>Bandwidth</th>
             <th>Package</th>
             <th>Status</th>
             <th>Expiry</th>
@@ -665,9 +685,13 @@
           ${schools.map(s => `
             <tr>
               <td><strong>${s.school_name}</strong><br><small style="color:#888;">${s.email}</small></td>
-              <td><code style="background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px;">${s.school_code || '<span style="color:#999;">Not Assigned</span>'}</code></td>
+              <td>
+                <code style="background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px;">${s.school_code || 'Not Assigned'}</code>
+                <button onclick="editSchoolId(${s.id}, '${(s.school_code || '').replace(/'/g, "\\'")}')" style="background: none; border: none; color: #667eea; cursor: pointer; font-size: 11px; margin-left: 4px;" title="Edit School ID">&#9998;</button>
+              </td>
               <td><strong>${s.student_count || 0}</strong></td>
               <td><small>${s.db_size_formatted || '0 B'}</small></td>
+              <td><small>${s.bandwidth_formatted || '0 B'}</small><br><small style="color:#888;">${s.request_count || 0} reqs</small></td>
               <td>${s.selected_package || '-'}<br><small style="color:#666;">${s.subscription_amount || 1500} PKR/mo</small></td>
               <td><span class="status-badge status-${s.subscription_status}">${s.subscription_status.toUpperCase()}</span></td>
               <td><small>${s.next_due_date ? new Date(s.next_due_date).toLocaleDateString() : 'N/A'}</small></td>
@@ -769,6 +793,10 @@
             <div class="info-value">${school.db_size_formatted || '0 B'}</div>
           </div>
           <div class="info-item">
+            <div class="info-label">Bandwidth Used</div>
+            <div class="info-value">${school.bandwidth_formatted || '0 B'}<br><small style="color:#888;">${school.request_count || 0} API requests</small></div>
+          </div>
+          <div class="info-item">
             <div class="info-label">Created</div>
             <div class="info-value">${new Date(school.created_at).toLocaleDateString()}</div>
           </div>
@@ -790,6 +818,41 @@
       document.getElementById('school-modal').classList.add('show');
     } catch (err) {
       alert('Error loading school details: ' + err.message);
+    }
+  }
+
+  async function editSchoolId(schoolId, currentCode) {
+    const newCode = prompt('Enter new School ID:', currentCode || '');
+    if (newCode === null) return;
+    if (!newCode.trim()) {
+      alert('School ID cannot be empty.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/schools/${schoolId}/edit-code`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ school_code: newCode.trim() })
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('adminToken');
+        authToken = null;
+        showLogin();
+        return;
+      }
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+
+      alert(`School ID updated to: ${data.school_code}`);
+      loadSchools();
+    } catch (err) {
+      alert('Error: ' + err.message);
     }
   }
 
@@ -886,10 +949,12 @@
     const totalStudents = schools.reduce((sum, s) => sum + (s.student_count || 0), 0);
     const totalStorage = schools.reduce((sum, s) => sum + (s.db_size || 0), 0);
     const totalRevenue = schools.reduce((sum, s) => sum + (s.subscription_amount || 0), 0);
+    const totalBandwidth = schools.reduce((sum, s) => sum + (s.request_count || 0), 0);
 
     document.getElementById('stat-total-students').textContent = totalStudents.toLocaleString();
     document.getElementById('stat-total-storage').textContent = formatBytes(totalStorage);
     document.getElementById('stat-total-revenue').textContent = totalRevenue.toLocaleString() + ' PKR';
+    document.getElementById('stat-total-bandwidth').textContent = totalBandwidth.toLocaleString() + ' requests';
   }
 
   function closeModal() {

@@ -184,6 +184,15 @@ router.get('/schools/:schoolId', authenticateAdmin, async (req, res) => {
     school.db_size = dbSize;
     school.db_size_formatted = formatBytes(dbSize);
 
+    // Add bandwidth data
+    const tracker = req.app.locals.bandwidthTracker || {};
+    const bw = tracker[school.id] || { requests: 0, bytesIn: 0, bytesOut: 0 };
+    school.request_count = bw.requests;
+    school.bandwidth_in = bw.bytesIn;
+    school.bandwidth_out = bw.bytesOut;
+    school.bandwidth_total = bw.bytesIn + bw.bytesOut;
+    school.bandwidth_formatted = formatBytes(bw.bytesIn + bw.bytesOut);
+
     res.json({
       message: 'School details retrieved',
       school
@@ -351,6 +360,64 @@ router.post('/schools/:schoolId/update-amount', authenticateAdmin, async (req, r
   } catch (err) {
     console.error('Error updating subscription amount:', err);
     res.status(500).json({ error: 'Failed to update amount: ' + err.message });
+  }
+});
+
+// Edit School ID (school_code)
+router.post('/schools/:schoolId/edit-code', authenticateAdmin, async (req, res) => {
+  try {
+    const schoolId = req.params.schoolId;
+    const { school_code } = req.body;
+
+    if (!school_code || !school_code.trim()) {
+      return res.status(400).json({ error: 'School ID is required' });
+    }
+
+    const trimmedCode = school_code.trim();
+    const school = await queryMainOne('SELECT id FROM schools WHERE id = ?', [schoolId]);
+    if (!school) {
+      return res.status(404).json({ error: 'School not found' });
+    }
+
+    // Check uniqueness
+    const existing = await queryMainOne('SELECT id FROM schools WHERE school_code = ? AND id != ?', [trimmedCode, schoolId]);
+    if (existing) {
+      return res.status(400).json({ error: 'This School ID is already taken by another school' });
+    }
+
+    await runMain('UPDATE schools SET school_code = ? WHERE id = ?', [trimmedCode, schoolId]);
+
+    res.json({ message: 'School ID updated successfully', school_code: trimmedCode });
+  } catch (err) {
+    console.error('Error updating school code:', err);
+    res.status(500).json({ error: 'Failed to update School ID: ' + err.message });
+  }
+});
+
+// Get bandwidth stats for all schools
+router.get('/bandwidth', authenticateAdmin, async (req, res) => {
+  try {
+    const tracker = req.app.locals.bandwidthTracker || {};
+    const schools = await queryMain('SELECT id, school_name, school_code FROM schools', []);
+
+    const stats = schools.map(s => {
+      const t = tracker[s.id] || { requests: 0, bytesIn: 0, bytesOut: 0 };
+      return {
+        school_id: s.id,
+        school_name: s.school_name,
+        school_code: s.school_code,
+        requests: t.requests,
+        bandwidth_in: t.bytesIn,
+        bandwidth_out: t.bytesOut,
+        bandwidth_total: t.bytesIn + t.bytesOut,
+        bandwidth_formatted: formatBytes(t.bytesIn + t.bytesOut)
+      };
+    });
+
+    res.json({ stats });
+  } catch (err) {
+    console.error('Error fetching bandwidth stats:', err);
+    res.status(500).json({ error: 'Failed to fetch bandwidth stats: ' + err.message });
   }
 });
 

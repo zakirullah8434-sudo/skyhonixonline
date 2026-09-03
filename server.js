@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const jwt = require('jsonwebtoken');
 const config = require('./config');
 const { initMainDb } = require('./main_db_init');
 const { resetMainDb } = require('./database_manager');
@@ -12,6 +13,37 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Bandwidth tracking per school (in-memory, resets on server restart)
+const bandwidthTracker = {};
+app.use((req, res, next) => {
+  const startBytes = JSON.stringify(req.body || {}).length;
+  const originalJson = res.json.bind(res);
+  res.json = function(data) {
+    const endBytes = JSON.stringify(data || {}).length;
+    try {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, config.JWT_SECRET);
+        if (decoded.schoolId) {
+          const sid = decoded.schoolId;
+          if (!bandwidthTracker[sid]) {
+            bandwidthTracker[sid] = { requests: 0, bytesIn: 0, bytesOut: 0 };
+          }
+          bandwidthTracker[sid].requests++;
+          bandwidthTracker[sid].bytesIn += startBytes;
+          bandwidthTracker[sid].bytesOut += endBytes;
+        }
+      }
+    } catch (e) {}
+    return originalJson(data);
+  };
+  next();
+});
+
+// Expose tracker to admin routes
+app.locals.bandwidthTracker = bandwidthTracker;
 
 let dbInitialized = false;
 let dbInitializationPromise = null;
