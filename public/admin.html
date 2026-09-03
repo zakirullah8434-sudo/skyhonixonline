@@ -614,7 +614,7 @@
           <tr>
             <th>School Name</th>
             <th>Email</th>
-            <th>Code</th>
+            <th>School ID</th>
             <th>Package</th>
             <th>Status</th>
             <th>Created</th>
@@ -626,7 +626,7 @@
             <tr>
               <td><strong>${s.school_name}</strong></td>
               <td>${s.email}</td>
-              <td><code style="background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px;">${s.school_code}</code></td>
+              <td><code style="background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px;">${s.school_code || '<span style="color:#999;">Not Assigned</span>'}</code></td>
               <td>${s.selected_package || '-'}<br><small style="color:#666;">${s.subscription_amount || 1500} PKR/mo</small></td>
               <td><span class="status-badge status-${s.subscription_status}">${s.subscription_status.toUpperCase()}</span></td>
               <td>${new Date(s.created_at).toLocaleDateString()}</td>
@@ -691,8 +691,8 @@
             <div class="info-value">${school.phone}</div>
           </div>
           <div class="info-item">
-            <div class="info-label">School Code</div>
-            <div class="info-value"><code>${school.school_code}</code></div>
+            <div class="info-label">School ID</div>
+            <div class="info-value"><code>${school.school_code || 'Not Assigned'}</code></div>
           </div>
           <div class="info-item">
             <div class="info-label">Status</div>
@@ -731,8 +731,23 @@
     }
   }
 
+  function generateSchoolId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = 'SKH-';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
   async function approveSchool(schoolId) {
-    if (!confirm('Activate this school and set status to ACTIVE?')) return;
+    const generated = generateSchoolId();
+    const schoolCode = prompt('Enter a unique School ID for this school (alphanumeric):', generated);
+    if (schoolCode === null) return;
+    if (!schoolCode.trim()) {
+      alert('School ID is required.');
+      return;
+    }
 
     try {
       const response = await fetch(`${API_BASE}/schools/${schoolId}/approve`, {
@@ -740,13 +755,14 @@
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ school_code: schoolCode.trim() })
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
-      alert('School approved and activated successfully!');
+      alert(`School approved successfully! School ID: ${data.school_code}`);
       loadSchools();
       closeModal();
     } catch (err) {

@@ -75,19 +75,12 @@ router.post('/register', async (req, res) => {
   if (!cleanPhone) {
     return res.status(400).json({ error: 'Invalid phone number' });
   }
-  const schoolCode = `skyhonix${cleanPhone}`;
 
   try {
     // Check if school email already exists
     const existing = await queryMainOne('SELECT id FROM schools WHERE email = ?', [email]);
     if (existing) {
       return res.status(400).json({ error: 'School email is already registered' });
-    }
-
-    // Check if school code/phone number is already registered
-    const existingCode = await queryMainOne('SELECT id FROM schools WHERE school_code = ?', [schoolCode]);
-    if (existingCode) {
-      return res.status(400).json({ error: 'School code or phone number is already registered' });
     }
 
     // Determine database file name
@@ -110,10 +103,11 @@ router.post('/register', async (req, res) => {
     const subscriptionAmount = packagePrices[selectedPackage] || 1500;
 
     // Insert tenant registration into main.db with status 'pending' (awaiting admin approval)
+    // school_code is NULL until admin assigns one during approval
     const mainResult = await runMain(
-      `INSERT INTO schools (school_name, email, password, db_file, subscription_status, subscription_amount, next_due_date, created_at, phone, school_code, selected_package)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [schoolName, email, hashedPassword, dbFile, 'pending', subscriptionAmount, null, new Date().toISOString(), phone, schoolCode, selectedPackage || null]
+      `INSERT INTO schools (school_name, email, password, db_file, subscription_status, subscription_amount, next_due_date, created_at, phone, selected_package)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [schoolName, email, hashedPassword, dbFile, 'pending', subscriptionAmount, null, new Date().toISOString(), phone, selectedPackage || null]
     );
 
     const schoolId = mainResult.id;
@@ -126,9 +120,8 @@ router.post('/register', async (req, res) => {
     );
 
     res.status(201).json({
-      message: `School registered successfully! Unique Code: ${schoolCode}. Please share this code with the administrator to request access activation.`,
-      schoolId,
-      schoolCode
+      message: `School registered successfully! Please wait for admin approval. Admin will assign a unique School ID upon activation.`,
+      schoolId
     });
   } catch (err) {
     console.error('Registration error:', err);

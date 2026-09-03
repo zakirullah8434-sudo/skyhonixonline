@@ -139,6 +139,7 @@ router.get('/schools/:schoolId', authenticateAdmin, async (req, res) => {
 router.post('/schools/:schoolId/approve', authenticateAdmin, async (req, res) => {
   try {
     const schoolId = req.params.schoolId;
+    const { school_code } = req.body;
 
     // Check if school exists
     const school = await queryMainOne('SELECT id, subscription_status FROM schools WHERE id = ?', [schoolId]);
@@ -146,19 +147,33 @@ router.post('/schools/:schoolId/approve', authenticateAdmin, async (req, res) =>
       return res.status(404).json({ error: 'School not found' });
     }
 
+    // Validate school_code is provided
+    if (!school_code || !school_code.trim()) {
+      return res.status(400).json({ error: 'School ID is required. Please generate or enter a unique School ID.' });
+    }
+
+    const trimmedCode = school_code.trim();
+
+    // Check if school_code is already taken by another school
+    const existingCode = await queryMainOne('SELECT id FROM schools WHERE school_code = ? AND id != ?', [trimmedCode, schoolId]);
+    if (existingCode) {
+      return res.status(400).json({ error: 'This School ID is already taken. Please generate a new one.' });
+    }
+
     // Calculate next due date (30 days from now)
     const nextDueDate = new Date();
     nextDueDate.setDate(nextDueDate.getDate() + 30);
 
-    // Update school status
+    // Update school status and assign school_code
     await runMain(
-      'UPDATE schools SET subscription_status = ?, next_due_date = ? WHERE id = ?',
-      ['active', nextDueDate.toISOString(), schoolId]
+      'UPDATE schools SET subscription_status = ?, next_due_date = ?, school_code = ? WHERE id = ?',
+      ['active', nextDueDate.toISOString(), trimmedCode, schoolId]
     );
 
     res.json({
       message: 'School approved and activated successfully',
       schoolId: schoolId,
+      school_code: trimmedCode,
       newStatus: 'active',
       nextDueDate: nextDueDate.toISOString()
     });

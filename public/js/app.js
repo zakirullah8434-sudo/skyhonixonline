@@ -279,8 +279,11 @@ document.addEventListener('DOMContentLoaded', () => {
           const lockPayAmount = document.getElementById('lock-pay-amount');
           if (lockPayAmount) lockPayAmount.value = monthlyRate;
           const codeEl = document.getElementById('lock-school-code-display');
-          if (codeEl && data.school.school_code) {
-            codeEl.innerHTML = `Your Unique School Code: <strong>${data.school.school_code}</strong>`;
+          if (codeEl) {
+            const code = data.school.school_code;
+            codeEl.innerHTML = code
+              ? `Your Unique School ID: <strong>${code}</strong>`
+              : `<span style="color:#f59e0b;">School ID: Waiting for admin to assign</span>`;
           }
         }
       })
@@ -3994,54 +3997,54 @@ document.addEventListener('DOMContentLoaded', () => {
           const studentPhoto = imgSrc(s.photo, '');
 
           slipsHtml += '<div class="rollno-slip">' +
-            '<div style="text-align:center; margin-bottom:3px;">' +
-              '<h1 style="margin:0; font-size:1.2rem; font-weight:800; color:#1e293b; text-transform:uppercase; letter-spacing:1px;">' + currentUser.schoolName + '</h1>' +
+            '<div style="text-align:center; margin-bottom:1px;">' +
+              '<h1 style="margin:0; font-size:0.82rem; font-weight:800; color:#1e293b; text-transform:uppercase; letter-spacing:0.5px;">' + currentUser.schoolName + '</h1>' +
             '</div>' +
-            '<div style="display:flex; align-items:center; justify-content:center; margin:5px 0 8px;">' +
-              '<img src="' + logoUrl + '" alt="School Logo" style="max-height:50px; max-width:70px; border-radius:50%;" onerror="this.style.display=\'none\'">' +
+            '<div style="display:flex; align-items:center; justify-content:center; margin:2px 0 3px;">' +
+              '<img src="' + logoUrl + '" alt="School Logo" style="max-height:30px; max-width:42px; border-radius:50%;" onerror="this.style.display=\'none\'">' +
             '</div>' +
-            '<div style="text-align:center; margin-bottom:10px;">' +
-              '<h2 style="margin:0; font-size:0.95rem; font-weight:700; letter-spacing:1px;">ROLL NO SLIP</h2>' +
-              '<p style="margin:3px 0 0; font-size:0.8rem; color:#444;">' + (exam ? exam.exam_name + ' Exam ' + exam.year : '') + '</p>' +
+            '<div style="text-align:center; margin-bottom:5px;">' +
+              '<h2 style="margin:0; font-size:0.72rem; font-weight:700; letter-spacing:0.5px;">ROLL NO SLIP</h2>' +
+              '<p style="margin:1px 0 0; font-size:0.65rem; color:#444;">' + (exam ? exam.exam_name + ' Exam ' + exam.year : '') + '</p>' +
             '</div>' +
-            '<div style="display:flex; gap:12px; align-items:center; margin-bottom:10px; padding:8px; border:1px solid #ddd; border-radius:6px; background:#fafafa;">' +
+            '<div style="display:flex; gap:6px; align-items:center; margin-bottom:5px; padding:4px; border:1px solid #ddd; border-radius:4px; background:#fafafa;">' +
               (studentPhoto ?
-                '<img src="' + studentPhoto + '" alt="Photo" style="width:60px; height:75px; border-radius:4px; object-fit:cover; border:1px solid #ccc;" onerror="this.style.display=\'none\'">' :
-                '<div style="width:60px; height:75px; border-radius:4px; border:1px solid #ccc; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:#94a3b8;">👤</div>'
+                '<img src="' + studentPhoto + '" alt="Photo" style="width:38px; height:46px; border-radius:3px; object-fit:cover; border:1px solid #ccc;" onerror="this.style.display=\'none\'">' :
+                '<div style="width:38px; height:46px; border-radius:3px; border:1px solid #ccc; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-size:1rem; color:#94a3b8;">👤</div>'
               ) +
-              '<div style="flex:1; font-size:0.8rem; display:grid; grid-template-columns:1fr 1fr; gap:3px 10px;">' +
+              '<div style="flex:1; font-size:0.65rem; display:grid; grid-template-columns:1fr 1fr; gap:1px 6px;">' +
                 '<div><strong>Name:</strong>&nbsp;' + (s.name || '-') + '</div>' +
                 '<div><strong>Roll No:</strong>&nbsp;' + (s.roll_no || '-') + '</div>' +
                 '<div><strong>Class:</strong>&nbsp;' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
                 '<div><strong>Father:</strong>&nbsp;' + (s.father_name || '-') + '</div>' +
               '</div>' +
             '</div>' +
-            '<table style="width:100%; border-collapse:collapse; margin-bottom:10px; font-size:0.75rem;">' +
+            '<table style="width:100%; border-collapse:collapse; margin-bottom:5px; font-size:0.58rem;">' +
               '<thead>' +
                 '<tr style="background:#f0f0f0;">' +
-                  '<th style="border:1px solid #333; padding:5px 6px; text-align:center; width:6%;">#</th>' +
-                  '<th style="border:1px solid #333; padding:5px 6px; text-align:center; width:22%;">Date</th>' +
-                  '<th style="border:1px solid #333; padding:5px 6px; text-align:center; width:20%;">Day</th>' +
-                  '<th style="border:1px solid #333; padding:5px 6px; text-align:left; width:30%;">Subject</th>' +
-                  '<th style="border:1px solid #333; padding:5px 6px; text-align:center; width:22%;">Time</th>' +
+                  '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:6%;">#</th>' +
+                  '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:22%;">Date</th>' +
+                  '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:20%;">Day</th>' +
+                  '<th style="border:1px solid #333; padding:2px 3px; text-align:left; width:30%;">Subject</th>' +
+                  '<th style="border:1px solid #333; padding:2px 3px; text-align:center; width:22%;">Time</th>' +
                 '</tr>' +
               '</thead>' +
               '<tbody>' + tableRows + '</tbody>' +
             '</table>' +
-            '<div style="display:flex; justify-content:space-between; align-items:flex-end; font-size:0.75rem;">' +
+            '<div style="display:flex; justify-content:space-between; align-items:flex-end; font-size:0.6rem;">' +
               '<div style="max-width:55%;">' +
-                '<p style="margin:0 0 3px; font-weight:600;">Instructions:</p>' +
-                '<ul style="margin:0; padding-left:15px;">' + instHtml + '</ul>' +
+                '<p style="margin:0 0 1px; font-weight:600;">Instructions:</p>' +
+                '<ul style="margin:0; padding-left:12px;">' + instHtml + '</ul>' +
               '</div>' +
               (principal_sign ?
                 '<div style="text-align:center;">' +
-                  '<img src="' + principal_sign + '" alt="Principal Sign" style="max-height:30px; max-width:60px; opacity:0.7; margin-bottom:2px;">' +
-                  '<div style="border-top:1px solid #333; width:100px; margin:0 auto; padding-top:3px; font-size:0.7rem; color:#555;">Principal Signature</div>' +
+                  '<img src="' + principal_sign + '" alt="Principal Sign" style="max-height:22px; max-width:45px; opacity:0.7; margin-bottom:1px;">' +
+                  '<div style="border-top:1px solid #333; width:80px; margin:0 auto; padding-top:2px; font-size:0.55rem; color:#555;">Principal Signature</div>' +
                 '</div>'
               :
                 '<div style="text-align:center;">' +
-                  '<div style="height:30px;"></div>' +
-                  '<div style="border-top:1px solid #333; width:100px; margin:0 auto; padding-top:3px; font-size:0.7rem; color:#555;">Principal Signature</div>' +
+                  '<div style="height:22px;"></div>' +
+                  '<div style="border-top:1px solid #333; width:80px; margin:0 auto; padding-top:2px; font-size:0.55rem; color:#555;">Principal Signature</div>' +
                 '</div>'
               ) +
             '</div>' +
@@ -4060,20 +4063,26 @@ document.addEventListener('DOMContentLoaded', () => {
       const content = document.getElementById('rollno-printable-content').innerHTML;
       document.body.innerHTML =
         '<style>' +
-          '@page { size: A4 landscape; margin: 8mm; }' +
-          '@media print { ' +
-            'body { margin: 0; padding: 0; }' +
-            'div.rollno-slip { page-break-inside: avoid; break-inside: avoid; width: 48%; display: inline-block; vertical-align: top; box-sizing: border-box; margin: 0; padding: 12px; border: 2px solid #333; font-family: sans-serif; font-size: 0.78rem; }' +
-            'div.rollno-slip:nth-child(odd) { margin-right: 2%; }' +
-            'div.rollno-slip h1 { font-size: 1.2rem; }' +
-            'div.rollno-slip h2 { font-size: 0.95rem; }' +
-            'div.rollno-slip table { font-size: 0.75rem; }' +
-            'div.rollno-slip table th, div.rollno-slip table td { padding: 5px 6px; }' +
-            'div.rollno-slip img { max-height: 50px; max-width: 70px; }' +
-            'div.rollno-slip img[alt="Photo"] { max-height: 75px; max-width: 60px; }' +
+          '@page { size: A4 landscape; margin: 5mm; }' +
+          '@media print {' +
+            'html, body { margin: 0; padding: 0; width: 297mm; height: 210mm; }' +
+            '.rollno-page { width: 100%; display: flex; flex-wrap: wrap; justify-content: flex-start; align-content: flex-start; }' +
+            '.rollno-slip {' +
+              'page-break-inside: avoid; break-inside: avoid;' +
+              'width: 48.5%; min-height: 96mm; max-height: 98mm;' +
+              'box-sizing: border-box; margin: 0; margin-right: 1.5%; margin-bottom: 2mm;' +
+              'padding: 6px 8px; border: 1.5px solid #333; font-family: Arial, sans-serif; font-size: 0.68rem; overflow: hidden;' +
+            '}' +
+            '.rollno-slip:nth-child(2n) { margin-right: 0; }' +
+            '.rollno-slip h1 { font-size: 0.9rem; margin: 0 0 2px; }' +
+            '.rollno-slip h2 { font-size: 0.78rem; margin: 0 0 2px; }' +
+            '.rollno-slip table { font-size: 0.62rem; }' +
+            '.rollno-slip table th, .rollno-slip table td { padding: 2px 3px; }' +
+            '.rollno-slip img { max-height: 35px; max-width: 50px; }' +
+            '.rollno-slip img[alt="Photo"] { max-height: 50px; max-width: 40px; }' +
           '}' +
         '</style>' +
-        '<div style="padding:5px; background:white; color:black;">' + content + '</div>';
+        '<div class="rollno-page" style="padding:3mm; background:white; color:black;">' + content + '</div>';
       window.print();
       window.location.reload();
     });
@@ -4533,6 +4542,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function generateSchoolId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = 'SKH-';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
   function loadMasterSchoolsTable(schools, pin) {
     const tbody = document.querySelector('#table-master-schools tbody');
     tbody.innerHTML = '';
@@ -4548,10 +4566,12 @@ document.addEventListener('DOMContentLoaded', () => {
       else if (school.subscription_status === 'trial') badge = 'status-partial';
 
       const expiry = school.next_due_date || 'N/A';
+      const codeDisplay = school.school_code || 'Not Assigned';
+      const needsCode = !school.school_code;
 
       tbody.innerHTML += `
         <tr>
-          <td><code style="color: var(--accent); font-weight: 600;">${school.school_code || 'N/A'}</code></td>
+          <td><code style="color: var(--accent); font-weight: 600;">${codeDisplay}</code></td>
           <td><strong>${school.school_name}</strong></td>
           <td>
             <div style="font-size:0.9rem;">${school.phone || 'N/A'}</div>
@@ -4560,6 +4580,11 @@ document.addEventListener('DOMContentLoaded', () => {
           <td><span class="status-badge ${badge}">${school.subscription_status.toUpperCase()}</span></td>
           <td><strong>${expiry}</strong></td>
           <td>
+            ${needsCode ? `
+              <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 6px;">
+                <input type="text" class="form-control school-code-input-${school.id}" placeholder="School ID" value="${generateSchoolId()}" style="width: 130px; display: inline-block; padding: 4px; font-size: 0.85rem; background: var(--bg-card); color: #fff; border: 1px solid rgba(255,255,255,0.1);">
+              </div>
+            ` : ''}
             <div style="display: flex; gap: 8px; align-items: center;">
               <select class="form-control select-months-${school.id}" style="width: 80px; display: inline-block; padding: 4px; font-size: 0.85rem; background: var(--bg-card); color: #fff; border: 1px solid rgba(255,255,255,0.1);">
                 <option value="1">1 Month</option>
@@ -4580,15 +4605,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const schoolId = btn.getAttribute('data-school-id');
         const select = document.querySelector(`.select-months-${schoolId}`);
         const months = select ? select.value : '1';
+        const codeInput = document.querySelector(`.school-code-input-${schoolId}`);
+        const schoolCode = codeInput ? codeInput.value.trim() : '';
 
         try {
+          const body = { school_id: schoolId, months: months };
+          if (schoolCode) body.school_code = schoolCode;
+
           const response = await fetch('/api/billing/admin/allow', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'x-master-pin': pin
             },
-            body: JSON.stringify({ school_id: schoolId, months: months })
+            body: JSON.stringify(body)
           });
 
           const res = await response.json();

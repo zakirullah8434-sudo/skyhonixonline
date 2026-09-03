@@ -126,7 +126,7 @@ router.get('/admin/schools', checkMasterPin, async (req, res) => {
 
 // POST /billing/admin/allow - Set school access duration in months
 router.post('/admin/allow', checkMasterPin, async (req, res) => {
-  const { school_id, months } = req.body;
+  const { school_id, months, school_code } = req.body;
 
   if (!school_id || !months) {
     return res.status(400).json({ error: 'school_id and months are required' });
@@ -138,6 +138,16 @@ router.post('/admin/allow', checkMasterPin, async (req, res) => {
 
     if (!school) {
       return res.status(404).json({ error: 'School not found' });
+    }
+
+    // If school_code is provided, validate uniqueness and assign it
+    if (school_code && school_code.trim()) {
+      const trimmedCode = school_code.trim();
+      const existingCode = await queryMainOne('SELECT id FROM schools WHERE school_code = ? AND id != ?', [trimmedCode, schoolIdInt]);
+      if (existingCode) {
+        return res.status(400).json({ error: 'This School ID is already taken. Please use a different one.' });
+      }
+      await runMain('UPDATE schools SET school_code = ? WHERE id = ?', [trimmedCode, schoolIdInt]);
     }
 
     let baseDate = new Date();
@@ -177,7 +187,7 @@ router.get('/admin/slips', checkMasterPin, async (req, res) => {
 
 // POST /billing/admin/verify - Approve/Reject a payment slip
 router.post('/admin/verify', checkMasterPin, async (req, res) => {
-  const { slip_id, action, notes } = req.body; // action: 'approve' or 'reject'
+  const { slip_id, action, notes, school_code } = req.body; // action: 'approve' or 'reject'
 
   if (!slip_id || !action) {
     return res.status(400).json({ error: 'slip_id and action are required' });
@@ -193,7 +203,17 @@ router.post('/admin/verify', checkMasterPin, async (req, res) => {
       // 1. Mark slip approved
       await runMain("UPDATE payment_slips SET status = 'approved', notes = ? WHERE id = ?", [notes || 'Approved by Master Admin', slip_id]);
 
-      // 2. Fetch current next_due_date for school
+      // 2. If school_code is provided, validate uniqueness and assign it
+      if (school_code && school_code.trim()) {
+        const trimmedCode = school_code.trim();
+        const existingCode = await queryMainOne('SELECT id FROM schools WHERE school_code = ? AND id != ?', [trimmedCode, slip.school_id]);
+        if (existingCode) {
+          return res.status(400).json({ error: 'This School ID is already taken. Please use a different one.' });
+        }
+        await runMain('UPDATE schools SET school_code = ? WHERE id = ?', [trimmedCode, slip.school_id]);
+      }
+
+      // 3. Fetch current next_due_date for school
       const school = await queryMainOne('SELECT subscription_status, next_due_date FROM schools WHERE id = ?', [slip.school_id]);
       
       let baseDate = new Date();
@@ -205,7 +225,7 @@ router.post('/admin/verify', checkMasterPin, async (req, res) => {
       baseDate.setDate(baseDate.getDate() + 30); // Extend 30 days
       const extendedDueDate = baseDate.toISOString().split('T')[0];
 
-      // 3. Activate/extend school subscription status
+      // 4. Activate/extend school subscription status
       await runMain(
         "UPDATE schools SET subscription_status = 'active', next_due_date = ? WHERE id = ?",
         [extendedDueDate, slip.school_id]
