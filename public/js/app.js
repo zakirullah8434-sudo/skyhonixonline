@@ -980,6 +980,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ID Card design themes
   const idCardThemes = {
+    design1:   { bg: '#1565c0', headerBg: '#0d47a1', accent: '#ffc107', label: 'Lanyard Badge (Design 1)' },
     classic:    { bg: '#1e3a8a', headerBg: '#1e40af', accent: '#60a5fa', label: 'Classic Landscape' },
     portrait:   { bg: '#0f172a', headerBg: '#1e293b', accent: '#38bdf8', label: 'Portrait Vertical' },
     badge:      { bg: '#ffffff', headerBg: '#dc2626', accent: '#dc2626', label: 'Badge / Lanyard' },
@@ -1240,6 +1241,75 @@ document.addEventListener('DOMContentLoaded', () => {
           <div style="border-top:1px solid #e2e8f0;padding:4px 14px;display:flex;justify-content:space-between;font-size:0.5rem;color:#94a3b8;">
             <span>VALID: ${year}</span><span>PRINCIPAL SIGNATURE</span>
           </div>
+        </div>
+      </div>`;
+    }
+
+    if (d === 'design1') {
+      const backQr = includeQr ? `<img src="${qrUrl}" style="width:100px;height:100px;border-radius:6px;" onerror="this.style.display='none'">` : '';
+      const backBarcode = includeBarcode ? `<div style="margin-top:8px;font-family:monospace;font-size:0.7rem;letter-spacing:2px;background:#fff;padding:4px 12px;border-radius:4px;color:#333;display:inline-block;border:1px solid #ddd;">║║ ${s.student_id||s.id||'00000'} ║║</div>` : '';
+      return `<div style="display:flex;gap:14px;flex-shrink:0;align-items:flex-start;">
+        <div style="width:280px;border-radius:16px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,0.25);font-family:'Segoe UI',Arial,sans-serif;background:#fff;position:relative;border:3px solid #e0e0e0;">
+          <div style="text-align:center;padding-top:8px;">
+            <div style="width:22px;height:22px;border-radius:50%;border:3px solid #bbb;margin:0 auto;background:#f5f5f5;"></div>
+            <div style="width:4px;height:10px;background:linear-gradient(180deg,#999,#bbb);margin:0 auto;"></div>
+          </div>
+          <div style="background:linear-gradient(135deg,#1565c0 60%,#ffc107 100%);margin:4px 12px 0;border-radius:12px;padding:10px 14px 0;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;width:60px;height:100%;background:linear-gradient(180deg,rgba(255,193,7,0.3),rgba(255,193,7,0.05));clip-path:polygon(0 0,100% 0,60% 100%,0 100%);"></div>
+            <div style="text-align:center;position:relative;z-index:1;">
+              <div style="font-size:1rem;font-weight:900;color:#fff;letter-spacing:1px;text-transform:uppercase;">${schoolName||'SCHOOL NAME'}</div>
+              <div style="font-size:0.55rem;color:rgba(255,255,255,0.8);margin-top:2px;">School Address Here</div>
+            </div>
+            <div style="text-align:center;margin-top:10px;">
+              <img src="${photoSrc}" style="width:90px;height:105px;border-radius:8px;object-fit:cover;border:3px solid rgba(255,255,255,0.5);background:#fce4ec;" onerror="this.src='school_assets/school_logo.png'">
+            </div>
+            <div style="background:#0d47a1;margin:8px -14px 0;padding:6px 14px;text-align:center;position:relative;">
+              <div style="font-size:0.9rem;font-weight:800;color:#fff;letter-spacing:0.5px;">${s.name||'-'}</div>
+            </div>
+            <div style="background:#00838f;margin:0 -14px;padding:4px 14px;text-align:center;">
+              <div style="font-size:0.7rem;font-weight:700;color:#fff;">Class - ${cls}</div>
+            </div>
+          </div>
+          <div style="padding:8px 14px 6px;position:relative;">
+            <div style="position:absolute;left:2px;top:50%;transform:translateY(-50%) rotate(-90deg);font-size:0.5rem;font-weight:700;color:#1565c0;letter-spacing:1px;white-space:nowrap;">ID CARD</div>
+            <div style="padding-left:16px;font-size:0.68rem;color:#333;">
+              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:80px;color:#666;font-weight:600;">Father Name</span><span>: ${s.father_name||'-'}</span></div>
+              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:80px;color:#666;font-weight:600;">Roll No</span><span>: ${s.roll_no||'-'}</span></div>
+              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:80px;color:#666;font-weight:600;">D.O.B.</span><span>: ${s.dob||'-'}</span></div>
+              <div style="display:flex;padding:3px 0;"><span style="width:80px;color:#666;font-weight:600;">Phone</span><span>: ${s.phone||'-'}</span></div>
+            </div>
+          </div>
+          <div style="background:linear-gradient(135deg,#ff8f00,#ffa726);padding:4px 14px;display:flex;justify-content:flex-end;align-items:center;">
+            <div style="text-align:right;"><div style="height:1px;width:70px;background:rgba(255,255,255,0.6);margin:0 0 2px auto;"></div><div style="font-size:0.5rem;color:#fff;font-weight:600;">Principal Signature</div></div>
+          </div>
+        </div>
+        <div style="width:280px;border-radius:16px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,0.25);font-family:'Segoe UI',Arial,sans-serif;background:#f5f5f5;position:relative;border:3px solid #e0e0e0;">
+          <div style="text-align:center;padding-top:8px;">
+            <div style="width:22px;height:22px;border-radius:50%;border:3px solid #bbb;margin:0 auto;background:#fff;"></div>
+            <div style="width:4px;height:10px;background:linear-gradient(180deg,#999,#bbb);margin:0 auto;"></div>
+          </div>
+          <div style="background:linear-gradient(135deg,#1565c0 60%,#ffc107 100%);margin:4px 12px 0;border-radius:12px;padding:12px;text-align:center;">
+            <div style="font-size:0.85rem;font-weight:900;color:#fff;letter-spacing:1px;">${schoolName||'SCHOOL NAME'}</div>
+            <div style="font-size:0.5rem;color:rgba(255,255,255,0.7);margin-top:2px;">Academic Year ${year}</div>
+          </div>
+          <div style="padding:14px 16px;text-align:center;">
+            <div style="margin-bottom:12px;">${backQr}</div>
+            <div style="background:#fff;border-radius:8px;padding:10px 12px;text-align:left;font-size:0.7rem;color:#333;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:90px;color:#666;font-weight:600;">Student ID</span><span>: ${s.student_id||'-'}</span></div>
+              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:90px;color:#666;font-weight:600;">Class</span><span>: ${cls}</span></div>
+              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:90px;color:#666;font-weight:600;">Roll No</span><span>: ${s.roll_no||'-'}</span></div>
+              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:90px;color:#666;font-weight:600;">Father Name</span><span>: ${s.father_name||'-'}</span></div>
+              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:90px;color:#666;font-weight:600;">D.O.B.</span><span>: ${s.dob||'-'}</span></div>
+              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:90px;color:#666;font-weight:600;">Phone</span><span>: ${s.phone||'-'}</span></div>
+              <div style="display:flex;padding:3px 0;"><span style="width:90px;color:#666;font-weight:600;">Gender</span><span>: ${s.gender||'-'}</span></div>
+            </div>
+            ${backBarcode}
+            <div style="margin-top:14px;display:flex;justify-content:space-between;">
+              <div style="text-align:center;"><div style="height:1px;width:80px;background:#bbb;margin:0 auto 3px;"></div><div style="font-size:0.5rem;color:#888;">Student Signature</div></div>
+              <div style="text-align:center;"><div style="height:1px;width:80px;background:#bbb;margin:0 auto 3px;"></div><div style="font-size:0.5rem;color:#888;">Principal</div></div>
+            </div>
+          </div>
+          <div style="background:linear-gradient(135deg,#1565c0,#0d47a1);padding:6px;text-align:center;"><div style="font-size:0.45rem;color:rgba(255,255,255,0.7);">This card is property of ${schoolName||'SCHOOL'} | If found please return</div></div>
         </div>
       </div>`;
     }
