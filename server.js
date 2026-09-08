@@ -138,6 +138,7 @@ const staffRoutes = require('./routes/staff');
 const teacherRoutes = require('./routes/teachers');
 const parentRoutes = require('./routes/parents');
 const promotionsRoutes = require('./routes/promotions');
+const transportRoutes = require('./routes/transport');
 
 // Mount API routes
 app.use('/api/auth', authRoutes);
@@ -152,6 +153,7 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/teachers', teacherRoutes);
 app.use('/api/parents', parentRoutes);
 app.use('/api/promotions', promotionsRoutes);
+app.use('/api/transport', transportRoutes);
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, 'public'), {

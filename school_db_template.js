@@ -467,6 +467,63 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
+      // 32. Transport Vehicles
+      db.run(`
+        CREATE TABLE IF NOT EXISTS transport_vehicles (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT,
+          plate_number TEXT,
+          type TEXT DEFAULT 'Bus',
+          capacity INTEGER DEFAULT 0,
+          status TEXT DEFAULT 'Active',
+          monthly_fee REAL DEFAULT 0,
+          created_at TEXT DEFAULT (datetime('now'))
+        )
+      `);
+
+      // 33. Transport Drivers
+      db.run(`
+        CREATE TABLE IF NOT EXISTS transport_drivers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT,
+          phone TEXT,
+          license_number TEXT,
+          address TEXT,
+          vehicle_id INTEGER,
+          status TEXT DEFAULT 'Active',
+          created_at TEXT DEFAULT (datetime('now'))
+        )
+      `);
+
+      // 34. Transport Routes
+      db.run(`
+        CREATE TABLE IF NOT EXISTS transport_routes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT,
+          pickup_locations TEXT DEFAULT '[]',
+          drop_locations TEXT DEFAULT '[]',
+          vehicle_id INTEGER,
+          monthly_fee REAL DEFAULT 0,
+          status TEXT DEFAULT 'Active',
+          created_at TEXT DEFAULT (datetime('now'))
+        )
+      `);
+
+      // 35. Transport Assignments (Student-Vehicle-Route)
+      db.run(`
+        CREATE TABLE IF NOT EXISTS transport_assignments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          student_id INTEGER NOT NULL,
+          vehicle_id INTEGER,
+          route_id INTEGER,
+          pickup_point TEXT,
+          drop_point TEXT,
+          monthly_fee REAL DEFAULT 0,
+          status TEXT DEFAULT 'Active',
+          created_at TEXT DEFAULT (datetime('now'))
+        )
+      `);
+
       // Migrations: Add address column to students if missing
       db.all("PRAGMA table_info(students)", (err, columns) => {
         if (!err && Array.isArray(columns)) {

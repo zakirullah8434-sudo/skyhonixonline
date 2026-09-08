@@ -452,9 +452,9 @@
                 <div class="fees-card-title">🪪 ID Card Generator</div>
                 <div class="fees-card-desc">Student, Teacher & Staff ID Cards</div>
               </div>
-              <div class="fees-dash-card card-blue" data-opt="pm-transport" style="cursor: pointer; opacity: 0.5;">
+              <div class="fees-dash-card card-blue" data-opt="pm-transport" style="cursor: pointer;">
                 <div class="fees-card-title">🚌 Transport Management</div>
-                <div class="fees-card-desc">Coming Soon</div>
+                <div class="fees-card-desc">Vehicles, Drivers & Routes</div>
               </div>
               <div class="fees-dash-card card-orange" data-opt="pm-salary" style="cursor: pointer; opacity: 0.5;">
                 <div class="fees-card-title">💸 Salary Management</div>
@@ -678,9 +678,331 @@
             </div>
           </div>
 
-        </article>
+          <!-- ========== Panel: Transport Management ========== -->
+          <div id="pm-panel-transport" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-pm-dash">&larr; Back to Principal Management</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">🚌 Transport Management</h2>
 
-        <!-- ==================== SCREEN: ADMIN SETTINGS ==================== -->
+            <!-- Transport Dashboard Stats -->
+            <div class="fees-dash-grid" style="margin-bottom: 24px;">
+              <div class="fees-dash-card card-blue" style="cursor: default;">
+                <div class="fees-card-title" id="ts-total-vehicles">0</div>
+                <div class="fees-card-desc">Vehicles</div>
+              </div>
+              <div class="fees-dash-card card-green" style="cursor: default;">
+                <div class="fees-card-title" id="ts-total-drivers">0</div>
+                <div class="fees-card-desc">Drivers</div>
+              </div>
+              <div class="fees-dash-card card-orange" style="cursor: default;">
+                <div class="fees-card-title" id="ts-total-routes">0</div>
+                <div class="fees-card-desc">Routes</div>
+              </div>
+              <div class="fees-dash-card card-purple" style="cursor: default;">
+                <div class="fees-card-title" id="ts-total-students">0</div>
+                <div class="fees-card-desc">Students Assigned</div>
+              </div>
+              <div class="fees-dash-card card-teal" style="cursor: default;">
+                <div class="fees-card-title" id="ts-monthly-revenue">Rs 0</div>
+                <div class="fees-card-desc">Monthly Revenue</div>
+              </div>
+            </div>
+
+            <!-- Sub-Tabs -->
+            <div class="tab-container" style="margin-bottom: 20px;">
+              <button class="tab-btn active" data-tab="transport-vehicles">🚐 Vehicles</button>
+              <button class="tab-btn" data-tab="transport-drivers">🧑‍✈️ Drivers</button>
+              <button class="tab-btn" data-tab="transport-routes">🗺️ Routes</button>
+              <button class="tab-btn" data-tab="transport-assign">👨‍🎓 Assign Students</button>
+              <button class="tab-btn" data-tab="transport-fees">💰 Fees</button>
+            </div>
+
+            <!-- ===== Tab: Vehicles ===== -->
+            <div class="tab-content" id="tab-transport-vehicles">
+              <div class="card">
+                <h3>Add / Edit Vehicle</h3>
+                <form id="form-vehicle">
+                  <input type="hidden" id="vehicle-edit-id" value="">
+                  <div class="grid-3" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Vehicle Name</label>
+                      <input type="text" class="form-control" id="vehicle-name" placeholder="e.g. School Bus 1" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Plate Number</label>
+                      <input type="text" class="form-control" id="vehicle-plate" placeholder="e.g. ABC-1234" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Type</label>
+                      <select class="form-control" id="vehicle-type">
+                        <option>Bus</option><option>Van</option><option>Coaster</option><option>Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="grid-3" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Capacity (Seats)</label>
+                      <input type="number" class="form-control" id="vehicle-capacity" placeholder="e.g. 40" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Monthly Fee (Rs)</label>
+                      <input type="number" class="form-control" id="vehicle-fee" placeholder="e.g. 2000" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Status</label>
+                      <select class="form-control" id="vehicle-status">
+                        <option>Active</option><option>Inactive</option><option>Maintenance</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-secondary" id="btn-save-vehicle" style="margin-top: 10px; width: 100%;">Save Vehicle</button>
+                </form>
+              </div>
+              <div class="card" style="margin-top: 16px;">
+                <h3>All Vehicles</h3>
+                <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+                    <thead>
+                      <tr>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Name</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Plate</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Type</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Capacity</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Fee (Rs)</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Status</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-vehicles"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== Tab: Drivers ===== -->
+            <div class="tab-content" id="tab-transport-drivers" style="display: none;">
+              <div class="card">
+                <h3>Add / Edit Driver</h3>
+                <form id="form-driver">
+                  <input type="hidden" id="driver-edit-id" value="">
+                  <div class="grid-3" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Driver Name</label>
+                      <input type="text" class="form-control" id="driver-name" placeholder="Full name" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Phone Number</label>
+                      <input type="text" class="form-control" id="driver-phone" placeholder="e.g. 0300-1234567" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">License Number</label>
+                      <input type="text" class="form-control" id="driver-license" placeholder="e.g. JL-12345">
+                    </div>
+                  </div>
+                  <div class="grid-3" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Assign Vehicle</label>
+                      <select class="form-control" id="driver-vehicle">
+                        <option value="">-- No Vehicle --</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Address</label>
+                      <input type="text" class="form-control" id="driver-address" placeholder="Home address">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Status</label>
+                      <select class="form-control" id="driver-status">
+                        <option>Active</option><option>Inactive</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-secondary" id="btn-save-driver" style="margin-top: 10px; width: 100%;">Save Driver</button>
+                </form>
+              </div>
+              <div class="card" style="margin-top: 16px;">
+                <h3>All Drivers</h3>
+                <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+                    <thead>
+                      <tr>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Name</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Phone</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">License</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Vehicle</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Status</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-drivers"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== Tab: Routes ===== -->
+            <div class="tab-content" id="tab-transport-routes" style="display: none;">
+              <div class="card">
+                <h3>Add / Edit Route</h3>
+                <form id="form-route">
+                  <input type="hidden" id="route-edit-id" value="">
+                  <div class="grid-2" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Route Name</label>
+                      <input type="text" class="form-control" id="route-name" placeholder="e.g. Route A - Main Road" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Assign Vehicle</label>
+                      <select class="form-control" id="route-vehicle">
+                        <option value="">-- Select Vehicle --</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="grid-2" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Monthly Fee (Rs)</label>
+                      <input type="number" class="form-control" id="route-fee" placeholder="e.g. 1500" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Status</label>
+                      <select class="form-control" id="route-status">
+                        <option>Active</option><option>Inactive</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Pickup Locations</label>
+                    <div id="route-pickup-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                    <button type="button" class="btn btn-outline btn-sm" id="btn-add-pickup" style="margin-top: 8px;">+ Add Pickup Point</button>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Drop Locations</label>
+                    <div id="route-drop-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                    <button type="button" class="btn btn-outline btn-sm" id="btn-add-drop" style="margin-top: 8px;">+ Add Drop Point</button>
+                  </div>
+                  <button type="submit" class="btn btn-secondary" id="btn-save-route" style="margin-top: 10px; width: 100%;">Save Route</button>
+                </form>
+              </div>
+              <div class="card" style="margin-top: 16px;">
+                <h3>All Routes</h3>
+                <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+                    <thead>
+                      <tr>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Route</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Vehicle</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Pickup Points</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Drop Points</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Fee (Rs)</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-routes"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== Tab: Assign Students ===== -->
+            <div class="tab-content" id="tab-transport-assign" style="display: none;">
+              <div class="card">
+                <h3>Assign Student to Transport</h3>
+                <form id="form-transport-assign">
+                  <div class="grid-3" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Select Student</label>
+                      <select class="form-control" id="assign-student" required></select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Select Vehicle</label>
+                      <select class="form-control" id="assign-vehicle" required></select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Select Route</label>
+                      <select class="form-control" id="assign-route"></select>
+                    </div>
+                  </div>
+                  <div class="grid-3" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Pickup Point</label>
+                      <select class="form-control" id="assign-pickup"></select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Drop Point</label>
+                      <select class="form-control" id="assign-drop"></select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Monthly Fee (Rs)</label>
+                      <input type="number" class="form-control" id="assign-fee" value="0">
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-secondary" style="margin-top: 10px; width: 100%;">Assign Student</button>
+                </form>
+              </div>
+              <div class="card" style="margin-top: 16px;">
+                <h3>Current Assignments</h3>
+                <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+                    <thead>
+                      <tr>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Student</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Class</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Vehicle</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Route</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Pickup</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Fee (Rs)</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Status</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-assignments"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== Tab: Fees ===== -->
+            <div class="tab-content" id="tab-transport-fees" style="display: none;">
+              <div class="card">
+                <h3>Transport Fee Summary</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                  Overview of all transport fee assignments and monthly revenue.
+                </p>
+                <div class="grid-3" style="gap: 12px; margin-bottom: 20px;">
+                  <div style="padding: 16px; background: rgba(59,130,246,0.1); border-radius: 10px; text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #3b82f6;" id="tf-total-assigned">0</div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">Active Students</div>
+                  </div>
+                  <div style="padding: 16px; background: rgba(34,197,94,0.1); border-radius: 10px; text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #22c55e;" id="tf-total-revenue">Rs 0</div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">Monthly Revenue</div>
+                  </div>
+                  <div style="padding: 16px; background: rgba(168,85,247,0.1); border-radius: 10px; text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #a855f7;" id="tf-avg-fee">Rs 0</div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">Avg Fee / Student</div>
+                  </div>
+                </div>
+                <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+                    <thead>
+                      <tr>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Student</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Class</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Vehicle</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Monthly Fee</th>
+                        <th style="border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: left;">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-transport-fees"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </article>
         <article class="screen-section" id="screen-admin-settings" style="display: none;">
           <h2 style="margin-bottom: 24px;">Admin Settings</h2>
 
