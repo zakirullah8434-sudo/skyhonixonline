@@ -2092,13 +2092,14 @@ document.addEventListener('DOMContentLoaded', () => {
       // Marks
       const marksBody = document.getElementById('sp-marks-body');
       if (data.marks.length === 0) {
-        marksBody.innerHTML = '<tr><td colspan="6" class="sp-no-records-row">No marks found.</td></tr>';
+        marksBody.innerHTML = '<tr><td colspan="7" class="sp-no-records-row">No marks found.</td></tr>';
       } else {
         marksBody.innerHTML = data.marks.map(m => {
           const maxM = m.max_marks || 100;
           const pct = maxM > 0 ? ((m.marks / maxM) * 100).toFixed(1) : 0;
           return `<tr>
             <td>${m.exam_name || '-'}</td>
+            <td>${m.year || '-'}</td>
             <td>${m.term || '-'}</td>
             <td>${m.subject || '-'}</td>
             <td><strong>${m.marks !== null ? m.marks : '-'}</strong></td>
@@ -2111,10 +2112,12 @@ document.addEventListener('DOMContentLoaded', () => {
       // Results
       const resultsBody = document.getElementById('sp-results-body');
       if (data.results.length === 0) {
-        resultsBody.innerHTML = '<tr><td colspan="6" class="sp-no-records-row">No results found.</td></tr>';
+        resultsBody.innerHTML = '<tr><td colspan="8" class="sp-no-records-row">No results found.</td></tr>';
       } else {
         resultsBody.innerHTML = data.results.map(r => `<tr>
           <td>${r.exam_name || '-'}</td>
+          <td>${r.year || '-'}</td>
+          <td>${r.term || '-'}</td>
           <td>${r.total || '-'}</td>
           <td><strong>${r.obtained || '-'}</strong></td>
           <td>${r.percentage ? r.percentage + '%' : '-'}</td>
