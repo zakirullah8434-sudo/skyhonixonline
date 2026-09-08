@@ -80,20 +80,17 @@ router.post('/save', authenticateToken, async (req, res) => {
 
   try {
     for (const record of attendanceList) {
+      const time = record.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      await runSchool(
+        schoolId,
+        `DELETE FROM attendance WHERE student_id = ? AND date = ?`,
+        [record.student_id, date]
+      );
       await runSchool(
         schoolId,
         `INSERT INTO attendance (student_id, class_name, section_name, date, status, time, school_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(student_id, date) DO UPDATE SET status=excluded.status, time=excluded.time, class_name=excluded.class_name, section_name=excluded.section_name`,
-        [
-          record.student_id,
-          record.class_name,
-          record.section_name || '',
-          date,
-          record.status,
-          record.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          schoolId
-        ]
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [record.student_id, record.class_name, record.section_name || '', date, record.status, time, schoolId]
       );
     }
     res.json({ message: 'Attendance saved successfully!' });
@@ -128,11 +125,11 @@ router.post('/scan', authenticateToken, async (req, res) => {
     }
 
     // 2. Insert or replace attendance
+    await runSchool(schoolId, `DELETE FROM attendance WHERE student_id = ? AND date = ?`, [student.id, currentDate]);
     await runSchool(
       schoolId,
       `INSERT INTO attendance (student_id, class_name, section_name, date, status, time, school_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(student_id, date) DO UPDATE SET status=excluded.status, time=excluded.time`,
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [student.id, student.class_name, student.section_name || '', currentDate, 'Present', currentTime, schoolId]
     );
 
