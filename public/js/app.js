@@ -2579,10 +2579,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       students.forEach(s => {
-        const statuses = ['Present', 'Absent', 'Late', 'Unmarked'];
+        const statuses = ['Present', 'Absent', 'Late', 'Leave'];
         let options = '';
         statuses.forEach(st => {
-          options += `<option value="${st}" ${s.status === st ? 'selected' : ''}>${st}</option>`;
+          const sel = s.status === st || (!s.status && st === 'Present') ? 'selected' : '';
+          options += `<option value="${st}" ${sel}>${st}</option>`;
         });
 
         tbody.innerHTML += `
@@ -2623,7 +2624,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const status = row.querySelector('.att-row-status').value;
       const time = row.querySelector('.att-row-time').value;
 
-      if (status !== 'Unmarked') {
+      if (status !== 'Leave') {
         const cls = document.getElementById('att-class-select').value;
         const sec = document.getElementById('att-sec-select').value;
         list.push({
