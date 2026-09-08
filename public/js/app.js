@@ -991,7 +991,7 @@ document.addEventListener('DOMContentLoaded', () => {
     corporate:  { bg: '#f1f5f9', headerBg: '#334155', accent: '#0ea5e9', label: 'Corporate Clean' }
   };
 
-  function generateIdCardHtml(student, design, schoolName, logoPath, includeQr, includeBarcode) {
+  function generateIdCardHtml(student, design, schoolName, logoPath, includeQr, includeBarcode, principalSign) {
     const d = design || 'classic';
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(student.student_id || student.name || '')}`;
     const photoSrc = student.photo ? imgSrc(student.photo, 'school_assets/school_logo.png') : 'school_assets/school_logo.png';
@@ -1001,6 +1001,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cls = s.class_name || '-';
     const barcode = includeBarcode ? `<div style="text-align:center;margin-top:4px;"><div style="font-family:monospace;font-size:0.65rem;letter-spacing:2px;background:#fff;padding:3px 8px;border-radius:3px;color:#000;display:inline-block;border:1px solid #ddd;">║║ ${s.student_id||s.id||'00000'} ║║</div></div>` : '';
     const qr = includeQr ? `<div style="margin-top:6px;"><img src="${qrUrl}" style="width:65px;height:65px;border-radius:4px;" onerror="this.style.display='none'"></div>` : '';
+    const principalSignImg = principalSign ? `<img src="${principalSign}" style="height:28px;max-width:80px;object-fit:contain;" onerror="this.style.display='none'">` : '';
 
     if (d === 'classic') {
       return `<div style="width:340px;height:215px;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.25);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;display:flex;flex-direction:column;">
@@ -1246,70 +1247,66 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (d === 'design1') {
-      const backQr = includeQr ? `<img src="${qrUrl}" style="width:100px;height:100px;border-radius:6px;" onerror="this.style.display='none'">` : '';
-      const backBarcode = includeBarcode ? `<div style="margin-top:8px;font-family:monospace;font-size:0.7rem;letter-spacing:2px;background:#fff;padding:4px 12px;border-radius:4px;color:#333;display:inline-block;border:1px solid #ddd;">║║ ${s.student_id||s.id||'00000'} ║║</div>` : '';
-      return `<div style="display:flex;gap:14px;flex-shrink:0;align-items:flex-start;">
-        <div style="width:280px;border-radius:16px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,0.25);font-family:'Segoe UI',Arial,sans-serif;background:#fff;position:relative;border:3px solid #e0e0e0;">
-          <div style="text-align:center;padding-top:8px;">
-            <div style="width:22px;height:22px;border-radius:50%;border:3px solid #bbb;margin:0 auto;background:#f5f5f5;"></div>
-            <div style="width:4px;height:10px;background:linear-gradient(180deg,#999,#bbb);margin:0 auto;"></div>
-          </div>
-          <div style="background:linear-gradient(135deg,#1565c0 60%,#ffc107 100%);margin:4px 12px 0;border-radius:12px;padding:10px 14px 0;position:relative;overflow:hidden;">
-            <div style="position:absolute;top:0;left:0;width:60px;height:100%;background:linear-gradient(180deg,rgba(255,193,7,0.3),rgba(255,193,7,0.05));clip-path:polygon(0 0,100% 0,60% 100%,0 100%);"></div>
-            <div style="text-align:center;position:relative;z-index:1;">
-              <div style="font-size:1rem;font-weight:900;color:#fff;letter-spacing:1px;text-transform:uppercase;">${schoolName||'SCHOOL NAME'}</div>
-              <div style="font-size:0.55rem;color:rgba(255,255,255,0.8);margin-top:2px;">School Address Here</div>
-            </div>
-            <div style="text-align:center;margin-top:10px;">
-              <img src="${photoSrc}" style="width:90px;height:105px;border-radius:8px;object-fit:cover;border:3px solid rgba(255,255,255,0.5);background:#fce4ec;" onerror="this.src='school_assets/school_logo.png'">
-            </div>
-            <div style="background:#0d47a1;margin:8px -14px 0;padding:6px 14px;text-align:center;position:relative;">
-              <div style="font-size:0.9rem;font-weight:800;color:#fff;letter-spacing:0.5px;">${s.name||'-'}</div>
-            </div>
-            <div style="background:#00838f;margin:0 -14px;padding:4px 14px;text-align:center;">
-              <div style="font-size:0.7rem;font-weight:700;color:#fff;">Class - ${cls}</div>
+      const cardW = '3.375in', cardH = '2.125in';
+      const backQr = includeQr ? `<img src="${qrUrl}" style="width:0.7in;height:0.7in;border-radius:3px;" onerror="this.style.display='none'">` : '';
+      const backBarcode = includeBarcode ? `<div style="margin-top:4px;font-family:monospace;font-size:0.55rem;letter-spacing:2px;background:#fff;padding:3px 8px;border-radius:3px;color:#333;display:inline-block;border:1px solid #ddd;">║║ ${s.student_id||s.id||'00000'} ║║</div>` : '';
+      const principalImg = principalSign ? `<img src="${principalSign}" style="height:20px;max-width:60px;object-fit:contain;" onerror="this.style.display='none'">` : `<div style="height:20px;"></div>`;
+
+      return `<div style="display:flex;gap:16px;flex-shrink:0;align-items:flex-start;">
+        <div style="width:${cardW};height:${cardH};border-radius:8px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.2);font-family:'Segoe UI',Arial,sans-serif;background:#fff;position:relative;display:flex;flex-direction:column;">
+          <div style="background:linear-gradient(135deg,#1565c0 0%,#1976d2 50%,#1e88e5 100%);padding:6px 10px;display:flex;align-items:center;gap:6px;">
+            <img src="${logoSrc}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.4);background:#fff;" onerror="this.src='school_assets/school_logo.png'">
+            <div style="flex:1;">
+              <div style="font-size:0.62rem;font-weight:800;color:#fff;letter-spacing:0.5px;text-transform:uppercase;line-height:1.1;">${schoolName||'SCHOOL NAME'}</div>
+              <div style="font-size:0.4rem;color:rgba(255,255,255,0.7);margin-top:1px;">School Address Here</div>
             </div>
           </div>
-          <div style="padding:8px 14px 6px;position:relative;">
-            <div style="position:absolute;left:2px;top:50%;transform:translateY(-50%) rotate(-90deg);font-size:0.5rem;font-weight:700;color:#1565c0;letter-spacing:1px;white-space:nowrap;">ID CARD</div>
-            <div style="padding-left:16px;font-size:0.68rem;color:#333;">
-              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:80px;color:#666;font-weight:600;">Father Name</span><span>: ${s.father_name||'-'}</span></div>
-              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:80px;color:#666;font-weight:600;">Roll No</span><span>: ${s.roll_no||'-'}</span></div>
-              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:80px;color:#666;font-weight:600;">D.O.B.</span><span>: ${s.dob||'-'}</span></div>
-              <div style="display:flex;padding:3px 0;"><span style="width:80px;color:#666;font-weight:600;">Phone</span><span>: ${s.phone||'-'}</span></div>
+          <div style="flex:1;display:flex;padding:5px 8px;gap:6px;">
+            <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;">
+              <img src="${photoSrc}" style="width:0.85in;height:1in;border-radius:4px;object-fit:cover;border:2px solid #1565c0;background:#e3f2fd;" onerror="this.src='school_assets/school_logo.png'">
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;font-size:0.55rem;color:#1e293b;">
+              <div style="font-weight:700;font-size:0.68rem;color:#0d47a1;line-height:1.1;">${s.name||'-'}</div>
+              <div style="font-size:0.48rem;color:#64748b;">S/O ${s.father_name||'-'}</div>
+              <table style="width:100%;border-collapse:collapse;font-size:0.5rem;">
+                <tr><td style="padding:1px 0;color:#94a3b8;width:38px;">ID</td><td style="padding:1px 0;font-weight:600;">${s.student_id||'-'}</td><td style="padding:1px 0;color:#94a3b8;width:32px;">Class</td><td style="padding:1px 0;font-weight:600;">${cls}</td></tr>
+                <tr><td style="padding:1px 0;color:#94a3b8;">Roll</td><td style="padding:1px 0;font-weight:600;">${s.roll_no||'-'}</td><td style="padding:1px 0;color:#94a3b8;">DOB</td><td style="padding:1px 0;font-weight:600;">${s.dob||'-'}</td></tr>
+                <tr><td style="padding:1px 0;color:#94a3b8;">Ph.</td><td style="padding:1px 0;font-weight:600;" colspan="3">${s.phone||'-'}</td></tr>
+              </table>
+              <div style="display:flex;justify-content:flex-end;align-items:center;gap:4px;margin-top:2px;">
+                <div style="text-align:right;"><div style="height:1px;width:45px;background:#bbb;margin:0 0 1px auto;"></div><div style="font-size:0.38rem;color:#888;">Principal</div></div>
+                ${principalImg}
+              </div>
             </div>
           </div>
-          <div style="background:linear-gradient(135deg,#ff8f00,#ffa726);padding:4px 14px;display:flex;justify-content:flex-end;align-items:center;">
-            <div style="text-align:right;"><div style="height:1px;width:70px;background:rgba(255,255,255,0.6);margin:0 0 2px auto;"></div><div style="font-size:0.5rem;color:#fff;font-weight:600;">Principal Signature</div></div>
+          <div style="background:linear-gradient(135deg,#ffc107,#ffb300);padding:2px 10px;display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:0.38rem;color:#333;font-weight:600;">VALID: ${year}</div>
+            <div style="font-size:0.38rem;color:#333;font-weight:700;letter-spacing:1px;">STUDENT ID CARD</div>
           </div>
         </div>
-        <div style="width:280px;border-radius:16px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,0.25);font-family:'Segoe UI',Arial,sans-serif;background:#f5f5f5;position:relative;border:3px solid #e0e0e0;">
-          <div style="text-align:center;padding-top:8px;">
-            <div style="width:22px;height:22px;border-radius:50%;border:3px solid #bbb;margin:0 auto;background:#fff;"></div>
-            <div style="width:4px;height:10px;background:linear-gradient(180deg,#999,#bbb);margin:0 auto;"></div>
+        <div style="width:${cardW};height:${cardH};border-radius:8px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.2);font-family:'Segoe UI',Arial,sans-serif;background:#f8f9fa;position:relative;display:flex;flex-direction:column;">
+          <div style="background:linear-gradient(135deg,#1565c0 0%,#1976d2 50%,#1e88e5 100%);padding:5px 10px;text-align:center;">
+            <div style="font-size:0.58rem;font-weight:800;color:#fff;letter-spacing:0.5px;">${schoolName||'SCHOOL NAME'}</div>
+            <div style="font-size:0.38rem;color:rgba(255,255,255,0.7);">Academic Year ${year}</div>
           </div>
-          <div style="background:linear-gradient(135deg,#1565c0 60%,#ffc107 100%);margin:4px 12px 0;border-radius:12px;padding:12px;text-align:center;">
-            <div style="font-size:0.85rem;font-weight:900;color:#fff;letter-spacing:1px;">${schoolName||'SCHOOL NAME'}</div>
-            <div style="font-size:0.5rem;color:rgba(255,255,255,0.7);margin-top:2px;">Academic Year ${year}</div>
-          </div>
-          <div style="padding:14px 16px;text-align:center;">
-            <div style="margin-bottom:12px;">${backQr}</div>
-            <div style="background:#fff;border-radius:8px;padding:10px 12px;text-align:left;font-size:0.7rem;color:#333;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:90px;color:#666;font-weight:600;">Student ID</span><span>: ${s.student_id||'-'}</span></div>
-              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:90px;color:#666;font-weight:600;">Class</span><span>: ${cls}</span></div>
-              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:90px;color:#666;font-weight:600;">Roll No</span><span>: ${s.roll_no||'-'}</span></div>
-              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:90px;color:#666;font-weight:600;">Father Name</span><span>: ${s.father_name||'-'}</span></div>
-              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:90px;color:#666;font-weight:600;">D.O.B.</span><span>: ${s.dob||'-'}</span></div>
-              <div style="display:flex;padding:3px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:90px;color:#666;font-weight:600;">Phone</span><span>: ${s.phone||'-'}</span></div>
-              <div style="display:flex;padding:3px 0;"><span style="width:90px;color:#666;font-weight:600;">Gender</span><span>: ${s.gender||'-'}</span></div>
+          <div style="flex:1;padding:5px 8px;display:flex;flex-direction:column;justify-content:space-between;">
+            <div style="display:flex;gap:6px;align-items:flex-start;">
+              <div style="flex-shrink:0;">${backQr}</div>
+              <div style="flex:1;background:#fff;border-radius:4px;padding:4px 6px;font-size:0.48rem;color:#333;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+                <div style="display:flex;padding:1.5px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:52px;color:#94a3b8;font-weight:600;">Student ID</span><span>: ${s.student_id||'-'}</span></div>
+                <div style="display:flex;padding:1.5px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:52px;color:#94a3b8;font-weight:600;">Class</span><span>: ${cls}</span></div>
+                <div style="display:flex;padding:1.5px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:52px;color:#94a3b8;font-weight:600;">Roll No</span><span>: ${s.roll_no||'-'}</span></div>
+                <div style="display:flex;padding:1.5px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:52px;color:#94a3b8;font-weight:600;">Father</span><span>: ${s.father_name||'-'}</span></div>
+                <div style="display:flex;padding:1.5px 0;"><span style="width:52px;color:#94a3b8;font-weight:600;">Gender</span><span>: ${s.gender||'-'}</span></div>
+              </div>
             </div>
             ${backBarcode}
-            <div style="margin-top:14px;display:flex;justify-content:space-between;">
-              <div style="text-align:center;"><div style="height:1px;width:80px;background:#bbb;margin:0 auto 3px;"></div><div style="font-size:0.5rem;color:#888;">Student Signature</div></div>
-              <div style="text-align:center;"><div style="height:1px;width:80px;background:#bbb;margin:0 auto 3px;"></div><div style="font-size:0.5rem;color:#888;">Principal</div></div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+              <div style="text-align:center;"><div style="height:1px;width:50px;background:#bbb;margin:0 auto 1px;"></div><div style="font-size:0.38rem;color:#888;">Student</div></div>
+              <div style="text-align:center;"><div style="height:1px;width:50px;background:#bbb;margin:0 auto 1px;"></div><div style="font-size:0.38rem;color:#888;">Principal</div></div>
             </div>
           </div>
-          <div style="background:linear-gradient(135deg,#1565c0,#0d47a1);padding:6px;text-align:center;"><div style="font-size:0.45rem;color:rgba(255,255,255,0.7);">This card is property of ${schoolName||'SCHOOL'} | If found please return</div></div>
+          <div style="background:#1565c0;padding:2px 8px;text-align:center;"><div style="font-size:0.35rem;color:rgba(255,255,255,0.7);">Property of ${schoolName||'SCHOOL'} | If found please return</div></div>
         </div>
       </div>`;
     }
@@ -1317,14 +1314,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return generateIdCardHtml(student, 'classic', schoolName, logoPath, includeQr, includeBarcode);
   }
 
-  function generateTeacherIdCardHtml(teacher, design, schoolName, logoPath, includeQr) {
+  function generateTeacherIdCardHtml(teacher, design, schoolName, logoPath, includeQr, principalSign) {
     const s = { name: teacher.name, father_name: '', student_id: teacher.id, class_name: 'Teacher', roll_no: '', phone: teacher.phone, dob: '', gender: '', photo: teacher.photo || '', class_name: `Subject: ${teacher.subject||'-'}` };
-    return generateIdCardHtml(s, design, schoolName, logoPath, includeQr, false);
+    return generateIdCardHtml(s, design, schoolName, logoPath, includeQr, false, principalSign);
   }
 
-  function generateStaffIdCardHtml(staff, design, schoolName, logoPath, includeQr) {
+  function generateStaffIdCardHtml(staff, design, schoolName, logoPath, includeQr, principalSign) {
     const s = { name: staff.name, father_name: staff.designation, student_id: '', class_name: 'Staff', roll_no: '', phone: staff.phone, dob: '', gender: '', photo: '' };
-    return generateIdCardHtml(s, design, schoolName, logoPath, includeQr, false);
+    return generateIdCardHtml(s, design, schoolName, logoPath, includeQr, false, principalSign);
   }
 
   // Student ID Card: Generate
@@ -1334,10 +1331,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const includeQr = document.getElementById('idcard-stu-qr').value === '1';
     const includeBarcode = document.getElementById('idcard-stu-barcode').value === '1';
 
-    let settings = {};
-    try { settings = await apiCall('/settings'); } catch (e) {}
+    let settings = {}, principalSign = null;
+    try {
+      const [settingsRaw, templatesRaw] = await Promise.all([
+        apiCall('/settings'),
+        apiCall('/exams/rollno-templates').catch(() => [])
+      ]);
+      settings = settingsRaw;
+      if (templatesRaw.length > 0 && templatesRaw[0].template && templatesRaw[0].template.principal_sign) {
+        principalSign = templatesRaw[0].template.principal_sign;
+      }
+    } catch (e) {}
 
-    const html = generateIdCardHtml(studentData, design, settings.school_name, settings.logo_path, includeQr, includeBarcode);
+    const html = generateIdCardHtml(studentData, design, settings.school_name, settings.logo_path, includeQr, includeBarcode, principalSign);
     document.getElementById('idcard-stu-printable').innerHTML = html;
     document.getElementById('idcard-stu-preview-container').style.display = 'block';
   });
@@ -1362,10 +1368,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const design = document.getElementById('idcard-teach-design').value;
     const includeQr = document.getElementById('idcard-teach-qr').value === '1';
 
-    let settings = {};
-    try { settings = await apiCall('/settings'); } catch (e) {}
+    let settings = {}, principalSign = null;
+    try {
+      const [settingsRaw, templatesRaw] = await Promise.all([
+        apiCall('/settings'),
+        apiCall('/exams/rollno-templates').catch(() => [])
+      ]);
+      settings = settingsRaw;
+      if (templatesRaw.length > 0 && templatesRaw[0].template && templatesRaw[0].template.principal_sign) {
+        principalSign = templatesRaw[0].template.principal_sign;
+      }
+    } catch (e) {}
 
-    const html = generateTeacherIdCardHtml(teacherData, design, settings.school_name, settings.logo_path, includeQr);
+    const html = generateTeacherIdCardHtml(teacherData, design, settings.school_name, settings.logo_path, includeQr, principalSign);
     document.getElementById('idcard-teach-printable').innerHTML = html;
     document.getElementById('idcard-teach-preview-container').style.display = 'block';
   });
@@ -1390,11 +1405,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!name || !designation) { showToast('Please enter staff name and designation', true); return; }
 
-    let settings = {};
-    try { settings = await apiCall('/settings'); } catch (e) {}
+    let settings = {}, principalSign = null;
+    try {
+      const [settingsRaw, templatesRaw] = await Promise.all([
+        apiCall('/settings'),
+        apiCall('/exams/rollno-templates').catch(() => [])
+      ]);
+      settings = settingsRaw;
+      if (templatesRaw.length > 0 && templatesRaw[0].template && templatesRaw[0].template.principal_sign) {
+        principalSign = templatesRaw[0].template.principal_sign;
+      }
+    } catch (e) {}
 
     const staff = { name, designation, phone, cnic };
-    const html = generateStaffIdCardHtml(staff, design, settings.school_name, settings.logo_path, includeQr);
+    const html = generateStaffIdCardHtml(staff, design, settings.school_name, settings.logo_path, includeQr, principalSign);
     document.getElementById('idcard-staff-printable').innerHTML = html;
     document.getElementById('idcard-staff-preview-container').style.display = 'block';
   });
@@ -1451,13 +1475,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const students = JSON.parse(document.getElementById('idcard-cw-class').dataset.studentsData || '[]');
     if (!students.length) { showToast('No students found for this class', true); return; }
 
-    let settings = {};
-    try { settings = await apiCall('/settings'); } catch (e) {}
+    let settings = {}, principalSign = null;
+    try {
+      const [settingsRaw, templatesRaw] = await Promise.all([
+        apiCall('/settings'),
+        apiCall('/exams/rollno-templates').catch(() => [])
+      ]);
+      settings = settingsRaw;
+      if (templatesRaw.length > 0 && templatesRaw[0].template && templatesRaw[0].template.principal_sign) {
+        principalSign = templatesRaw[0].template.principal_sign;
+      }
+    } catch (e) {}
 
     let cardsHtml = '';
     for (const s of students) {
       const fullStudent = await apiCall(`/students/${s.id}`).then(d => d.student).catch(() => s);
-      cardsHtml += generateIdCardHtml(fullStudent, design, settings.school_name, settings.logo_path, includeQr, includeBarcode);
+      cardsHtml += generateIdCardHtml(fullStudent, design, settings.school_name, settings.logo_path, includeQr, includeBarcode, principalSign);
     }
 
     const container = document.getElementById('idcard-cw-printable');
