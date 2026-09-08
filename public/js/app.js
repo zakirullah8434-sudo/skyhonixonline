@@ -4357,7 +4357,7 @@ document.addEventListener('DOMContentLoaded', () => {
             : (exam ? exam.exam_name + ' Exam ' + exam.year : '');
 
           slipsHtml +=
-            '<div class="rollno-slip" style="width:100%; height:100%; display:flex; flex-direction:column; padding:10px 14px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
+            '<div class="rollno-slip" style="width:100%; height:100%; display:flex; flex-direction:column; padding:5% 14px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
 
               // === HEADER: School name ===
               '<div style="text-align:center; margin-bottom:4px;">' +
@@ -4382,8 +4382,8 @@ document.addEventListener('DOMContentLoaded', () => {
               '</div>' +
 
               // === Exam table ===
-              '<div style="flex:1; overflow:hidden;">' +
-                '<table style="width:100%; border-collapse:collapse; font-size:11px;">' +
+              '<div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">' +
+                '<table style="width:100%; height:100%; border-collapse:collapse; font-size:11px; table-layout:fixed;">' +
                   '<thead>' +
                     '<tr>' +
                       '<th style="border:1.5px solid #000; padding:5px 6px; text-align:center; width:6%; font-weight:700; background:#f0f0f0;">#</th>' +
