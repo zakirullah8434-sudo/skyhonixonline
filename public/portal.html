@@ -109,6 +109,9 @@
         <li class="sidebar-menu-item" data-screen="post-creator">
           <a href="#" class="sidebar-menu-link">🎨 Post Creator</a>
         </li>
+        <li class="sidebar-menu-item" data-screen="promotions">
+          <a href="#" class="sidebar-menu-link">🚀 Promote Students</a>
+        </li>
       </ul>
       
       <div class="sidebar-footer">
@@ -197,11 +200,16 @@
             </div>
           </div>
 
-          <!-- Promote Students Section -->
-          <div class="card" style="margin-top: 24px;">
-            <h3>Promote Students</h3>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
-              Promote passing students to the next class based on exam results. Failed students stay in the same class.
+        </article>
+
+        <!-- ==================== SCREEN: PROMOTIONS ==================== -->
+        <article class="screen-section" id="screen-promotions" style="display: none;">
+          <h2 style="margin-bottom: 24px;">🚀 Promote Students</h2>
+
+          <!-- Main Options -->
+          <div id="promo-main-view">
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+              Promote passing students to the next class based on exam results. Failed students stay in the same class. You can also mark students who have left the school.
             </p>
             <div class="grid-3">
               <div class="fees-dash-card card-green" id="promo-school-wise" style="cursor: pointer;">
@@ -401,7 +409,7 @@
           </div>
 
           <!-- Promotion History Card -->
-          <div class="card" style="margin-top: 24px;">
+          <div id="promo-history-view" class="card" style="margin-top: 24px;">
             <h3>Promotion History</h3>
             <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
               View previous promotion records.

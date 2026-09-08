@@ -372,7 +372,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function loadScreenData(screenName) {
     if (screenName === 'dashboard') {
       loadDashboardStats();
-      loadPromotionsData();
     } else if (screenName === 'students') {
       loadClassesList();
       loadStudentsList();
@@ -395,6 +394,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (screenName === 'student-profile') {
       loadStudentProfileFilters();
       loadStudentProfileList();
+    } else if (screenName === 'promotions') {
+      loadPromotionsData();
+      resetPromoPanels();
     }
   }
 
@@ -553,10 +555,22 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   }
 
+  function resetPromoPanels() {
+    const promoScreen = document.getElementById('screen-promotions');
+    if (!promoScreen) return;
+    document.getElementById('promo-main-view').style.display = '';
+    document.getElementById('promo-panel-school-wide').style.display = 'none';
+    document.getElementById('promo-panel-class-wise').style.display = 'none';
+    document.getElementById('promo-panel-leave').style.display = 'none';
+    document.getElementById('promo-school-preview-container').style.display = 'none';
+    document.getElementById('promo-school-execute').style.display = 'none';
+    document.getElementById('promo-class-preview-container').style.display = 'none';
+    document.getElementById('promo-class-execute').style.display = 'none';
+  }
+
   // Navigation: Promotion dash cards
   document.getElementById('promo-school-wise').addEventListener('click', () => {
-    document.getElementById('promo-school-wise').closest('.card').style.display = 'none';
-    document.getElementById('promo-school-wise').closest('.card').nextElementSibling.style.display = 'none';
+    document.getElementById('promo-main-view').style.display = 'none';
     document.getElementById('promo-panel-school-wide').style.display = 'block';
     document.getElementById('promo-panel-class-wise').style.display = 'none';
     document.getElementById('promo-panel-leave').style.display = 'none';
@@ -566,8 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('promo-class-wise').addEventListener('click', () => {
-    document.getElementById('promo-class-wise').closest('.card').style.display = 'none';
-    document.getElementById('promo-class-wise').closest('.card').nextElementSibling.style.display = 'none';
+    document.getElementById('promo-main-view').style.display = 'none';
     document.getElementById('promo-panel-class-wise').style.display = 'block';
     document.getElementById('promo-panel-school-wide').style.display = 'none';
     document.getElementById('promo-panel-leave').style.display = 'none';
@@ -577,8 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('promo-leave-students').addEventListener('click', () => {
-    document.getElementById('promo-leave-students').closest('.card').style.display = 'none';
-    document.getElementById('promo-leave-students').closest('.card').nextElementSibling.style.display = 'none';
+    document.getElementById('promo-main-view').style.display = 'none';
     document.getElementById('promo-panel-leave').style.display = 'block';
     document.getElementById('promo-panel-school-wide').style.display = 'none';
     document.getElementById('promo-panel-class-wise').style.display = 'none';
@@ -588,11 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Back buttons
   document.querySelectorAll('.btn-back-promo-dash').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.btn-back-promo-dash').forEach(b => b.parentElement.parentElement.style.display = 'none');
-      document.querySelectorAll('#screen-dashboard > .card').forEach(c => {
-        if (c.querySelector && c.querySelector('.fees-dash-card')) c.style.display = '';
-      });
-      loadPromotionsData();
+      resetPromoPanels();
     });
   });
 
@@ -820,9 +828,6 @@ document.addEventListener('DOMContentLoaded', () => {
       loadClassesList();
     } catch (e) {}
   });
-
-  // Dashboard: load promotions data
-  loadPromotionsData();
 
   // ==========================================
   // MODULE: STUDENTS
