@@ -354,18 +354,20 @@ router.get('/:id/profile', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Student not found' });
     }
 
+    const safeQuery = (sql, params=[]) => querySchool(schoolId, sql, params).catch(() => []);
+
     // 2. Fee ledger
-    const feeLedger = await querySchool(schoolId,
+    const feeLedger = await safeQuery(
       `SELECT * FROM fee_ledger WHERE student_id = ? ORDER BY year DESC, month DESC`, [studentId]
     );
 
     // 3. Payments
-    const payments = await querySchool(schoolId,
+    const payments = await safeQuery(
       `SELECT * FROM fee_payments WHERE student_id = ? ORDER BY payment_date DESC`, [studentId]
     );
 
     // 4. Marks
-    const marks = await querySchool(schoolId,
+    const marks = await safeQuery(
       `SELECT m.*, e.exam_name, e.year
        FROM marks m
        JOIN exams e ON e.id = m.exam_id
@@ -374,7 +376,7 @@ router.get('/:id/profile', authenticateToken, async (req, res) => {
     );
 
     // 5. Results
-    const results = await querySchool(schoolId,
+    const results = await safeQuery(
       `SELECT r.*, e.exam_name, e.year
        FROM results r
        JOIN exams e ON e.id = r.exam_id
@@ -383,22 +385,22 @@ router.get('/:id/profile', authenticateToken, async (req, res) => {
     );
 
     // 6. Attendance
-    const attendance = await querySchool(schoolId,
+    const attendance = await safeQuery(
       `SELECT * FROM attendance WHERE student_id = ? ORDER BY date DESC`, [studentId]
     );
 
     // 7. Fee exceptions/discounts
-    const exceptions = await querySchool(schoolId,
+    const exceptions = await safeQuery(
       `SELECT * FROM student_fee_exceptions WHERE student_id = ?`, [studentId]
     );
 
     // 8. Dues
-    const dues = await querySchool(schoolId,
+    const dues = await safeQuery(
       `SELECT * FROM fee_dues WHERE student_id = ?`, [studentId]
     );
 
     // 9. Parent information
-    const parents = await querySchool(schoolId,
+    const parents = await safeQuery(
       `SELECT p.*, sp.relation
        FROM student_parents sp
        JOIN parents p ON p.id = sp.parent_id
@@ -406,12 +408,12 @@ router.get('/:id/profile', authenticateToken, async (req, res) => {
     );
 
     // 10. Promotion history
-    const promotionHistory = await querySchool(schoolId,
+    const promotionHistory = await safeQuery(
       `SELECT * FROM student_promotion_history WHERE student_id = ? ORDER BY promotion_date DESC`, [studentId]
     );
 
     // 11. Homework/Assignments for student's class
-    const homework = await querySchool(schoolId,
+    const homework = await safeQuery(
       `SELECT a.*, t.name as teacher_name
        FROM assignments a
        LEFT JOIN teachers t ON t.id = a.teacher_id
@@ -420,17 +422,17 @@ router.get('/:id/profile', authenticateToken, async (req, res) => {
     );
 
     // 12. Certificates
-    const certificates = await querySchool(schoolId,
+    const certificates = await safeQuery(
       `SELECT * FROM student_certificates WHERE student_id = ? ORDER BY issue_date DESC`, [studentId]
     );
 
     // 13. Documents
-    const documents = await querySchool(schoolId,
+    const documents = await safeQuery(
       `SELECT id, student_id, document_name, document_type, upload_date, description, created_at FROM student_documents WHERE student_id = ? ORDER BY created_at DESC`, [studentId]
     );
 
     // 14. Transfer history
-    const transferHistory = await querySchool(schoolId,
+    const transferHistory = await safeQuery(
       `SELECT * FROM student_transfer_history WHERE student_id = ? ORDER BY transfer_date DESC`, [studentId]
     );
 
