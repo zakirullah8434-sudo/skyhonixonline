@@ -212,7 +212,12 @@ async function runMain(sql, params = []) {
 function getSchoolDb(schoolId) {
   return new Promise((resolve, reject) => {
     if (schoolDbCache[schoolId]) {
-      return resolve(schoolDbCache[schoolId]);
+      createSchoolDatabaseSchema(schoolDbCache[schoolId]).then(() => {
+        resolve(schoolDbCache[schoolId]);
+      }).catch(() => {
+        resolve(schoolDbCache[schoolId]);
+      });
+      return;
     }
 
     if (config.useTurso) {

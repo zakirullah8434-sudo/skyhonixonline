@@ -399,6 +399,42 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
+      // 29. Student Certificates (always ensure exists for existing DBs)
+      db.run(`CREATE TABLE IF NOT EXISTS student_certificates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id INTEGER NOT NULL,
+        certificate_name TEXT NOT NULL,
+        certificate_type TEXT DEFAULT 'General',
+        issue_date TEXT,
+        description TEXT,
+        created_at TEXT
+      )`);
+
+      // 30. Student Documents
+      db.run(`CREATE TABLE IF NOT EXISTS student_documents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id INTEGER NOT NULL,
+        document_name TEXT NOT NULL,
+        document_type TEXT DEFAULT 'Other',
+        upload_date TEXT,
+        description TEXT,
+        file_data TEXT,
+        created_at TEXT
+      )`);
+
+      // 31. Student Transfer History
+      db.run(`CREATE TABLE IF NOT EXISTS student_transfer_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id INTEGER NOT NULL,
+        transfer_date TEXT,
+        from_class TEXT,
+        to_class TEXT,
+        to_school TEXT,
+        reason TEXT,
+        remarks TEXT,
+        created_at TEXT
+      )`);
+
       // Migrations: Add teacher_id to marks if missing
       db.all("PRAGMA table_info(marks)", (err, columns) => {
         if (!err && Array.isArray(columns)) {
@@ -425,52 +461,11 @@ function createSchoolDatabaseSchema(db) {
         }
       });
 
-      // 29. Student Certificates
-      db.run(`
-        CREATE TABLE IF NOT EXISTS student_certificates (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          student_id INTEGER NOT NULL,
-          certificate_name TEXT NOT NULL,
-          certificate_type TEXT DEFAULT 'General',
-          issue_date TEXT,
-          description TEXT,
-          created_at TEXT
-        )
-      `);
-
-      // 30. Student Documents
-      db.run(`
-        CREATE TABLE IF NOT EXISTS student_documents (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          student_id INTEGER NOT NULL,
-          document_name TEXT NOT NULL,
-          document_type TEXT DEFAULT 'Other',
-          upload_date TEXT,
-          description TEXT,
-          file_data TEXT,
-          created_at TEXT
-        )
-      `);
-
-      // 31. Student Transfer History
-      db.run(`
-        CREATE TABLE IF NOT EXISTS student_transfer_history (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          student_id INTEGER NOT NULL,
-          transfer_date TEXT,
-          from_class TEXT,
-          to_class TEXT,
-          to_school TEXT,
-          reason TEXT,
-          remarks TEXT,
-          created_at TEXT
-        )
-      `);
-
       // 32. Transport Vehicles
       db.run(`
         CREATE TABLE IF NOT EXISTS transport_vehicles (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          school_id INTEGER NOT NULL,
           name TEXT,
           plate_number TEXT,
           type TEXT DEFAULT 'Bus',
@@ -485,6 +480,7 @@ function createSchoolDatabaseSchema(db) {
       db.run(`
         CREATE TABLE IF NOT EXISTS transport_drivers (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          school_id INTEGER NOT NULL,
           name TEXT,
           phone TEXT,
           license_number TEXT,
@@ -499,6 +495,7 @@ function createSchoolDatabaseSchema(db) {
       db.run(`
         CREATE TABLE IF NOT EXISTS transport_routes (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          school_id INTEGER NOT NULL,
           name TEXT,
           pickup_locations TEXT DEFAULT '[]',
           drop_locations TEXT DEFAULT '[]',
@@ -513,6 +510,7 @@ function createSchoolDatabaseSchema(db) {
       db.run(`
         CREATE TABLE IF NOT EXISTS transport_assignments (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          school_id INTEGER NOT NULL,
           student_id INTEGER NOT NULL,
           vehicle_id INTEGER,
           route_id INTEGER,
