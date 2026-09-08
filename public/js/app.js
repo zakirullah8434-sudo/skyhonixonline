@@ -2602,7 +2602,7 @@ document.addEventListener('DOMContentLoaded', () => {
               </select>
             </td>
             <td>
-              <input type="text" class="form-control att-row-time" style="width:100px; padding:6px 12px; text-align:center;" value="${s.time || ''}" placeholder="hh:mm AM">
+              <input type="text" class="form-control att-row-time" style="width:100px; padding:6px 12px; text-align:center;" value="${s.time || new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:true})}" placeholder="hh:mm AM">
             </td>
           </tr>
         `;
