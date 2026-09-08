@@ -211,13 +211,21 @@ async function runMain(sql, params = []) {
 // Dynamic school db connection pool
 const migratedSchools = new Set();
 async function ensureSchoolTables(db) {
-  const run = (sql, params=[]) => new Promise((res) => { db.run(sql, params, () => res()); });
-  await run(`CREATE TABLE IF NOT EXISTS student_certificates (id INTEGER PRIMARY KEY AUTOINCREMENT, school_id INTEGER, student_id INTEGER NOT NULL, certificate_name TEXT NOT NULL, certificate_type TEXT DEFAULT 'General', issue_date TEXT, description TEXT, created_at TEXT)`);
-  await run(`CREATE TABLE IF NOT EXISTS student_documents (id INTEGER PRIMARY KEY AUTOINCREMENT, school_id INTEGER, student_id INTEGER NOT NULL, document_name TEXT NOT NULL, document_type TEXT DEFAULT 'Other', upload_date TEXT, description TEXT, file_data TEXT, created_at TEXT)`);
-  await run(`CREATE TABLE IF NOT EXISTS student_transfer_history (id INTEGER PRIMARY KEY AUTOINCREMENT, school_id INTEGER, student_id INTEGER NOT NULL, transfer_date TEXT, from_class TEXT, to_class TEXT, to_school TEXT, reason TEXT, remarks TEXT, created_at TEXT)`);
-  await run(`ALTER TABLE student_certificates ADD COLUMN school_id INTEGER`).catch(() => {});
-  await run(`ALTER TABLE student_documents ADD COLUMN school_id INTEGER`).catch(() => {});
-  await run(`ALTER TABLE student_transfer_history ADD COLUMN school_id INTEGER`).catch(() => {});
+  const run = (sql) => new Promise((res) => { db.run(sql, () => res()); });
+  // Add school_id to EVERY table that the Turso proxy queries
+  const tables = [
+    'students', 'sections', 'class_fees', 'student_fee_exceptions',
+    'fee_ledger', 'attendance', 'fee_payments', 'fee_dues', 'past_dues',
+    'fee_reminder_templates', 'date_sheet_templates', 'exams', 'exam_subjects',
+    'marks', 'dmc_templates', 'results', 'student_promotion_history',
+    'fee_settings', 'users', 'settings', 'result_sections',
+    'parents', 'student_parents', 'timetable', 'fee_reminders',
+    'announcements', 'assignments', 'student_certificates', 'student_documents',
+    'student_transfer_history', 'transport_vehicles', 'roll_slip_templates'
+  ];
+  for (const t of tables) {
+    await run(`ALTER TABLE ${t} ADD COLUMN school_id INTEGER`).catch(() => {});
+  }
 }
 function getSchoolDb(schoolId) {
   return new Promise((resolve, reject) => {

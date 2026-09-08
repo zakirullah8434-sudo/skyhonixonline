@@ -49,7 +49,8 @@ function createSchoolDatabaseSchema(db) {
           address TEXT,
           previous_school TEXT,
           previous_school_contact TEXT,
-          blood_group TEXT
+          blood_group TEXT,
+          school_id INTEGER
         )
       `);
 
@@ -59,6 +60,7 @@ function createSchoolDatabaseSchema(db) {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           class_name TEXT NOT NULL,
           section_name TEXT NOT NULL,
+          school_id INTEGER,
           UNIQUE(class_name, section_name)
         )
       `);
@@ -68,7 +70,8 @@ function createSchoolDatabaseSchema(db) {
         CREATE TABLE IF NOT EXISTS class_fees (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           class_name TEXT UNIQUE,
-          monthly_fee REAL DEFAULT 0
+          monthly_fee REAL DEFAULT 0,
+          school_id INTEGER
         )
       `);
 
@@ -78,7 +81,8 @@ function createSchoolDatabaseSchema(db) {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           student_id INTEGER UNIQUE,
           discount_amount REAL DEFAULT 0,
-          is_free INTEGER DEFAULT 0
+          is_free INTEGER DEFAULT 0,
+          school_id INTEGER
         )
       `);
 
@@ -99,6 +103,7 @@ function createSchoolDatabaseSchema(db) {
           paid_amount REAL DEFAULT 0,
           status TEXT,
           transport_fee REAL DEFAULT 0,
+          school_id INTEGER,
           created_at TEXT
         )
       `);
@@ -112,7 +117,8 @@ function createSchoolDatabaseSchema(db) {
           section_name TEXT,
           date TEXT,
           status TEXT,
-          time TEXT
+          time TEXT,
+          school_id INTEGER
         )
       `);
 
@@ -131,7 +137,8 @@ function createSchoolDatabaseSchema(db) {
           year INTEGER,
           amount_paid REAL,
           payment_date TEXT,
-          fee_ledger_id INTEGER
+          fee_ledger_id INTEGER,
+          school_id INTEGER
         )
       `);
 
@@ -139,7 +146,8 @@ function createSchoolDatabaseSchema(db) {
       db.run(`
         CREATE TABLE IF NOT EXISTS fee_dues (
           student_id INTEGER PRIMARY KEY,
-          due_amount REAL DEFAULT 0
+          due_amount REAL DEFAULT 0,
+          school_id INTEGER
         )
       `);
 
@@ -181,7 +189,8 @@ function createSchoolDatabaseSchema(db) {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           exam_name TEXT,
           year INTEGER,
-          classes TEXT DEFAULT '[]'
+          classes TEXT DEFAULT '[]',
+          school_id INTEGER
         )
       `);
       // Migration: add classes column to existing exams tables
@@ -195,7 +204,8 @@ function createSchoolDatabaseSchema(db) {
           class TEXT,
           subject TEXT,
           max_marks INTEGER,
-          term TEXT DEFAULT '1st Term'
+          term TEXT DEFAULT '1st Term',
+          school_id INTEGER
         )
       `);
 
@@ -207,7 +217,8 @@ function createSchoolDatabaseSchema(db) {
           exam_id INTEGER,
           subject TEXT,
           marks INTEGER,
-          term TEXT DEFAULT '1st Term'
+          term TEXT DEFAULT '1st Term',
+          school_id INTEGER
         )
       `);
 
@@ -234,7 +245,8 @@ function createSchoolDatabaseSchema(db) {
           percentage REAL,
           grade TEXT,
           position INTEGER,
-          remarks TEXT
+          remarks TEXT,
+          school_id INTEGER
         )
       `);
 
@@ -249,7 +261,8 @@ function createSchoolDatabaseSchema(db) {
           promotion_date TEXT,
           final_percentage REAL,
           final_grade TEXT,
-          remarks TEXT
+          remarks TEXT,
+          school_id INTEGER
         )
       `);
 
@@ -320,6 +333,7 @@ function createSchoolDatabaseSchema(db) {
           cnic TEXT,
           address TEXT,
           status TEXT DEFAULT 'Active',
+          school_id INTEGER,
           created_at TEXT
         )
       `);
@@ -331,6 +345,7 @@ function createSchoolDatabaseSchema(db) {
           student_id INTEGER NOT NULL,
           parent_id INTEGER NOT NULL,
           relation TEXT DEFAULT 'Father',
+          school_id INTEGER,
           UNIQUE(student_id, parent_id)
         )
       `);
@@ -395,6 +410,7 @@ function createSchoolDatabaseSchema(db) {
           type TEXT DEFAULT 'homework',
           due_date TEXT,
           priority TEXT DEFAULT 'medium',
+          school_id INTEGER,
           created_at TEXT
         )
       `);
