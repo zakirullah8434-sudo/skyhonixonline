@@ -1541,7 +1541,10 @@
               </div>
               <div class="form-group" style="margin-bottom: 0;">
                 <label class="form-label">Search Student (Name, ID, Class)</label>
-                <input type="text" class="form-control" id="sp-search-input" placeholder="Type name, student ID, or class...">
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" class="form-control" id="sp-search-input" placeholder="Type name, student ID, or class..." style="flex: 1;">
+                  <button type="button" class="btn btn-primary btn-sm" id="sp-search-btn" style="white-space: nowrap;">Search</button>
+                </div>
               </div>
             </div>
             <div style="margin-top: 12px;">
@@ -3707,6 +3710,6 @@
   </div>
 
   <!-- Application logic -->
-  <script src="js/app.js?v=4"></script>
+  <script src="js/app.js?v=5"></script>
 </body>
 </html>
