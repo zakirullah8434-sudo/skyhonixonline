@@ -87,6 +87,43 @@ router.get('/classes', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /students/all - Get ALL students including Left status (for profile search)
+router.get('/all', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { class_name, section_name, search } = req.query;
+
+  let query = 'SELECT * FROM students WHERE 1=1';
+  const params = [];
+
+  if (class_name) {
+    query += ' AND class_name = ?';
+    params.push(class_name);
+  }
+  if (section_name) {
+    if (section_name === 'No Section') {
+      query += " AND (section_name IS NULL OR section_name = '')";
+    } else {
+      query += ' AND section_name = ?';
+      params.push(section_name);
+    }
+  }
+  if (search) {
+    query += ' AND (name LIKE ? OR student_id LIKE ? OR class_name LIKE ? OR father_name LIKE ? OR phone LIKE ? OR roll_no LIKE ?)';
+    const searchParam = `%${search}%`;
+    params.push(searchParam, searchParam, searchParam, searchParam, searchParam, searchParam);
+  }
+
+  query += ' ORDER BY class_name, CAST(roll_no AS INTEGER), name';
+
+  try {
+    const students = await querySchool(schoolId, query, params);
+    res.json(students);
+  } catch (err) {
+    console.error('Fetch all students error:', err);
+    res.status(500).json({ error: 'Failed to retrieve students: ' + err.message });
+  }
+});
+
 // GET /students/sections/:className - Get sections for a class
 router.get('/sections/:className', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;

@@ -197,6 +197,234 @@
             </div>
           </div>
 
+          <!-- Promote Students Section -->
+          <div class="card" style="margin-top: 24px;">
+            <h3>Promote Students</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+              Promote passing students to the next class based on exam results. Failed students stay in the same class.
+            </p>
+            <div class="grid-3">
+              <div class="fees-dash-card card-green" id="promo-school-wise" style="cursor: pointer;">
+                <div class="fees-card-title">School Wise Promotion</div>
+                <div class="fees-card-desc">Promote all classes at once</div>
+              </div>
+              <div class="fees-dash-card card-blue" id="promo-class-wise" style="cursor: pointer;">
+                <div class="fees-card-title">Class Wise Promotion</div>
+                <div class="fees-card-desc">Select specific classes to promote</div>
+              </div>
+              <div class="fees-dash-card card-pink" id="promo-leave-students" style="cursor: pointer; background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);">
+                <div class="fees-card-title">Leave Students</div>
+                <div class="fees-card-desc">Mark students who left school</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Promotion Panel: School Wise -->
+          <div id="promo-panel-school-wide" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-promo-dash">← Back to Promote Students</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">School Wise Promotion</h2>
+
+            <div class="card" style="margin-bottom: 20px;">
+              <h3>Configuration</h3>
+              <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                Set the passing marks percentage. All students with percentage equal to or above this value will be promoted to the next class.
+              </p>
+              <div class="grid-3">
+                <div class="form-group">
+                  <label class="form-label">Passing Marks (%) *</label>
+                  <input type="number" class="form-control" id="promo-school-passing" min="0" max="100" value="40" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Select Exam</label>
+                  <select class="form-control" id="promo-school-exam">
+                    <option value="">-- Latest Result --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Term</label>
+                  <select class="form-control" id="promo-school-term">
+                    <option>Final</option><option>1st Term</option><option>2nd Term</option>
+                  </select>
+                </div>
+              </div>
+              <div style="margin-top: 15px; display: flex; gap: 10px;">
+                <button class="btn btn-primary" id="btn-promo-school-preview">Preview Promotion</button>
+                <button class="btn btn-secondary" id="btn-promo-school-execute" style="display: none;">Execute Promotion</button>
+              </div>
+            </div>
+
+            <div id="promo-school-preview-container" style="display: none;">
+              <div class="card" style="margin-bottom: 20px; background: rgba(99,102,241,0.08); border: 1px solid var(--primary);">
+                <h3>Promotion Preview</h3>
+                <div id="promo-school-summary" style="margin: 15px 0; font-size: 0.95rem;"></div>
+              </div>
+              <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                <table class="data-table" id="table-promo-school-preview">
+                  <thead>
+                    <tr>
+                      <th>Student Name</th>
+                      <th>Roll No</th>
+                      <th>From Class</th>
+                      <th>To Class</th>
+                      <th>Percentage</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading preview...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Promotion Panel: Class Wise -->
+          <div id="promo-panel-class-wise" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-promo-dash">← Back to Promote Students</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">Class Wise Promotion</h2>
+
+            <div class="card" style="margin-bottom: 20px;">
+              <h3>Configuration</h3>
+              <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                Select classes to promote and set passing marks percentage.
+              </p>
+              <div class="grid-3">
+                <div class="form-group">
+                  <label class="form-label">Passing Marks (%) *</label>
+                  <input type="number" class="form-control" id="promo-class-passing" min="0" max="100" value="40" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Select Exam</label>
+                  <select class="form-control" id="promo-class-exam">
+                    <option value="">-- Latest Result --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Term</label>
+                  <select class="form-control" id="promo-class-term">
+                    <option>Final</option><option>1st Term</option><option>2nd Term</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Select Classes to Promote</label>
+                <div id="promo-class-checkboxes" style="display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; min-height: 42px;">
+                </div>
+              </div>
+              <div style="margin-top: 15px; display: flex; gap: 10px;">
+                <button class="btn btn-primary" id="btn-promo-class-preview">Preview Promotion</button>
+                <button class="btn btn-secondary" id="btn-promo-class-execute" style="display: none;">Execute Promotion</button>
+              </div>
+            </div>
+
+            <div id="promo-class-preview-container" style="display: none;">
+              <div class="card" style="margin-bottom: 20px; background: rgba(99,102,241,0.08); border: 1px solid var(--primary);">
+                <h3>Promotion Preview</h3>
+                <div id="promo-class-summary" style="margin: 15px 0; font-size: 0.95rem;"></div>
+              </div>
+              <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                <table class="data-table" id="table-promo-class-preview">
+                  <thead>
+                    <tr>
+                      <th>Student Name</th>
+                      <th>Roll No</th>
+                      <th>From Class</th>
+                      <th>To Class</th>
+                      <th>Percentage</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading preview...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Promotion Panel: Leave Students -->
+          <div id="promo-panel-leave" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-promo-dash">← Back to Promote Students</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">Leave Students</h2>
+
+            <div class="card" style="margin-bottom: 20px; background: rgba(236,72,153,0.08); border: 1px dashed var(--secondary);">
+              <p style="font-size: 0.9rem; color: var(--text-primary); margin: 0;">
+                <strong>Note:</strong> Students marked as "Left" will no longer appear in active lists, but all their data (fees, exams, attendance) will remain available in their profile for records.
+              </p>
+            </div>
+
+            <div class="card" style="margin-bottom: 20px;">
+              <h3>Select Students to Mark as Left</h3>
+              <div class="grid-3" style="margin-top: 15px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Filter Class</label>
+                  <select class="form-control" id="promo-leave-class">
+                    <option value="">All Classes</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Search Students</label>
+                  <input type="text" class="form-control" id="promo-leave-search" placeholder="Type name or roll...">
+                </div>
+                <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
+                  <button class="btn btn-primary" id="btn-promo-leave-load" style="width: 100%;">Load Students</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table" id="table-promo-leave">
+                <thead>
+                  <tr>
+                    <th style="width: 40px;"><input type="checkbox" id="promo-leave-check-all"></th>
+                    <th>Student ID</th>
+                    <th>Name</th>
+                    <th>Father's Name</th>
+                    <th>Class / Section</th>
+                    <th>Roll No</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Select a class and click Load Students...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="margin-top: 15px; display: flex; gap: 10px;">
+              <button class="btn btn-danger" id="btn-promo-leave-execute" style="display: none;">Mark Selected as Left</button>
+            </div>
+          </div>
+
+          <!-- Promotion History Card -->
+          <div class="card" style="margin-top: 24px;">
+            <h3>Promotion History</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+              View previous promotion records.
+            </p>
+            <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+              <table class="data-table" id="table-promo-history">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Student Name</th>
+                    <th>From Class</th>
+                    <th>To Class</th>
+                    <th>Percentage</th>
+                    <th>Remarks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No promotion history yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </article>
 
         <!-- ==================== SCREEN: ADMIN SETTINGS ==================== -->
@@ -642,11 +870,15 @@
                 </select>
               </div>
               <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label">Select Student</label>
-                <select class="form-control" id="sp-student-select">
-                  <option value="">-- Select Student --</option>
-                </select>
+                <label class="form-label">Search Student (Name, ID, Class)</label>
+                <input type="text" class="form-control" id="sp-search-input" placeholder="Type name, student ID, or class...">
               </div>
+            </div>
+            <div style="margin-top: 12px;">
+              <label class="form-label">Select Student</label>
+              <select class="form-control" id="sp-student-select" style="max-width: 500px;">
+                <option value="">-- Select Student --</option>
+              </select>
             </div>
           </div>
 

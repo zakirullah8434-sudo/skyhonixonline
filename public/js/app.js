@@ -372,6 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function loadScreenData(screenName) {
     if (screenName === 'dashboard') {
       loadDashboardStats();
+      loadPromotionsData();
     } else if (screenName === 'students') {
       loadClassesList();
       loadStudentsList();
@@ -1254,18 +1255,26 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('sp-profile-container').style.display = 'none';
   });
 
+  document.getElementById('sp-search-input').addEventListener('input', debounce(() => {
+    loadStudentProfileList();
+    document.getElementById('sp-profile-container').style.display = 'none';
+  }, 300));
+
   async function loadStudentProfileList() {
     const className = document.getElementById('sp-class-select').value;
     const sectionName = document.getElementById('sp-section-select').value;
+    const search = document.getElementById('sp-search-input').value.trim();
     const studentSelect = document.getElementById('sp-student-select');
     studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
     try {
-      let url = '/students?';
+      let url = '/students/all?';
       if (className) url += `class_name=${encodeURIComponent(className)}&`;
       if (sectionName) url += `section_name=${encodeURIComponent(sectionName)}&`;
+      if (search) url += `search=${encodeURIComponent(search)}&`;
       const students = await apiCall(url);
       students.forEach(s => {
-        studentSelect.innerHTML += `<option value="${s.id}">${s.roll_no || '-'} - ${s.name}</option>`;
+        const statusLabel = s.status === 'Left' ? ' [LEFT]' : '';
+        studentSelect.innerHTML += `<option value="${s.id}">${s.roll_no || '-'} - ${s.name}${statusLabel}</option>`;
       });
     } catch (e) {}
   }
