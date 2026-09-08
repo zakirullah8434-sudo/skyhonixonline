@@ -877,6 +877,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (panel) panel.style.display = 'block';
       if (opt === 'pm-idcard') loadPMIdCard();
       if (opt === 'pm-transport') loadTransportData();
+      if (opt === 'pm-salary') loadSalarySetup();
     });
   });
 
@@ -4500,6 +4501,189 @@ document.addEventListener('DOMContentLoaded', () => {
       loadTransportData();
     } catch (err) { showToast(err.message, true); }
   };
+
+
+  // ==========================================
+  // MODULE: SALARY MANAGEMENT
+  // ==========================================
+
+  let salaryTeachersCache = [];
+
+  document.querySelectorAll('.sal-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sal-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.getAttribute('data-saltab');
+      document.querySelectorAll('.sal-tab-content').forEach(c => c.style.display = 'none');
+      const target = document.getElementById(tab);
+      if (target) target.style.display = 'block';
+      if (tab === 'sal-setup') loadSalarySetup();
+      if (tab === 'sal-pay') loadSalaryPayTab();
+      if (tab === 'sal-history') loadSalaryHistoryTab();
+      if (tab === 'sal-summary') { document.getElementById('sal-sum-year').value = new Date().getFullYear(); }
+    });
+  });
+
+  async function loadSalarySetup() {
+    try {
+      const teachers = await apiCall('/salary/teachers');
+      salaryTeachersCache = teachers;
+      const configured = teachers.filter(t => t.salary_id).length;
+      document.getElementById('sal-total-teachers').textContent = teachers.length;
+      document.getElementById('sal-configured').textContent = configured;
+      document.getElementById('sal-pending-count').textContent = teachers.length - configured;
+
+      const body = document.getElementById('sal-setup-body');
+      if (teachers.length === 0) {
+        body.innerHTML = '<tr><td colspan="12" class="sp-no-records-row">No active teachers found</td></tr>';
+        return;
+      }
+      body.innerHTML = teachers.map(t => `<tr>
+        <td><strong>${t.name}</strong></td>
+        <td>${t.subject || '-'}</td>
+        <td>${t.phone || '-'}</td>
+        <td>${t.qualification || '-'}</td>
+        <td><input type="number" class="form-control sal-basic" data-id="${t.id}" value="${t.basic_salary || 0}" style="width:100px;"></td>
+        <td><input type="number" class="form-control sal-house" data-id="${t.id}" value="${t.house_allowance || 0}" style="width:80px;"></td>
+        <td><input type="number" class="form-control sal-medical" data-id="${t.id}" value="${t.medical_allowance || 0}" style="width:80px;"></td>
+        <td><input type="number" class="form-control sal-transport" data-id="${t.id}" value="${t.transport_allowance || 0}" style="width:80px;"></td>
+        <td><input type="number" class="form-control sal-other" data-id="${t.id}" value="${t.other_allowances || 0}" style="width:80px;"></td>
+        <td><input type="number" class="form-control sal-deductions" data-id="${t.id}" value="${t.deductions || 0}" style="width:80px;"></td>
+        <td><input type="number" class="form-control sal-tax" data-id="${t.id}" value="${t.tax || 0}" style="width:80px;"></td>
+        <td><button class="btn btn-primary btn-sm" onclick="saveTeacherSalary(${t.id})">Save</button></td>
+      </tr>`).join('');
+    } catch (err) {
+      showToast('Error loading teachers: ' + err.message, true);
+    }
+  }
+
+  window.saveTeacherSalary = async function(teacherId) {
+    try {
+      const get = (cls) => parseFloat(document.querySelector(`.sal-${cls}[data-id="${teacherId}"]`).value) || 0;
+      await apiCall('/salary/setup', 'POST', {
+        teacher_id: teacherId,
+        basic_salary: get('basic'),
+        house_allowance: get('house'),
+        medical_allowance: get('medical'),
+        transport_allowance: get('transport'),
+        other_allowances: get('other'),
+        deductions: get('deductions'),
+        tax: get('tax')
+      });
+      showToast('Salary structure saved');
+      loadSalarySetup();
+    } catch (err) { showToast(err.message, true); }
+  };
+
+  async function loadSalaryPayTab() {
+    try {
+      if (salaryTeachersCache.length === 0) {
+        salaryTeachersCache = await apiCall('/salary/teachers');
+      }
+      const sel = document.getElementById('sal-pay-teacher');
+      sel.innerHTML = '<option value="">-- Select Teacher --</option>' +
+        salaryTeachersCache.filter(t => t.salary_id).map(t =>
+          `<option value="${t.id}">${t.name} (${t.subject || 'N/A'})</option>`).join('');
+      document.getElementById('sal-pay-year').value = new Date().getFullYear();
+      const now = new Date();
+      document.getElementById('sal-pay-month').selectedIndex = now.getMonth();
+
+      sel.addEventListener('change', () => {
+        const preview = document.getElementById('sal-pay-preview');
+        const t = salaryTeachersCache.find(x => x.id == sel.value);
+        if (t && t.salary_id) {
+          const allow = (t.house_allowance||0) + (t.medical_allowance||0) + (t.transport_allowance||0) + (t.other_allowances||0);
+          const ded = (t.deductions||0) + (t.tax||0);
+          const net = (t.basic_salary||0) + allow - ded;
+          document.getElementById('sal-preview-basic').textContent = 'Rs. ' + (t.basic_salary||0);
+          document.getElementById('sal-preview-allow').textContent = 'Rs. ' + allow;
+          document.getElementById('sal-preview-ded').textContent = 'Rs. ' + (t.deductions||0);
+          document.getElementById('sal-preview-tax').textContent = 'Rs. ' + (t.tax||0);
+          document.getElementById('sal-preview-net').textContent = net;
+          preview.style.display = 'block';
+        } else {
+          preview.style.display = 'none';
+        }
+      });
+    } catch (err) { showToast('Error: ' + err.message, true); }
+  }
+
+  document.getElementById('sal-pay-btn').addEventListener('click', async () => {
+    const teacherId = document.getElementById('sal-pay-teacher').value;
+    if (!teacherId) return showToast('Select a teacher first', true);
+    if (!confirm('Confirm salary payment?')) return;
+    try {
+      const result = await apiCall('/salary/pay', 'POST', {
+        teacher_id: parseInt(teacherId),
+        month: document.getElementById('sal-pay-month').value,
+        year: parseInt(document.getElementById('sal-pay-year').value),
+        payment_method: document.getElementById('sal-pay-method').value,
+        reference_no: document.getElementById('sal-pay-ref').value,
+        remarks: document.getElementById('sal-pay-remarks').value
+      });
+      showToast(result.message);
+      loadSalaryPayTab();
+    } catch (err) { showToast(err.message, true); }
+  });
+
+  async function loadSalaryHistoryTab() {
+    try {
+      if (salaryTeachersCache.length === 0) {
+        salaryTeachersCache = await apiCall('/salary/teachers');
+      }
+      const sel = document.getElementById('sal-hist-teacher');
+      sel.innerHTML = '<option value="">-- Select Teacher --</option>' +
+        salaryTeachersCache.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+      sel.onchange = async function() {
+        if (!this.value) return;
+        const payments = await apiCall('/salary/payments/' + this.value);
+        const body = document.getElementById('sal-history-body');
+        if (payments.length === 0) {
+          body.innerHTML = '<tr><td colspan="10" class="sp-no-records-row">No payments found</td></tr>';
+          return;
+        }
+        body.innerHTML = payments.map(p => `<tr>
+          <td>${p.month}</td><td>${p.year}</td>
+          <td>Rs. ${p.basic_salary||0}</td><td>Rs. ${p.allowances||0}</td>
+          <td>Rs. ${p.deductions||0}</td><td>Rs. ${p.tax||0}</td>
+          <td><strong style="color:var(--accent);">Rs. ${p.net_salary||0}</strong></td>
+          <td>${p.payment_date||'-'}</td><td>${p.payment_method||'-'}</td><td>${p.paid_by||'-'}</td>
+        </tr>`).join('');
+      };
+    } catch (err) { showToast('Error: ' + err.message, true); }
+  }
+
+  document.getElementById('sal-sum-load').addEventListener('click', async () => {
+    const month = document.getElementById('sal-sum-month').value;
+    const year = document.getElementById('sal-sum-year').value;
+    try {
+      const data = await apiCall(`/salary/summary?month=${encodeURIComponent(month)}&year=${year}`);
+      const statsDiv = document.getElementById('sal-summary-stats');
+      const total = data.totals?.total_paid || 0;
+      const count = data.totals?.count || 0;
+      statsDiv.innerHTML = `
+        <div style="padding:12px 20px; background:rgba(0,200,150,0.1); border-radius:8px; border:1px solid rgba(0,200,150,0.3);">
+          <div style="font-size:0.8rem; color:var(--text-muted);">Total Paid</div>
+          <div style="font-size:1.3rem; font-weight:700; color:var(--accent);">Rs. ${total.toLocaleString()}</div>
+        </div>
+        <div style="padding:12px 20px; background:rgba(100,100,255,0.1); border-radius:8px; border:1px solid rgba(100,100,255,0.3);">
+          <div style="font-size:0.8rem; color:var(--text-muted);">Teachers Paid</div>
+          <div style="font-size:1.3rem; font-weight:700;">${count}</div>
+        </div>`;
+      const body = document.getElementById('sal-summary-body');
+      if (data.payments.length === 0) {
+        body.innerHTML = '<tr><td colspan="8" class="sp-no-records-row">No payments for this month</td></tr>';
+        return;
+      }
+      body.innerHTML = data.payments.map(p => `<tr>
+        <td><strong>${p.teacher_name}</strong></td><td>${p.subject||'-'}</td><td>${p.phone||'-'}</td>
+        <td>Rs. ${p.basic_salary||0}</td><td>Rs. ${p.allowances||0}</td>
+        <td>Rs. ${(p.deductions||0) + (p.tax||0)}</td>
+        <td><strong style="color:var(--accent);">Rs. ${p.net_salary||0}</strong></td>
+        <td>${p.payment_date||'-'}</td>
+      </tr>`).join('');
+    } catch (err) { showToast('Error: ' + err.message, true); }
+  });
 
 
   // ==========================================

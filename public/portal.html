@@ -456,10 +456,10 @@
                 <div class="fees-card-title">🚌 Transport Management</div>
                 <div class="fees-card-desc">Vehicles, Drivers & Routes</div>
               </div>
-              <div class="fees-dash-card card-orange" data-opt="pm-salary" style="cursor: pointer; opacity: 0.5;">
-                <div class="fees-card-title">💸 Salary Management</div>
-                <div class="fees-card-desc">Coming Soon</div>
-              </div>
+      <div class="fees-dash-card card-orange" data-opt="pm-salary" style="cursor: pointer;">
+        <div class="fees-card-title">💸 Salary Management</div>
+        <div class="fees-card-desc">Teacher salaries & payments</div>
+      </div>
               <div class="fees-dash-card card-purple" data-opt="pm-certificate" style="cursor: pointer; opacity: 0.5;">
                 <div class="fees-card-title">📜 Certificate Generator</div>
                 <div class="fees-card-desc">Coming Soon</div>
@@ -766,6 +766,116 @@
                 </div>
                 <div id="idcard-cw-printable" style="display: flex; gap: 15px; flex-wrap: wrap; padding: 10px; background: #f1f5f9; border-radius: 12px;"></div>
               </div>
+            </div>
+          </div>
+
+          <!-- ========== Panel: Certificate Generator ========== -->
+          <div id="pm-panel-certificate" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-pm-dash">&larr; Back to Principal Management</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">📜 Certificate Generator</h2>
+
+            <!-- Student Search -->
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Search Student</label>
+                <div style="display:flex; gap:8px;">
+                  <input type="text" class="form-control" id="cert-student-search" placeholder="Type student name, roll no, or ID..." style="flex:1;">
+                  <button class="btn btn-secondary" id="cert-student-search-btn">Search</button>
+                </div>
+                <div id="cert-student-results" style="display:none; margin-top:8px; max-height:200px; overflow-y:auto;"></div>
+              </div>
+              <div id="cert-student-info" style="display:none; margin-top:12px; padding:12px; background: rgba(255,255,255,0.05); border-radius:8px;">
+                <div style="display:flex; gap:12px; align-items:center;">
+                  <img id="cert-student-photo" src="school_assets/school_logo.png" style="width:50px; height:50px; border-radius:8px; object-fit:cover;">
+                  <div>
+                    <div style="font-weight:700; font-size:0.9rem;" id="cert-student-name">-</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted);" id="cert-student-class">-</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted);" id="cert-student-id">-</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Certificate Type Tabs -->
+            <div class="tab-container" style="margin-bottom: 20px;">
+              <button class="tab-btn active" data-tab="cert-leave">Leave Certificate</button>
+              <button class="tab-btn" data-tab="cert-character">Character Certificate</button>
+              <button class="tab-btn" data-tab="cert-sports">Sports Certificate</button>
+            </div>
+
+            <!-- Leave Certificate Tab -->
+            <div id="cert-leave" class="tab-content" style="display:block;">
+              <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px;">
+                <div class="grid-3">
+                  <div class="form-group">
+                    <label class="form-label">Leave Start Date</label>
+                    <input type="date" class="form-control" id="cert-leave-start">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Leave End Date</label>
+                    <input type="date" class="form-control" id="cert-leave-end">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Reason for Leave</label>
+                    <input type="text" class="form-control" id="cert-leave-reason" placeholder="e.g., Family function, Medical">
+                  </div>
+                </div>
+                <button class="btn btn-primary" id="cert-leave-generate" style="margin-top:12px; width:100%;">Generate Leave Certificate</button>
+              </div>
+            </div>
+
+            <!-- Character Certificate Tab -->
+            <div id="cert-character" class="tab-content" style="display:none;">
+              <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px;">
+                <div class="form-group">
+                  <label class="form-label">Academic Session</label>
+                  <input type="text" class="form-control" id="cert-char-session" placeholder="e.g., 2025-2026" value="">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Conduct Description</label>
+                  <textarea class="form-control" id="cert-char-conduct" rows="3" placeholder="Student's conduct description...">The above named student has been a regular and sincere student of this school during the academic session. His/Her conduct and behavior has been satisfactory throughout the session. He/She is respectful, disciplined, and hardworking.</textarea>
+                </div>
+                <button class="btn btn-primary" id="cert-char-generate" style="margin-top:12px; width:100%;">Generate Character Certificate</button>
+              </div>
+            </div>
+
+            <!-- Sports Certificate Tab -->
+            <div id="cert-sports" class="tab-content" style="display:none;">
+              <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px;">
+                <div class="grid-3">
+                  <div class="form-group">
+                    <label class="form-label">Event / Competition Name</label>
+                    <input type="text" class="form-control" id="cert-sports-event" placeholder="e.g., Annual Sports Day">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Achievement / Position</label>
+                    <input type="text" class="form-control" id="cert-sports-achievement" placeholder="e.g., 1st Position in 100m Race">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Event Date</label>
+                    <input type="date" class="form-control" id="cert-sports-date">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Additional Details</label>
+                  <textarea class="form-control" id="cert-sports-details" rows="2" placeholder="Any additional details..."></textarea>
+                </div>
+                <button class="btn btn-primary" id="cert-sports-generate" style="margin-top:12px; width:100%;">Generate Sports Certificate</button>
+              </div>
+            </div>
+
+            <!-- Preview Area -->
+            <div id="cert-preview-container" style="display:none; margin-top:24px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3>Certificate Preview</h3>
+                <div style="display:flex; gap:8px;">
+                  <button class="btn btn-primary" id="cert-print">🖨️ Print</button>
+                  <button class="btn btn-outline" id="cert-download">📥 Download PDF</button>
+                </div>
+              </div>
+              <div id="cert-printable" style="background:#f1f5f9; padding:20px; border-radius:12px; display:flex; justify-content:center;"></div>
             </div>
           </div>
 
@@ -1863,8 +1973,189 @@
             </div>
 
           </div>
-        </article>
 
+          <!-- SALARY PANEL -->
+          <div id="pm-panel-salary" class="fee-option-panel" style="display: none;">
+            <button class="back-btn" onclick="document.getElementById('pm-panel-salary').style.display='none'; document.getElementById('pm-main-view').style.display='block';">⬅ Back to Principal Management</button>
+            <h2 style="margin-bottom: 20px;">💸 Salary Management</h2>
+
+            <div class="fees-dash-grid" style="margin-bottom: 20px;">
+              <div class="fees-dash-card card-blue">
+                <div class="fees-card-title" id="sal-total-teachers">0</div>
+                <div class="fees-card-desc">Active Teachers</div>
+              </div>
+              <div class="fees-dash-card card-green">
+                <div class="fees-card-title" id="sal-configured">0</div>
+                <div class="fees-card-desc">Salary Configured</div>
+              </div>
+              <div class="fees-dash-card card-orange">
+                <div class="fees-card-title" id="sal-total-paid">Rs. 0</div>
+                <div class="fees-card-desc">Paid This Month</div>
+              </div>
+              <div class="fees-dash-card card-red">
+                <div class="fees-card-title" id="sal-pending-count">0</div>
+                <div class="fees-card-desc">Pending Payments</div>
+              </div>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
+              <button class="btn btn-primary btn-sm sal-tab-btn active" data-saltab="sal-setup">Salary Setup</button>
+              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-pay">Pay Salary</button>
+              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-history">Payment History</button>
+              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-summary">Monthly Summary</button>
+            </div>
+
+            <!-- TAB: Salary Setup -->
+            <div id="sal-setup" class="sal-tab-content">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">Configure Teacher Salary</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Set basic salary and allowances for each teacher</p>
+                <div style="overflow-x: auto;">
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Teacher Name</th>
+                        <th>Subject</th>
+                        <th>Phone</th>
+                        <th>Qualification</th>
+                        <th>Basic Salary</th>
+                        <th>House</th>
+                        <th>Medical</th>
+                        <th>Transport</th>
+                        <th>Other</th>
+                        <th>Deductions</th>
+                        <th>Tax</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sal-setup-body">
+                      <tr><td colspan="12" class="sp-no-records-row">Loading teachers...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB: Pay Salary -->
+            <div id="sal-pay" class="sal-tab-content" style="display: none;">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">Pay Teacher Salary</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 700px;">
+                  <div class="form-group">
+                    <label class="form-label">Select Teacher</label>
+                    <select class="form-control" id="sal-pay-teacher"></select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Month</label>
+                    <select class="form-control" id="sal-pay-month">
+                      <option value="January">January</option><option value="February">February</option>
+                      <option value="March">March</option><option value="April">April</option>
+                      <option value="May">May</option><option value="June">June</option>
+                      <option value="July">July</option><option value="August">August</option>
+                      <option value="September">September</option><option value="October">October</option>
+                      <option value="November">November</option><option value="December">December</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Year</label>
+                    <input type="number" class="form-control" id="sal-pay-year" value="">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Payment Method</label>
+                    <select class="form-control" id="sal-pay-method">
+                      <option value="Cash">Cash</option><option value="Bank Transfer">Bank Transfer</option>
+                      <option value="Cheque">Cheque</option><option value="JazzCash">JazzCash</option>
+                      <option value="EasyPaisa">EasyPaisa</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Reference No (optional)</label>
+                    <input type="text" class="form-control" id="sal-pay-ref" placeholder="Cheque/Transaction ID">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Remarks (optional)</label>
+                    <input type="text" class="form-control" id="sal-pay-remarks">
+                  </div>
+                </div>
+                <div id="sal-pay-preview" style="margin: 16px 0; padding: 16px; background: rgba(255,255,255,0.05); border-radius: 8px; display: none;">
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 0.9rem;">
+                    <div><strong>Basic:</strong> <span id="sal-preview-basic">0</span></div>
+                    <div><strong>Allowances:</strong> <span id="sal-preview-allow">0</span></div>
+                    <div><strong>Deductions:</strong> <span id="sal-preview-ded">0</span></div>
+                    <div><strong>Tax:</strong> <span id="sal-preview-tax">0</span></div>
+                    <div style="grid-column: span 2;"><strong style="font-size: 1.1rem; color: var(--accent);">Net Salary: Rs. <span id="sal-preview-net">0</span></strong></div>
+                  </div>
+                </div>
+                <button class="btn btn-primary" id="sal-pay-btn">💰 Pay Salary</button>
+              </div>
+            </div>
+
+            <!-- TAB: Payment History -->
+            <div id="sal-history" class="sal-tab-content" style="display: none;">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">Payment History</h3>
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                  <select class="form-control" id="sal-hist-teacher" style="max-width: 300px;"></select>
+                </div>
+                <div style="overflow-x: auto;">
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Month</th><th>Year</th><th>Basic</th><th>Allowances</th>
+                        <th>Deductions</th><th>Tax</th><th>Net Paid</th><th>Date</th><th>Method</th><th>Paid By</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sal-history-body">
+                      <tr><td colspan="10" class="sp-no-records-row">Select a teacher to view history</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB: Monthly Summary -->
+            <div id="sal-summary" class="sal-tab-content" style="display: none;">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">Monthly Salary Summary</h3>
+                <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-end;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Month</label>
+                    <select class="form-control" id="sal-sum-month">
+                      <option value="January">January</option><option value="February">February</option>
+                      <option value="March">March</option><option value="April">April</option>
+                      <option value="May">May</option><option value="June">June</option>
+                      <option value="July">July</option><option value="August">August</option>
+                      <option value="September">September</option><option value="October">October</option>
+                      <option value="November">November</option><option value="December">December</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Year</label>
+                    <input type="number" class="form-control" id="sal-sum-year" value="">
+                  </div>
+                  <button class="btn btn-primary btn-sm" id="sal-sum-load">Load Summary</button>
+                </div>
+                <div id="sal-summary-stats" style="display: flex; gap: 12px; margin-bottom: 16px;"></div>
+                <div style="overflow-x: auto;">
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Teacher</th><th>Subject</th><th>Phone</th><th>Basic</th>
+                        <th>Allowances</th><th>Deductions</th><th>Net Paid</th><th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sal-summary-body">
+                      <tr><td colspan="8" class="sp-no-records-row">Select month and click Load</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </article>
         <!-- ==================== SCREEN: ATTENDANCE ==================== -->
         <article class="screen-section" id="screen-attendance" style="display: none;">
           <h2 style="margin-bottom: 24px;">Attendance Tracking</h2>

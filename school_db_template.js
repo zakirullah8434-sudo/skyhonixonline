@@ -571,6 +571,46 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
+      // 36. Teacher Salary Structure
+      db.run(`
+        CREATE TABLE IF NOT EXISTS teacher_salaries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          teacher_id INTEGER NOT NULL,
+          basic_salary REAL DEFAULT 0,
+          house_allowance REAL DEFAULT 0,
+          medical_allowance REAL DEFAULT 0,
+          transport_allowance REAL DEFAULT 0,
+          other_allowances REAL DEFAULT 0,
+          deductions REAL DEFAULT 0,
+          tax REAL DEFAULT 0,
+          effective_date TEXT,
+          school_id INTEGER,
+          created_at TEXT DEFAULT (datetime('now'))
+        )
+      `);
+
+      // 37. Salary Payments
+      db.run(`
+        CREATE TABLE IF NOT EXISTS salary_payments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          teacher_id INTEGER NOT NULL,
+          month TEXT NOT NULL,
+          year INTEGER NOT NULL,
+          basic_salary REAL DEFAULT 0,
+          allowances REAL DEFAULT 0,
+          deductions REAL DEFAULT 0,
+          tax REAL DEFAULT 0,
+          net_salary REAL DEFAULT 0,
+          payment_date TEXT,
+          payment_method TEXT DEFAULT 'Cash',
+          reference_no TEXT,
+          remarks TEXT,
+          paid_by TEXT,
+          school_id INTEGER,
+          created_at TEXT DEFAULT (datetime('now'))
+        )
+      `);
+
       // Migrations: Add address column to students if missing
       db.all("PRAGMA table_info(students)", (err, columns) => {
         if (!err && Array.isArray(columns)) {

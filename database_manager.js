@@ -221,7 +221,8 @@ async function ensureSchoolTables(db) {
     'fee_settings', 'users', 'settings', 'result_sections',
     'parents', 'student_parents', 'timetable', 'fee_reminders',
     'announcements', 'assignments', 'student_certificates', 'student_documents',
-    'student_transfer_history', 'transport_vehicles', 'roll_slip_templates'
+    'student_transfer_history', 'transport_vehicles', 'roll_slip_templates',
+    'teacher_salaries', 'salary_payments'
   ];
   for (const t of tables) {
     await run(`ALTER TABLE ${t} ADD COLUMN school_id INTEGER`).catch(() => {});
