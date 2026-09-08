@@ -82,15 +82,17 @@ router.post('/save', authenticateToken, async (req, res) => {
     for (const record of attendanceList) {
       await runSchool(
         schoolId,
-        `INSERT OR REPLACE INTO attendance (student_id, class_name, section_name, date, status, time)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO attendance (student_id, class_name, section_name, date, status, time, school_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(student_id, date) DO UPDATE SET status=excluded.status, time=excluded.time, class_name=excluded.class_name, section_name=excluded.section_name`,
         [
           record.student_id,
           record.class_name,
           record.section_name || '',
           date,
           record.status,
-          record.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          record.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          schoolId
         ]
       );
     }
@@ -128,9 +130,10 @@ router.post('/scan', authenticateToken, async (req, res) => {
     // 2. Insert or replace attendance
     await runSchool(
       schoolId,
-      `INSERT OR REPLACE INTO attendance (student_id, class_name, section_name, date, status, time)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [student.id, student.class_name, student.section_name || '', currentDate, 'Present', currentTime]
+      `INSERT INTO attendance (student_id, class_name, section_name, date, status, time, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(student_id, date) DO UPDATE SET status=excluded.status, time=excluded.time`,
+      [student.id, student.class_name, student.section_name || '', currentDate, 'Present', currentTime, schoolId]
     );
 
     res.json({
