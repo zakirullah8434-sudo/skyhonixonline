@@ -3847,9 +3847,129 @@ document.addEventListener('DOMContentLoaded', () => {
       container.innerHTML = '';
       datesheetRowCount = 0;
     }
-    // Load saved templates into generate tab dropdown
+    // Reset edit mode
+    document.getElementById('datesheet-edit-id').value = '';
+    document.getElementById('datesheet-template-name').value = '';
+    const saveBtn = document.getElementById('btn-save-datesheet');
+    if (saveBtn) saveBtn.textContent = 'Save Date Sheet Template';
+    // Load saved templates into both generate tab dropdown AND designer dropdown
     loadDatesheetTemplates();
+    loadDatesheetDesignerDropdown();
   }
+
+  // Populate the designer "Load Existing Template" dropdown
+  async function loadDatesheetDesignerDropdown() {
+    const sel = document.getElementById('datesheet-design-template');
+    if (!sel) return;
+    try {
+      const templates = await apiCall('/exams/datesheets');
+      const uniqueMap = {};
+      templates.forEach(t => {
+        const key = t.name;
+        if (!uniqueMap[key] || t.id > uniqueMap[key].id) {
+          uniqueMap[key] = t;
+        }
+      });
+      const unique = Object.values(uniqueMap).sort((a, b) => b.id - a.id);
+      sel.innerHTML = '<option value="">-- Create New Template --</option>';
+      unique.forEach(t => {
+        const activeMark = t.is_active ? ' [ACTIVE]' : '';
+        const style = t.is_active ? ' style="font-weight:bold;color:#16a34a;"' : '';
+        sel.innerHTML += '<option value="' + t.id + '"' + style + '>' + t.name + activeMark + '</option>';
+      });
+    } catch (e) {}
+  }
+
+  // Load selected template into the designer form for editing
+  document.getElementById('btn-load-datesheet-to-design').addEventListener('click', async () => {
+    const sel = document.getElementById('datesheet-design-template');
+    const templateId = sel.value;
+    if (!templateId) {
+      // Reset to new template mode
+      document.getElementById('datesheet-edit-id').value = '';
+      document.getElementById('datesheet-template-name').value = '';
+      document.getElementById('datesheet-term-select').selectedIndex = 0;
+      document.getElementById('datesheet-rows-container').innerHTML = '';
+      datesheetRowCount = 0;
+      const saveBtn = document.getElementById('btn-save-datesheet');
+      if (saveBtn) saveBtn.textContent = 'Save Date Sheet Template';
+      return;
+    }
+    try {
+      const templates = await apiCall('/exams/datesheets');
+      const tpl = templates.find(t => t.id == templateId);
+      if (!tpl) { showToast('Template not found', true); return; }
+      const t = tpl.template;
+
+      // Set edit mode
+      document.getElementById('datesheet-edit-id').value = tpl.id;
+      document.getElementById('datesheet-template-name').value = tpl.name;
+
+      // Set exam dropdown
+      const examSel = document.getElementById('datesheet-exam-select');
+      if (t.exam_id) {
+        for (let i = 0; i < examSel.options.length; i++) {
+          if (examSel.options[i].value == t.exam_id) { examSel.selectedIndex = i; break; }
+        }
+      }
+
+      // Set term
+      const termSel = document.getElementById('datesheet-term-select');
+      if (t.term) {
+        for (let i = 0; i < termSel.options.length; i++) {
+          if (termSel.options[i].value === t.term) { termSel.selectedIndex = i; break; }
+        }
+      }
+
+      // Clear and rebuild rows
+      const container = document.getElementById('datesheet-rows-container');
+      container.innerHTML = '';
+      datesheetRowCount = 0;
+
+      const subjects = t.subjects || [];
+      subjects.forEach(sub => {
+        datesheetRowCount++;
+        let classOpts = '<option value="All Classes">All Classes</option>';
+        if (typeof cachedClasses !== 'undefined' && cachedClasses.length > 0) {
+          cachedClasses.forEach(cls => { classOpts += `<option value="${cls}">${cls}</option>`; });
+        }
+        const rowHtml = `
+          <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: flex-end;" id="datesheet-row-${datesheetRowCount}">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Subject</label>
+              <input type="text" class="form-control" placeholder="e.g. Mathematics" required value="${sub.subject || ''}">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Class</label>
+              <select class="form-control ds-row-class" required>${classOpts}</select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Date</label>
+              <input type="date" class="form-control" required value="${sub.date || ''}">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Time</label>
+              <input type="text" class="form-control" placeholder="e.g. 9:00 AM - 12:00 PM" required value="${sub.time || ''}">
+            </div>
+            <button type="button" class="btn btn-danger btn-sm btn-remove-datesheet-row" style="margin-bottom: 2px;">&times;</button>
+          </div>
+        `;
+        container.insertAdjacentHTML('beforeend', rowHtml);
+        // Set class select value
+        const newRow = document.getElementById('datesheet-row-' + datesheetRowCount);
+        const classSelect = newRow.querySelector('.ds-row-class');
+        if (sub.class) {
+          for (let i = 0; i < classSelect.options.length; i++) {
+            if (classSelect.options[i].value === sub.class) { classSelect.selectedIndex = i; break; }
+          }
+        }
+      });
+
+      const saveBtn = document.getElementById('btn-save-datesheet');
+      if (saveBtn) saveBtn.textContent = 'Update Date Sheet Template';
+      showToast('Template loaded — ' + subjects.length + ' subjects');
+    } catch (err) { showToast('Failed to load template', true); }
+  });
 
   // Load saved date sheet templates into the generate tab dropdown (deduplicated by name)
   async function loadDatesheetTemplates() {
@@ -3972,6 +4092,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = document.getElementById('datesheet-template-name').value.trim();
       const exam_id = document.getElementById('datesheet-exam-select').value;
       const term = document.getElementById('datesheet-term-select').value;
+      const editId = document.getElementById('datesheet-edit-id').value;
 
       const rows = document.querySelectorAll('#datesheet-rows-container [id^="datesheet-row-"]');
       if (rows.length === 0) {
@@ -3995,12 +4116,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const template = { exam_id, term, subjects };
       
       try {
-        const res = await apiCall('/exams/datesheets', 'POST', { name, template_json: JSON.stringify(template) });
+        let res;
+        if (editId) {
+          res = await apiCall('/exams/datesheets/' + editId, 'PUT', { name, template_json: JSON.stringify(template) });
+        } else {
+          res = await apiCall('/exams/datesheets', 'POST', { name, template_json: JSON.stringify(template) });
+        }
         showToast(res.message);
         formDatesheetDesign.reset();
         document.getElementById('datesheet-rows-container').innerHTML = '';
+        document.getElementById('datesheet-edit-id').value = '';
         datesheetRowCount = 0;
+        const saveBtn = document.getElementById('btn-save-datesheet');
+        if (saveBtn) saveBtn.textContent = 'Save Date Sheet Template';
         loadDatesheetTemplates();
+        loadDatesheetDesignerDropdown();
       } catch (err) {}
     });
   }
@@ -4129,6 +4259,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await apiCall('/exams/datesheets/' + templateId + '/activate', 'PUT');
         showToast(res.message);
         loadDatesheetTemplates();
+        loadDatesheetDesignerDropdown();
       } catch (err) {
         showToast('Failed to activate datesheet', true);
       }
@@ -4148,6 +4279,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('datesheet-preview').style.display = 'none';
         document.getElementById('datesheet-template-info').style.display = 'none';
         loadDatesheetTemplates();
+        loadDatesheetDesignerDropdown();
       } catch (err) { showToast(err.message, true); }
     });
   }

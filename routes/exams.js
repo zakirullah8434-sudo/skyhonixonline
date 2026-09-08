@@ -726,6 +726,36 @@ router.post('/datesheets', authenticateToken, async (req, res) => {
   }
 });
 
+// PUT /exams/datesheets/:id - Update an existing date sheet template (replace subjects)
+router.put('/datesheets/:id', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const id = req.params.id;
+  const { name, template_json } = req.body;
+
+  if (!name || !template_json) {
+    return res.status(400).json({ error: 'name and template_json are required' });
+  }
+
+  try {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS date_sheet_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      template_json TEXT,
+      is_active INTEGER DEFAULT 0
+    )`);
+
+    const existing = await querySchoolOne(schoolId, 'SELECT * FROM date_sheet_templates WHERE id = ?', [parseInt(id)]);
+    if (!existing) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+
+    await runSchool(schoolId, 'UPDATE date_sheet_templates SET name = ?, template_json = ? WHERE id = ?', [name, template_json, parseInt(id)]);
+    res.json({ message: 'Template updated successfully', id: parseInt(id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /exams/datesheets - Get all date sheet templates
 router.get('/datesheets', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;

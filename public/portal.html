@@ -112,6 +112,9 @@
         <li class="sidebar-menu-item" data-screen="promotions">
           <a href="#" class="sidebar-menu-link">🚀 Promote Students</a>
         </li>
+        <li class="sidebar-menu-item" data-screen="principal-management">
+          <a href="#" class="sidebar-menu-link">📋 Principal Management</a>
+        </li>
       </ul>
       
       <div class="sidebar-footer">
@@ -430,6 +433,248 @@
                   <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No promotion history yet.</td></tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+
+        </article>
+
+        <!-- ==================== SCREEN: PRINCIPAL MANAGEMENT ==================== -->
+        <article class="screen-section" id="screen-principal-management" style="display: none;">
+          <h2 style="margin-bottom: 24px;">📋 Principal Management</h2>
+
+          <!-- Main "Other" Options Grid -->
+          <div id="pm-main-view">
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+              Access advanced administrative tools for ID card generation, transport, salary, certificates, expenses, and analytics.
+            </p>
+            <div class="fees-dash-grid">
+              <div class="fees-dash-card card-green" data-opt="pm-idcard" style="cursor: pointer;">
+                <div class="fees-card-title">🪪 ID Card Generator</div>
+                <div class="fees-card-desc">Student, Teacher & Staff ID Cards</div>
+              </div>
+              <div class="fees-dash-card card-blue" data-opt="pm-transport" style="cursor: pointer; opacity: 0.5;">
+                <div class="fees-card-title">🚌 Transport Management</div>
+                <div class="fees-card-desc">Coming Soon</div>
+              </div>
+              <div class="fees-dash-card card-orange" data-opt="pm-salary" style="cursor: pointer; opacity: 0.5;">
+                <div class="fees-card-title">💸 Salary Management</div>
+                <div class="fees-card-desc">Coming Soon</div>
+              </div>
+              <div class="fees-dash-card card-purple" data-opt="pm-certificate" style="cursor: pointer; opacity: 0.5;">
+                <div class="fees-card-title">📜 Certificate Generator</div>
+                <div class="fees-card-desc">Coming Soon</div>
+              </div>
+              <div class="fees-dash-card card-pink" data-opt="pm-expense" style="cursor: pointer; opacity: 0.5;">
+                <div class="fees-card-title">🧾 Expense Management</div>
+                <div class="fees-card-desc">Coming Soon</div>
+              </div>
+              <div class="fees-dash-card card-teal" data-opt="pm-analytics" style="cursor: pointer; opacity: 0.5;">
+                <div class="fees-card-title">📊 Analytics & Reports</div>
+                <div class="fees-card-desc">Coming Soon</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========== Panel: ID Card Generator ========== -->
+          <div id="pm-panel-idcard" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-pm-dash">← Back to Principal Management</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">🪪 ID Card Generator</h2>
+
+            <!-- Type Tabs -->
+            <div class="tab-container" style="margin-bottom: 20px;">
+              <button class="tab-btn active" data-tab="idcard-student">Student ID Card</button>
+              <button class="tab-btn" data-tab="idcard-teacher">Teacher ID Card</button>
+              <button class="tab-btn" data-tab="idcard-staff">Staff ID Card</button>
+            </div>
+
+            <!-- ===== Student ID Card Tab ===== -->
+            <div class="tab-content" id="tab-idcard-student">
+              <div class="card" style="margin-bottom: 20px;">
+                <h3>Generate Student ID Card</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                  Select a student and design template. The system auto-fills all information from the admission record.
+                </p>
+                <div class="grid-3" style="gap: 15px;">
+                  <div class="form-group">
+                    <label class="form-label">Select Class *</label>
+                    <select class="form-control" id="idcard-stu-class">
+                      <option value="">-- Select Class --</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Select Student *</label>
+                    <select class="form-control" id="idcard-stu-student" disabled>
+                      <option value="">-- Select Student --</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Card Design *</label>
+                    <select class="form-control" id="idcard-stu-design">
+                      <option value="classic">Classic Blue</option>
+                      <option value="modern">Modern Green</option>
+                      <option value="premium">Premium Gold</option>
+                      <option value="minimal">Minimal White</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="grid-3" style="gap: 15px; margin-top: 12px;">
+                  <div class="form-group">
+                    <label class="form-label">Include QR Code</label>
+                    <select class="form-control" id="idcard-stu-qr">
+                      <option value="1">Yes</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Include Barcode</label>
+                    <select class="form-control" id="idcard-stu-barcode">
+                      <option value="1">Yes</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="display: flex; align-items: flex-end;">
+                    <button class="btn btn-primary" id="btn-idcard-stu-generate" style="width: 100%;" disabled>Generate ID Card</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Auto-filled Student Info -->
+              <div id="idcard-stu-info" class="card" style="display: none; margin-bottom: 20px;">
+                <h3 style="margin-bottom: 12px;">Auto-Filled Student Information</h3>
+                <div class="grid-3" style="gap: 10px;">
+                  <div><span style="color: var(--text-muted);">Name:</span> <strong id="idcard-stu-name">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Father:</span> <strong id="idcard-stu-father">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Student ID:</span> <strong id="idcard-stu-id">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Class:</span> <strong id="idcard-stu-classname">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Roll No:</span> <strong id="idcard-stu-roll">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Phone:</span> <strong id="idcard-stu-phone">-</strong></div>
+                  <div><span style="color: var(--text-muted);">DOB:</span> <strong id="idcard-stu-dob">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Gender:</span> <strong id="idcard-stu-gender">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Admission No:</span> <strong id="idcard-stu-admno">-</strong></div>
+                </div>
+              </div>
+
+              <!-- ID Card Preview -->
+              <div id="idcard-stu-preview-container" style="display: none;">
+                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                  <button class="btn btn-primary" id="btn-idcard-stu-print">🖨️ Print ID Card</button>
+                  <button class="btn btn-secondary" id="btn-idcard-stu-download">📥 Download as Image</button>
+                </div>
+                <div id="idcard-stu-printable" style="display: flex; gap: 20px; flex-wrap: wrap;"></div>
+              </div>
+            </div>
+
+            <!-- ===== Teacher ID Card Tab ===== -->
+            <div class="tab-content" id="tab-idcard-teacher" style="display: none;">
+              <div class="card" style="margin-bottom: 20px;">
+                <h3>Generate Teacher ID Card</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                  Select a teacher and design template to generate a printable ID card.
+                </p>
+                <div class="grid-3" style="gap: 15px;">
+                  <div class="form-group">
+                    <label class="form-label">Select Teacher *</label>
+                    <select class="form-control" id="idcard-teach-teacher">
+                      <option value="">-- Select Teacher --</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Card Design *</label>
+                    <select class="form-control" id="idcard-teach-design">
+                      <option value="classic">Classic Blue</option>
+                      <option value="modern">Modern Green</option>
+                      <option value="premium">Premium Gold</option>
+                      <option value="minimal">Minimal White</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Include QR Code</label>
+                    <select class="form-control" id="idcard-teach-qr">
+                      <option value="1">Yes</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                </div>
+                <div style="margin-top: 12px; display: flex; gap: 10px;">
+                  <button class="btn btn-primary" id="btn-idcard-teach-generate" disabled>Generate ID Card</button>
+                </div>
+              </div>
+
+              <div id="idcard-teach-info" class="card" style="display: none; margin-bottom: 20px;">
+                <h3 style="margin-bottom: 12px;">Auto-Filled Teacher Information</h3>
+                <div class="grid-3" style="gap: 10px;">
+                  <div><span style="color: var(--text-muted);">Name:</span> <strong id="idcard-teach-name">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Phone:</span> <strong id="idcard-teach-phone">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Subject:</span> <strong id="idcard-teach-subject">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Qualification:</span> <strong id="idcard-teach-qual">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Status:</span> <strong id="idcard-teach-status">-</strong></div>
+                </div>
+              </div>
+
+              <div id="idcard-teach-preview-container" style="display: none;">
+                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                  <button class="btn btn-primary" id="btn-idcard-teach-print">🖨️ Print ID Card</button>
+                </div>
+                <div id="idcard-teach-printable" style="display: flex; gap: 20px; flex-wrap: wrap;"></div>
+              </div>
+            </div>
+
+            <!-- ===== Staff ID Card Tab ===== -->
+            <div class="tab-content" id="tab-idcard-staff" style="display: none;">
+              <div class="card" style="margin-bottom: 20px;">
+                <h3>Generate Staff ID Card</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                  Generate ID cards for non-teaching staff members.
+                </p>
+                <div class="grid-3" style="gap: 15px;">
+                  <div class="form-group">
+                    <label class="form-label">Staff Name *</label>
+                    <input type="text" class="form-control" id="idcard-staff-name" placeholder="e.g. Ahmed Khan">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Designation *</label>
+                    <input type="text" class="form-control" id="idcard-staff-desig" placeholder="e.g. Clerk, Peon, Guard">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <input type="text" class="form-control" id="idcard-staff-phone" placeholder="03001234567">
+                  </div>
+                </div>
+                <div class="grid-3" style="gap: 15px; margin-top: 12px;">
+                  <div class="form-group">
+                    <label class="form-label">CNIC</label>
+                    <input type="text" class="form-control" id="idcard-staff-cnic" placeholder="35202-1234567-1">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Card Design *</label>
+                    <select class="form-control" id="idcard-staff-design">
+                      <option value="classic">Classic Blue</option>
+                      <option value="modern">Modern Green</option>
+                      <option value="premium">Premium Gold</option>
+                      <option value="minimal">Minimal White</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Include QR Code</label>
+                    <select class="form-control" id="idcard-staff-qr">
+                      <option value="1">Yes</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                </div>
+                <div style="margin-top: 12px;">
+                  <button class="btn btn-primary" id="btn-idcard-staff-generate">Generate ID Card</button>
+                </div>
+              </div>
+
+              <div id="idcard-staff-preview-container" style="display: none;">
+                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                  <button class="btn btn-primary" id="btn-idcard-staff-print">🖨️ Print ID Card</button>
+                </div>
+                <div id="idcard-staff-printable" style="display: flex; gap: 20px; flex-wrap: wrap;"></div>
+              </div>
             </div>
           </div>
 
@@ -1968,7 +2213,18 @@
                 <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
                   Add all subjects for all classes in one template. Each row = one subject exam entry.
                 </p>
+                <div class="form-group" style="margin-bottom: 18px;">
+                  <label class="form-label">Load Existing Template (to edit)</label>
+                  <div style="display: flex; gap: 10px;">
+                    <select class="form-control" id="datesheet-design-template" style="flex: 1;">
+                      <option value="">-- Create New Template --</option>
+                    </select>
+                    <button type="button" class="btn btn-outline btn-sm" id="btn-load-datesheet-to-design">Load</button>
+                  </div>
+                </div>
+                <hr style="border-color: rgba(255,255,255,0.08); margin-bottom: 18px;">
                 <form id="form-datesheet-design">
+                  <input type="hidden" id="datesheet-edit-id" value="">
                   <div class="grid-2">
                     <div class="form-group">
                       <label class="form-label">Template Name</label>
@@ -1990,7 +2246,7 @@
                     <button type="button" class="btn btn-outline" id="btn-preview-datesheet-template" style="margin-left: 8px;">Preview Template</button>
                   </div>
                   <div id="datesheet-rows-container" style="margin-top: 15px;"></div>
-                  <button type="submit" class="btn btn-secondary" style="margin-top: 20px; width: 100%;">Save Date Sheet Template</button>
+                  <button type="submit" class="btn btn-secondary" id="btn-save-datesheet" style="margin-top: 20px; width: 100%;">Save Date Sheet Template</button>
                 </form>
               </div>
               <div id="datesheet-design-preview" style="display: none; margin-top: 24px;">
