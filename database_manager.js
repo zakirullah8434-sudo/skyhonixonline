@@ -221,7 +221,7 @@ async function ensureSchoolTables(db) {
     'fee_settings', 'users', 'settings', 'result_sections',
     'parents', 'student_parents', 'timetable', 'fee_reminders',
     'announcements', 'assignments', 'student_certificates', 'student_documents',
-    'student_transfer_history', 'transport_vehicles', 'roll_slip_templates',
+    'student_transfer_history', 'transport_vehicles', 'transport_drivers', 'transport_routes', 'transport_assignments', 'roll_slip_templates',
     'teacher_salaries', 'salary_payments'
   ];
   for (const t of tables) {
@@ -391,6 +391,15 @@ function closeSchoolDb(schoolId) {
   });
 }
 
+async function migrateSchoolTable(schoolId, tableName) {
+  const db = await getSchoolDb(schoolId);
+  return new Promise((resolve) => {
+    db.run(`ALTER TABLE ${tableName} ADD COLUMN school_id INTEGER`, (err) => {
+      resolve(); // ignore error if column already exists
+    });
+  });
+}
+
 module.exports = {
   queryMain,
   queryMainOne,
@@ -401,5 +410,6 @@ module.exports = {
   runSchool,
   runSchoolTransaction,
   closeSchoolDb,
-  resetMainDb
+  resetMainDb,
+  migrateSchoolTable
 };

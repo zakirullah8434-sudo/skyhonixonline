@@ -1,18 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('./auth');
-const { querySchool, querySchoolOne, runSchool } = require('../database_manager');
+const { querySchool, querySchoolOne, runSchool, migrateSchoolTable } = require('../database_manager');
 
 const TRANSPORT_TABLES = ['transport_vehicles', 'transport_drivers', 'transport_routes', 'transport_assignments'];
 
 async function migrateTransportTables(schoolId) {
   for (const table of TRANSPORT_TABLES) {
-    try {
-      await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS ${table} (id INTEGER PRIMARY KEY AUTOINCREMENT, school_id INTEGER NOT NULL)`);
-    } catch (e) {}
-    try {
-      await runSchool(schoolId, `ALTER TABLE ${table} ADD COLUMN school_id INTEGER NOT NULL DEFAULT 0`);
-    } catch (e) {}
+    await migrateSchoolTable(schoolId, table).catch(() => {});
   }
 }
 
