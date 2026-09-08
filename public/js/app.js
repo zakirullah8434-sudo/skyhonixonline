@@ -1614,26 +1614,25 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('sp-class-select').addEventListener('change', async function() {
     const className = this.value;
     const sectionSelect = document.getElementById('sp-section-select');
-    const studentSelect = document.getElementById('sp-student-select');
     sectionSelect.innerHTML = '<option value="">-- All Sections --</option>';
-    studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
     document.getElementById('sp-profile-container').style.display = 'none';
-    if (!className) return;
-    try {
-      const sections = await apiCall(`/students/sections/${encodeURIComponent(className)}`);
-      sections.forEach(s => { sectionSelect.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`; });
-      loadStudentProfileList();
-    } catch (e) {}
+    if (className) {
+      try {
+        const sections = await apiCall(`/students/sections/${encodeURIComponent(className)}`);
+        sections.forEach(s => { sectionSelect.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`; });
+      } catch (e) {}
+    }
+    loadStudentProfileList();
   });
 
   document.getElementById('sp-section-select').addEventListener('change', () => {
-    loadStudentProfileList();
     document.getElementById('sp-profile-container').style.display = 'none';
+    loadStudentProfileList();
   });
 
   document.getElementById('sp-search-input').addEventListener('input', debounce(() => {
-    loadStudentProfileList();
     document.getElementById('sp-profile-container').style.display = 'none';
+    loadStudentProfileList();
   }, 300));
 
   async function loadStudentProfileList() {
@@ -1642,17 +1641,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const search = document.getElementById('sp-search-input').value.trim();
     const studentSelect = document.getElementById('sp-student-select');
     studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
+
+    if (!className && !sectionName && !search) return;
+
     try {
       let url = '/students/all?';
       if (className) url += `class_name=${encodeURIComponent(className)}&`;
       if (sectionName) url += `section_name=${encodeURIComponent(sectionName)}&`;
       if (search) url += `search=${encodeURIComponent(search)}&`;
       const students = await apiCall(url);
-      students.forEach(s => {
-        const statusLabel = s.status === 'Left' ? ' [LEFT]' : '';
-        studentSelect.innerHTML += `<option value="${s.id}">${s.roll_no || '-'} - ${s.name}${statusLabel}</option>`;
-      });
-    } catch (e) {}
+      if (students.length === 0) {
+        studentSelect.innerHTML = '<option value="">-- No students found --</option>';
+      } else {
+        students.forEach(s => {
+          const statusLabel = s.status === 'Left' ? ' [LEFT]' : '';
+          studentSelect.innerHTML += `<option value="${s.id}">${s.roll_no || '-'} - ${s.name}${statusLabel}</option>`;
+        });
+      }
+    } catch (e) { console.error('loadStudentProfileList error:', e); }
   }
 
   document.getElementById('sp-student-select').addEventListener('change', async function() {
