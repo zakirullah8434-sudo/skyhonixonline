@@ -397,6 +397,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (screenName === 'promotions') {
       loadPromotionsData();
       resetPromoPanels();
+    } else if (screenName === 'principal-management') {
+      loadPrincipalManagement();
     }
   }
 
@@ -827,6 +829,365 @@ document.addEventListener('DOMContentLoaded', () => {
       loadPromoClasses();
       loadClassesList();
     } catch (e) {}
+  });
+
+  // ==========================================
+  // MODULE: PRINCIPAL MANAGEMENT
+  // ==========================================
+  function loadPrincipalManagement() {
+    resetPMpanels();
+    loadPMTeachers();
+  }
+
+  function resetPMpanels() {
+    const pmScreen = document.getElementById('screen-principal-management');
+    if (!pmScreen) return;
+    document.getElementById('pm-main-view').style.display = '';
+    pmScreen.querySelectorAll('.fee-option-panel').forEach(p => p.style.display = 'none');
+    // Reset ID card panels
+    document.getElementById('idcard-stu-info').style.display = 'none';
+    document.getElementById('idcard-stu-preview-container').style.display = 'none';
+    document.getElementById('idcard-teach-info').style.display = 'none';
+    document.getElementById('idcard-teach-preview-container').style.display = 'none';
+    document.getElementById('idcard-staff-preview-container').style.display = 'none';
+  }
+
+  async function loadPMTeachers() {
+    try {
+      const teachers = await apiCall('/staff/teachers');
+      const teachSelect = document.getElementById('idcard-teach-teacher');
+      if (teachSelect) {
+        teachSelect.innerHTML = '<option value="">-- Select Teacher --</option>';
+        teachers.forEach(t => {
+          teachSelect.innerHTML += `<option value="${t.id}">${t.name} (${t.subject || 'N/A'})</option>`;
+        });
+      }
+    } catch (e) {}
+  }
+
+  // PM sub-panel navigation
+  document.querySelectorAll('[data-opt^="pm-"]').forEach(card => {
+    card.addEventListener('click', () => {
+      if (card.style.opacity === '0.5') return; // Coming soon
+      const opt = card.getAttribute('data-opt');
+      document.getElementById('pm-main-view').style.display = 'none';
+      const panel = document.getElementById('pm-panel-' + opt.replace('pm-', ''));
+      if (panel) panel.style.display = 'block';
+      if (opt === 'pm-idcard') loadPMIdCard();
+    });
+  });
+
+  document.querySelectorAll('.btn-back-pm-dash').forEach(btn => {
+    btn.addEventListener('click', () => resetPMpanels());
+  });
+
+  async function loadPMIdCard() {
+    try {
+      const classes = await apiCall('/students/classes');
+      const classSelect = document.getElementById('idcard-stu-class');
+      if (classSelect) {
+        classSelect.innerHTML = '<option value="">-- Select Class --</option>';
+        classes.forEach(c => {
+          const name = typeof c === 'object' ? c.class_name : c;
+          classSelect.innerHTML += `<option value="${name}">${name}</option>`;
+        });
+      }
+    } catch (e) {}
+  }
+
+  // Student ID Card: class change loads students
+  document.getElementById('idcard-stu-class').addEventListener('change', async function() {
+    const className = this.value;
+    const studentSelect = document.getElementById('idcard-stu-student');
+    studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
+    studentSelect.disabled = true;
+    document.getElementById('btn-idcard-stu-generate').disabled = true;
+    document.getElementById('idcard-stu-info').style.display = 'none';
+    document.getElementById('idcard-stu-preview-container').style.display = 'none';
+
+    if (!className) return;
+    try {
+      const students = await apiCall(`/students?class_name=${encodeURIComponent(className)}`);
+      studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
+      students.forEach(s => {
+        studentSelect.innerHTML += `<option value="${s.id}">${s.roll_no || '-'} - ${s.name}</option>`;
+      });
+      studentSelect.disabled = false;
+    } catch (e) {}
+  });
+
+  // Student ID Card: student change loads info
+  document.getElementById('idcard-stu-student').addEventListener('change', async function() {
+    const studentId = this.value;
+    document.getElementById('btn-idcard-stu-generate').disabled = true;
+    document.getElementById('idcard-stu-info').style.display = 'none';
+    document.getElementById('idcard-stu-preview-container').style.display = 'none';
+
+    if (!studentId) return;
+    try {
+      const data = await apiCall(`/students/${studentId}`);
+      const s = data.student;
+      document.getElementById('idcard-stu-name').textContent = s.name || '-';
+      document.getElementById('idcard-stu-father').textContent = s.father_name || '-';
+      document.getElementById('idcard-stu-id').textContent = s.student_id || '-';
+      document.getElementById('idcard-stu-classname').textContent = s.class_name || '-';
+      document.getElementById('idcard-stu-roll').textContent = s.roll_no || '-';
+      document.getElementById('idcard-stu-phone').textContent = s.phone || '-';
+      document.getElementById('idcard-stu-dob').textContent = s.dob || '-';
+      document.getElementById('idcard-stu-gender').textContent = s.gender || '-';
+      document.getElementById('idcard-stu-admno').textContent = s.admission_no || '-';
+      document.getElementById('idcard-stu-info').style.display = 'block';
+      document.getElementById('btn-idcard-stu-generate').disabled = false;
+
+      // Store student data for card generation
+      document.getElementById('idcard-stu-student').dataset.studentData = JSON.stringify(s);
+    } catch (e) {}
+  });
+
+  // Teacher ID Card: teacher change loads info
+  document.getElementById('idcard-teach-teacher').addEventListener('change', async function() {
+    const teacherId = this.value;
+    document.getElementById('btn-idcard-teach-generate').disabled = true;
+    document.getElementById('idcard-teach-info').style.display = 'none';
+    document.getElementById('idcard-teach-preview-container').style.display = 'none';
+
+    if (!teacherId) return;
+    try {
+      const teachers = await apiCall('/staff/teachers');
+      const t = teachers.find(te => te.id == teacherId);
+      if (!t) return;
+      document.getElementById('idcard-teach-name').textContent = t.name || '-';
+      document.getElementById('idcard-teach-phone').textContent = t.phone || '-';
+      document.getElementById('idcard-teach-subject').textContent = t.subject || '-';
+      document.getElementById('idcard-teach-qual').textContent = t.qualification || '-';
+      document.getElementById('idcard-teach-status').textContent = t.status || '-';
+      document.getElementById('idcard-teach-info').style.display = 'block';
+      document.getElementById('btn-idcard-teach-generate').disabled = false;
+      document.getElementById('idcard-teach-teacher').dataset.teacherData = JSON.stringify(t);
+    } catch (e) {}
+  });
+
+  // ID Card design themes
+  const idCardThemes = {
+    classic: { bg: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)', headerBg: '#1e40af', textColor: '#fff', accent: '#60a5fa' },
+    modern: { bg: 'linear-gradient(135deg, #065f46 0%, #10b981 100%)', headerBg: '#047857', textColor: '#fff', accent: '#6ee7b7' },
+    premium: { bg: 'linear-gradient(135deg, #92400e 0%, #f59e0b 100%)', headerBg: '#b45309', textColor: '#fff', accent: '#fcd34d' },
+    minimal: { bg: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', headerBg: '#334155', textColor: '#1e293b', accent: '#64748b' }
+  };
+
+  function generateIdCardHtml(student, design, schoolName, logoPath, includeQr, includeBarcode) {
+    const theme = idCardThemes[design] || idCardThemes.classic;
+    const qrHtml = includeQr ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(student.student_id || student.name || '')}" alt="QR" style="width:80px;height:80px;">` : '';
+    const barcodeHtml = includeBarcode ? `<div style="margin-top:4px;font-family:monospace;font-size:0.7rem;letter-spacing:2px;background:#fff;padding:4px 8px;border-radius:4px;color:#000;">| | | ${student.student_id || student.id || ''} | | |</div>` : '';
+    const photoSrc = student.photo ? imgSrc(student.photo, 'school_assets/school_logo.png') : 'school_assets/school_logo.png';
+    const logoSrc = logoPath ? imgSrc(logoPath, 'school_assets/school_logo.png') : 'school_assets/school_logo.png';
+    const isMinimal = design === 'minimal';
+    const textColor = isMinimal ? '#1e293b' : '#fff';
+    const mutedColor = isMinimal ? '#64748b' : 'rgba(255,255,255,0.7)';
+
+    return `
+      <div style="width:340px; border-radius:16px; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3); font-family: 'Segoe UI', Arial, sans-serif; flex-shrink:0; background: ${theme.bg};">
+        <!-- Header -->
+        <div style="background: ${theme.headerBg}; padding: 16px 20px; text-align: center; border-bottom: 3px solid ${theme.accent};">
+          <img src="${logoSrc}" style="height: 50px; border-radius: 8px; margin-bottom: 6px;" onerror="this.style.display='none'">
+          <div style="font-size: 1.1rem; font-weight: 800; color: ${textColor}; letter-spacing: 1px;">${schoolName || 'SCHOOL NAME'}</div>
+          <div style="font-size: 0.7rem; color: ${mutedColor}; margin-top: 2px;">Student Identity Card</div>
+        </div>
+        <!-- Body -->
+        <div style="padding: 16px 20px; display: flex; gap: 16px;">
+          <div style="flex-shrink: 0;">
+            <img src="${photoSrc}" style="width: 90px; height: 100px; border-radius: 10px; object-fit: cover; border: 3px solid ${theme.accent}; background: #fff;" onerror="this.src='school_assets/school_logo.png'">
+            ${qrHtml}
+            ${barcodeHtml}
+          </div>
+          <div style="flex: 1; font-size: 0.85rem; color: ${textColor};">
+            <div style="margin-bottom: 8px;">
+              <div style="font-size: 1.15rem; font-weight: 700;">${student.name || '-'}</div>
+              <div style="font-size: 0.75rem; color: ${mutedColor};">S/O ${student.father_name || '-'}</div>
+            </div>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 3px 0; color: ${mutedColor}; width: 80px;">ID No</td><td style="padding: 3px 0; font-weight: 600;">${student.student_id || '-'}</td></tr>
+              <tr><td style="padding: 3px 0; color: ${mutedColor};">Class</td><td style="padding: 3px 0; font-weight: 600;">${student.class_name || '-'} ${student.section_name || ''}</td></tr>
+              <tr><td style="padding: 3px 0; color: ${mutedColor};">Roll No</td><td style="padding: 3px 0; font-weight: 600;">${student.roll_no || '-'}</td></tr>
+              <tr><td style="padding: 3px 0; color: ${mutedColor};">Phone</td><td style="padding: 3px 0; font-weight: 600;">${student.phone || '-'}</td></tr>
+              <tr><td style="padding: 3px 0; color: ${mutedColor};">DOB</td><td style="padding: 3px 0; font-weight: 600;">${student.dob || '-'}</td></tr>
+            </table>
+          </div>
+        </div>
+        <!-- Footer -->
+        <div style="background: ${theme.headerBg}; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 2px solid ${theme.accent};">
+          <div style="text-align: center; flex:1;">
+            <div style="height: 1px; width: 80px; background: ${mutedColor}; margin: 0 auto 4px;"></div>
+            <div style="font-size: 0.7rem; color: ${textColor};">Principal Signature</div>
+          </div>
+          <div style="text-align: center; flex:1;">
+            <div style="font-size: 0.65rem; color: ${mutedColor};">Valid for current academic year</div>
+          </div>
+          <div style="text-align: center; flex:1;">
+            <div style="font-size: 0.65rem; color: ${mutedColor};">${new Date().getFullYear()}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function generateTeacherIdCardHtml(teacher, design, schoolName, logoPath, includeQr) {
+    const theme = idCardThemes[design] || idCardThemes.classic;
+    const qrHtml = includeQr ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(teacher.phone || teacher.name || '')}" alt="QR" style="width:80px;height:80px;">` : '';
+    const logoSrc = logoPath ? imgSrc(logoPath, 'school_assets/school_logo.png') : 'school_assets/school_logo.png';
+    const isMinimal = design === 'minimal';
+    const textColor = isMinimal ? '#1e293b' : '#fff';
+    const mutedColor = isMinimal ? '#64748b' : 'rgba(255,255,255,0.7)';
+
+    return `
+      <div style="width:340px; border-radius:16px; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3); font-family: 'Segoe UI', Arial, sans-serif; flex-shrink:0; background: ${theme.bg};">
+        <div style="background: ${theme.headerBg}; padding: 16px 20px; text-align: center; border-bottom: 3px solid ${theme.accent};">
+          <img src="${logoSrc}" style="height: 50px; border-radius: 8px; margin-bottom: 6px;" onerror="this.style.display='none'">
+          <div style="font-size: 1.1rem; font-weight: 800; color: ${textColor}; letter-spacing: 1px;">${schoolName || 'SCHOOL NAME'}</div>
+          <div style="font-size: 0.7rem; color: ${mutedColor}; margin-top: 2px;">Teacher Identity Card</div>
+        </div>
+        <div style="padding: 16px 20px; display: flex; gap: 16px;">
+          <div style="flex-shrink: 0; text-align: center;">
+            ${qrHtml}
+          </div>
+          <div style="flex: 1; font-size: 0.85rem; color: ${textColor};">
+            <div style="margin-bottom: 8px;">
+              <div style="font-size: 1.15rem; font-weight: 700;">${teacher.name || '-'}</div>
+              <div style="font-size: 0.75rem; color: ${mutedColor};">${teacher.subject || 'Teacher'}</div>
+            </div>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 3px 0; color: ${mutedColor}; width: 80px;">Phone</td><td style="padding: 3px 0; font-weight: 600;">${teacher.phone || '-'}</td></tr>
+              <tr><td style="padding: 3px 0; color: ${mutedColor};">Subject</td><td style="padding: 3px 0; font-weight: 600;">${teacher.subject || '-'}</td></tr>
+              <tr><td style="padding: 3px 0; color: ${mutedColor};">Qualification</td><td style="padding: 3px 0; font-weight: 600;">${teacher.qualification || '-'}</td></tr>
+              <tr><td style="padding: 3px 0; color: ${mutedColor};">Status</td><td style="padding: 3px 0; font-weight: 600;">${teacher.status || '-'}</td></tr>
+            </table>
+          </div>
+        </div>
+        <div style="background: ${theme.headerBg}; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 2px solid ${theme.accent};">
+          <div style="text-align: center; flex:1;"><div style="height:1px;width:80px;background:${mutedColor};margin:0 auto 4px;"></div><div style="font-size:0.7rem;color:${textColor};">Principal Signature</div></div>
+          <div style="text-align: center; flex:1;"><div style="font-size:0.65rem;color:${mutedColor};">Valid for current academic year</div></div>
+          <div style="text-align: center; flex:1;"><div style="font-size:0.65rem;color:${mutedColor};">${new Date().getFullYear()}</div></div>
+        </div>
+      </div>`;
+  }
+
+  function generateStaffIdCardHtml(staff, design, schoolName, logoPath, includeQr) {
+    const theme = idCardThemes[design] || idCardThemes.classic;
+    const qrHtml = includeQr ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(staff.name || '')}" alt="QR" style="width:80px;height:80px;">` : '';
+    const logoSrc = logoPath ? imgSrc(logoPath, 'school_assets/school_logo.png') : 'school_assets/school_logo.png';
+    const isMinimal = design === 'minimal';
+    const textColor = isMinimal ? '#1e293b' : '#fff';
+    const mutedColor = isMinimal ? '#64748b' : 'rgba(255,255,255,0.7)';
+
+    return `
+      <div style="width:340px; border-radius:16px; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3); font-family: 'Segoe UI', Arial, sans-serif; flex-shrink:0; background: ${theme.bg};">
+        <div style="background: ${theme.headerBg}; padding: 16px 20px; text-align: center; border-bottom: 3px solid ${theme.accent};">
+          <img src="${logoSrc}" style="height: 50px; border-radius: 8px; margin-bottom: 6px;" onerror="this.style.display='none'">
+          <div style="font-size: 1.1rem; font-weight: 800; color: ${textColor}; letter-spacing: 1px;">${schoolName || 'SCHOOL NAME'}</div>
+          <div style="font-size: 0.7rem; color: ${mutedColor}; margin-top: 2px;">Staff Identity Card</div>
+        </div>
+        <div style="padding: 16px 20px; display: flex; gap: 16px;">
+          <div style="flex-shrink: 0; text-align: center;">
+            ${qrHtml}
+          </div>
+          <div style="flex: 1; font-size: 0.85rem; color: ${textColor};">
+            <div style="margin-bottom: 8px;">
+              <div style="font-size: 1.15rem; font-weight: 700;">${staff.name || '-'}</div>
+              <div style="font-size: 0.75rem; color: ${mutedColor};">${staff.designation || 'Staff'}</div>
+            </div>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 3px 0; color: ${mutedColor}; width: 80px;">Phone</td><td style="padding: 3px 0; font-weight: 600;">${staff.phone || '-'}</td></tr>
+              <tr><td style="padding: 3px 0; color: ${mutedColor};">Designation</td><td style="padding: 3px 0; font-weight: 600;">${staff.designation || '-'}</td></tr>
+              <tr><td style="padding: 3px 0; color: ${mutedColor};">CNIC</td><td style="padding: 3px 0; font-weight: 600;">${staff.cnic || '-'}</td></tr>
+            </table>
+          </div>
+        </div>
+        <div style="background: ${theme.headerBg}; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 2px solid ${theme.accent};">
+          <div style="text-align: center; flex:1;"><div style="height:1px;width:80px;background:${mutedColor};margin:0 auto 4px;"></div><div style="font-size:0.7rem;color:${textColor};">Principal Signature</div></div>
+          <div style="text-align: center; flex:1;"><div style="font-size:0.65rem;color:${mutedColor};">Valid for current academic year</div></div>
+          <div style="text-align: center; flex:1;"><div style="font-size:0.65rem;color:${mutedColor};">${new Date().getFullYear()}</div></div>
+        </div>
+      </div>`;
+  }
+
+  // Student ID Card: Generate
+  document.getElementById('btn-idcard-stu-generate').addEventListener('click', async () => {
+    const studentData = JSON.parse(document.getElementById('idcard-stu-student').dataset.studentData || '{}');
+    const design = document.getElementById('idcard-stu-design').value;
+    const includeQr = document.getElementById('idcard-stu-qr').value === '1';
+    const includeBarcode = document.getElementById('idcard-stu-barcode').value === '1';
+
+    let settings = {};
+    try { settings = await apiCall('/settings'); } catch (e) {}
+
+    const html = generateIdCardHtml(studentData, design, settings.school_name, settings.logo_path, includeQr, includeBarcode);
+    document.getElementById('idcard-stu-printable').innerHTML = html;
+    document.getElementById('idcard-stu-preview-container').style.display = 'block';
+  });
+
+  // Student ID Card: Print
+  document.getElementById('btn-idcard-stu-print').addEventListener('click', () => {
+    const content = document.getElementById('idcard-stu-printable').innerHTML;
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<html><head><title>Student ID Card</title><style>@media print{body{margin:0;}}body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f5f9;}}</style></head><body>${content}</body></html>`);
+    printWindow.document.close();
+    setTimeout(() => { printWindow.print(); }, 500);
+  });
+
+  // Student ID Card: Download (using html2canvas-like approach via canvas)
+  document.getElementById('btn-idcard-stu-download').addEventListener('click', () => {
+    showToast('Tip: Right-click the card and "Save as image", or use Print > Save as PDF');
+  });
+
+  // Teacher ID Card: Generate
+  document.getElementById('btn-idcard-teach-generate').addEventListener('click', async () => {
+    const teacherData = JSON.parse(document.getElementById('idcard-teach-teacher').dataset.teacherData || '{}');
+    const design = document.getElementById('idcard-teach-design').value;
+    const includeQr = document.getElementById('idcard-teach-qr').value === '1';
+
+    let settings = {};
+    try { settings = await apiCall('/settings'); } catch (e) {}
+
+    const html = generateTeacherIdCardHtml(teacherData, design, settings.school_name, settings.logo_path, includeQr);
+    document.getElementById('idcard-teach-printable').innerHTML = html;
+    document.getElementById('idcard-teach-preview-container').style.display = 'block';
+  });
+
+  // Teacher ID Card: Print
+  document.getElementById('btn-idcard-teach-print').addEventListener('click', () => {
+    const content = document.getElementById('idcard-teach-printable').innerHTML;
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<html><head><title>Teacher ID Card</title><style>@media print{body{margin:0;}}body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f5f9;}}</style></head><body>${content}</body></html>`);
+    printWindow.document.close();
+    setTimeout(() => { printWindow.print(); }, 500);
+  });
+
+  // Staff ID Card: Generate
+  document.getElementById('btn-idcard-staff-generate').addEventListener('click', async () => {
+    const name = document.getElementById('idcard-staff-name').value.trim();
+    const designation = document.getElementById('idcard-staff-desig').value.trim();
+    const phone = document.getElementById('idcard-staff-phone').value.trim();
+    const cnic = document.getElementById('idcard-staff-cnic').value.trim();
+    const design = document.getElementById('idcard-staff-design').value;
+    const includeQr = document.getElementById('idcard-staff-qr').value === '1';
+
+    if (!name || !designation) { showToast('Please enter staff name and designation', true); return; }
+
+    let settings = {};
+    try { settings = await apiCall('/settings'); } catch (e) {}
+
+    const staff = { name, designation, phone, cnic };
+    const html = generateStaffIdCardHtml(staff, design, settings.school_name, settings.logo_path, includeQr);
+    document.getElementById('idcard-staff-printable').innerHTML = html;
+    document.getElementById('idcard-staff-preview-container').style.display = 'block';
+  });
+
+  // Staff ID Card: Print
+  document.getElementById('btn-idcard-staff-print').addEventListener('click', () => {
+    const content = document.getElementById('idcard-staff-printable').innerHTML;
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<html><head><title>Staff ID Card</title><style>@media print{body{margin:0;}}body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f5f9;}}</style></head><body>${content}</body></html>`);
+    printWindow.document.close();
+    setTimeout(() => { printWindow.print(); }, 500);
   });
 
   // ==========================================
