@@ -1203,6 +1203,173 @@
 
           </div>
 
+          <!-- SALARY PANEL -->
+          <div id="pm-panel-salary" class="fee-option-panel" style="display: none;">
+            <button class="back-btn" onclick="document.getElementById('pm-panel-salary').style.display='none'; document.getElementById('pm-main-view').style.display='block';">⬅ Back to Principal Management</button>
+            <h2 style="margin-bottom: 20px;">Salary Management</h2>
+
+            <div class="fees-dash-grid" style="margin-bottom: 20px;">
+              <div class="fees-dash-card card-blue">
+                <div class="fees-card-title" id="sal-total-teachers">0</div>
+                <div class="fees-card-desc">Active Teachers</div>
+              </div>
+              <div class="fees-dash-card card-green">
+                <div class="fees-card-title" id="sal-configured">0</div>
+                <div class="fees-card-desc">Salary Configured</div>
+              </div>
+              <div class="fees-dash-card card-orange">
+                <div class="fees-card-title" id="sal-total-paid">Rs. 0</div>
+                <div class="fees-card-desc">Paid This Month</div>
+              </div>
+              <div class="fees-dash-card card-red">
+                <div class="fees-card-title" id="sal-pending-count">0</div>
+                <div class="fees-card-desc">Pending Payments</div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
+              <button class="btn btn-primary btn-sm sal-tab-btn active" data-saltab="sal-setup">Salary Setup</button>
+              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-pay">Pay Salary</button>
+              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-history">Payment History</button>
+              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-summary">Monthly Summary</button>
+            </div>
+
+            <div id="sal-setup" class="sal-tab-content">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">Configure Teacher Salary</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Set basic salary and allowances for each teacher</p>
+                <div style="overflow-x: auto;">
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Teacher Name</th><th>Subject</th><th>Phone</th><th>Qualification</th>
+                        <th>Basic Salary</th><th>House</th><th>Medical</th><th>Transport</th>
+                        <th>Other</th><th>Deductions</th><th>Tax</th><th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sal-setup-body">
+                      <tr><td colspan="12" class="sp-no-records-row">Loading teachers...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div id="sal-pay" class="sal-tab-content" style="display: none;">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">Pay Teacher Salary</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 700px;">
+                  <div class="form-group">
+                    <label class="form-label">Select Teacher</label>
+                    <select class="form-control" id="sal-pay-teacher"></select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Month</label>
+                    <select class="form-control" id="sal-pay-month">
+                      <option value="January">January</option><option value="February">February</option>
+                      <option value="March">March</option><option value="April">April</option>
+                      <option value="May">May</option><option value="June">June</option>
+                      <option value="July">July</option><option value="August">August</option>
+                      <option value="September">September</option><option value="October">October</option>
+                      <option value="November">November</option><option value="December">December</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Year</label>
+                    <input type="number" class="form-control" id="sal-pay-year" value="">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Payment Method</label>
+                    <select class="form-control" id="sal-pay-method">
+                      <option value="Cash">Cash</option><option value="Bank Transfer">Bank Transfer</option>
+                      <option value="Cheque">Cheque</option><option value="JazzCash">JazzCash</option>
+                      <option value="EasyPaisa">EasyPaisa</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Reference No (optional)</label>
+                    <input type="text" class="form-control" id="sal-pay-ref" placeholder="Cheque/Transaction ID">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Remarks (optional)</label>
+                    <input type="text" class="form-control" id="sal-pay-remarks">
+                  </div>
+                </div>
+                <div id="sal-pay-preview" style="margin: 16px 0; padding: 16px; background: rgba(255,255,255,0.05); border-radius: 8px; display: none;">
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 0.9rem;">
+                    <div><strong>Basic:</strong> <span id="sal-preview-basic">0</span></div>
+                    <div><strong>Allowances:</strong> <span id="sal-preview-allow">0</span></div>
+                    <div><strong>Deductions:</strong> <span id="sal-preview-ded">0</span></div>
+                    <div><strong>Tax:</strong> <span id="sal-preview-tax">0</span></div>
+                    <div style="grid-column: span 2;"><strong style="font-size: 1.1rem; color: var(--accent);">Net Salary: Rs. <span id="sal-preview-net">0</span></strong></div>
+                  </div>
+                </div>
+                <button class="btn btn-primary" id="sal-pay-btn">Pay Salary</button>
+              </div>
+            </div>
+
+            <div id="sal-history" class="sal-tab-content" style="display: none;">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">Payment History</h3>
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                  <select class="form-control" id="sal-hist-teacher" style="max-width: 300px;"></select>
+                </div>
+                <div style="overflow-x: auto;">
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Month</th><th>Year</th><th>Basic</th><th>Allowances</th>
+                        <th>Deductions</th><th>Tax</th><th>Net Paid</th><th>Date</th><th>Method</th><th>Paid By</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sal-history-body">
+                      <tr><td colspan="10" class="sp-no-records-row">Select a teacher to view history</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div id="sal-summary" class="sal-tab-content" style="display: none;">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">Monthly Salary Summary</h3>
+                <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-end;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Month</label>
+                    <select class="form-control" id="sal-sum-month">
+                      <option value="January">January</option><option value="February">February</option>
+                      <option value="March">March</option><option value="April">April</option>
+                      <option value="May">May</option><option value="June">June</option>
+                      <option value="July">July</option><option value="August">August</option>
+                      <option value="September">September</option><option value="October">October</option>
+                      <option value="November">November</option><option value="December">December</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Year</label>
+                    <input type="number" class="form-control" id="sal-sum-year" value="">
+                  </div>
+                  <button class="btn btn-primary btn-sm" id="sal-sum-load">Load Summary</button>
+                </div>
+                <div id="sal-summary-stats" style="display: flex; gap: 12px; margin-bottom: 16px;"></div>
+                <div style="overflow-x: auto;">
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Teacher</th><th>Subject</th><th>Phone</th><th>Basic</th>
+                        <th>Allowances</th><th>Deductions</th><th>Net Paid</th><th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sal-summary-body">
+                      <tr><td colspan="8" class="sp-no-records-row">Select month and click Load</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
         </article>
         <article class="screen-section" id="screen-admin-settings" style="display: none;">
           <h2 style="margin-bottom: 24px;">Admin Settings</h2>
@@ -1974,186 +2141,6 @@
 
           </div>
 
-          <!-- SALARY PANEL -->
-          <div id="pm-panel-salary" class="fee-option-panel" style="display: none;">
-            <button class="back-btn" onclick="document.getElementById('pm-panel-salary').style.display='none'; document.getElementById('pm-main-view').style.display='block';">⬅ Back to Principal Management</button>
-            <h2 style="margin-bottom: 20px;">💸 Salary Management</h2>
-
-            <div class="fees-dash-grid" style="margin-bottom: 20px;">
-              <div class="fees-dash-card card-blue">
-                <div class="fees-card-title" id="sal-total-teachers">0</div>
-                <div class="fees-card-desc">Active Teachers</div>
-              </div>
-              <div class="fees-dash-card card-green">
-                <div class="fees-card-title" id="sal-configured">0</div>
-                <div class="fees-card-desc">Salary Configured</div>
-              </div>
-              <div class="fees-dash-card card-orange">
-                <div class="fees-card-title" id="sal-total-paid">Rs. 0</div>
-                <div class="fees-card-desc">Paid This Month</div>
-              </div>
-              <div class="fees-dash-card card-red">
-                <div class="fees-card-title" id="sal-pending-count">0</div>
-                <div class="fees-card-desc">Pending Payments</div>
-              </div>
-            </div>
-
-            <!-- Tab Navigation -->
-            <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
-              <button class="btn btn-primary btn-sm sal-tab-btn active" data-saltab="sal-setup">Salary Setup</button>
-              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-pay">Pay Salary</button>
-              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-history">Payment History</button>
-              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-summary">Monthly Summary</button>
-            </div>
-
-            <!-- TAB: Salary Setup -->
-            <div id="sal-setup" class="sal-tab-content">
-              <div class="card">
-                <h3 style="margin-bottom: 12px;">Configure Teacher Salary</h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Set basic salary and allowances for each teacher</p>
-                <div style="overflow-x: auto;">
-                  <table class="data-table" style="width: 100%;">
-                    <thead>
-                      <tr>
-                        <th>Teacher Name</th>
-                        <th>Subject</th>
-                        <th>Phone</th>
-                        <th>Qualification</th>
-                        <th>Basic Salary</th>
-                        <th>House</th>
-                        <th>Medical</th>
-                        <th>Transport</th>
-                        <th>Other</th>
-                        <th>Deductions</th>
-                        <th>Tax</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody id="sal-setup-body">
-                      <tr><td colspan="12" class="sp-no-records-row">Loading teachers...</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <!-- TAB: Pay Salary -->
-            <div id="sal-pay" class="sal-tab-content" style="display: none;">
-              <div class="card">
-                <h3 style="margin-bottom: 12px;">Pay Teacher Salary</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 700px;">
-                  <div class="form-group">
-                    <label class="form-label">Select Teacher</label>
-                    <select class="form-control" id="sal-pay-teacher"></select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Month</label>
-                    <select class="form-control" id="sal-pay-month">
-                      <option value="January">January</option><option value="February">February</option>
-                      <option value="March">March</option><option value="April">April</option>
-                      <option value="May">May</option><option value="June">June</option>
-                      <option value="July">July</option><option value="August">August</option>
-                      <option value="September">September</option><option value="October">October</option>
-                      <option value="November">November</option><option value="December">December</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Year</label>
-                    <input type="number" class="form-control" id="sal-pay-year" value="">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Payment Method</label>
-                    <select class="form-control" id="sal-pay-method">
-                      <option value="Cash">Cash</option><option value="Bank Transfer">Bank Transfer</option>
-                      <option value="Cheque">Cheque</option><option value="JazzCash">JazzCash</option>
-                      <option value="EasyPaisa">EasyPaisa</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Reference No (optional)</label>
-                    <input type="text" class="form-control" id="sal-pay-ref" placeholder="Cheque/Transaction ID">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Remarks (optional)</label>
-                    <input type="text" class="form-control" id="sal-pay-remarks">
-                  </div>
-                </div>
-                <div id="sal-pay-preview" style="margin: 16px 0; padding: 16px; background: rgba(255,255,255,0.05); border-radius: 8px; display: none;">
-                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 0.9rem;">
-                    <div><strong>Basic:</strong> <span id="sal-preview-basic">0</span></div>
-                    <div><strong>Allowances:</strong> <span id="sal-preview-allow">0</span></div>
-                    <div><strong>Deductions:</strong> <span id="sal-preview-ded">0</span></div>
-                    <div><strong>Tax:</strong> <span id="sal-preview-tax">0</span></div>
-                    <div style="grid-column: span 2;"><strong style="font-size: 1.1rem; color: var(--accent);">Net Salary: Rs. <span id="sal-preview-net">0</span></strong></div>
-                  </div>
-                </div>
-                <button class="btn btn-primary" id="sal-pay-btn">💰 Pay Salary</button>
-              </div>
-            </div>
-
-            <!-- TAB: Payment History -->
-            <div id="sal-history" class="sal-tab-content" style="display: none;">
-              <div class="card">
-                <h3 style="margin-bottom: 12px;">Payment History</h3>
-                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                  <select class="form-control" id="sal-hist-teacher" style="max-width: 300px;"></select>
-                </div>
-                <div style="overflow-x: auto;">
-                  <table class="data-table" style="width: 100%;">
-                    <thead>
-                      <tr>
-                        <th>Month</th><th>Year</th><th>Basic</th><th>Allowances</th>
-                        <th>Deductions</th><th>Tax</th><th>Net Paid</th><th>Date</th><th>Method</th><th>Paid By</th>
-                      </tr>
-                    </thead>
-                    <tbody id="sal-history-body">
-                      <tr><td colspan="10" class="sp-no-records-row">Select a teacher to view history</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <!-- TAB: Monthly Summary -->
-            <div id="sal-summary" class="sal-tab-content" style="display: none;">
-              <div class="card">
-                <h3 style="margin-bottom: 12px;">Monthly Salary Summary</h3>
-                <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-end;">
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Month</label>
-                    <select class="form-control" id="sal-sum-month">
-                      <option value="January">January</option><option value="February">February</option>
-                      <option value="March">March</option><option value="April">April</option>
-                      <option value="May">May</option><option value="June">June</option>
-                      <option value="July">July</option><option value="August">August</option>
-                      <option value="September">September</option><option value="October">October</option>
-                      <option value="November">November</option><option value="December">December</option>
-                    </select>
-                  </div>
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Year</label>
-                    <input type="number" class="form-control" id="sal-sum-year" value="">
-                  </div>
-                  <button class="btn btn-primary btn-sm" id="sal-sum-load">Load Summary</button>
-                </div>
-                <div id="sal-summary-stats" style="display: flex; gap: 12px; margin-bottom: 16px;"></div>
-                <div style="overflow-x: auto;">
-                  <table class="data-table" style="width: 100%;">
-                    <thead>
-                      <tr>
-                        <th>Teacher</th><th>Subject</th><th>Phone</th><th>Basic</th>
-                        <th>Allowances</th><th>Deductions</th><th>Net Paid</th><th>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody id="sal-summary-body">
-                      <tr><td colspan="8" class="sp-no-records-row">Select month and click Load</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-          </div>
 
         </article>
         <!-- ==================== SCREEN: ATTENDANCE ==================== -->
@@ -4000,6 +3987,6 @@
   </div>
 
   <!-- Application logic -->
-  <script src="js/app.js?v=5"></script>
+  <script src="js/app.js?v=7"></script>
 </body>
 </html>
