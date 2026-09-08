@@ -45,7 +45,11 @@ function createSchoolDatabaseSchema(db) {
           family_head_id INTEGER,
           transport_fee REAL DEFAULT 0,
           added_to_family_date TEXT,
-          added_by_student_id INTEGER
+          added_by_student_id INTEGER,
+          address TEXT,
+          previous_school TEXT,
+          previous_school_contact TEXT,
+          blood_group TEXT
         )
       `);
 
@@ -416,6 +420,82 @@ function createSchoolDatabaseSchema(db) {
             db.run("ALTER TABLE teachers ADD COLUMN school_id INTEGER", (e) => {
               if (e) console.error('Migration: failed to add school_id to teachers:', e.message);
               else console.log('Migration: added school_id to teachers table');
+            });
+          }
+        }
+      });
+
+      // 29. Student Certificates
+      db.run(`
+        CREATE TABLE IF NOT EXISTS student_certificates (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          student_id INTEGER NOT NULL,
+          certificate_name TEXT NOT NULL,
+          certificate_type TEXT DEFAULT 'General',
+          issue_date TEXT,
+          description TEXT,
+          created_at TEXT
+        )
+      `);
+
+      // 30. Student Documents
+      db.run(`
+        CREATE TABLE IF NOT EXISTS student_documents (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          student_id INTEGER NOT NULL,
+          document_name TEXT NOT NULL,
+          document_type TEXT DEFAULT 'Other',
+          upload_date TEXT,
+          description TEXT,
+          file_data TEXT,
+          created_at TEXT
+        )
+      `);
+
+      // 31. Student Transfer History
+      db.run(`
+        CREATE TABLE IF NOT EXISTS student_transfer_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          student_id INTEGER NOT NULL,
+          transfer_date TEXT,
+          from_class TEXT,
+          to_class TEXT,
+          to_school TEXT,
+          reason TEXT,
+          remarks TEXT,
+          created_at TEXT
+        )
+      `);
+
+      // Migrations: Add address column to students if missing
+      db.all("PRAGMA table_info(students)", (err, columns) => {
+        if (!err && Array.isArray(columns)) {
+          const hasAddress = columns.some(c => c.name === 'address');
+          if (!hasAddress) {
+            db.run("ALTER TABLE students ADD COLUMN address TEXT", (e) => {
+              if (e) console.error('Migration: failed to add address to students:', e.message);
+              else console.log('Migration: added address to students table');
+            });
+          }
+          const hasPrevSchool = columns.some(c => c.name === 'previous_school');
+          if (!hasPrevSchool) {
+            db.run("ALTER TABLE students ADD COLUMN previous_school TEXT", (e) => {
+              if (e) console.error('Migration: failed to add previous_school to students:', e.message);
+              else console.log('Migration: added previous_school to students table');
+            });
+          }
+          const hasPrevSchoolContact = columns.some(c => c.name === 'previous_school_contact');
+          if (!hasPrevSchoolContact) {
+            db.run("ALTER TABLE students ADD COLUMN previous_school_contact TEXT", (e) => {
+              if (e) console.error('Migration: failed to add previous_school_contact to students:', e.message);
+              else console.log('Migration: added previous_school_contact to students table');
+            });
+          }
+          const HasBloodGroup = columns.some(c => c.name === 'blood_group');
+          if (!HasBloodGroup) {
+            db.run("ALTER TABLE students ADD COLUMN blood_group TEXT", (e) => {
+              if (e) console.error('Migration: failed to add blood_group to students:', e.message);
+              else console.log('Migration: added blood_group to students table');
             });
           }
         }

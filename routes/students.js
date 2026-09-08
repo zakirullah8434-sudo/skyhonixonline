@@ -194,8 +194,9 @@ router.post('/', authenticateToken, upload.single('photo'), async (req, res) => 
       `INSERT INTO students (
         student_id, admission_no, roll_no, name, father_name, class_name, section_name, phone,
         dob, dob_words, admission_date, admission_class, slc_no, national_id, religion, gender,
-        status, discount_amount, discount_percent, is_free, transport_fee, photo, family_head_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        status, discount_amount, discount_percent, is_free, transport_fee, photo, family_head_id,
+        address, previous_school, previous_school_contact, blood_group
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         studentIdCode,
         data.admission_no || '',
@@ -219,7 +220,11 @@ router.post('/', authenticateToken, upload.single('photo'), async (req, res) => 
         parseInt(data.is_free) || 0,
         parseFloat(data.transport_fee) || 0,
         photoDataUri,
-        data.family_head_id ? parseInt(data.family_head_id) : null
+        data.family_head_id ? parseInt(data.family_head_id) : null,
+        data.address || '',
+        data.previous_school || '',
+        data.previous_school_contact || '',
+        data.blood_group || ''
       ]
     );
 
@@ -257,7 +262,8 @@ router.put('/:id', authenticateToken, upload.single('photo'), async (req, res) =
         student_id = ?, admission_no = ?, roll_no = ?, name = ?, father_name = ?, class_name = ?,
         section_name = ?, phone = ?, dob = ?, dob_words = ?, admission_date = ?, admission_class = ?,
         slc_no = ?, national_id = ?, religion = ?, gender = ?, status = ?, discount_amount = ?,
-        discount_percent = ?, is_free = ?, transport_fee = ?, photo = ?, family_head_id = ?
+        discount_percent = ?, is_free = ?, transport_fee = ?, photo = ?, family_head_id = ?,
+        address = ?, previous_school = ?, previous_school_contact = ?, blood_group = ?
       WHERE id = ?`,
       [
         data.student_id,
@@ -283,6 +289,10 @@ router.put('/:id', authenticateToken, upload.single('photo'), async (req, res) =
         parseFloat(data.transport_fee) || 0,
         photoPath,
         data.family_head_id ? parseInt(data.family_head_id) : null,
+        data.address || '',
+        data.previous_school || '',
+        data.previous_school_contact || '',
+        data.blood_group || '',
         id
       ]
     );
@@ -387,9 +397,46 @@ router.get('/:id/profile', authenticateToken, async (req, res) => {
       `SELECT * FROM fee_dues WHERE student_id = ?`, [studentId]
     );
 
+    // 9. Parent information
+    const parents = await querySchool(schoolId,
+      `SELECT p.*, sp.relation
+       FROM student_parents sp
+       JOIN parents p ON p.id = sp.parent_id
+       WHERE sp.student_id = ?`, [studentId]
+    );
+
+    // 10. Promotion history
+    const promotionHistory = await querySchool(schoolId,
+      `SELECT * FROM student_promotion_history WHERE student_id = ? ORDER BY promotion_date DESC`, [studentId]
+    );
+
+    // 11. Homework/Assignments for student's class
+    const homework = await querySchool(schoolId,
+      `SELECT a.*, t.name as teacher_name
+       FROM assignments a
+       LEFT JOIN teachers t ON t.id = a.teacher_id
+       WHERE a.class_name = ? AND (a.section_name = ? OR a.section_name = '' OR a.section_name IS NULL)
+       ORDER BY a.created_at DESC`, [student.class_name, student.section_name || '']
+    );
+
+    // 12. Certificates
+    const certificates = await querySchool(schoolId,
+      `SELECT * FROM student_certificates WHERE student_id = ? ORDER BY issue_date DESC`, [studentId]
+    );
+
+    // 13. Documents
+    const documents = await querySchool(schoolId,
+      `SELECT id, student_id, document_name, document_type, upload_date, description, created_at FROM student_documents WHERE student_id = ? ORDER BY created_at DESC`, [studentId]
+    );
+
+    // 14. Transfer history
+    const transferHistory = await querySchool(schoolId,
+      `SELECT * FROM student_transfer_history WHERE student_id = ? ORDER BY transfer_date DESC`, [studentId]
+    );
+
     // Calculate stats
     let totalPaid = 0;
-    payments.forEach(p => totalPaid += (p.amount || 0));
+    payments.forEach(p => totalPaid += (p.amount_paid || 0));
 
     let totalDue = 0;
     feeLedger.forEach(f => totalDue += ((f.total_payable || 0) - (f.paid_amount || 0)));
@@ -416,6 +463,12 @@ router.get('/:id/profile', authenticateToken, async (req, res) => {
       attendance,
       exceptions,
       dues,
+      parents,
+      promotionHistory,
+      homework,
+      certificates,
+      documents,
+      transferHistory,
       stats: {
         totalPaid,
         totalDue,
@@ -430,6 +483,96 @@ router.get('/:id/profile', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Error fetching student profile:', err);
     res.status(500).json({ error: 'Failed to load student profile: ' + err.message });
+  }
+});
+
+// POST /students/:id/certificates - Add a certificate
+router.post('/:id/certificates', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const studentId = req.params.id;
+  const { certificate_name, certificate_type, issue_date, description } = req.body;
+
+  try {
+    const result = await runSchool(schoolId,
+      `INSERT INTO student_certificates (student_id, certificate_name, certificate_type, issue_date, description, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [studentId, certificate_name, certificate_type || 'General', issue_date || '', description || '', new Date().toISOString()]
+    );
+    res.status(201).json({ message: 'Certificate added successfully!', id: result.id });
+  } catch (err) {
+    console.error('Add certificate error:', err);
+    res.status(500).json({ error: 'Failed to add certificate: ' + err.message });
+  }
+});
+
+// DELETE /students/:id/certificates/:certId - Remove a certificate
+router.delete('/:id/certificates/:certId', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  try {
+    await runSchool(schoolId, 'DELETE FROM student_certificates WHERE id = ?', [req.params.certId]);
+    res.json({ message: 'Certificate removed.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to remove certificate.' });
+  }
+});
+
+// POST /students/:id/documents - Add a document
+router.post('/:id/documents', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const studentId = req.params.id;
+  const { document_name, document_type, upload_date, description } = req.body;
+
+  try {
+    const result = await runSchool(schoolId,
+      `INSERT INTO student_documents (student_id, document_name, document_type, upload_date, description, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [studentId, document_name, document_type || 'Other', upload_date || new Date().toISOString().split('T')[0], description || '', new Date().toISOString()]
+    );
+    res.status(201).json({ message: 'Document added successfully!', id: result.id });
+  } catch (err) {
+    console.error('Add document error:', err);
+    res.status(500).json({ error: 'Failed to add document: ' + err.message });
+  }
+});
+
+// DELETE /students/:id/documents/:docId - Remove a document
+router.delete('/:id/documents/:docId', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  try {
+    await runSchool(schoolId, 'DELETE FROM student_documents WHERE id = ?', [req.params.docId]);
+    res.json({ message: 'Document removed.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to remove document.' });
+  }
+});
+
+// POST /students/:id/transfers - Add a transfer record
+router.post('/:id/transfers', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const studentId = req.params.id;
+  const { transfer_date, from_class, to_class, to_school, reason, remarks } = req.body;
+
+  try {
+    const result = await runSchool(schoolId,
+      `INSERT INTO student_transfer_history (student_id, transfer_date, from_class, to_class, to_school, reason, remarks, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [studentId, transfer_date || new Date().toISOString().split('T')[0], from_class || '', to_class || '', to_school || '', reason || '', remarks || '', new Date().toISOString()]
+    );
+    res.status(201).json({ message: 'Transfer record added!', id: result.id });
+  } catch (err) {
+    console.error('Add transfer error:', err);
+    res.status(500).json({ error: 'Failed to add transfer record: ' + err.message });
+  }
+});
+
+// DELETE /students/:id/transfers/:transferId - Remove a transfer record
+router.delete('/:id/transfers/:transferId', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  try {
+    await runSchool(schoolId, 'DELETE FROM student_transfer_history WHERE id = ?', [req.params.transferId]);
+    res.json({ message: 'Transfer record removed.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to remove transfer record.' });
   }
 });
 

@@ -778,6 +778,185 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 20px;
 }
 
+/* Student Profile Styles */
+.sp-header-card {
+  background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(236,72,153,0.1) 100%);
+  border: 1px solid var(--border-glow);
+}
+
+.sp-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: white;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.sp-tabs {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.sp-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.sp-tabs::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+}
+
+.sp-info-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sp-info-label {
+  padding: 8px 0;
+  color: var(--text-muted);
+  width: 140px;
+  vertical-align: top;
+}
+
+.sp-info-value {
+  padding: 8px 0;
+  font-weight: 500;
+}
+
+.sp-stat-card {
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.sp-stat-number {
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.sp-stat-label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.sp-stat-green { background: rgba(16,185,129,0.1); }
+.sp-stat-green .sp-stat-number { color: var(--accent); }
+.sp-stat-indigo { background: rgba(99,102,241,0.1); }
+.sp-stat-indigo .sp-stat-number { color: var(--primary); }
+.sp-stat-amber { background: rgba(245,158,11,0.1); }
+.sp-stat-amber .sp-stat-number { color: var(--warning); }
+.sp-stat-pink { background: rgba(236,72,153,0.1); }
+.sp-stat-pink .sp-stat-number { color: var(--secondary); }
+
+.sp-no-records {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.sp-no-records-icon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.sp-no-records-row {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 20px !important;
+}
+
+.sp-parent-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.sp-parent-card:last-child {
+  margin-bottom: 0;
+}
+
+.sp-parent-name {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.sp-parent-detail {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.sp-cert-card, .sp-doc-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.sp-cert-card:last-child, .sp-doc-card:last-child {
+  margin-bottom: 0;
+}
+
+.sp-cert-name, .sp-doc-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.sp-cert-detail, .sp-doc-detail {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.sp-history-item {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.sp-history-item:last-child {
+  margin-bottom: 0;
+}
+
+.sp-history-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.sp-history-detail {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .sp-tabs {
+    gap: 8px;
+  }
+  .sp-tabs .tab-btn {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+  .sp-avatar {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+  }
+}
+
 /* Responsive Styles */
 @media (max-width: 992px) {
   .hero {

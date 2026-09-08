@@ -1,6 +1,7 @@
 ﻿// SkyHonix Workspace Application Logic (SPA Router & REST Clients)
 
 function debounce(fn, ms) { let t; return function(...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); }; }
+function esc(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
 
 let _classCache = null, _classCacheTime = 0;
 async function getCachedClasses(apiCall) {
@@ -1394,6 +1395,10 @@ document.addEventListener('DOMContentLoaded', () => {
     formData.append('discount_percent', document.getElementById('stud-disc-percent').value || 0);
     formData.append('transport_fee', document.getElementById('stud-transport').value || 0);
     formData.append('is_free', document.getElementById('stud-isfree').checked ? 1 : 0);
+    formData.append('blood_group', document.getElementById('stud-blood').value || '');
+    formData.append('address', document.getElementById('stud-address').value || '');
+    formData.append('previous_school', document.getElementById('stud-prev-school').value || '');
+    formData.append('previous_school_contact', document.getElementById('stud-prev-school-contact').value || '');
 
     const fileInput = document.getElementById('stud-photo-file');
     if (fileInput.files[0]) {
@@ -1454,6 +1459,10 @@ document.addEventListener('DOMContentLoaded', () => {
           document.getElementById('stud-disc-percent').value = s.discount_percent || 0;
           document.getElementById('stud-transport').value = s.transport_fee || 0;
           document.getElementById('stud-isfree').checked = s.is_free === 1;
+          document.getElementById('stud-blood').value = s.blood_group || '';
+          document.getElementById('stud-address').value = s.address || '';
+          document.getElementById('stud-prev-school').value = s.previous_school || '';
+          document.getElementById('stud-prev-school-contact').value = s.previous_school_contact || '';
 
           modalStudent.classList.add('open');
         } catch (e) {}
@@ -1658,7 +1667,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('sp-profile-container');
     container.style.display = 'block';
 
-    // Show loading state
     document.getElementById('sp-student-name').innerText = 'Loading...';
 
     try {
@@ -1679,6 +1687,7 @@ document.addEventListener('DOMContentLoaded', () => {
         avatarText.innerText = (s.name || 'S')[0].toUpperCase();
       }
       document.getElementById('sp-student-name').innerText = s.name || 'Unknown';
+      document.getElementById('sp-student-id').innerText = `ID: ${s.student_id || '-'}`;
       document.getElementById('sp-class-info').innerText = `Class: ${s.class_name || '-'}${s.section_name ? ' - ' + s.section_name : ''}`;
       document.getElementById('sp-roll-info').innerText = `Roll No: ${s.roll_no || '-'}`;
       document.getElementById('sp-father-info').innerText = `Father: ${s.father_name || '-'}`;
@@ -1692,6 +1701,9 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('sp-info-gender').innerText = s.gender || '-';
       document.getElementById('sp-info-phone').innerText = s.phone || '-';
       document.getElementById('sp-info-address').innerText = s.address || '-';
+      document.getElementById('sp-info-blood').innerText = s.blood_group || '-';
+      document.getElementById('sp-info-religion').innerText = s.religion || '-';
+      document.getElementById('sp-info-national-id').innerText = s.national_id || '-';
 
       // Overview - Stats
       document.getElementById('sp-total-marks').innerText = stats.totalMarksObtained;
@@ -1699,10 +1711,35 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('sp-pending-dues').innerText = stats.totalDue.toLocaleString();
       document.getElementById('sp-total-paid').innerText = stats.totalPaid.toLocaleString();
 
+      // Parents
+      const parentsContainer = document.getElementById('sp-parents-container');
+      if (data.parents && data.parents.length > 0) {
+        parentsContainer.innerHTML = data.parents.map(p => `
+          <div class="sp-parent-card">
+            <div class="sp-parent-name">${esc(p.name || '-')}</div>
+            <div class="sp-parent-detail">Relation: ${esc(p.relation || '-')}</div>
+            <div class="sp-parent-detail">Phone: ${esc(p.phone || '-')}</div>
+            ${p.cnic ? `<div class="sp-parent-detail">CNIC: ${esc(p.cnic)}</div>` : ''}
+            ${p.address ? `<div class="sp-parent-detail">Address: ${esc(p.address)}</div>` : ''}
+          </div>
+        `).join('');
+      } else {
+        parentsContainer.innerHTML = '<div class="sp-no-records"><div class="sp-no-records-icon">👨‍👩‍👧</div><div>No parent information available</div></div>';
+      }
+
+      // Admission
+      document.getElementById('sp-adm-no').innerText = s.admission_no || '-';
+      document.getElementById('sp-adm-date').innerText = s.admission_date || '-';
+      document.getElementById('sp-adm-class').innerText = s.admission_class || '-';
+      document.getElementById('sp-adm-current').innerText = `${s.class_name || '-'}${s.section_name ? ' - ' + s.section_name : ''}`;
+      document.getElementById('sp-adm-slc').innerText = s.slc_no || '-';
+      document.getElementById('sp-prev-school').innerText = s.previous_school || '-';
+      document.getElementById('sp-prev-school-contact').innerText = s.previous_school_contact || '-';
+
       // Fee Ledger
       const feeLedgerBody = document.getElementById('sp-fee-ledger-body');
       if (data.feeLedger.length === 0) {
-        feeLedgerBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No fee records found.</td></tr>';
+        feeLedgerBody.innerHTML = '<tr><td colspan="6" class="sp-no-records-row">No fee records found.</td></tr>';
       } else {
         feeLedgerBody.innerHTML = data.feeLedger.map(f => {
           const due = (f.total_payable || 0) - (f.paid_amount || 0);
@@ -1721,7 +1758,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Payments
       const paymentsBody = document.getElementById('sp-payments-body');
       if (data.payments.length === 0) {
-        paymentsBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No payments found.</td></tr>';
+        paymentsBody.innerHTML = '<tr><td colspan="5" class="sp-no-records-row">No payments found.</td></tr>';
       } else {
         paymentsBody.innerHTML = data.payments.map(p => `<tr>
           <td>${p.payment_date || '-'}</td>
@@ -1735,7 +1772,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Marks
       const marksBody = document.getElementById('sp-marks-body');
       if (data.marks.length === 0) {
-        marksBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No marks found.</td></tr>';
+        marksBody.innerHTML = '<tr><td colspan="6" class="sp-no-records-row">No marks found.</td></tr>';
       } else {
         marksBody.innerHTML = data.marks.map(m => {
           const maxM = m.max_marks || 100;
@@ -1754,12 +1791,12 @@ document.addEventListener('DOMContentLoaded', () => {
       // Results
       const resultsBody = document.getElementById('sp-results-body');
       if (data.results.length === 0) {
-        resultsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No results found.</td></tr>';
+        resultsBody.innerHTML = '<tr><td colspan="6" class="sp-no-records-row">No results found.</td></tr>';
       } else {
         resultsBody.innerHTML = data.results.map(r => `<tr>
           <td>${r.exam_name || '-'}</td>
-          <td>${r.total_marks || '-'}</td>
-          <td><strong>${r.obtained_marks || '-'}</strong></td>
+          <td>${r.total || '-'}</td>
+          <td><strong>${r.obtained || '-'}</strong></td>
           <td>${r.percentage ? r.percentage + '%' : '-'}</td>
           <td><span class="badge badge-blue">${r.grade || '-'}</span></td>
           <td>${r.position || '-'}</td>
@@ -1772,16 +1809,106 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const attBody = document.getElementById('sp-attendance-body');
       if (data.attendance.length === 0) {
-        attBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No attendance records found.</td></tr>';
+        attBody.innerHTML = '<tr><td colspan="3" class="sp-no-records-row">No attendance records found.</td></tr>';
       } else {
         attBody.innerHTML = data.attendance.map(a => {
           const isPresent = a.status === 'present' || a.status === 'Present';
           return `<tr>
             <td>${a.date || '-'}</td>
             <td><span class="badge ${isPresent ? 'badge-green' : 'badge-red'}">${a.status || '-'}</span></td>
-            <td>${a.created_at || '-'}</td>
+            <td>${a.time || '-'}</td>
           </tr>`;
         }).join('');
+      }
+
+      // Homework
+      const homeworkBody = document.getElementById('sp-homework-body');
+      if (data.homework && data.homework.length > 0) {
+        homeworkBody.innerHTML = data.homework.map(h => {
+          const priorityClass = h.priority === 'high' ? 'badge-red' : h.priority === 'medium' ? 'badge-yellow' : 'badge-green';
+          return `<tr>
+            <td>${esc(h.title || '-')}</td>
+            <td>${esc(h.subject || '-')}</td>
+            <td><span class="badge badge-blue">${esc(h.type || 'homework')}</span></td>
+            <td>${esc(h.teacher_name || '-')}</td>
+            <td>${h.due_date || '-'}</td>
+            <td><span class="badge ${priorityClass}">${esc(h.priority || 'medium')}</span></td>
+            <td>${h.created_at || '-'}</td>
+          </tr>`;
+        }).join('');
+      } else {
+        homeworkBody.innerHTML = '<tr><td colspan="7" class="sp-no-records-row">No homework records found.</td></tr>';
+      }
+
+      // Certificates
+      const certContainer = document.getElementById('sp-certificates-container');
+      if (data.certificates && data.certificates.length > 0) {
+        certContainer.innerHTML = data.certificates.map(c => `
+          <div class="sp-cert-card">
+            <div class="sp-cert-name">${esc(c.certificate_name || '-')}</div>
+            <div class="sp-cert-detail">Type: ${esc(c.certificate_type || 'General')}</div>
+            <div class="sp-cert-detail">Issue Date: ${c.issue_date || '-'}</div>
+            ${c.description ? `<div class="sp-cert-detail">${esc(c.description)}</div>` : ''}
+          </div>
+        `).join('');
+      } else {
+        certContainer.innerHTML = '<div class="sp-no-records"><div class="sp-no-records-icon">📜</div><div>No certificates available</div></div>';
+      }
+
+      // Documents
+      const docContainer = document.getElementById('sp-documents-container');
+      if (data.documents && data.documents.length > 0) {
+        docContainer.innerHTML = data.documents.map(d => `
+          <div class="sp-doc-card">
+            <div class="sp-doc-name">${esc(d.document_name || '-')}</div>
+            <div class="sp-doc-detail">Type: ${esc(d.document_type || 'Other')}</div>
+            <div class="sp-doc-detail">Uploaded: ${d.upload_date || d.created_at || '-'}</div>
+            ${d.description ? `<div class="sp-doc-detail">${esc(d.description)}</div>` : ''}
+          </div>
+        `).join('');
+      } else {
+        docContainer.innerHTML = '<div class="sp-no-records"><div class="sp-no-records-icon">📁</div><div>No documents available</div></div>';
+      }
+
+      // Promotion History
+      const promoContainer = document.getElementById('sp-promotion-container');
+      if (data.promotionHistory && data.promotionHistory.length > 0) {
+        promoContainer.innerHTML = data.promotionHistory.map(p => `
+          <div class="sp-history-item">
+            <div class="sp-history-title">${esc(p.from_class || '-')} → ${esc(p.to_class || '-')}</div>
+            <div class="sp-history-detail">Year: ${p.exam_year || '-'} | Date: ${p.promotion_date || '-'}</div>
+            <div class="sp-history-detail">Percentage: ${p.final_percentage ? p.final_percentage + '%' : '-'} | Grade: ${esc(p.final_grade || '-')}</div>
+            ${p.remarks ? `<div class="sp-history-detail">Remarks: ${esc(p.remarks)}</div>` : ''}
+          </div>
+        `).join('');
+      } else {
+        promoContainer.innerHTML = '<div class="sp-no-records"><div class="sp-no-records-icon">📈</div><div>No promotion records available</div></div>';
+      }
+
+      // Transfer History
+      const transferContainer = document.getElementById('sp-transfer-container');
+      if (data.transferHistory && data.transferHistory.length > 0) {
+        transferContainer.innerHTML = data.transferHistory.map(t => `
+          <div class="sp-history-item">
+            <div class="sp-history-title">${esc(t.from_class || '-')} → ${esc(t.to_class || '-')}</div>
+            <div class="sp-history-detail">Date: ${t.transfer_date || '-'}</div>
+            ${t.to_school ? `<div class="sp-history-detail">To School: ${esc(t.to_school)}</div>` : ''}
+            ${t.reason ? `<div class="sp-history-detail">Reason: ${esc(t.reason)}</div>` : ''}
+            ${t.remarks ? `<div class="sp-history-detail">Remarks: ${esc(t.remarks)}</div>` : ''}
+          </div>
+        `).join('');
+      } else {
+        transferContainer.innerHTML = '<div class="sp-no-records"><div class="sp-no-records-icon">🔄</div><div>No transfer records available</div></div>';
+      }
+
+      // Reset to overview tab
+      document.querySelectorAll('#screen-student-profile .tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('#screen-student-profile .tab-content').forEach(tc => tc.style.display = 'none');
+      const firstTab = document.querySelector('#screen-student-profile .tab-btn');
+      if (firstTab) {
+        firstTab.classList.add('active');
+        const firstContent = document.getElementById('tab-sp-overview');
+        if (firstContent) firstContent.style.display = 'block';
       }
 
     } catch (err) {

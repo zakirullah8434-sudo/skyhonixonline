@@ -1139,15 +1139,16 @@
           <div id="sp-profile-container" style="display: none;">
 
             <!-- Student Header Card -->
-            <div class="card" style="margin-bottom: 24px; background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(236,72,153,0.1) 100%); border: 1px solid var(--border-glow);">
+            <div class="card sp-header-card" style="margin-bottom: 24px;">
               <div style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
-                <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: white; flex-shrink: 0; overflow: hidden; position: relative;" id="sp-avatar">
+                <div class="sp-avatar" id="sp-avatar">
                   <img id="sp-avatar-photo" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
                   <span id="sp-avatar-text">🎓</span>
                 </div>
                 <div style="flex: 1;">
                   <h2 style="margin: 0; font-size: 1.5rem;" id="sp-student-name">Student Name</h2>
                   <div style="display: flex; gap: 16px; margin-top: 8px; flex-wrap: wrap;">
+                    <span style="color: var(--text-muted);" id="sp-student-id">ID: -</span>
                     <span style="color: var(--text-muted);" id="sp-class-info">Class: -</span>
                     <span style="color: var(--text-muted);" id="sp-roll-info">Roll No: -</span>
                     <span style="color: var(--text-muted);" id="sp-father-info">Father: -</span>
@@ -1162,11 +1163,16 @@
             </div>
 
             <!-- Tabs -->
-            <div class="tab-container" style="margin-bottom: 20px;">
+            <div class="tab-container sp-tabs" style="margin-bottom: 20px; overflow-x: auto;">
               <button class="tab-btn active" data-tab="sp-overview">Overview</button>
+              <button class="tab-btn" data-tab="sp-parents">Parents</button>
+              <button class="tab-btn" data-tab="sp-admission">Admission</button>
+              <button class="tab-btn" data-tab="sp-attendance">Attendance</button>
               <button class="tab-btn" data-tab="sp-fees">Fee History</button>
               <button class="tab-btn" data-tab="sp-exams">Exam Results</button>
-              <button class="tab-btn" data-tab="sp-attendance">Attendance</button>
+              <button class="tab-btn" data-tab="sp-homework">Homework</button>
+              <button class="tab-btn" data-tab="sp-documents">Documents</button>
+              <button class="tab-btn" data-tab="sp-history">History</button>
             </div>
 
             <!-- Tab: Overview -->
@@ -1174,121 +1180,73 @@
               <div class="grid-2" style="gap: 20px;">
                 <div class="card">
                   <h3 style="margin-bottom: 12px;">📋 Personal Information</h3>
-                  <table style="width: 100%; border-collapse: collapse;">
-                    <tr><td style="padding: 8px 0; color: var(--text-muted); width: 140px;">Name</td><td style="padding: 8px 0; font-weight: 500;" id="sp-info-name">-</td></tr>
-                    <tr><td style="padding: 8px 0; color: var(--text-muted);">Father's Name</td><td style="padding: 8px 0; font-weight: 500;" id="sp-info-father">-</td></tr>
-                    <tr><td style="padding: 8px 0; color: var(--text-muted);">Date of Birth</td><td style="padding: 8px 0; font-weight: 500;" id="sp-info-dob">-</td></tr>
-                    <tr><td style="padding: 8px 0; color: var(--text-muted);">Gender</td><td style="padding: 8px 0; font-weight: 500;" id="sp-info-gender">-</td></tr>
-                    <tr><td style="padding: 8px 0; color: var(--text-muted);">Phone</td><td style="padding: 8px 0; font-weight: 500;" id="sp-info-phone">-</td></tr>
-                    <tr><td style="padding: 8px 0; color: var(--text-muted);">Address</td><td style="padding: 8px 0; font-weight: 500;" id="sp-info-address">-</td></tr>
+                  <table class="sp-info-table">
+                    <tr><td class="sp-info-label">Name</td><td class="sp-info-value" id="sp-info-name">-</td></tr>
+                    <tr><td class="sp-info-label">Father's Name</td><td class="sp-info-value" id="sp-info-father">-</td></tr>
+                    <tr><td class="sp-info-label">Date of Birth</td><td class="sp-info-value" id="sp-info-dob">-</td></tr>
+                    <tr><td class="sp-info-label">Gender</td><td class="sp-info-value" id="sp-info-gender">-</td></tr>
+                    <tr><td class="sp-info-label">Phone</td><td class="sp-info-value" id="sp-info-phone">-</td></tr>
+                    <tr><td class="sp-info-label">Address</td><td class="sp-info-value" id="sp-info-address">-</td></tr>
+                    <tr><td class="sp-info-label">Blood Group</td><td class="sp-info-value" id="sp-info-blood">-</td></tr>
+                    <tr><td class="sp-info-label">Religion</td><td class="sp-info-value" id="sp-info-religion">-</td></tr>
+                    <tr><td class="sp-info-label">National ID</td><td class="sp-info-value" id="sp-info-national-id">-</td></tr>
                   </table>
                 </div>
                 <div class="card">
                   <h3 style="margin-bottom: 12px;">📊 Academic Summary</h3>
                   <div class="grid-2" style="gap: 12px;">
-                    <div style="background: rgba(16,185,129,0.1); border-radius: 12px; padding: 16px; text-align: center;">
-                      <div style="font-size: 1.8rem; font-weight: 800; color: var(--accent);" id="sp-total-marks">-</div>
-                      <div style="color: var(--text-muted); font-size: 0.85rem;">Total Marks Obtained</div>
+                    <div class="sp-stat-card sp-stat-green">
+                      <div class="sp-stat-number" id="sp-total-marks">-</div>
+                      <div class="sp-stat-label">Total Marks Obtained</div>
                     </div>
-                    <div style="background: rgba(99,102,241,0.1); border-radius: 12px; padding: 16px; text-align: center;">
-                      <div style="font-size: 1.8rem; font-weight: 800; color: var(--primary);" id="sp-avg-marks">-</div>
-                      <div style="color: var(--text-muted); font-size: 0.85rem;">Average Percentage</div>
+                    <div class="sp-stat-card sp-stat-indigo">
+                      <div class="sp-stat-number" id="sp-avg-marks">-</div>
+                      <div class="sp-stat-label">Average Percentage</div>
                     </div>
-                    <div style="background: rgba(245,158,11,0.1); border-radius: 12px; padding: 16px; text-align: center;">
-                      <div style="font-size: 1.8rem; font-weight: 800; color: var(--warning);" id="sp-pending-dues">-</div>
-                      <div style="color: var(--text-muted); font-size: 0.85rem;">Pending Dues (PKR)</div>
+                    <div class="sp-stat-card sp-stat-amber">
+                      <div class="sp-stat-number" id="sp-pending-dues">-</div>
+                      <div class="sp-stat-label">Pending Dues (PKR)</div>
                     </div>
-                    <div style="background: rgba(236,72,153,0.1); border-radius: 12px; padding: 16px; text-align: center;">
-                      <div style="font-size: 1.8rem; font-weight: 800; color: var(--secondary);" id="sp-total-paid">-</div>
-                      <div style="color: var(--text-muted); font-size: 0.85rem;">Total Paid (PKR)</div>
+                    <div class="sp-stat-card sp-stat-pink">
+                      <div class="sp-stat-number" id="sp-total-paid">-</div>
+                      <div class="sp-stat-label">Total Paid (PKR)</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Tab: Fee History -->
-            <div class="tab-content" id="tab-sp-fees" style="display: none;">
+            <!-- Tab: Parents -->
+            <div class="tab-content" id="tab-sp-parents" style="display: none;">
               <div class="card">
-                <h3 style="margin-bottom: 12px;">💰 Fee Ledger</h3>
-                <div style="overflow-x: auto;">
-                  <table class="data-table" style="width: 100%;">
-                    <thead>
-                      <tr>
-                        <th>Month</th>
-                        <th>Year</th>
-                        <th>Payable</th>
-                        <th>Paid</th>
-                        <th>Due</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody id="sp-fee-ledger-body">
-                      <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading...</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div class="card" style="margin-top: 20px;">
-                <h3 style="margin-bottom: 12px;">💳 Payment History</h3>
-                <div style="overflow-x: auto;">
-                  <table class="data-table" style="width: 100%;">
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Amount</th>
-                        <th>Method</th>
-                        <th>Receipt #</th>
-                        <th>Notes</th>
-                      </tr>
-                    </thead>
-                    <tbody id="sp-payments-body">
-                      <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading...</td></tr>
-                    </tbody>
-                  </table>
+                <h3 style="margin-bottom: 12px;">👨‍👩‍👧 Parent Information</h3>
+                <div id="sp-parents-container">
+                  <div class="sp-no-records">
+                    <div class="sp-no-records-icon">👨‍👩‍👧</div>
+                    <div>No parent information available</div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <!-- Tab: Exam Results -->
-            <div class="tab-content" id="tab-sp-exams" style="display: none;">
-              <div class="card">
-                <h3 style="margin-bottom: 12px;">📝 Exam Results & Marks</h3>
-                <div style="overflow-x: auto;">
-                  <table class="data-table" style="width: 100%;">
-                    <thead>
-                      <tr>
-                        <th>Exam</th>
-                        <th>Term</th>
-                        <th>Subject</th>
-                        <th>Marks Obtained</th>
-                        <th>Max Marks</th>
-                        <th>Percentage</th>
-                      </tr>
-                    </thead>
-                    <tbody id="sp-marks-body">
-                      <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading...</td></tr>
-                    </tbody>
+            <!-- Tab: Admission -->
+            <div class="tab-content" id="tab-sp-admission" style="display: none;">
+              <div class="grid-2" style="gap: 20px;">
+                <div class="card">
+                  <h3 style="margin-bottom: 12px;">📝 Admission Details</h3>
+                  <table class="sp-info-table">
+                    <tr><td class="sp-info-label">Admission No</td><td class="sp-info-value" id="sp-adm-no">-</td></tr>
+                    <tr><td class="sp-info-label">Admission Date</td><td class="sp-info-value" id="sp-adm-date">-</td></tr>
+                    <tr><td class="sp-info-label">Admission Class</td><td class="sp-info-value" id="sp-adm-class">-</td></tr>
+                    <tr><td class="sp-info-label">Current Class</td><td class="sp-info-value" id="sp-adm-current">-</td></tr>
+                    <tr><td class="sp-info-label">SLC No</td><td class="sp-info-value" id="sp-adm-slc">-</td></tr>
                   </table>
                 </div>
-              </div>
-              <div class="card" style="margin-top: 20px;">
-                <h3 style="margin-bottom: 12px;">🏆 Results Summary</h3>
-                <div style="overflow-x: auto;">
-                  <table class="data-table" style="width: 100%;">
-                    <thead>
-                      <tr>
-                        <th>Exam</th>
-                        <th>Total Marks</th>
-                        <th>Obtained</th>
-                        <th>Percentage</th>
-                        <th>Grade</th>
-                        <th>Position</th>
-                      </tr>
-                    </thead>
-                    <tbody id="sp-results-body">
-                      <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading...</td></tr>
-                    </tbody>
+                <div class="card">
+                  <h3 style="margin-bottom: 12px;">🏫 Previous School</h3>
+                  <table class="sp-info-table">
+                    <tr><td class="sp-info-label">School Name</td><td class="sp-info-value" id="sp-prev-school">-</td></tr>
+                    <tr><td class="sp-info-label">Contact</td><td class="sp-info-value" id="sp-prev-school-contact">-</td></tr>
                   </table>
                 </div>
               </div>
@@ -1318,9 +1276,169 @@
                       </tr>
                     </thead>
                     <tbody id="sp-attendance-body">
-                      <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Loading...</td></tr>
+                      <tr><td colspan="3" class="sp-no-records-row">No attendance records found.</td></tr>
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab: Fee History -->
+            <div class="tab-content" id="tab-sp-fees" style="display: none;">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">💰 Fee Ledger</h3>
+                <div style="overflow-x: auto;">
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Month</th>
+                        <th>Year</th>
+                        <th>Payable</th>
+                        <th>Paid</th>
+                        <th>Due</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sp-fee-ledger-body">
+                      <tr><td colspan="6" class="sp-no-records-row">No fee records found.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="card" style="margin-top: 20px;">
+                <h3 style="margin-bottom: 12px;">💳 Payment History</h3>
+                <div style="overflow-x: auto;">
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Receipt #</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sp-payments-body">
+                      <tr><td colspan="5" class="sp-no-records-row">No payments found.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab: Exam Results -->
+            <div class="tab-content" id="tab-sp-exams" style="display: none;">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">📝 Exam Results & Marks</h3>
+                <div style="overflow-x: auto;">
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Exam</th>
+                        <th>Term</th>
+                        <th>Subject</th>
+                        <th>Marks Obtained</th>
+                        <th>Max Marks</th>
+                        <th>Percentage</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sp-marks-body">
+                      <tr><td colspan="6" class="sp-no-records-row">No marks found.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="card" style="margin-top: 20px;">
+                <h3 style="margin-bottom: 12px;">🏆 Results Summary</h3>
+                <div style="overflow-x: auto;">
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Exam</th>
+                        <th>Total Marks</th>
+                        <th>Obtained</th>
+                        <th>Percentage</th>
+                        <th>Grade</th>
+                        <th>Position</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sp-results-body">
+                      <tr><td colspan="6" class="sp-no-records-row">No results found.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab: Homework -->
+            <div class="tab-content" id="tab-sp-homework" style="display: none;">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">📚 Homework & Assignments</h3>
+                <div style="overflow-x: auto;">
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Title</th>
+                        <th>Subject</th>
+                        <th>Type</th>
+                        <th>Teacher</th>
+                        <th>Due Date</th>
+                        <th>Priority</th>
+                        <th>Created</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sp-homework-body">
+                      <tr><td colspan="7" class="sp-no-records-row">No homework records found.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab: Documents -->
+            <div class="tab-content" id="tab-sp-documents" style="display: none;">
+              <div class="grid-2" style="gap: 20px;">
+                <div class="card">
+                  <h3 style="margin-bottom: 12px;">📜 Certificates</h3>
+                  <div id="sp-certificates-container">
+                    <div class="sp-no-records">
+                      <div class="sp-no-records-icon">📜</div>
+                      <div>No certificates available</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="card">
+                  <h3 style="margin-bottom: 12px;">📁 Documents</h3>
+                  <div id="sp-documents-container">
+                    <div class="sp-no-records">
+                      <div class="sp-no-records-icon">📁</div>
+                      <div>No documents available</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab: History -->
+            <div class="tab-content" id="tab-sp-history" style="display: none;">
+              <div class="grid-2" style="gap: 20px;">
+                <div class="card">
+                  <h3 style="margin-bottom: 12px;">📈 Promotion History</h3>
+                  <div id="sp-promotion-container">
+                    <div class="sp-no-records">
+                      <div class="sp-no-records-icon">📈</div>
+                      <div>No promotion records available</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="card">
+                  <h3 style="margin-bottom: 12px;">🔄 Transfer History</h3>
+                  <div id="sp-transfer-container">
+                    <div class="sp-no-records">
+                      <div class="sp-no-records-icon">🔄</div>
+                      <div>No transfer records available</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -3001,6 +3119,35 @@
           <div class="form-group">
             <label class="form-label">Religion</label>
             <input type="text" class="form-control" id="stud-religion" value="Islam">
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Blood Group</label>
+            <select class="form-control" id="stud-blood">
+              <option value="">-- Select --</option>
+              <option>A+</option><option>A-</option>
+              <option>B+</option><option>B-</option>
+              <option>AB+</option><option>AB-</option>
+              <option>O+</option><option>O-</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Address</label>
+            <input type="text" class="form-control" id="stud-address" placeholder="Full address">
+          </div>
+        </div>
+
+        <h3 style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px; margin-top: 10px;">Previous School Information</h3>
+        <div class="grid-2" style="margin-top: 10px;">
+          <div class="form-group">
+            <label class="form-label">Previous School Name</label>
+            <input type="text" class="form-control" id="stud-prev-school" placeholder="School name">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Previous School Contact</label>
+            <input type="text" class="form-control" id="stud-prev-school-contact" placeholder="Phone or email">
           </div>
         </div>
 
