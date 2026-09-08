@@ -845,12 +845,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!pmScreen) return;
     document.getElementById('pm-main-view').style.display = '';
     pmScreen.querySelectorAll('.fee-option-panel').forEach(p => p.style.display = 'none');
-    // Reset ID card panels
     document.getElementById('idcard-stu-info').style.display = 'none';
     document.getElementById('idcard-stu-preview-container').style.display = 'none';
     document.getElementById('idcard-teach-info').style.display = 'none';
     document.getElementById('idcard-teach-preview-container').style.display = 'none';
     document.getElementById('idcard-staff-preview-container').style.display = 'none';
+    document.getElementById('idcard-cw-info').style.display = 'none';
+    document.getElementById('idcard-cw-preview-container').style.display = 'none';
   }
 
   async function loadPMTeachers() {
@@ -887,11 +888,19 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const classes = await apiCall('/students/classes');
       const classSelect = document.getElementById('idcard-stu-class');
+      const cwClassSelect = document.getElementById('idcard-cw-class');
       if (classSelect) {
         classSelect.innerHTML = '<option value="">-- Select Class --</option>';
         classes.forEach(c => {
           const name = typeof c === 'object' ? c.class_name : c;
           classSelect.innerHTML += `<option value="${name}">${name}</option>`;
+        });
+      }
+      if (cwClassSelect) {
+        cwClassSelect.innerHTML = '<option value="">-- Select Class --</option>';
+        classes.forEach(c => {
+          const name = typeof c === 'object' ? c.class_name : c;
+          cwClassSelect.innerHTML += `<option value="${name}">${name}</option>`;
         });
       }
     } catch (e) {}
@@ -971,144 +980,547 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ID Card design themes
   const idCardThemes = {
-    classic: { bg: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)', headerBg: '#1e40af', textColor: '#fff', accent: '#60a5fa' },
-    modern: { bg: 'linear-gradient(135deg, #065f46 0%, #10b981 100%)', headerBg: '#047857', textColor: '#fff', accent: '#6ee7b7' },
-    premium: { bg: 'linear-gradient(135deg, #92400e 0%, #f59e0b 100%)', headerBg: '#b45309', textColor: '#fff', accent: '#fcd34d' },
-    minimal: { bg: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', headerBg: '#334155', textColor: '#1e293b', accent: '#64748b' }
+    classic:    { bg: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)', headerBg: '#1e40af', textColor: '#fff', accent: '#60a5fa', badge: '#1e40af' },
+    modern:     { bg: 'linear-gradient(135deg, #065f46 0%, #10b981 100%)', headerBg: '#047857', textColor: '#fff', accent: '#6ee7b7', badge: '#047857' },
+    premium:    { bg: 'linear-gradient(135deg, #92400e 0%, #f59e0b 100%)', headerBg: '#b45309', textColor: '#fff', accent: '#fcd34d', badge: '#b45309' },
+    minimal:    { bg: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', headerBg: '#334155', textColor: '#1e293b', accent: '#64748b', badge: '#475569' },
+    royal:      { bg: 'linear-gradient(135deg, #581c87 0%, #9333ea 100%)', headerBg: '#6b21a8', textColor: '#fff', accent: '#c084fc', badge: '#6b21a8' },
+    ocean:      { bg: 'linear-gradient(135deg, #0e7490 0%, #06b6d4 100%)', headerBg: '#0891b2', textColor: '#fff', accent: '#67e8f9', badge: '#0891b2' },
+    sunset:     { bg: 'linear-gradient(135deg, #c2410c 0%, #f97316 100%)', headerBg: '#ea580c', textColor: '#fff', accent: '#fdba74', badge: '#ea580c' },
+    corporate:  { bg: 'linear-gradient(135deg, #374151 0%, #6b7280 100%)', headerBg: '#4b5563', textColor: '#fff', accent: '#d1d5db', badge: '#4b5563' },
+    rose:       { bg: 'linear-gradient(135deg, #9f1239 0%, #fb7185 100%)', headerBg: '#e11d48', textColor: '#fff', accent: '#fda4af', badge: '#e11d48' },
+    dark:       { bg: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', headerBg: '#020617', textColor: '#f1f5f9', accent: '#22d3ee', badge: '#020617' }
   };
 
   function generateIdCardHtml(student, design, schoolName, logoPath, includeQr, includeBarcode) {
     const theme = idCardThemes[design] || idCardThemes.classic;
-    const qrHtml = includeQr ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(student.student_id || student.name || '')}" alt="QR" style="width:80px;height:80px;">` : '';
-    const barcodeHtml = includeBarcode ? `<div style="margin-top:4px;font-family:monospace;font-size:0.7rem;letter-spacing:2px;background:#fff;padding:4px 8px;border-radius:4px;color:#000;">| | | ${student.student_id || student.id || ''} | | |</div>` : '';
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(student.student_id || student.name || '')}`;
+    const qrHtml = includeQr ? `<img src="${qrUrl}" alt="QR" style="width:80px;height:80px;border-radius:6px;">` : '';
+    const barcodeStr = student.student_id || student.id || '00000000';
+    const barcodeHtml = includeBarcode ? `<div style="margin-top:4px;font-family:monospace;font-size:0.65rem;letter-spacing:2px;background:#fff;padding:4px 8px;border-radius:4px;color:#000;text-align:center;">║│║ ${barcodeStr} ║│║</div>` : '';
     const photoSrc = student.photo ? imgSrc(student.photo, 'school_assets/school_logo.png') : 'school_assets/school_logo.png';
     const logoSrc = logoPath ? imgSrc(logoPath, 'school_assets/school_logo.png') : 'school_assets/school_logo.png';
-    const isMinimal = design === 'minimal';
-    const textColor = isMinimal ? '#1e293b' : '#fff';
-    const mutedColor = isMinimal ? '#64748b' : 'rgba(255,255,255,0.7)';
+    const isLight = design === 'minimal' || design === 'corporate';
+    const textColor = isLight ? '#1e293b' : '#fff';
+    const mutedColor = isLight ? '#64748b' : 'rgba(255,255,255,0.65)';
+    const classSec = student.class_name || '-';
+    const year = new Date().getFullYear();
 
-    return `
-      <div style="width:340px; border-radius:16px; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3); font-family: 'Segoe UI', Arial, sans-serif; flex-shrink:0; background: ${theme.bg};">
-        <!-- Header -->
-        <div style="background: ${theme.headerBg}; padding: 16px 20px; text-align: center; border-bottom: 3px solid ${theme.accent};">
-          <img src="${logoSrc}" style="height: 50px; border-radius: 8px; margin-bottom: 6px;" onerror="this.style.display='none'">
-          <div style="font-size: 1.1rem; font-weight: 800; color: ${textColor}; letter-spacing: 1px;">${schoolName || 'SCHOOL NAME'}</div>
-          <div style="font-size: 0.7rem; color: ${mutedColor}; margin-top: 2px;">Student Identity Card</div>
+    if (design === 'minimal') {
+      return `<div style="width:340px;border:2px solid #cbd5e1;border-radius:12px;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;">
+        <div style="border-bottom:3px solid ${theme.accent};padding:14px 20px;display:flex;align-items:center;gap:12px;">
+          <img src="${logoSrc}" style="height:44px;border-radius:6px;" onerror="this.style.display='none'">
+          <div><div style="font-size:1rem;font-weight:800;color:#1e293b;">${schoolName||'SCHOOL'}</div><div style="font-size:0.65rem;color:#64748b;">Student ID Card</div></div>
         </div>
-        <!-- Body -->
-        <div style="padding: 16px 20px; display: flex; gap: 16px;">
-          <div style="flex-shrink: 0;">
-            <img src="${photoSrc}" style="width: 90px; height: 100px; border-radius: 10px; object-fit: cover; border: 3px solid ${theme.accent}; background: #fff;" onerror="this.src='school_assets/school_logo.png'">
+        <div style="padding:14px 20px;display:flex;gap:14px;">
+          <div style="flex-shrink:0;">${qrHtml}</div>
+          <div style="flex:1;font-size:0.82rem;color:#1e293b;">
+            <div style="font-size:1.1rem;font-weight:700;">${student.name||'-'}</div>
+            <div style="font-size:0.72rem;color:#64748b;margin-bottom:8px;">S/O ${student.father_name||'-'}</div>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:2px 0;color:#94a3b8;width:75px;">ID</td><td style="padding:2px 0;font-weight:600;">${student.student_id||'-'}</td></tr>
+              <tr><td style="padding:2px 0;color:#94a3b8;">Class</td><td style="padding:2px 0;font-weight:600;">${classSec}</td></tr>
+              <tr><td style="padding:2px 0;color:#94a3b8;">Roll</td><td style="padding:2px 0;font-weight:600;">${student.roll_no||'-'}</td></tr>
+              <tr><td style="padding:2px 0;color:#94a3b8;">Phone</td><td style="padding:2px 0;font-weight:600;">${student.phone||'-'}</td></tr>
+            </table>
+            ${barcodeHtml}
+          </div>
+        </div>
+        <div style="padding:10px 20px;display:flex;justify-content:space-between;border-top:1px solid #e2e8f0;">
+          <div style="text-align:center;flex:1;"><div style="height:1px;width:70px;background:#94a3b8;margin:0 auto 3px;"></div><div style="font-size:0.62rem;color:#64748b;">Principal Signature</div></div>
+          <div style="text-align:center;flex:1;font-size:0.6rem;color:#94a3b8;">${year}</div>
+        </div></div>`;
+    }
+
+    if (design === 'royal') {
+      return `<div style="width:340px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(88,28,135,0.3);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:${theme.bg};">
+        <div style="background:${theme.headerBg};padding:14px 20px;text-align:center;border-bottom:3px solid ${theme.accent};position:relative;">
+          <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,${theme.accent},#fbbf24,${theme.accent});"></div>
+          <img src="${logoSrc}" style="height:48px;border-radius:50%;border:2px solid ${theme.accent};margin-bottom:6px;" onerror="this.style.display='none'">
+          <div style="font-size:1.05rem;font-weight:800;color:${textColor};letter-spacing:1px;">${schoolName||'SCHOOL'}</div>
+          <div style="font-size:0.65rem;color:${mutedColor};margin-top:2px;">Student Identity Card</div>
+        </div>
+        <div style="padding:16px 20px;display:flex;gap:14px;">
+          <div style="flex-shrink:0;text-align:center;">
+            <img src="${photoSrc}" style="width:88px;height:100px;border-radius:12px;object-fit:cover;border:3px solid ${theme.accent};background:#fff;" onerror="this.src='school_assets/school_logo.png'">
             ${qrHtml}
             ${barcodeHtml}
           </div>
-          <div style="flex: 1; font-size: 0.85rem; color: ${textColor};">
-            <div style="margin-bottom: 8px;">
-              <div style="font-size: 1.15rem; font-weight: 700;">${student.name || '-'}</div>
-              <div style="font-size: 0.75rem; color: ${mutedColor};">S/O ${student.father_name || '-'}</div>
+          <div style="flex:1;font-size:0.83rem;color:${textColor};">
+            <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
+              <div style="font-size:1.1rem;font-weight:700;">${student.name||'-'}</div>
+              <div style="font-size:0.7rem;color:${mutedColor};">S/O ${student.father_name||'-'}</div>
             </div>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr><td style="padding: 3px 0; color: ${mutedColor}; width: 80px;">ID No</td><td style="padding: 3px 0; font-weight: 600;">${student.student_id || '-'}</td></tr>
-              <tr><td style="padding: 3px 0; color: ${mutedColor};">Class</td><td style="padding: 3px 0; font-weight: 600;">${student.class_name || '-'} ${student.section_name || ''}</td></tr>
-              <tr><td style="padding: 3px 0; color: ${mutedColor};">Roll No</td><td style="padding: 3px 0; font-weight: 600;">${student.roll_no || '-'}</td></tr>
-              <tr><td style="padding: 3px 0; color: ${mutedColor};">Phone</td><td style="padding: 3px 0; font-weight: 600;">${student.phone || '-'}</td></tr>
-              <tr><td style="padding: 3px 0; color: ${mutedColor};">DOB</td><td style="padding: 3px 0; font-weight: 600;">${student.dob || '-'}</td></tr>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:3px 0;color:${mutedColor};width:75px;">ID No</td><td style="padding:3px 0;font-weight:600;">${student.student_id||'-'}</td></tr>
+              <tr><td style="padding:3px 0;color:${mutedColor};">Class</td><td style="padding:3px 0;font-weight:600;">${classSec}</td></tr>
+              <tr><td style="padding:3px 0;color:${mutedColor};">Roll No</td><td style="padding:3px 0;font-weight:600;">${student.roll_no||'-'}</td></tr>
+              <tr><td style="padding:3px 0;color:${mutedColor};">Phone</td><td style="padding:3px 0;font-weight:600;">${student.phone||'-'}</td></tr>
+              <tr><td style="padding:3px 0;color:${mutedColor};">DOB</td><td style="padding:3px 0;font-weight:600;">${student.dob||'-'}</td></tr>
             </table>
           </div>
         </div>
-        <!-- Footer -->
-        <div style="background: ${theme.headerBg}; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 2px solid ${theme.accent};">
-          <div style="text-align: center; flex:1;">
-            <div style="height: 1px; width: 80px; background: ${mutedColor}; margin: 0 auto 4px;"></div>
-            <div style="font-size: 0.7rem; color: ${textColor};">Principal Signature</div>
+        <div style="background:${theme.headerBg};padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid ${theme.accent};">
+          <div style="text-align:center;flex:1;"><div style="height:1px;width:70px;background:${theme.accent};margin:0 auto 3px;"></div><div style="font-size:0.65rem;color:${textColor};">Principal Signature</div></div>
+          <div style="text-align:center;flex:1;font-size:0.6rem;color:${mutedColor};">Valid ${year}</div>
+        </div></div>`;
+    }
+
+    if (design === 'ocean') {
+      return `<div style="width:340px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(14,116,144,0.3);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:${theme.bg};">
+        <div style="background:${theme.headerBg};padding:16px;text-align:center;position:relative;">
+          <div style="position:absolute;bottom:0;left:0;right:0;height:30px;background:#fff;clip-path:ellipse(60% 100% at 50% 100%);"></div>
+          <img src="${logoSrc}" style="height:48px;border-radius:10px;margin-bottom:6px;position:relative;z-index:1;" onerror="this.style.display='none'">
+          <div style="font-size:1.05rem;font-weight:800;color:#fff;position:relative;z-index:1;">${schoolName||'SCHOOL'}</div>
+        </div>
+        <div style="padding:20px 20px 14px;display:flex;gap:14px;">
+          <div style="flex-shrink:0;text-align:center;">
+            <img src="${photoSrc}" style="width:90px;height:100px;border-radius:14px;object-fit:cover;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,0.2);background:#fff;" onerror="this.src='school_assets/school_logo.png'">
+            <div style="font-size:0.65rem;color:#fff;margin-top:6px;background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:10px;">Student Card</div>
           </div>
-          <div style="text-align: center; flex:1;">
-            <div style="font-size: 0.65rem; color: ${mutedColor};">Valid for current academic year</div>
-          </div>
-          <div style="text-align: center; flex:1;">
-            <div style="font-size: 0.65rem; color: ${mutedColor};">${new Date().getFullYear()}</div>
+          <div style="flex:1;font-size:0.83rem;color:#fff;">
+            <div style="font-size:1.1rem;font-weight:700;">${student.name||'-'}</div>
+            <div style="font-size:0.7rem;color:rgba(255,255,255,0.7);margin-bottom:8px;">S/O ${student.father_name||'-'}</div>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:3px 0;color:rgba(255,255,255,0.7);width:75px;">ID</td><td style="padding:3px 0;font-weight:600;">${student.student_id||'-'}</td></tr>
+              <tr><td style="padding:3px 0;color:rgba(255,255,255,0.7);">Class</td><td style="padding:3px 0;font-weight:600;">${classSec}</td></tr>
+              <tr><td style="padding:3px 0;color:rgba(255,255,255,0.7);">Roll</td><td style="padding:3px 0;font-weight:600;">${student.roll_no||'-'}</td></tr>
+              <tr><td style="padding:3px 0;color:rgba(255,255,255,0.7);">Phone</td><td style="padding:3px 0;font-weight:600;">${student.phone||'-'}</td></tr>
+            </table>
+            ${qrHtml}
+            ${barcodeHtml}
           </div>
         </div>
-      </div>`;
+        <div style="background:${theme.headerBg};padding:10px 20px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="text-align:center;flex:1;"><div style="height:1px;width:60px;background:rgba(255,255,255,0.4);margin:0 auto 3px;"></div><div style="font-size:0.62rem;color:rgba(255,255,255,0.7);">Principal</div></div>
+          <div style="text-align:center;flex:1;font-size:0.58rem;color:rgba(255,255,255,0.5);">Academic ${year}</div>
+        </div></div>`;
+    }
+
+    if (design === 'sunset') {
+      return `<div style="width:340px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(194,65,12,0.3);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:${theme.bg};">
+        <div style="background:${theme.headerBg};padding:14px 20px;text-align:center;border-left:6px solid ${theme.accent};">
+          <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+            <img src="${logoSrc}" style="height:46px;border-radius:8px;" onerror="this.style.display='none'">
+            <div style="text-align:left;"><div style="font-size:1rem;font-weight:800;color:#fff;">${schoolName||'SCHOOL'}</div><div style="font-size:0.65rem;color:rgba(255,255,255,0.7);">Student Identity Card</div></div>
+          </div>
+        </div>
+        <div style="padding:14px 20px;display:flex;gap:14px;">
+          <div style="flex-shrink:0;">
+            <img src="${photoSrc}" style="width:85px;height:95px;border-radius:10px;object-fit:cover;border:3px solid ${theme.accent};background:#fff;" onerror="this.src='school_assets/school_logo.png'">
+            ${qrHtml}
+          </div>
+          <div style="flex:1;font-size:0.83rem;color:#fff;">
+            <div style="font-size:1.12rem;font-weight:700;">${student.name||'-'}</div>
+            <div style="font-size:0.7rem;color:rgba(255,255,255,0.7);margin-bottom:6px;">S/O ${student.father_name||'-'}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
+              <div><span style="color:rgba(255,255,255,0.6);font-size:0.7rem;">ID</span><br><strong style="font-size:0.82rem;">${student.student_id||'-'}</strong></div>
+              <div><span style="color:rgba(255,255,255,0.6);font-size:0.7rem;">Class</span><br><strong style="font-size:0.82rem;">${classSec}</strong></div>
+              <div><span style="color:rgba(255,255,255,0.6);font-size:0.7rem;">Roll</span><br><strong style="font-size:0.82rem;">${student.roll_no||'-'}</strong></div>
+              <div><span style="color:rgba(255,255,255,0.6);font-size:0.7rem;">Phone</span><br><strong style="font-size:0.82rem;">${student.phone||'-'}</strong></div>
+            </div>
+            ${barcodeHtml}
+          </div>
+        </div>
+        <div style="background:${theme.headerBg};padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid ${theme.accent};">
+          <div style="text-align:center;flex:1;"><div style="height:1px;width:70px;background:${theme.accent};margin:0 auto 3px;"></div><div style="font-size:0.62rem;color:rgba(255,255,255,0.7);">Principal Signature</div></div>
+          <div style="text-align:center;flex:1;font-size:0.58rem;color:rgba(255,255,255,0.5);">Valid ${year}</div>
+        </div></div>`;
+    }
+
+    if (design === 'corporate') {
+      return `<div style="width:340px;border-radius:4px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.15);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;border:1px solid #d1d5db;">
+        <div style="background:${theme.headerBg};padding:12px 20px;display:flex;align-items:center;gap:12px;">
+          <img src="${logoSrc}" style="height:40px;border-radius:4px;" onerror="this.style.display='none'">
+          <div><div style="font-size:0.95rem;font-weight:700;color:#fff;">${schoolName||'SCHOOL'}</div><div style="font-size:0.6rem;color:#9ca3af;">STUDENT IDENTIFICATION</div></div>
+        </div>
+        <div style="padding:16px 20px;display:flex;gap:14px;">
+          <div style="flex-shrink:0;">
+            <img src="${photoSrc}" style="width:85px;height:100px;border-radius:4px;object-fit:cover;border:2px solid #d1d5db;background:#f3f4f6;" onerror="this.src='school_assets/school_logo.png'">
+            ${qrHtml}
+          </div>
+          <div style="flex:1;font-size:0.82rem;color:#1f2937;">
+            <div style="border-bottom:2px solid #e5e7eb;padding-bottom:6px;margin-bottom:6px;">
+              <div style="font-size:1.08rem;font-weight:700;">${student.name||'-'}</div>
+              <div style="font-size:0.7rem;color:#6b7280;">S/O ${student.father_name||'-'}</div>
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:2px 0;color:#9ca3af;width:75px;font-size:0.75rem;">ID No</td><td style="padding:2px 0;font-weight:600;font-size:0.8rem;">${student.student_id||'-'}</td></tr>
+              <tr><td style="padding:2px 0;color:#9ca3af;font-size:0.75rem;">Class</td><td style="padding:2px 0;font-weight:600;font-size:0.8rem;">${classSec}</td></tr>
+              <tr><td style="padding:2px 0;color:#9ca3af;font-size:0.75rem;">Roll No</td><td style="padding:2px 0;font-weight:600;font-size:0.8rem;">${student.roll_no||'-'}</td></tr>
+              <tr><td style="padding:2px 0;color:#9ca3af;font-size:0.75rem;">Phone</td><td style="padding:2px 0;font-weight:600;font-size:0.8rem;">${student.phone||'-'}</td></tr>
+            </table>
+            ${barcodeHtml}
+          </div>
+        </div>
+        <div style="background:#f9fafb;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e5e7eb;">
+          <div style="text-align:center;flex:1;"><div style="height:1px;width:70px;background:#9ca3af;margin:0 auto 3px;"></div><div style="font-size:0.6rem;color:#6b7280;">Authorized Signature</div></div>
+          <div style="text-align:center;flex:1;font-size:0.58rem;color:#9ca3af;">Academic Year ${year}</div>
+        </div></div>`;
+    }
+
+    if (design === 'rose') {
+      return `<div style="width:340px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(159,18,57,0.3);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:${theme.bg};">
+        <div style="background:${theme.headerBg};padding:14px 20px;text-align:center;position:relative;">
+          <div style="position:absolute;top:8px;right:12px;width:50px;height:50px;border-radius:50%;border:2px solid rgba(255,255,255,0.2);"></div>
+          <img src="${logoSrc}" style="height:48px;border-radius:50%;border:2px solid ${theme.accent};margin-bottom:6px;" onerror="this.style.display='none'">
+          <div style="font-size:1.05rem;font-weight:800;color:#fff;letter-spacing:0.5px;">${schoolName||'SCHOOL'}</div>
+          <div style="font-size:0.65rem;color:rgba(255,255,255,0.7);margin-top:2px;">Student Identity Card</div>
+        </div>
+        <div style="padding:14px 20px;display:flex;gap:14px;">
+          <div style="flex-shrink:0;text-align:center;">
+            <img src="${photoSrc}" style="width:88px;height:100px;border-radius:50%;object-fit:cover;border:3px solid ${theme.accent};background:#fff;" onerror="this.src='school_assets/school_logo.png'">
+            ${qrHtml}
+          </div>
+          <div style="flex:1;font-size:0.83rem;color:#fff;">
+            <div style="font-size:1.12rem;font-weight:700;">${student.name||'-'}</div>
+            <div style="font-size:0.7rem;color:rgba(255,255,255,0.7);margin-bottom:8px;">S/O ${student.father_name||'-'}</div>
+            <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:6px 8px;">
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:2px 0;color:rgba(255,255,255,0.6);width:70px;font-size:0.75rem;">ID</td><td style="padding:2px 0;font-weight:600;">${student.student_id||'-'}</td></tr>
+                <tr><td style="padding:2px 0;color:rgba(255,255,255,0.6);font-size:0.75rem;">Class</td><td style="padding:2px 0;font-weight:600;">${classSec}</td></tr>
+                <tr><td style="padding:2px 0;color:rgba(255,255,255,0.6);font-size:0.75rem;">Roll</td><td style="padding:2px 0;font-weight:600;">${student.roll_no||'-'}</td></tr>
+                <tr><td style="padding:2px 0;color:rgba(255,255,255,0.6);font-size:0.75rem;">Phone</td><td style="padding:2px 0;font-weight:600;">${student.phone||'-'}</td></tr>
+              </table>
+            </div>
+            ${barcodeHtml}
+          </div>
+        </div>
+        <div style="background:${theme.headerBg};padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid ${theme.accent};">
+          <div style="text-align:center;flex:1;"><div style="height:1px;width:60px;background:${theme.accent};margin:0 auto 3px;"></div><div style="font-size:0.62rem;color:rgba(255,255,255,0.7);">Principal</div></div>
+          <div style="text-align:center;flex:1;font-size:0.58rem;color:rgba(255,255,255,0.5);">${year}</div>
+        </div></div>`;
+    }
+
+    if (design === 'dark') {
+      return `<div style="width:340px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.5);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:${theme.bg};border:1px solid #334155;">
+        <div style="background:${theme.headerBg};padding:14px 20px;display:flex;align-items:center;gap:12px;border-bottom:2px solid ${theme.accent};">
+          <img src="${logoSrc}" style="height:44px;border-radius:8px;border:1px solid #334155;" onerror="this.style.display='none'">
+          <div><div style="font-size:1rem;font-weight:800;color:${textColor};">${schoolName||'SCHOOL'}</div><div style="font-size:0.6rem;color:${mutedColor};">STUDENT ID</div></div>
+          <div style="margin-left:auto;background:${theme.accent};color:#000;font-size:0.55rem;font-weight:700;padding:2px 8px;border-radius:10px;">STUDENT</div>
+        </div>
+        <div style="padding:16px 20px;display:flex;gap:14px;">
+          <div style="flex-shrink:0;">
+            <img src="${photoSrc}" style="width:88px;height:100px;border-radius:10px;object-fit:cover;border:2px solid ${theme.accent};background:#1e293b;" onerror="this.src='school_assets/school_logo.png'">
+            ${qrHtml}
+          </div>
+          <div style="flex:1;font-size:0.83rem;color:${textColor};">
+            <div style="font-size:1.12rem;font-weight:700;">${student.name||'-'}</div>
+            <div style="font-size:0.7rem;color:${mutedColor};margin-bottom:8px;">S/O ${student.father_name||'-'}</div>
+            <div style="border-left:2px solid ${theme.accent};padding-left:8px;">
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:3px 0;color:${mutedColor};width:75px;">ID No</td><td style="padding:3px 0;font-weight:600;">${student.student_id||'-'}</td></tr>
+                <tr><td style="padding:3px 0;color:${mutedColor};">Class</td><td style="padding:3px 0;font-weight:600;">${classSec}</td></tr>
+                <tr><td style="padding:3px 0;color:${mutedColor};">Roll No</td><td style="padding:3px 0;font-weight:600;">${student.roll_no||'-'}</td></tr>
+                <tr><td style="padding:3px 0;color:${mutedColor};">Phone</td><td style="padding:3px 0;font-weight:600;">${student.phone||'-'}</td></tr>
+                <tr><td style="padding:3px 0;color:${mutedColor};">DOB</td><td style="padding:3px 0;font-weight:600;">${student.dob||'-'}</td></tr>
+              </table>
+            </div>
+            ${barcodeHtml}
+          </div>
+        </div>
+        <div style="background:${theme.headerBg};padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #334155;">
+          <div style="text-align:center;flex:1;"><div style="height:1px;width:70px;background:#334155;margin:0 auto 3px;"></div><div style="font-size:0.62rem;color:${mutedColor};">Principal Signature</div></div>
+          <div style="text-align:center;flex:1;font-size:0.58rem;color:#475569;">${year}</div>
+        </div></div>`;
+    }
+
+    // default: classic / modern / premium
+    return `<div style="width:340px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:${theme.bg};">
+      <div style="background:${theme.headerBg};padding:16px 20px;text-align:center;border-bottom:3px solid ${theme.accent};">
+        <img src="${logoSrc}" style="height:50px;border-radius:8px;margin-bottom:6px;" onerror="this.style.display='none'">
+        <div style="font-size:1.1rem;font-weight:800;color:${textColor};letter-spacing:1px;">${schoolName||'SCHOOL NAME'}</div>
+        <div style="font-size:0.7rem;color:${mutedColor};margin-top:2px;">Student Identity Card</div>
+      </div>
+      <div style="padding:16px 20px;display:flex;gap:16px;">
+        <div style="flex-shrink:0;">
+          <img src="${photoSrc}" style="width:90px;height:100px;border-radius:10px;object-fit:cover;border:3px solid ${theme.accent};background:#fff;" onerror="this.src='school_assets/school_logo.png'">
+          ${qrHtml}
+          ${barcodeHtml}
+        </div>
+        <div style="flex:1;font-size:0.85rem;color:${textColor};">
+          <div style="margin-bottom:8px;">
+            <div style="font-size:1.15rem;font-weight:700;">${student.name||'-'}</div>
+            <div style="font-size:0.75rem;color:${mutedColor};">S/O ${student.father_name||'-'}</div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:3px 0;color:${mutedColor};width:80px;">ID No</td><td style="padding:3px 0;font-weight:600;">${student.student_id||'-'}</td></tr>
+            <tr><td style="padding:3px 0;color:${mutedColor};">Class</td><td style="padding:3px 0;font-weight:600;">${classSec}</td></tr>
+            <tr><td style="padding:3px 0;color:${mutedColor};">Roll No</td><td style="padding:3px 0;font-weight:600;">${student.roll_no||'-'}</td></tr>
+            <tr><td style="padding:3px 0;color:${mutedColor};">Phone</td><td style="padding:3px 0;font-weight:600;">${student.phone||'-'}</td></tr>
+            <tr><td style="padding:3px 0;color:${mutedColor};">DOB</td><td style="padding:3px 0;font-weight:600;">${student.dob||'-'}</td></tr>
+          </table>
+        </div>
+      </div>
+      <div style="background:${theme.headerBg};padding:12px 20px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid ${theme.accent};">
+        <div style="text-align:center;flex:1;"><div style="height:1px;width:80px;background:${mutedColor};margin:0 auto 4px;"></div><div style="font-size:0.7rem;color:${textColor};">Principal Signature</div></div>
+        <div style="text-align:center;flex:1;"><div style="font-size:0.65rem;color:${mutedColor};">Valid for current academic year</div></div>
+        <div style="text-align:center;flex:1;"><div style="font-size:0.65rem;color:${mutedColor};">${year}</div></div>
+      </div></div>`;
   }
 
   function generateTeacherIdCardHtml(teacher, design, schoolName, logoPath, includeQr) {
     const theme = idCardThemes[design] || idCardThemes.classic;
-    const qrHtml = includeQr ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(teacher.phone || teacher.name || '')}" alt="QR" style="width:80px;height:80px;">` : '';
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(teacher.phone || teacher.name || '')}`;
+    const qrHtml = includeQr ? `<img src="${qrUrl}" alt="QR" style="width:80px;height:80px;border-radius:6px;">` : '';
     const logoSrc = logoPath ? imgSrc(logoPath, 'school_assets/school_logo.png') : 'school_assets/school_logo.png';
-    const isMinimal = design === 'minimal';
-    const textColor = isMinimal ? '#1e293b' : '#fff';
-    const mutedColor = isMinimal ? '#64748b' : 'rgba(255,255,255,0.7)';
+    const isLight = design === 'minimal' || design === 'corporate';
+    const textColor = isLight ? '#1e293b' : '#fff';
+    const mutedColor = isLight ? '#64748b' : 'rgba(255,255,255,0.65)';
+    const year = new Date().getFullYear();
 
-    return `
-      <div style="width:340px; border-radius:16px; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3); font-family: 'Segoe UI', Arial, sans-serif; flex-shrink:0; background: ${theme.bg};">
-        <div style="background: ${theme.headerBg}; padding: 16px 20px; text-align: center; border-bottom: 3px solid ${theme.accent};">
-          <img src="${logoSrc}" style="height: 50px; border-radius: 8px; margin-bottom: 6px;" onerror="this.style.display='none'">
-          <div style="font-size: 1.1rem; font-weight: 800; color: ${textColor}; letter-spacing: 1px;">${schoolName || 'SCHOOL NAME'}</div>
-          <div style="font-size: 0.7rem; color: ${mutedColor}; margin-top: 2px;">Teacher Identity Card</div>
+    if (design === 'minimal') {
+      return `<div style="width:340px;border:2px solid #cbd5e1;border-radius:12px;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;">
+        <div style="border-bottom:3px solid ${theme.accent};padding:14px 20px;display:flex;align-items:center;gap:12px;">
+          <img src="${logoSrc}" style="height:44px;border-radius:6px;" onerror="this.style.display='none'">
+          <div><div style="font-size:1rem;font-weight:800;color:#1e293b;">${schoolName||'SCHOOL'}</div><div style="font-size:0.65rem;color:#64748b;">Teacher ID Card</div></div>
         </div>
-        <div style="padding: 16px 20px; display: flex; gap: 16px;">
-          <div style="flex-shrink: 0; text-align: center;">
-            ${qrHtml}
-          </div>
-          <div style="flex: 1; font-size: 0.85rem; color: ${textColor};">
-            <div style="margin-bottom: 8px;">
-              <div style="font-size: 1.15rem; font-weight: 700;">${teacher.name || '-'}</div>
-              <div style="font-size: 0.75rem; color: ${mutedColor};">${teacher.subject || 'Teacher'}</div>
-            </div>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr><td style="padding: 3px 0; color: ${mutedColor}; width: 80px;">Phone</td><td style="padding: 3px 0; font-weight: 600;">${teacher.phone || '-'}</td></tr>
-              <tr><td style="padding: 3px 0; color: ${mutedColor};">Subject</td><td style="padding: 3px 0; font-weight: 600;">${teacher.subject || '-'}</td></tr>
-              <tr><td style="padding: 3px 0; color: ${mutedColor};">Qualification</td><td style="padding: 3px 0; font-weight: 600;">${teacher.qualification || '-'}</td></tr>
-              <tr><td style="padding: 3px 0; color: ${mutedColor};">Status</td><td style="padding: 3px 0; font-weight: 600;">${teacher.status || '-'}</td></tr>
+        <div style="padding:14px 20px;display:flex;gap:14px;">
+          <div style="flex-shrink:0;text-align:center;">${qrHtml}</div>
+          <div style="flex:1;font-size:0.82rem;color:#1e293b;">
+            <div style="font-size:1.1rem;font-weight:700;">${teacher.name||'-'}</div>
+            <div style="font-size:0.72rem;color:#64748b;margin-bottom:8px;">${teacher.subject||'Teacher'}</div>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:2px 0;color:#94a3b8;width:85px;">Phone</td><td style="padding:2px 0;font-weight:600;">${teacher.phone||'-'}</td></tr>
+              <tr><td style="padding:2px 0;color:#94a3b8;">Subject</td><td style="padding:2px 0;font-weight:600;">${teacher.subject||'-'}</td></tr>
+              <tr><td style="padding:2px 0;color:#94a3b8;">Qualification</td><td style="padding:2px 0;font-weight:600;">${teacher.qualification||'-'}</td></tr>
             </table>
           </div>
         </div>
-        <div style="background: ${theme.headerBg}; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 2px solid ${theme.accent};">
-          <div style="text-align: center; flex:1;"><div style="height:1px;width:80px;background:${mutedColor};margin:0 auto 4px;"></div><div style="font-size:0.7rem;color:${textColor};">Principal Signature</div></div>
-          <div style="text-align: center; flex:1;"><div style="font-size:0.65rem;color:${mutedColor};">Valid for current academic year</div></div>
-          <div style="text-align: center; flex:1;"><div style="font-size:0.65rem;color:${mutedColor};">${new Date().getFullYear()}</div></div>
+        <div style="padding:10px 20px;display:flex;justify-content:space-between;border-top:1px solid #e2e8f0;">
+          <div style="text-align:center;flex:1;"><div style="height:1px;width:70px;background:#94a3b8;margin:0 auto 3px;"></div><div style="font-size:0.62rem;color:#64748b;">Principal Signature</div></div>
+          <div style="text-align:center;flex:1;font-size:0.6rem;color:#94a3b8;">${year}</div>
+        </div></div>`;
+    }
+
+    if (design === 'royal') {
+      return `<div style="width:340px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(88,28,135,0.3);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:${theme.bg};">
+        <div style="background:${theme.headerBg};padding:14px 20px;text-align:center;border-bottom:3px solid ${theme.accent};position:relative;">
+          <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,${theme.accent},#fbbf24,${theme.accent});"></div>
+          <img src="${logoSrc}" style="height:48px;border-radius:50%;border:2px solid ${theme.accent};margin-bottom:6px;" onerror="this.style.display='none'">
+          <div style="font-size:1.05rem;font-weight:800;color:${textColor};letter-spacing:1px;">${schoolName||'SCHOOL'}</div>
+          <div style="font-size:0.65rem;color:${mutedColor};margin-top:2px;">Teacher Identity Card</div>
         </div>
-      </div>`;
+        <div style="padding:16px 20px;display:flex;gap:14px;">
+          <div style="flex-shrink:0;text-align:center;">${qrHtml}</div>
+          <div style="flex:1;font-size:0.83rem;color:${textColor};">
+            <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
+              <div style="font-size:1.1rem;font-weight:700;">${teacher.name||'-'}</div>
+              <div style="font-size:0.7rem;color:${mutedColor};">${teacher.subject||'Teacher'}</div>
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:3px 0;color:${mutedColor};width:85px;">Phone</td><td style="padding:3px 0;font-weight:600;">${teacher.phone||'-'}</td></tr>
+              <tr><td style="padding:3px 0;color:${mutedColor};">Subject</td><td style="padding:3px 0;font-weight:600;">${teacher.subject||'-'}</td></tr>
+              <tr><td style="padding:3px 0;color:${mutedColor};">Qualification</td><td style="padding:3px 0;font-weight:600;">${teacher.qualification||'-'}</td></tr>
+              <tr><td style="padding:3px 0;color:${mutedColor};">Status</td><td style="padding:3px 0;font-weight:600;">${teacher.status||'-'}</td></tr>
+            </table>
+          </div>
+        </div>
+        <div style="background:${theme.headerBg};padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid ${theme.accent};">
+          <div style="text-align:center;flex:1;"><div style="height:1px;width:70px;background:${theme.accent};margin:0 auto 3px;"></div><div style="font-size:0.65rem;color:${textColor};">Principal Signature</div></div>
+          <div style="text-align:center;flex:1;font-size:0.6rem;color:${mutedColor};">Valid ${year}</div>
+        </div></div>`;
+    }
+
+    if (design === 'dark') {
+      return `<div style="width:340px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.5);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:${theme.bg};border:1px solid #334155;">
+        <div style="background:${theme.headerBg};padding:14px 20px;display:flex;align-items:center;gap:12px;border-bottom:2px solid ${theme.accent};">
+          <img src="${logoSrc}" style="height:44px;border-radius:8px;border:1px solid #334155;" onerror="this.style.display='none'">
+          <div><div style="font-size:1rem;font-weight:800;color:${textColor};">${schoolName||'SCHOOL'}</div><div style="font-size:0.6rem;color:${mutedColor};">TEACHER ID</div></div>
+          <div style="margin-left:auto;background:${theme.accent};color:#000;font-size:0.55rem;font-weight:700;padding:2px 8px;border-radius:10px;">TEACHER</div>
+        </div>
+        <div style="padding:16px 20px;display:flex;gap:14px;">
+          <div style="flex-shrink:0;text-align:center;">${qrHtml}</div>
+          <div style="flex:1;font-size:0.83rem;color:${textColor};">
+            <div style="font-size:1.12rem;font-weight:700;">${teacher.name||'-'}</div>
+            <div style="font-size:0.7rem;color:${mutedColor};margin-bottom:8px;">${teacher.subject||'Teacher'}</div>
+            <div style="border-left:2px solid ${theme.accent};padding-left:8px;">
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:3px 0;color:${mutedColor};width:85px;">Phone</td><td style="padding:3px 0;font-weight:600;">${teacher.phone||'-'}</td></tr>
+                <tr><td style="padding:3px 0;color:${mutedColor};">Subject</td><td style="padding:3px 0;font-weight:600;">${teacher.subject||'-'}</td></tr>
+                <tr><td style="padding:3px 0;color:${mutedColor};">Qualification</td><td style="padding:3px 0;font-weight:600;">${teacher.qualification||'-'}</td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div style="background:${theme.headerBg};padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #334155;">
+          <div style="text-align:center;flex:1;"><div style="height:1px;width:70px;background:#334155;margin:0 auto 3px;"></div><div style="font-size:0.62rem;color:${mutedColor};">Principal Signature</div></div>
+          <div style="text-align:center;flex:1;font-size:0.58rem;color:#475569;">${year}</div>
+        </div></div>`;
+    }
+
+    if (design === 'ocean') {
+      return `<div style="width:340px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(14,116,144,0.3);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:${theme.bg};">
+        <div style="background:${theme.headerBg};padding:16px;text-align:center;position:relative;">
+          <div style="position:absolute;bottom:0;left:0;right:0;height:30px;background:#fff;clip-path:ellipse(60% 100% at 50% 100%);"></div>
+          <img src="${logoSrc}" style="height:48px;border-radius:10px;margin-bottom:6px;position:relative;z-index:1;" onerror="this.style.display='none'">
+          <div style="font-size:1.05rem;font-weight:800;color:#fff;position:relative;z-index:1;">${schoolName||'SCHOOL'}</div>
+        </div>
+        <div style="padding:20px 20px 14px;display:flex;gap:14px;">
+          <div style="flex-shrink:0;text-align:center;">
+            <div style="font-size:0.65rem;color:#fff;background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:10px;">Teacher Card</div>
+            ${qrHtml}
+          </div>
+          <div style="flex:1;font-size:0.83rem;color:#fff;">
+            <div style="font-size:1.1rem;font-weight:700;">${teacher.name||'-'}</div>
+            <div style="font-size:0.7rem;color:rgba(255,255,255,0.7);margin-bottom:8px;">${teacher.subject||'Teacher'}</div>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:3px 0;color:rgba(255,255,255,0.7);width:85px;">Phone</td><td style="padding:3px 0;font-weight:600;">${teacher.phone||'-'}</td></tr>
+              <tr><td style="padding:3px 0;color:rgba(255,255,255,0.7);">Subject</td><td style="padding:3px 0;font-weight:600;">${teacher.subject||'-'}</td></tr>
+              <tr><td style="padding:3px 0;color:rgba(255,255,255,0.7);">Qualification</td><td style="padding:3px 0;font-weight:600;">${teacher.qualification||'-'}</td></tr>
+            </table>
+          </div>
+        </div>
+        <div style="background:${theme.headerBg};padding:10px 20px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="text-align:center;flex:1;"><div style="height:1px;width:60px;background:rgba(255,255,255,0.4);margin:0 auto 3px;"></div><div style="font-size:0.62rem;color:rgba(255,255,255,0.7);">Principal</div></div>
+          <div style="text-align:center;flex:1;font-size:0.58rem;color:rgba(255,255,255,0.5);">Academic ${year}</div>
+        </div></div>`;
+    }
+
+    // default: classic/modern/premium/sunset/corporate/rose
+    return `<div style="width:340px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:${theme.bg};">
+      <div style="background:${theme.headerBg};padding:16px 20px;text-align:center;border-bottom:3px solid ${theme.accent};">
+        <img src="${logoSrc}" style="height:50px;border-radius:8px;margin-bottom:6px;" onerror="this.style.display='none'">
+        <div style="font-size:1.1rem;font-weight:800;color:${textColor};letter-spacing:1px;">${schoolName||'SCHOOL NAME'}</div>
+        <div style="font-size:0.7rem;color:${mutedColor};margin-top:2px;">Teacher Identity Card</div>
+      </div>
+      <div style="padding:16px 20px;display:flex;gap:16px;">
+        <div style="flex-shrink:0;text-align:center;">${qrHtml}</div>
+        <div style="flex:1;font-size:0.85rem;color:${textColor};">
+          <div style="margin-bottom:8px;">
+            <div style="font-size:1.15rem;font-weight:700;">${teacher.name||'-'}</div>
+            <div style="font-size:0.75rem;color:${mutedColor};">${teacher.subject||'Teacher'}</div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:3px 0;color:${mutedColor};width:85px;">Phone</td><td style="padding:3px 0;font-weight:600;">${teacher.phone||'-'}</td></tr>
+            <tr><td style="padding:3px 0;color:${mutedColor};">Subject</td><td style="padding:3px 0;font-weight:600;">${teacher.subject||'-'}</td></tr>
+            <tr><td style="padding:3px 0;color:${mutedColor};">Qualification</td><td style="padding:3px 0;font-weight:600;">${teacher.qualification||'-'}</td></tr>
+            <tr><td style="padding:3px 0;color:${mutedColor};">Status</td><td style="padding:3px 0;font-weight:600;">${teacher.status||'-'}</td></tr>
+          </table>
+        </div>
+      </div>
+      <div style="background:${theme.headerBg};padding:12px 20px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid ${theme.accent};">
+        <div style="text-align:center;flex:1;"><div style="height:1px;width:80px;background:${mutedColor};margin:0 auto 4px;"></div><div style="font-size:0.7rem;color:${textColor};">Principal Signature</div></div>
+        <div style="text-align:center;flex:1;"><div style="font-size:0.65rem;color:${mutedColor};">Valid for current academic year</div></div>
+        <div style="text-align:center;flex:1;"><div style="font-size:0.65rem;color:${mutedColor};">${year}</div></div>
+      </div></div>`;
   }
 
   function generateStaffIdCardHtml(staff, design, schoolName, logoPath, includeQr) {
     const theme = idCardThemes[design] || idCardThemes.classic;
-    const qrHtml = includeQr ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(staff.name || '')}" alt="QR" style="width:80px;height:80px;">` : '';
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(staff.name || '')}`;
+    const qrHtml = includeQr ? `<img src="${qrUrl}" alt="QR" style="width:80px;height:80px;border-radius:6px;">` : '';
     const logoSrc = logoPath ? imgSrc(logoPath, 'school_assets/school_logo.png') : 'school_assets/school_logo.png';
-    const isMinimal = design === 'minimal';
-    const textColor = isMinimal ? '#1e293b' : '#fff';
-    const mutedColor = isMinimal ? '#64748b' : 'rgba(255,255,255,0.7)';
+    const isLight = design === 'minimal' || design === 'corporate';
+    const textColor = isLight ? '#1e293b' : '#fff';
+    const mutedColor = isLight ? '#64748b' : 'rgba(255,255,255,0.65)';
+    const year = new Date().getFullYear();
 
-    return `
-      <div style="width:340px; border-radius:16px; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3); font-family: 'Segoe UI', Arial, sans-serif; flex-shrink:0; background: ${theme.bg};">
-        <div style="background: ${theme.headerBg}; padding: 16px 20px; text-align: center; border-bottom: 3px solid ${theme.accent};">
-          <img src="${logoSrc}" style="height: 50px; border-radius: 8px; margin-bottom: 6px;" onerror="this.style.display='none'">
-          <div style="font-size: 1.1rem; font-weight: 800; color: ${textColor}; letter-spacing: 1px;">${schoolName || 'SCHOOL NAME'}</div>
-          <div style="font-size: 0.7rem; color: ${mutedColor}; margin-top: 2px;">Staff Identity Card</div>
+    if (design === 'minimal') {
+      return `<div style="width:340px;border:2px solid #cbd5e1;border-radius:12px;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;">
+        <div style="border-bottom:3px solid ${theme.accent};padding:14px 20px;display:flex;align-items:center;gap:12px;">
+          <img src="${logoSrc}" style="height:44px;border-radius:6px;" onerror="this.style.display='none'">
+          <div><div style="font-size:1rem;font-weight:800;color:#1e293b;">${schoolName||'SCHOOL'}</div><div style="font-size:0.65rem;color:#64748b;">Staff ID Card</div></div>
         </div>
-        <div style="padding: 16px 20px; display: flex; gap: 16px;">
-          <div style="flex-shrink: 0; text-align: center;">
-            ${qrHtml}
-          </div>
-          <div style="flex: 1; font-size: 0.85rem; color: ${textColor};">
-            <div style="margin-bottom: 8px;">
-              <div style="font-size: 1.15rem; font-weight: 700;">${staff.name || '-'}</div>
-              <div style="font-size: 0.75rem; color: ${mutedColor};">${staff.designation || 'Staff'}</div>
-            </div>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr><td style="padding: 3px 0; color: ${mutedColor}; width: 80px;">Phone</td><td style="padding: 3px 0; font-weight: 600;">${staff.phone || '-'}</td></tr>
-              <tr><td style="padding: 3px 0; color: ${mutedColor};">Designation</td><td style="padding: 3px 0; font-weight: 600;">${staff.designation || '-'}</td></tr>
-              <tr><td style="padding: 3px 0; color: ${mutedColor};">CNIC</td><td style="padding: 3px 0; font-weight: 600;">${staff.cnic || '-'}</td></tr>
+        <div style="padding:14px 20px;display:flex;gap:14px;">
+          <div style="flex-shrink:0;text-align:center;">${qrHtml}</div>
+          <div style="flex:1;font-size:0.82rem;color:#1e293b;">
+            <div style="font-size:1.1rem;font-weight:700;">${staff.name||'-'}</div>
+            <div style="font-size:0.72rem;color:#64748b;margin-bottom:8px;">${staff.designation||'Staff'}</div>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:2px 0;color:#94a3b8;width:85px;">Phone</td><td style="padding:2px 0;font-weight:600;">${staff.phone||'-'}</td></tr>
+              <tr><td style="padding:2px 0;color:#94a3b8;">Designation</td><td style="padding:2px 0;font-weight:600;">${staff.designation||'-'}</td></tr>
+              <tr><td style="padding:2px 0;color:#94a3b8;">CNIC</td><td style="padding:2px 0;font-weight:600;">${staff.cnic||'-'}</td></tr>
             </table>
           </div>
         </div>
-        <div style="background: ${theme.headerBg}; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 2px solid ${theme.accent};">
-          <div style="text-align: center; flex:1;"><div style="height:1px;width:80px;background:${mutedColor};margin:0 auto 4px;"></div><div style="font-size:0.7rem;color:${textColor};">Principal Signature</div></div>
-          <div style="text-align: center; flex:1;"><div style="font-size:0.65rem;color:${mutedColor};">Valid for current academic year</div></div>
-          <div style="text-align: center; flex:1;"><div style="font-size:0.65rem;color:${mutedColor};">${new Date().getFullYear()}</div></div>
+        <div style="padding:10px 20px;display:flex;justify-content:space-between;border-top:1px solid #e2e8f0;">
+          <div style="text-align:center;flex:1;"><div style="height:1px;width:70px;background:#94a3b8;margin:0 auto 3px;"></div><div style="font-size:0.62rem;color:#64748b;">Principal Signature</div></div>
+          <div style="text-align:center;flex:1;font-size:0.6rem;color:#94a3b8;">${year}</div>
+        </div></div>`;
+    }
+
+    if (design === 'royal') {
+      return `<div style="width:340px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(88,28,135,0.3);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:${theme.bg};">
+        <div style="background:${theme.headerBg};padding:14px 20px;text-align:center;border-bottom:3px solid ${theme.accent};position:relative;">
+          <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,${theme.accent},#fbbf24,${theme.accent});"></div>
+          <img src="${logoSrc}" style="height:48px;border-radius:50%;border:2px solid ${theme.accent};margin-bottom:6px;" onerror="this.style.display='none'">
+          <div style="font-size:1.05rem;font-weight:800;color:${textColor};letter-spacing:1px;">${schoolName||'SCHOOL'}</div>
+          <div style="font-size:0.65rem;color:${mutedColor};margin-top:2px;">Staff Identity Card</div>
         </div>
-      </div>`;
+        <div style="padding:16px 20px;display:flex;gap:14px;">
+          <div style="flex-shrink:0;text-align:center;">${qrHtml}</div>
+          <div style="flex:1;font-size:0.83rem;color:${textColor};">
+            <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
+              <div style="font-size:1.1rem;font-weight:700;">${staff.name||'-'}</div>
+              <div style="font-size:0.7rem;color:${mutedColor};">${staff.designation||'Staff'}</div>
+            </div>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:3px 0;color:${mutedColor};width:85px;">Phone</td><td style="padding:3px 0;font-weight:600;">${staff.phone||'-'}</td></tr>
+              <tr><td style="padding:3px 0;color:${mutedColor};">Designation</td><td style="padding:3px 0;font-weight:600;">${staff.designation||'-'}</td></tr>
+              <tr><td style="padding:3px 0;color:${mutedColor};">CNIC</td><td style="padding:3px 0;font-weight:600;">${staff.cnic||'-'}</td></tr>
+            </table>
+          </div>
+        </div>
+        <div style="background:${theme.headerBg};padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid ${theme.accent};">
+          <div style="text-align:center;flex:1;"><div style="height:1px;width:70px;background:${theme.accent};margin:0 auto 3px;"></div><div style="font-size:0.65rem;color:${textColor};">Principal Signature</div></div>
+          <div style="text-align:center;flex:1;font-size:0.6rem;color:${mutedColor};">Valid ${year}</div>
+        </div></div>`;
+    }
+
+    if (design === 'dark') {
+      return `<div style="width:340px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.5);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:${theme.bg};border:1px solid #334155;">
+        <div style="background:${theme.headerBg};padding:14px 20px;display:flex;align-items:center;gap:12px;border-bottom:2px solid ${theme.accent};">
+          <img src="${logoSrc}" style="height:44px;border-radius:8px;border:1px solid #334155;" onerror="this.style.display='none'">
+          <div><div style="font-size:1rem;font-weight:800;color:${textColor};">${schoolName||'SCHOOL'}</div><div style="font-size:0.6rem;color:${mutedColor};">STAFF ID</div></div>
+          <div style="margin-left:auto;background:${theme.accent};color:#000;font-size:0.55rem;font-weight:700;padding:2px 8px;border-radius:10px;">STAFF</div>
+        </div>
+        <div style="padding:16px 20px;display:flex;gap:14px;">
+          <div style="flex-shrink:0;text-align:center;">${qrHtml}</div>
+          <div style="flex:1;font-size:0.83rem;color:${textColor};">
+            <div style="font-size:1.12rem;font-weight:700;">${staff.name||'-'}</div>
+            <div style="font-size:0.7rem;color:${mutedColor};margin-bottom:8px;">${staff.designation||'Staff'}</div>
+            <div style="border-left:2px solid ${theme.accent};padding-left:8px;">
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:3px 0;color:${mutedColor};width:85px;">Phone</td><td style="padding:3px 0;font-weight:600;">${staff.phone||'-'}</td></tr>
+                <tr><td style="padding:3px 0;color:${mutedColor};">Designation</td><td style="padding:3px 0;font-weight:600;">${staff.designation||'-'}</td></tr>
+                <tr><td style="padding:3px 0;color:${mutedColor};">CNIC</td><td style="padding:3px 0;font-weight:600;">${staff.cnic||'-'}</td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div style="background:${theme.headerBg};padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #334155;">
+          <div style="text-align:center;flex:1;"><div style="height:1px;width:70px;background:#334155;margin:0 auto 3px;"></div><div style="font-size:0.62rem;color:${mutedColor};">Principal Signature</div></div>
+          <div style="text-align:center;flex:1;font-size:0.58rem;color:#475569;">${year}</div>
+        </div></div>`;
+    }
+
+    // default: classic/modern/premium/ocean/sunset/corporate/rose
+    return `<div style="width:340px;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:${theme.bg};">
+      <div style="background:${theme.headerBg};padding:16px 20px;text-align:center;border-bottom:3px solid ${theme.accent};">
+        <img src="${logoSrc}" style="height:50px;border-radius:8px;margin-bottom:6px;" onerror="this.style.display='none'">
+        <div style="font-size:1.1rem;font-weight:800;color:${textColor};letter-spacing:1px;">${schoolName||'SCHOOL NAME'}</div>
+        <div style="font-size:0.7rem;color:${mutedColor};margin-top:2px;">Staff Identity Card</div>
+      </div>
+      <div style="padding:16px 20px;display:flex;gap:16px;">
+        <div style="flex-shrink:0;text-align:center;">${qrHtml}</div>
+        <div style="flex:1;font-size:0.85rem;color:${textColor};">
+          <div style="margin-bottom:8px;">
+            <div style="font-size:1.15rem;font-weight:700;">${staff.name||'-'}</div>
+            <div style="font-size:0.75rem;color:${mutedColor};">${staff.designation||'Staff'}</div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:3px 0;color:${mutedColor};width:85px;">Phone</td><td style="padding:3px 0;font-weight:600;">${staff.phone||'-'}</td></tr>
+            <tr><td style="padding:3px 0;color:${mutedColor};">Designation</td><td style="padding:3px 0;font-weight:600;">${staff.designation||'-'}</td></tr>
+            <tr><td style="padding:3px 0;color:${mutedColor};">CNIC</td><td style="padding:3px 0;font-weight:600;">${staff.cnic||'-'}</td></tr>
+          </table>
+        </div>
+      </div>
+      <div style="background:${theme.headerBg};padding:12px 20px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid ${theme.accent};">
+        <div style="text-align:center;flex:1;"><div style="height:1px;width:80px;background:${mutedColor};margin:0 auto 4px;"></div><div style="font-size:0.7rem;color:${textColor};">Principal Signature</div></div>
+        <div style="text-align:center;flex:1;"><div style="font-size:0.65rem;color:${mutedColor};">Valid for current academic year</div></div>
+        <div style="text-align:center;flex:1;"><div style="font-size:0.65rem;color:${mutedColor};">${year}</div></div>
+      </div></div>`;
   }
 
   // Student ID Card: Generate
@@ -1190,6 +1602,82 @@ document.addEventListener('DOMContentLoaded', () => {
     printWindow.document.write(`<html><head><title>Staff ID Card</title><style>@media print{body{margin:0;}}body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f5f9;}}</style></head><body>${content}</body></html>`);
     printWindow.document.close();
     setTimeout(() => { printWindow.print(); }, 500);
+  });
+
+  // ==========================================
+  // MODULE: CLASS-WISE BATCH ID CARD GENERATOR
+  // ==========================================
+
+  async function loadPMIdCardClasswise() {
+    try {
+      const classes = await apiCall('/students/classes');
+      const classSelect = document.getElementById('idcard-cw-class');
+      if (classSelect) {
+        classSelect.innerHTML = '<option value="">-- Select Class --</option>';
+        classes.forEach(c => {
+          const name = typeof c === 'object' ? c.class_name : c;
+          classSelect.innerHTML += `<option value="${name}">${name}</option>`;
+        });
+      }
+    } catch (e) {}
+  }
+
+  document.getElementById('idcard-cw-class').addEventListener('change', async function() {
+    const className = this.value;
+    document.getElementById('btn-idcard-cw-generate').disabled = true;
+    document.getElementById('idcard-cw-info').style.display = 'none';
+    document.getElementById('idcard-cw-preview-container').style.display = 'none';
+    if (!className) return;
+    try {
+      const students = await apiCall(`/students?class_name=${encodeURIComponent(className)}`);
+      document.getElementById('idcard-cw-count').textContent = students.length;
+      document.getElementById('idcard-cw-classname').textContent = className;
+      document.getElementById('idcard-cw-info').style.display = 'block';
+      document.getElementById('btn-idcard-cw-generate').disabled = students.length === 0;
+      document.getElementById('idcard-cw-class').dataset.studentsData = JSON.stringify(students);
+    } catch (e) {}
+  });
+
+  document.getElementById('btn-idcard-cw-generate').addEventListener('click', async () => {
+    const className = document.getElementById('idcard-cw-class').value;
+    const design = document.getElementById('idcard-cw-design').value;
+    const includeQr = document.getElementById('idcard-cw-qr').value === '1';
+    const includeBarcode = document.getElementById('idcard-cw-barcode').value === '1';
+    const colsPerRow = parseInt(document.getElementById('idcard-cw-layout').value) || 3;
+    const students = JSON.parse(document.getElementById('idcard-cw-class').dataset.studentsData || '[]');
+    if (!students.length) { showToast('No students found for this class', true); return; }
+
+    let settings = {};
+    try { settings = await apiCall('/settings'); } catch (e) {}
+
+    let cardsHtml = '';
+    for (const s of students) {
+      const fullStudent = await apiCall(`/students/${s.id}`).then(d => d.student).catch(() => s);
+      cardsHtml += generateIdCardHtml(fullStudent, design, settings.school_name, settings.logo_path, includeQr, includeBarcode);
+    }
+
+    const container = document.getElementById('idcard-cw-printable');
+    container.style.gridTemplateColumns = `repeat(${colsPerRow}, 1fr)`;
+    container.style.display = 'grid';
+    container.innerHTML = cardsHtml;
+    document.getElementById('idcard-cw-preview-container').style.display = 'block';
+  });
+
+  document.getElementById('btn-idcard-cw-print').addEventListener('click', () => {
+    const content = document.getElementById('idcard-cw-printable').innerHTML;
+    const colsPerRow = document.getElementById('idcard-cw-layout').value || 3;
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<html><head><title>Class ID Cards</title><style>
+      @media print{body{margin:0;}}
+      body{background:#f1f5f9;padding:20px;}
+      .cards-grid{display:grid;grid-template-columns:repeat(${colsPerRow},1fr);gap:12px;justify-items:center;}
+    </style></head><body><div class="cards-grid">${content}</div></body></html>`);
+    printWindow.document.close();
+    setTimeout(() => { printWindow.print(); }, 800);
+  });
+
+  document.getElementById('btn-idcard-cw-download').addEventListener('click', () => {
+    showToast('Tip: Use Print > Save as PDF to download all cards');
   });
 
   // ==========================================

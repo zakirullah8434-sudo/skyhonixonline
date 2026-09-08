@@ -487,6 +487,7 @@
               <button class="tab-btn active" data-tab="idcard-student">Student ID Card</button>
               <button class="tab-btn" data-tab="idcard-teacher">Teacher ID Card</button>
               <button class="tab-btn" data-tab="idcard-staff">Staff ID Card</button>
+              <button class="tab-btn" data-tab="idcard-classwise">Class-Wise Cards</button>
             </div>
 
             <!-- ===== Student ID Card Tab ===== -->
@@ -516,6 +517,12 @@
                       <option value="modern">Modern Green</option>
                       <option value="premium">Premium Gold</option>
                       <option value="minimal">Minimal White</option>
+                      <option value="royal">Royal Purple</option>
+                      <option value="ocean">Ocean Teal</option>
+                      <option value="sunset">Sunset Orange</option>
+                      <option value="corporate">Corporate Gray</option>
+                      <option value="rose">Rose Pink</option>
+                      <option value="dark">Dark Noir</option>
                     </select>
                   </div>
                 </div>
@@ -587,6 +594,12 @@
                       <option value="modern">Modern Green</option>
                       <option value="premium">Premium Gold</option>
                       <option value="minimal">Minimal White</option>
+                      <option value="royal">Royal Purple</option>
+                      <option value="ocean">Ocean Teal</option>
+                      <option value="sunset">Sunset Orange</option>
+                      <option value="corporate">Corporate Gray</option>
+                      <option value="rose">Rose Pink</option>
+                      <option value="dark">Dark Noir</option>
                     </select>
                   </div>
                   <div class="form-group">
@@ -654,6 +667,12 @@
                       <option value="modern">Modern Green</option>
                       <option value="premium">Premium Gold</option>
                       <option value="minimal">Minimal White</option>
+                      <option value="royal">Royal Purple</option>
+                      <option value="ocean">Ocean Teal</option>
+                      <option value="sunset">Sunset Orange</option>
+                      <option value="corporate">Corporate Gray</option>
+                      <option value="rose">Rose Pink</option>
+                      <option value="dark">Dark Noir</option>
                     </select>
                   </div>
                   <div class="form-group">
@@ -674,6 +693,82 @@
                   <button class="btn btn-primary" id="btn-idcard-staff-print">🖨️ Print ID Card</button>
                 </div>
                 <div id="idcard-staff-printable" style="display: flex; gap: 20px; flex-wrap: wrap;"></div>
+              </div>
+            </div>
+
+            <!-- ===== Class-Wise Batch ID Card Tab ===== -->
+            <div class="tab-content" id="tab-idcard-classwise" style="display: none;">
+              <div class="card" style="margin-bottom: 20px;">
+                <h3>Generate All Student ID Cards for a Class</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                  Select a class to auto-generate printable ID cards for every student in that class at once.
+                </p>
+                <div class="grid-3" style="gap: 15px;">
+                  <div class="form-group">
+                    <label class="form-label">Select Class *</label>
+                    <select class="form-control" id="idcard-cw-class">
+                      <option value="">-- Select Class --</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Card Design *</label>
+                    <select class="form-control" id="idcard-cw-design">
+                      <option value="classic">Classic Blue</option>
+                      <option value="modern">Modern Green</option>
+                      <option value="premium">Premium Gold</option>
+                      <option value="minimal">Minimal White</option>
+                      <option value="royal">Royal Purple</option>
+                      <option value="ocean">Ocean Teal</option>
+                      <option value="sunset">Sunset Orange</option>
+                      <option value="corporate">Corporate Gray</option>
+                      <option value="rose">Rose Pink</option>
+                      <option value="dark">Dark Noir</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Include QR Code</label>
+                    <select class="form-control" id="idcard-cw-qr">
+                      <option value="1">Yes</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="grid-3" style="gap: 15px; margin-top: 12px;">
+                  <div class="form-group">
+                    <label class="form-label">Include Barcode</label>
+                    <select class="form-control" id="idcard-cw-barcode">
+                      <option value="1">Yes</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Cards Per Row (Print)</label>
+                    <select class="form-control" id="idcard-cw-layout">
+                      <option value="2">2 Cards Per Row</option>
+                      <option value="3" selected>3 Cards Per Row</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="display: flex; align-items: flex-end;">
+                    <button class="btn btn-primary" id="btn-idcard-cw-generate" style="width: 100%;" disabled>Generate All Cards</button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="idcard-cw-info" class="card" style="display: none; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <h3>Class Preview</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Found <strong id="idcard-cw-count">0</strong> students in <strong id="idcard-cw-classname">-</strong></p>
+                  </div>
+                </div>
+              </div>
+
+              <div id="idcard-cw-preview-container" style="display: none;">
+                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                  <button class="btn btn-primary" id="btn-idcard-cw-print">🖨️ Print All ID Cards</button>
+                  <button class="btn btn-secondary" id="btn-idcard-cw-download">📥 Download as PDF</button>
+                </div>
+                <div id="idcard-cw-printable" style="display: flex; gap: 15px; flex-wrap: wrap; padding: 10px; background: #f1f5f9; border-radius: 12px;"></div>
               </div>
             </div>
           </div>
