@@ -2177,18 +2177,18 @@ document.addEventListener('DOMContentLoaded', () => {
   function resetFeePanels() {
     const dash = document.getElementById('fees-dashboard-view');
     if (dash) dash.style.display = 'block';
-    document.querySelectorAll('.fee-option-panel').forEach(panel => {
+    document.querySelectorAll('#screen-fees .fee-option-panel').forEach(panel => {
       panel.style.display = 'none';
     });
   }
 
   // Dashboard card clicks to show target panel
-  document.querySelectorAll('.fees-dash-card').forEach(card => {
+  document.querySelectorAll('#screen-fees .fees-dash-card').forEach(card => {
     card.addEventListener('click', () => {
       const targetOpt = card.getAttribute('data-opt');
       const dash = document.getElementById('fees-dashboard-view');
       if (dash) dash.style.display = 'none';
-      document.querySelectorAll('.fee-option-panel').forEach(p => p.style.display = 'none');
+      document.querySelectorAll('#screen-fees .fee-option-panel').forEach(p => p.style.display = 'none');
       
       const targetPanel = document.getElementById(`fee-panel-${targetOpt}`);
       if (targetPanel) {
