@@ -13,6 +13,7 @@ router.get('/vehicles', authenticateToken, async (req, res) => {
   try {
     await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_vehicles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      school_id INTEGER NOT NULL,
       name TEXT,
       plate_number TEXT,
       type TEXT DEFAULT 'Bus',
@@ -33,6 +34,7 @@ router.post('/vehicles', authenticateToken, async (req, res) => {
   try {
     await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_vehicles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      school_id INTEGER NOT NULL,
       name TEXT,
       plate_number TEXT,
       type TEXT DEFAULT 'Bus',
@@ -81,6 +83,7 @@ router.get('/drivers', authenticateToken, async (req, res) => {
   try {
     await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_drivers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      school_id INTEGER NOT NULL,
       name TEXT,
       phone TEXT,
       license_number TEXT,
@@ -106,6 +109,7 @@ router.post('/drivers', authenticateToken, async (req, res) => {
   try {
     await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_drivers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      school_id INTEGER NOT NULL,
       name TEXT,
       phone TEXT,
       license_number TEXT,
@@ -154,6 +158,7 @@ router.get('/routes', authenticateToken, async (req, res) => {
   try {
     await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_routes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      school_id INTEGER NOT NULL,
       name TEXT,
       pickup_locations TEXT DEFAULT '[]',
       drop_locations TEXT DEFAULT '[]',
@@ -183,6 +188,7 @@ router.post('/routes', authenticateToken, async (req, res) => {
   try {
     await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_routes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      school_id INTEGER NOT NULL,
       name TEXT,
       pickup_locations TEXT DEFAULT '[]',
       drop_locations TEXT DEFAULT '[]',
@@ -231,6 +237,7 @@ router.get('/assignments', authenticateToken, async (req, res) => {
   try {
     await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_assignments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      school_id INTEGER NOT NULL,
       student_id INTEGER NOT NULL,
       vehicle_id INTEGER,
       route_id INTEGER,
@@ -261,6 +268,7 @@ router.post('/assignments', authenticateToken, async (req, res) => {
   try {
     await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_assignments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      school_id INTEGER NOT NULL,
       student_id INTEGER NOT NULL,
       vehicle_id INTEGER,
       route_id INTEGER,
