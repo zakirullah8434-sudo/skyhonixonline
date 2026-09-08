@@ -402,6 +402,7 @@ function createSchoolDatabaseSchema(db) {
       // 29. Student Certificates (always ensure exists for existing DBs)
       db.run(`CREATE TABLE IF NOT EXISTS student_certificates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        school_id INTEGER,
         student_id INTEGER NOT NULL,
         certificate_name TEXT NOT NULL,
         certificate_type TEXT DEFAULT 'General',
@@ -413,6 +414,7 @@ function createSchoolDatabaseSchema(db) {
       // 30. Student Documents
       db.run(`CREATE TABLE IF NOT EXISTS student_documents (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        school_id INTEGER,
         student_id INTEGER NOT NULL,
         document_name TEXT NOT NULL,
         document_type TEXT DEFAULT 'Other',
@@ -425,6 +427,7 @@ function createSchoolDatabaseSchema(db) {
       // 31. Student Transfer History
       db.run(`CREATE TABLE IF NOT EXISTS student_transfer_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        school_id INTEGER,
         student_id INTEGER NOT NULL,
         transfer_date TEXT,
         from_class TEXT,
@@ -457,6 +460,36 @@ function createSchoolDatabaseSchema(db) {
               if (e) console.error('Migration: failed to add school_id to teachers:', e.message);
               else console.log('Migration: added school_id to teachers table');
             });
+          }
+        }
+      });
+
+      // Migration: Add school_id to student_certificates if missing
+      db.all("PRAGMA table_info(student_certificates)", (err, columns) => {
+        if (!err && Array.isArray(columns)) {
+          const has = columns.some(c => c.name === 'school_id');
+          if (!has) {
+            db.run("ALTER TABLE student_certificates ADD COLUMN school_id INTEGER", () => {});
+          }
+        }
+      });
+
+      // Migration: Add school_id to student_documents if missing
+      db.all("PRAGMA table_info(student_documents)", (err, columns) => {
+        if (!err && Array.isArray(columns)) {
+          const has = columns.some(c => c.name === 'school_id');
+          if (!has) {
+            db.run("ALTER TABLE student_documents ADD COLUMN school_id INTEGER", () => {});
+          }
+        }
+      });
+
+      // Migration: Add school_id to student_transfer_history if missing
+      db.all("PRAGMA table_info(student_transfer_history)", (err, columns) => {
+        if (!err && Array.isArray(columns)) {
+          const has = columns.some(c => c.name === 'school_id');
+          if (!has) {
+            db.run("ALTER TABLE student_transfer_history ADD COLUMN school_id INTEGER", () => {});
           }
         }
       });
