@@ -1519,6 +1519,259 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================
+  // MODULE: CERTIFICATE GENERATOR
+  // ==========================================
+  let certSelectedStudent = null;
+
+  // Set current year in session field
+  const certCharSession = document.getElementById('cert-char-session');
+  if (certCharSession) {
+    const y = new Date().getFullYear();
+    certCharSession.value = `${y-1}-${y}`;
+  }
+
+  // Search students
+  document.getElementById('cert-student-search-btn').addEventListener('click', async () => {
+    const q = document.getElementById('cert-student-search').value.trim();
+    if (!q) return;
+    try {
+      const students = await apiCall(`/students/all?q=${encodeURIComponent(q)}`);
+      const resultsDiv = document.getElementById('cert-student-results');
+      if (!students.length) { resultsDiv.innerHTML = '<div style="padding:8px;color:var(--text-muted);">No students found</div>'; resultsDiv.style.display='block'; return; }
+      resultsDiv.innerHTML = students.slice(0,10).map(st => `
+        <div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:8px;" class="cert-student-pick" data-id="${st.id}" data-name="${st.name}" data-class="${st.class_name}" data-photo="${st.photo||''}" data-father="${st.father_name||''}" data-roll="${st.roll_no||''}" data-stid="${st.student_id||''}" data-dob="${st.dob||''}" data-gender="${st.gender||''}" data-section="${st.section_name||''}">
+          <img src="${st.photo ? (st.photo.startsWith('data:') ? st.photo : '/' + st.photo) : 'school_assets/school_logo.png'}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;">
+          <div><div style="font-weight:600;font-size:0.85rem;">${st.name}</div><div style="font-size:0.7rem;color:var(--text-muted);">${st.class_name} | Roll: ${st.roll_no||'-'} | ID: ${st.student_id||'-'}</div></div>
+        </div>
+      `).join('');
+      resultsDiv.style.display='block';
+      resultsDiv.querySelectorAll('.cert-student-pick').forEach(el => {
+        el.addEventListener('click', () => {
+          certSelectedStudent = {
+            id: el.dataset.id, name: el.dataset.name, class_name: el.dataset.class,
+            photo: el.dataset.photo, father_name: el.dataset.father, roll_no: el.dataset.roll,
+            student_id: el.dataset.stid, dob: el.dataset.dob, gender: el.dataset.gender,
+            section_name: el.dataset.section
+          };
+          document.getElementById('cert-student-name').textContent = certSelectedStudent.name;
+          document.getElementById('cert-student-class').textContent = `${certSelectedStudent.class_name} | Roll: ${certSelectedStudent.roll_no} | Section: ${certSelectedStudent.section_name}`;
+          document.getElementById('cert-student-id').textContent = `ID: ${certSelectedStudent.student_id}`;
+          document.getElementById('cert-student-photo').src = certSelectedStudent.photo ? (certSelectedStudent.photo.startsWith('data:') ? certSelectedStudent.photo : '/' + certSelectedStudent.photo) : 'school_assets/school_logo.png';
+          document.getElementById('cert-student-info').style.display='block';
+          resultsDiv.style.display='none';
+        });
+      });
+    } catch (e) { showToast('Error searching students', true); }
+  });
+
+  // Enter key search
+  document.getElementById('cert-student-search').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('cert-student-search-btn').click(); }
+  });
+
+  // Certificate HTML generators
+  function generateLeaveCertificateHtml(s, startDate, endDate, reason, schoolName, logoSrc, principalSign) {
+    const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+    return `<div style="width:8.5in;height:11in;background:#fff;border:3px double #1a237e;padding:0.5in;font-family:'Georgia',serif;position:relative;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <img src="${logoSrc}" style="height:70px;border-radius:8px;" onerror="this.style.display='none'">
+        <div style="font-size:1.6rem;font-weight:900;color:#1a237e;margin-top:8px;letter-spacing:2px;text-transform:uppercase;">${schoolName||'SCHOOL NAME'}</div>
+        <div style="font-size:0.85rem;color:#555;letter-spacing:1px;">School Address | Phone | Email</div>
+        <div style="width:100%;height:3px;background:linear-gradient(90deg,#1a237e,#ffc107,#1a237e);margin-top:8px;"></div>
+      </div>
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="font-size:1.8rem;font-weight:700;color:#1a237e;border-bottom:3px solid #ffc107;display:inline-block;padding-bottom:4px;">LEAVE CERTIFICATE</div>
+      </div>
+      <div style="font-size:1rem;color:#333;line-height:2;">
+        <div style="margin-bottom:8px;">Date: <strong>${today}</strong></div>
+        <p style="text-indent:40px;">
+          This is to certify that <strong style="color:#1a237e;font-size:1.1rem;">${s.name}</strong>,
+          ${s.father_name ? `son/daughter of <strong>${s.father_name}</strong>,` : ''}
+          studying in <strong>${s.class_name}</strong>${s.section_name ? `, Section <strong>${s.section_name}</strong>` : ''}
+          (Roll No: <strong>${s.roll_no||'-'}</strong>, Student ID: <strong>${s.student_id||'-'}</strong>),
+          has been granted leave from <strong>${startDate}</strong> to <strong>${endDate}</strong>
+          due to <strong>${reason||'personal reasons'}</strong>.
+        </p>
+        <p style="text-indent:40px;">The leave period totals <strong>${Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000) + 1} day(s)</strong>.</p>
+      </div>
+      <div style="margin-top:60px;display:flex;justify-content:space-between;align-items:flex-end;">
+        <div style="text-align:center;">
+          <div style="height:1px;width:120px;background:#333;margin-bottom:4px;"></div>
+          <div style="font-size:0.85rem;font-weight:600;">Student's Signature</div>
+        </div>
+        <div style="text-align:center;">
+          ${principalSign ? `<img src="${principalSign}" style="height:40px;max-width:120px;object-fit:contain;" onerror="this.style.display='none'">` : '<div style="height:40px;"></div>'}
+          <div style="height:1px;width:120px;background:#333;margin:4px auto;"></div>
+          <div style="font-size:0.85rem;font-weight:600;">Principal's Signature</div>
+          <div style="font-size:0.75rem;color:#888;">(School Stamp)</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function generateCharacterCertificateHtml(s, session, conduct, schoolName, logoSrc, principalSign) {
+    const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+    return `<div style="width:8.5in;height:11in;background:#fff;border:3px double #1b5e20;padding:0.5in;font-family:'Georgia',serif;position:relative;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <img src="${logoSrc}" style="height:70px;border-radius:8px;" onerror="this.style.display='none'">
+        <div style="font-size:1.6rem;font-weight:900;color:#1b5e20;margin-top:8px;letter-spacing:2px;text-transform:uppercase;">${schoolName||'SCHOOL NAME'}</div>
+        <div style="font-size:0.85rem;color:#555;letter-spacing:1px;">School Address | Phone | Email</div>
+        <div style="width:100%;height:3px;background:linear-gradient(90deg,#1b5e20,#ffc107,#1b5e20);margin-top:8px;"></div>
+      </div>
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="font-size:1.8rem;font-weight:700;color:#1b5e20;border-bottom:3px solid #ffc107;display:inline-block;padding-bottom:4px;">CHARACTER CERTIFICATE</div>
+      </div>
+      <div style="font-size:1rem;color:#333;line-height:2;">
+        <div style="margin-bottom:8px;">Date: <strong>${today}</strong></div>
+        <p style="text-indent:40px;">
+          This is to certify that <strong style="color:#1b5e20;font-size:1.1rem;">${s.name}</strong>,
+          ${s.father_name ? `son/daughter of <strong>${s.father_name}</strong>,` : ''}
+          S/O <strong>${s.father_name||'-'}</strong>,
+          studying in <strong>${s.class_name}</strong>${s.section_name ? `, Section <strong>${s.section_name}</strong>` : ''}
+          (Roll No: <strong>${s.roll_no||'-'}</strong>, Student ID: <strong>${s.student_id||'-'}</strong>),
+          ${s.dob ? `born on <strong>${s.dob}</strong>,` : ''}
+          has attended this school during the academic session <strong>${session}</strong>.
+        </p>
+        <p style="text-indent:40px;">${conduct}</p>
+        <p style="text-indent:40px;">We wish him/her all the best for future endeavors.</p>
+      </div>
+      <div style="margin-top:60px;display:flex;justify-content:space-between;align-items:flex-end;">
+        <div style="text-align:center;">
+          <div style="height:1px;width:120px;background:#333;margin-bottom:4px;"></div>
+          <div style="font-size:0.85rem;font-weight:600;">Student's Signature</div>
+        </div>
+        <div style="text-align:center;">
+          ${principalSign ? `<img src="${principalSign}" style="height:40px;max-width:120px;object-fit:contain;" onerror="this.style.display='none'">` : '<div style="height:40px;"></div>'}
+          <div style="height:1px;width:120px;background:#333;margin:4px auto;"></div>
+          <div style="font-size:0.85rem;font-weight:600;">Principal's Signature</div>
+          <div style="font-size:0.75rem;color:#888;">(School Stamp)</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function generateSportsCertificateHtml(s, event, achievement, eventDate, details, schoolName, logoSrc, principalSign) {
+    const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+    return `<div style="width:8.5in;height:11in;background:#fff;border:3px double #e65100;padding:0.5in;font-family:'Georgia',serif;position:relative;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <img src="${logoSrc}" style="height:70px;border-radius:8px;" onerror="this.style.display='none'">
+        <div style="font-size:1.6rem;font-weight:900;color:#e65100;margin-top:8px;letter-spacing:2px;text-transform:uppercase;">${schoolName||'SCHOOL NAME'}</div>
+        <div style="font-size:0.85rem;color:#555;letter-spacing:1px;">School Address | Phone | Email</div>
+        <div style="width:100%;height:3px;background:linear-gradient(90deg,#e65100,#ffc107,#e65100);margin-top:8px;"></div>
+      </div>
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="font-size:1.8rem;font-weight:700;color:#e65100;border-bottom:3px solid #ffc107;display:inline-block;padding-bottom:4px;">🏆 SPORTS ACHIEVEMENT CERTIFICATE</div>
+      </div>
+      <div style="font-size:1rem;color:#333;line-height:2;">
+        <div style="margin-bottom:8px;">Date: <strong>${today}</strong></div>
+        <p style="text-indent:40px;">
+          This certificate is proudly presented to
+          <strong style="color:#e65100;font-size:1.1rem;">${s.name}</strong>,
+          ${s.father_name ? `son/daughter of <strong>${s.father_name}</strong>,` : ''}
+          studying in <strong>${s.class_name}</strong>${s.section_name ? `, Section <strong>${s.section_name}</strong>` : ''}
+          (Roll No: <strong>${s.roll_no||'-'}</strong>),
+        </p>
+        <p style="text-indent:40px;">
+          for achieving <strong style="color:#e65100;font-size:1.1rem;">${achievement}</strong>
+          in <strong>${event}</strong>
+          ${eventDate ? `held on <strong>${eventDate}</strong>` : ''}.
+        </p>
+        ${details ? `<p style="text-indent:40px;">${details}</p>` : ''}
+        <p style="text-indent:40px;">We congratulate him/her on this remarkable achievement and wish continued success in all future endeavors.</p>
+      </div>
+      <div style="margin-top:60px;display:flex;justify-content:space-between;align-items:flex-end;">
+        <div style="text-align:center;">
+          <div style="height:1px;width:120px;background:#333;margin-bottom:4px;"></div>
+          <div style="font-size:0.85rem;font-weight:600;">Student's Signature</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="height:1px;width:120px;background:#333;margin-bottom:4px;"></div>
+          <div style="font-size:0.85rem;font-weight:600;">Sports Teacher</div>
+        </div>
+        <div style="text-align:center;">
+          ${principalSign ? `<img src="${principalSign}" style="height:40px;max-width:120px;object-fit:contain;" onerror="this.style.display='none'">` : '<div style="height:40px;"></div>'}
+          <div style="height:1px;width:120px;background:#333;margin:4px auto;"></div>
+          <div style="font-size:0.85rem;font-weight:600;">Principal's Signature</div>
+          <div style="font-size:0.75rem;color:#888;">(School Stamp)</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  async function fetchCertSettings() {
+    let settings = {}, principalSign = null;
+    try {
+      const [settingsRaw, templatesRaw] = await Promise.all([
+        apiCall('/settings'),
+        apiCall('/exams/rollno-templates').catch(() => [])
+      ]);
+      settings = settingsRaw;
+      if (templatesRaw.length > 0 && templatesRaw[0].template && templatesRaw[0].template.principal_sign) {
+        principalSign = templatesRaw[0].template.principal_sign;
+      }
+    } catch (e) {}
+    return { settings, principalSign };
+  }
+
+  function certValidateStudent() {
+    if (!certSelectedStudent) { showToast('Please select a student first', true); return false; }
+    return true;
+  }
+
+  // Generate Leave Certificate
+  document.getElementById('cert-leave-generate').addEventListener('click', async () => {
+    if (!certValidateStudent()) return;
+    const startDate = document.getElementById('cert-leave-start').value;
+    const endDate = document.getElementById('cert-leave-end').value;
+    const reason = document.getElementById('cert-leave-reason').value;
+    if (!startDate || !endDate) { showToast('Please select start and end dates', true); return; }
+    const { settings, principalSign } = await fetchCertSettings();
+    const html = generateLeaveCertificateHtml(certSelectedStudent, startDate, endDate, reason, settings.school_name, imgSrc(settings.logo_path, 'school_assets/school_logo.png'), principalSign);
+    document.getElementById('cert-printable').innerHTML = html;
+    document.getElementById('cert-preview-container').style.display='block';
+  });
+
+  // Generate Character Certificate
+  document.getElementById('cert-char-generate').addEventListener('click', async () => {
+    if (!certValidateStudent()) return;
+    const session = document.getElementById('cert-char-session').value;
+    const conduct = document.getElementById('cert-char-conduct').value;
+    if (!session) { showToast('Please enter the academic session', true); return; }
+    const { settings, principalSign } = await fetchCertSettings();
+    const html = generateCharacterCertificateHtml(certSelectedStudent, session, conduct, settings.school_name, imgSrc(settings.logo_path, 'school_assets/school_logo.png'), principalSign);
+    document.getElementById('cert-printable').innerHTML = html;
+    document.getElementById('cert-preview-container').style.display='block';
+  });
+
+  // Generate Sports Certificate
+  document.getElementById('cert-sports-generate').addEventListener('click', async () => {
+    if (!certValidateStudent()) return;
+    const event = document.getElementById('cert-sports-event').value;
+    const achievement = document.getElementById('cert-sports-achievement').value;
+    const eventDate = document.getElementById('cert-sports-date').value;
+    const details = document.getElementById('cert-sports-details').value;
+    if (!event || !achievement) { showToast('Please enter event name and achievement', true); return; }
+    const { settings, principalSign } = await fetchCertSettings();
+    const html = generateSportsCertificateHtml(certSelectedStudent, event, achievement, eventDate, details, settings.school_name, imgSrc(settings.logo_path, 'school_assets/school_logo.png'), principalSign);
+    document.getElementById('cert-printable').innerHTML = html;
+    document.getElementById('cert-preview-container').style.display='block';
+  });
+
+  // Certificate Print
+  document.getElementById('cert-print').addEventListener('click', () => {
+    const content = document.getElementById('cert-printable').innerHTML;
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<html><head><title>Certificate</title><style>@media print{body{margin:0;}}body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f5f9;}</style></head><body>${content}</body></html>`);
+    printWindow.document.close();
+    setTimeout(() => { printWindow.print(); }, 500);
+  });
+
+  // Certificate Download
+  document.getElementById('cert-download').addEventListener('click', () => {
+    showToast('Tip: Right-click the certificate and "Save as image", or use Print > Save as PDF');
+  });
+
+  // ==========================================
   // MODULE: STUDENTS
   // ==========================================
   let cachedClasses = [];
