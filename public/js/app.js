@@ -487,6 +487,341 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('[data-tab="fee-generator"]').click();
   });
 
+  // ==========================================
+  // MODULE: PROMOTE STUDENTS
+  // ==========================================
+  function loadPromotionsData() {
+    loadPromoClasses();
+    loadPromoHistory();
+  }
+
+  async function loadPromoClasses() {
+    try {
+      const classes = await apiCall('/promotions/classes');
+      const promoClassCheckboxes = document.getElementById('promo-class-checkboxes');
+      const promoLeaveClass = document.getElementById('promo-leave-class');
+
+      if (promoClassCheckboxes) {
+        promoClassCheckboxes.innerHTML = classes.map(c =>
+          `<label style="display:flex; align-items:center; gap:6px; cursor:pointer; background: rgba(99,102,241,0.08); padding: 6px 12px; border-radius: 8px;">
+            <input type="checkbox" class="promo-class-check" value="${c.class_name}">
+            <span>${c.class_name} (${c.count})</span>
+          </label>`
+        ).join('');
+      }
+
+      if (promoLeaveClass) {
+        promoLeaveClass.innerHTML = '<option value="">All Classes</option>' +
+          classes.map(c => `<option value="${c.class_name}">${c.class_name} (${c.count})</option>`).join('');
+      }
+    } catch (e) {}
+  }
+
+  async function loadPromoHistory() {
+    try {
+      const history = await apiCall('/promotions/history');
+      const tbody = document.querySelector('#table-promo-history tbody');
+      if (history.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No promotion history yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = history.map(h => `<tr>
+        <td>${h.promotion_date ? new Date(h.promotion_date).toLocaleDateString() : '-'}</td>
+        <td>${h.student_name || '-'}</td>
+        <td>${h.from_class || '-'}</td>
+        <td>${h.to_class || '-'}</td>
+        <td>${h.final_percentage !== null ? h.final_percentage + '%' : '-'}</td>
+        <td>${h.remarks || '-'}</td>
+      </tr>`).join('');
+    } catch (e) {}
+  }
+
+  async function loadPromoExams() {
+    try {
+      const exams = await apiCall('/exams');
+      const selects = ['promo-school-exam', 'promo-class-exam'];
+      selects.forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) {
+          sel.innerHTML = '<option value="">-- Latest Result --</option>';
+          exams.forEach(e => {
+            sel.innerHTML += `<option value="${e.id}">${e.exam_name} (${e.year})</option>`;
+          });
+        }
+      });
+    } catch (e) {}
+  }
+
+  // Navigation: Promotion dash cards
+  document.getElementById('promo-school-wise').addEventListener('click', () => {
+    document.getElementById('promo-school-wise').closest('.card').style.display = 'none';
+    document.getElementById('promo-school-wise').closest('.card').nextElementSibling.style.display = 'none';
+    document.getElementById('promo-panel-school-wide').style.display = 'block';
+    document.getElementById('promo-panel-class-wise').style.display = 'none';
+    document.getElementById('promo-panel-leave').style.display = 'none';
+    document.getElementById('promo-school-preview-container').style.display = 'none';
+    document.getElementById('promo-school-execute').style.display = 'none';
+    loadPromoExams();
+  });
+
+  document.getElementById('promo-class-wise').addEventListener('click', () => {
+    document.getElementById('promo-class-wise').closest('.card').style.display = 'none';
+    document.getElementById('promo-class-wise').closest('.card').nextElementSibling.style.display = 'none';
+    document.getElementById('promo-panel-class-wise').style.display = 'block';
+    document.getElementById('promo-panel-school-wide').style.display = 'none';
+    document.getElementById('promo-panel-leave').style.display = 'none';
+    document.getElementById('promo-class-preview-container').style.display = 'none';
+    document.getElementById('promo-class-execute').style.display = 'none';
+    loadPromoExams();
+  });
+
+  document.getElementById('promo-leave-students').addEventListener('click', () => {
+    document.getElementById('promo-leave-students').closest('.card').style.display = 'none';
+    document.getElementById('promo-leave-students').closest('.card').nextElementSibling.style.display = 'none';
+    document.getElementById('promo-panel-leave').style.display = 'block';
+    document.getElementById('promo-panel-school-wide').style.display = 'none';
+    document.getElementById('promo-panel-class-wise').style.display = 'none';
+    loadPromoClasses();
+  });
+
+  // Back buttons
+  document.querySelectorAll('.btn-back-promo-dash').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.btn-back-promo-dash').forEach(b => b.parentElement.parentElement.style.display = 'none');
+      document.querySelectorAll('#screen-dashboard > .card').forEach(c => {
+        if (c.querySelector && c.querySelector('.fees-dash-card')) c.style.display = '';
+      });
+      loadPromotionsData();
+    });
+  });
+
+  // School Wide Preview
+  document.getElementById('btn-promo-school-preview').addEventListener('click', async () => {
+    const passing = document.getElementById('promo-school-passing').value;
+    const examId = document.getElementById('promo-school-exam').value;
+    const term = document.getElementById('promo-school-term').value;
+
+    if (!passing && passing !== '0') {
+      showToast('Please enter passing percentage', true);
+      return;
+    }
+
+    try {
+      let url = `/promotions/preview?passing_percent=${passing}&mode=school-wide`;
+      if (examId) url += `&exam_id=${examId}&term=${term}`;
+
+      const preview = await apiCall(url);
+      const tbody = document.querySelector('#table-promo-school-preview tbody');
+      const summary = document.getElementById('promo-school-summary');
+
+      let totalPromote = 0, totalStay = 0, totalNoResult = 0;
+      let rows = '';
+
+      preview.forEach(cls => {
+        if (!cls.students) return;
+        cls.students.forEach(s => {
+          const promoteClass = s.will_promote ? 'badge-green' : (s.status === 'FAIL' ? 'badge-red' : 'badge-yellow');
+          if (s.will_promote) totalPromote++;
+          else if (s.status === 'FAIL') totalStay++;
+          else totalNoResult++;
+
+          rows += `<tr>
+            <td>${s.name}</td>
+            <td>${s.roll_no || '-'}</td>
+            <td>${cls.from}</td>
+            <td>${s.will_promote ? cls.to : cls.from}</td>
+            <td>${s.percentage !== null ? s.percentage.toFixed(1) + '%' : 'N/A'}</td>
+            <td><span class="badge ${promoteClass}">${s.status}</span></td>
+          </tr>`;
+        });
+      });
+
+      summary.innerHTML = `
+        <span style="color: var(--accent);">Total: ${totalPromote + totalStay + totalNoResult} students</span> |
+        <span style="color: #22c55e;">Promote: ${totalPromote}</span> |
+        <span style="color: #ef4444;">Stay (Fail): ${totalStay}</span> |
+        <span style="color: #f59e0b;">No Result: ${totalNoResult}</span>
+      `;
+      tbody.innerHTML = rows || '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No students found.</td></tr>';
+      document.getElementById('promo-school-preview-container').style.display = 'block';
+      document.getElementById('promo-school-execute').style.display = 'inline-block';
+    } catch (e) {}
+  });
+
+  // School Wide Execute
+  document.getElementById('btn-promo-school-execute').addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to promote all passing students? This action cannot be undone.')) return;
+
+    const passing = document.getElementById('promo-school-passing').value;
+    const examId = document.getElementById('promo-school-exam').value;
+    const term = document.getElementById('promo-school-term').value;
+
+    try {
+      const res = await apiCall('/promotions/school-wide', 'POST', {
+        passing_percent: parseFloat(passing),
+        exam_id: examId ? parseInt(examId) : null,
+        term
+      });
+      showToast(res.message);
+      document.getElementById('promo-school-preview-container').style.display = 'none';
+      document.getElementById('promo-school-execute').style.display = 'none';
+      loadPromoHistory();
+      loadClassesList();
+    } catch (e) {}
+  });
+
+  // Class Wise Preview
+  document.getElementById('btn-promo-class-preview').addEventListener('click', async () => {
+    const passing = document.getElementById('promo-class-passing').value;
+    const examId = document.getElementById('promo-class-exam').value;
+    const term = document.getElementById('promo-class-term').value;
+    const checked = [...document.querySelectorAll('.promo-class-check:checked')].map(cb => cb.value);
+
+    if (!passing && passing !== '0') {
+      showToast('Please enter passing percentage', true);
+      return;
+    }
+    if (checked.length === 0) {
+      showToast('Please select at least one class', true);
+      return;
+    }
+
+    try {
+      let url = `/promotions/preview?passing_percent=${passing}&mode=class-wise&class_names=${checked.join(',')}`;
+      if (examId) url += `&exam_id=${examId}&term=${term}`;
+
+      const preview = await apiCall(url);
+      const tbody = document.querySelector('#table-promo-class-preview tbody');
+      const summary = document.getElementById('promo-class-summary');
+
+      let totalPromote = 0, totalStay = 0, totalNoResult = 0;
+      let rows = '';
+
+      preview.forEach(cls => {
+        if (!cls.students) return;
+        cls.students.forEach(s => {
+          const promoteClass = s.will_promote ? 'badge-green' : (s.status === 'FAIL' ? 'badge-red' : 'badge-yellow');
+          if (s.will_promote) totalPromote++;
+          else if (s.status === 'FAIL') totalStay++;
+          else totalNoResult++;
+
+          rows += `<tr>
+            <td>${s.name}</td>
+            <td>${s.roll_no || '-'}</td>
+            <td>${cls.from}</td>
+            <td>${s.will_promote ? cls.to : cls.from}</td>
+            <td>${s.percentage !== null ? s.percentage.toFixed(1) + '%' : 'N/A'}</td>
+            <td><span class="badge ${promoteClass}">${s.status}</span></td>
+          </tr>`;
+        });
+      });
+
+      summary.innerHTML = `
+        <span style="color: var(--accent);">Total: ${totalPromote + totalStay + totalNoResult} students</span> |
+        <span style="color: #22c55e;">Promote: ${totalPromote}</span> |
+        <span style="color: #ef4444;">Stay (Fail): ${totalStay}</span> |
+        <span style="color: #f59e0b;">No Result: ${totalNoResult}</span>
+      `;
+      tbody.innerHTML = rows || '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No students found.</td></tr>';
+      document.getElementById('promo-class-preview-container').style.display = 'block';
+      document.getElementById('promo-class-execute').style.display = 'inline-block';
+    } catch (e) {}
+  });
+
+  // Class Wise Execute
+  document.getElementById('btn-promo-class-execute').addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to promote selected classes? This action cannot be undone.')) return;
+
+    const passing = document.getElementById('promo-class-passing').value;
+    const examId = document.getElementById('promo-class-exam').value;
+    const term = document.getElementById('promo-class-term').value;
+    const checked = [...document.querySelectorAll('.promo-class-check:checked')].map(cb => cb.value);
+
+    try {
+      const res = await apiCall('/promotions/class-wise', 'POST', {
+        passing_percent: parseFloat(passing),
+        exam_id: examId ? parseInt(examId) : null,
+        term,
+        class_names: checked
+      });
+      showToast(res.message);
+      document.getElementById('promo-class-preview-container').style.display = 'none';
+      document.getElementById('promo-class-execute').style.display = 'none';
+      loadPromoHistory();
+      loadClassesList();
+    } catch (e) {}
+  });
+
+  // Leave Students: Load
+  document.getElementById('btn-promo-leave-load').addEventListener('click', async () => {
+    const cls = document.getElementById('promo-leave-class').value;
+    const search = document.getElementById('promo-leave-search').value.trim();
+
+    try {
+      let url = '/students?';
+      if (cls) url += `class_name=${encodeURIComponent(cls)}&`;
+      if (search) url += `search=${encodeURIComponent(search)}&`;
+
+      const students = await apiCall(url);
+      const tbody = document.querySelector('#table-promo-leave tbody');
+      const execBtn = document.getElementById('btn-promo-leave-execute');
+
+      if (students.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No active students found.</td></tr>';
+        execBtn.style.display = 'none';
+        return;
+      }
+
+      tbody.innerHTML = students.map(s => `
+        <tr>
+          <td><input type="checkbox" class="promo-leave-check" value="${s.id}"></td>
+          <td>${s.student_id || '-'}</td>
+          <td>${s.name}</td>
+          <td>${s.father_name || '-'}</td>
+          <td>${s.class_name} - ${s.section_name || 'N/A'}</td>
+          <td>${s.roll_no || '-'}</td>
+        </tr>
+      `).join('');
+
+      // Check all
+      document.getElementById('promo-leave-check-all').addEventListener('change', function() {
+        document.querySelectorAll('.promo-leave-check').forEach(cb => cb.checked = this.checked);
+      });
+
+      // Show execute button when any checkbox is checked
+      document.querySelectorAll('.promo-leave-check').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const anyChecked = document.querySelectorAll('.promo-leave-check:checked').length > 0;
+          execBtn.style.display = anyChecked ? 'inline-block' : 'none';
+        });
+      });
+
+      execBtn.style.display = 'none';
+    } catch (e) {}
+  });
+
+  // Leave Students: Execute
+  document.getElementById('btn-promo-leave-execute').addEventListener('click', async () => {
+    const checked = [...document.querySelectorAll('.promo-leave-check:checked')].map(cb => parseInt(cb.value));
+    if (checked.length === 0) {
+      showToast('No students selected', true);
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to mark ${checked.length} student(s) as Left?`)) return;
+
+    try {
+      const res = await apiCall('/promotions/leave', 'POST', { student_ids: checked });
+      showToast(res.message);
+      document.querySelector('#table-promo-leave tbody').innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No students loaded.</td></tr>';
+      document.getElementById('btn-promo-leave-execute').style.display = 'none';
+      loadPromoClasses();
+      loadClassesList();
+    } catch (e) {}
+  });
+
+  // Dashboard: load promotions data
+  loadPromotionsData();
 
   // ==========================================
   // MODULE: STUDENTS
@@ -3939,7 +4274,7 @@ document.addEventListener('DOMContentLoaded', () => {
           students = await apiCall(`/students?class_name=${encodeURIComponent(class_name)}`);
         }
 
-        let settings = {}, activeDatesheet = null, principal_sign = null;
+        let settings = {}, activeDatesheet = null, principal_sign = null, templateInstructions = null, templateTerm = '';
         const [examsRaw, settingsRaw, activeDatesheetRaw, rollnoTemplatesRaw] = await Promise.all([
           apiCall('/exams'),
           apiCall('/settings').catch(() => ({})),
@@ -3951,7 +4286,10 @@ document.addEventListener('DOMContentLoaded', () => {
         settings = settingsRaw;
         activeDatesheet = activeDatesheetRaw;
         if (rollnoTemplatesRaw.length > 0) {
-          principal_sign = rollnoTemplatesRaw[0].template.principal_sign || null;
+          const tmpl = rollnoTemplatesRaw[0].template;
+          principal_sign = tmpl.principal_sign || null;
+          templateInstructions = tmpl.instructions || null;
+          templateTerm = tmpl.term || '';
         }
         const logoUrl = imgSrc(settings.logo_path, 'school_assets/school_logo.png');
 
@@ -3978,23 +4316,25 @@ document.addEventListener('DOMContentLoaded', () => {
               const dayName = dateObj ? dateObj.toLocaleDateString('en-US', { weekday: 'long' }) : '-';
               const dateFormatted = dateObj ? dateObj.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
               tableRows += '<tr>' +
-                '<td style="border:1px solid #000; padding:5px 8px; text-align:center;">' + (i + 1) + '</td>' +
-                '<td style="border:1px solid #000; padding:5px 8px; text-align:center;">' + dateFormatted + '</td>' +
-                '<td style="border:1px solid #000; padding:5px 8px; text-align:center;">' + dayName + '</td>' +
-                '<td style="border:1px solid #000; padding:5px 8px; text-align:left;">' + sub.subject + '</td>' +
-                '<td style="border:1px solid #000; padding:5px 8px; text-align:center;">' + (sub.time || '-') + '</td>' +
+                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:center;">' + (i + 1) + '</td>' +
+                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:center;">' + dateFormatted + '</td>' +
+                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:center;">' + dayName + '</td>' +
+                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:left;">' + sub.subject + '</td>' +
+                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:center;">' + (sub.time || '-') + '</td>' +
                 '</tr>';
             });
           } else {
-            tableRows = '<tr><td colspan="5" style="border:1px solid #000; padding:10px; text-align:center; color:#888;">No datesheet available</td></tr>';
+            tableRows = '<tr><td colspan="5" style="border:1.5px solid #000; padding:10px; text-align:center; color:#888;">No datesheet available</td></tr>';
           }
 
-          const instructions = [
-            'All Students Must be Uniformed.',
-            'Students Must come on time.',
-            'Dues Must be cleared.'
-          ];
-          let instHtml = instructions.map(inst => '<li>' + inst + '</li>').join('');
+          const instructions = templateInstructions
+            ? templateInstructions.split('. ').filter(Boolean).map(i => i.endsWith('.') ? i : i + '.')
+            : [
+                'All Students Must be Uniformed.',
+                'Students Must come on time.',
+                'Dues Must be cleared.'
+              ];
+          let instHtml = instructions.map(inst => '<li>' + inst.replace(/\.$/, '') + '</li>').join('');
 
           const studentPhoto = imgSrc(s.photo, '');
 
@@ -4003,27 +4343,29 @@ document.addEventListener('DOMContentLoaded', () => {
             slipsHtml += '<div class="rollno-page">';
           }
 
-          const examName = exam ? exam.exam_name + ' Exam ' + exam.year : '';
+          const examName = templateTerm
+            ? templateTerm + ' ' + (exam ? exam.exam_name + ' ' + exam.year : '')
+            : (exam ? exam.exam_name + ' Exam ' + exam.year : '');
 
           slipsHtml +=
-            '<div style="width:100%; height:100%; display:flex; flex-direction:column; padding:0; font-family:Arial,sans-serif;">' +
+            '<div class="rollno-slip" style="width:100%; height:100%; display:flex; flex-direction:column; padding:10px 14px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
 
               // === HEADER: School name ===
-              '<div style="text-align:center; margin-bottom:6px;">' +
-                '<div style="font-size:18px; font-weight:900; color:#000; text-transform:uppercase; letter-spacing:1px;">' + currentUser.schoolName + '</div>' +
+              '<div style="text-align:center; margin-bottom:4px;">' +
+                '<div style="font-size:17px; font-weight:900; color:#000; text-transform:uppercase; letter-spacing:1.5px; line-height:1.2;">' + currentUser.schoolName + '</div>' +
               '</div>' +
 
               // === Logo + ROLL NO SLIP title ===
-              '<div style="display:flex; align-items:center; gap:14px; margin-bottom:10px;">' +
-                '<img src="' + logoUrl + '" alt="Logo" style="width:55px; height:55px; border-radius:50%; flex-shrink:0;" onerror="this.style.display=\'none\'">' +
-                '<div>' +
-                  '<div style="font-size:15px; font-weight:800; letter-spacing:1px;">ROLL NO SLIP</div>' +
-                  '<div style="font-size:12px; color:#333; margin-top:2px;">' + examName + '</div>' +
+              '<div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">' +
+                '<img src="' + logoUrl + '" alt="Logo" style="width:60px; height:60px; border-radius:50%; flex-shrink:0; border:2px solid #ddd;" onerror="this.style.display=\'none\'">' +
+                '<div style="text-align:center; flex:1;">' +
+                  '<div style="font-size:16px; font-weight:900; letter-spacing:2px; color:#000;">ROLL NO SLIP</div>' +
+                  '<div style="font-size:12px; color:#333; margin-top:2px; font-weight:600;">' + examName + '</div>' +
                 '</div>' +
               '</div>' +
 
               // === Student info ===
-              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:5px 24px; font-size:12px; padding:10px 0; margin-bottom:8px;">' +
+              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 20px; font-size:12px; padding:6px 0; margin-bottom:6px; font-weight:600;">' +
                 '<div><strong>Name:</strong>&nbsp;&nbsp;' + (s.name || '-') + '</div>' +
                 '<div><strong>Class:</strong>&nbsp;&nbsp;' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
                 '<div><strong>Father Name:</strong>&nbsp;&nbsp;' + (s.father_name || '-') + '</div>' +
@@ -4034,12 +4376,12 @@ document.addEventListener('DOMContentLoaded', () => {
               '<div style="flex:1; overflow:hidden;">' +
                 '<table style="width:100%; border-collapse:collapse; font-size:11px;">' +
                   '<thead>' +
-                    '<tr style="background:#f5f5f5;">' +
-                      '<th style="border:1px solid #000; padding:5px 8px; text-align:center; width:6%; font-weight:700;">#</th>' +
-                      '<th style="border:1px solid #000; padding:5px 8px; text-align:center; width:22%; font-weight:700;">Date</th>' +
-                      '<th style="border:1px solid #000; padding:5px 8px; text-align:center; width:20%; font-weight:700;">Day</th>' +
-                      '<th style="border:1px solid #000; padding:5px 8px; text-align:left; width:30%; font-weight:700;">Subject</th>' +
-                      '<th style="border:1px solid #000; padding:5px 8px; text-align:center; width:22%; font-weight:700;">Time</th>' +
+                    '<tr>' +
+                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:center; width:6%; font-weight:700; background:#f0f0f0;">#</th>' +
+                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:center; width:22%; font-weight:700; background:#f0f0f0;">Date</th>' +
+                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:center; width:20%; font-weight:700; background:#f0f0f0;">Day</th>' +
+                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:left; width:28%; font-weight:700; background:#f0f0f0;">Subject</th>' +
+                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:center; width:24%; font-weight:700; background:#f0f0f0;">Time</th>' +
                     '</tr>' +
                   '</thead>' +
                   '<tbody>' + tableRows + '</tbody>' +
@@ -4047,17 +4389,17 @@ document.addEventListener('DOMContentLoaded', () => {
               '</div>' +
 
               // === Footer: Instructions + Signature ===
-              '<div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:12px; margin-top:auto; font-size:11px;">' +
-                '<div style="max-width:50%;">' +
-                  '<div style="font-weight:700; margin-bottom:3px;">Instructions:</div>' +
-                  '<ul style="margin:0; padding-left:18px; list-style:disc;">' + instHtml + '</ul>' +
+              '<div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; margin-top:auto; font-size:10.5px;">' +
+                '<div style="max-width:55%;">' +
+                  '<div style="font-weight:700; margin-bottom:2px; font-size:11px;">Instructions:</div>' +
+                  '<ul style="margin:0; padding-left:16px; list-style:disc; line-height:1.5;">' + instHtml + '</ul>' +
                 '</div>' +
                 '<div style="text-align:center;">' +
                   (principal_sign ?
-                    '<img src="' + principal_sign + '" alt="Sign" style="max-height:40px; max-width:90px; opacity:0.8;" onerror="this.style.display=\'none\'">' :
-                    '<div style="height:40px;"></div>'
+                    '<img src="' + principal_sign + '" alt="Sign" style="max-height:35px; max-width:80px; opacity:0.85;" onerror="this.style.display=\'none\'">' :
+                    '<div style="height:35px;"></div>'
                   ) +
-                  '<div style="border-top:1px solid #000; width:130px; margin:0 auto; padding-top:5px; font-size:10px;">Principal Signature</div>' +
+                  '<div style="border-top:1px solid #000; width:120px; margin:0 auto; padding-top:4px; font-size:9.5px; font-weight:600;">Principal Signature</div>' +
                 '</div>' +
               '</div>' +
 
@@ -4086,11 +4428,16 @@ document.addEventListener('DOMContentLoaded', () => {
         '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
         '<title>Roll No Slips</title>' +
         '<style>' +
-          '@page { size: A4 landscape; margin: 5mm; }' +
-          'html, body { margin:0; padding:0; background:white; font-family:Arial,sans-serif; }' +
-          '.rollno-page { width:297mm; height:210mm; padding:5mm 6mm; display:grid; grid-template-columns:1fr 1fr; gap:0 5mm; page-break-after:always; overflow:hidden; }' +
+          '@page { size: A4 landscape; margin: 0; }' +
+          'html, body { margin:0; padding:0; background:white; font-family:Arial,sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact; }' +
+          '.rollno-page { width:297mm; height:210mm; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:0; page-break-after:always; overflow:hidden; box-sizing:border-box; }' +
           '.rollno-page:last-child { page-break-after:auto; }' +
-          '@media print { html,body{margin:0;padding:0;} .rollno-page{width:100%;height:100%;padding:3mm 4mm;gap:0 3mm;} }' +
+          '.rollno-slip { box-sizing:border-box; border:0.5px solid #ccc; }' +
+          '@media print {' +
+            'html,body{margin:0;padding:0;background:white;}' +
+            '.rollno-page{width:297mm;height:210mm;padding:0;gap:0;}' +
+            '.rollno-slip{border:none;}' +
+          '}' +
         '</style>' +
         '</head><body>' +
         content +

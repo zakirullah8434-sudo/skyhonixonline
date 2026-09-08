@@ -2167,3 +2167,53 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* ==========================================================================
+   ROLL NO SLIP - PREVIEW & RESPONSIVE
+   ========================================================================== */
+
+/* Preview container */
+#rollno-preview .card {
+  overflow-x: auto;
+}
+
+/* Roll no page: 2-column grid on desktop, stacks on mobile preview */
+.rollno-page {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+/* Individual slip styling for preview */
+.rollno-slip {
+  border: 1px solid #ddd;
+  padding: 12px 16px;
+  font-family: Arial, sans-serif;
+  color: #000;
+  background: #fff;
+}
+
+@media (max-width: 768px) {
+  /* Mobile preview: stack slips vertically */
+  .rollno-page {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    padding: 8px !important;
+  }
+
+  .rollno-slip {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 10px 12px;
+    min-height: auto;
+  }
+
+  /* Scale down font sizes for mobile preview */
+  .rollno-slip table {
+    font-size: 9px !important;
+  }
+  .rollno-slip table th,
+  .rollno-slip table td {
+    padding: 3px 4px !important;
+  }
+}
+
