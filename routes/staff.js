@@ -13,7 +13,7 @@ router.get('/teachers', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
     const teachers = await querySchool(schoolId,
-      'SELECT id, name, phone, subject, qualification, status, created_at FROM teachers ORDER BY name'
+      'SELECT id, name, phone, subject, qualification, status, created_at, assigned_class, can_collect_fees FROM teachers ORDER BY name'
     );
 
     // Get timetable assignments for each teacher
@@ -36,7 +36,7 @@ router.get('/teachers', authenticateToken, async (req, res) => {
 // POST /staff/teachers - Create a new teacher
 router.post('/teachers', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
-  const { name, phone, password, subject, qualification } = req.body;
+  const { name, phone, password, subject, qualification, assigned_class, can_collect_fees } = req.body;
 
   if (!name || !phone || !password) {
     return res.status(400).json({ error: 'Name, phone, and password are required' });
@@ -50,9 +50,9 @@ router.post('/teachers', authenticateToken, async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await runSchool(schoolId,
-      `INSERT INTO teachers (name, phone, password, subject, qualification, status, school_id, created_at)
-       VALUES (?, ?, ?, ?, ?, 'Active', ?, ?)`,
-      [name, phone, hashedPassword, subject || '', qualification || '', schoolId, new Date().toISOString().slice(0, 19).replace('T', ' ')]
+      `INSERT INTO teachers (name, phone, password, subject, qualification, status, school_id, created_at, assigned_class, can_collect_fees)
+       VALUES (?, ?, ?, ?, ?, 'Active', ?, ?, ?, ?)`,
+      [name, phone, hashedPassword, subject || '', qualification || '', schoolId, new Date().toISOString().slice(0, 19).replace('T', ' '), assigned_class || '', can_collect_fees ? 1 : 0]
     );
 
     res.json({ id: result.id, message: 'Teacher created successfully' });
@@ -65,11 +65,11 @@ router.post('/teachers', authenticateToken, async (req, res) => {
 router.put('/teachers/:id', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { id } = req.params;
-  const { name, phone, subject, qualification, status, password } = req.body;
+  const { name, phone, subject, qualification, status, password, assigned_class, can_collect_fees } = req.body;
 
   try {
-    let query = `UPDATE teachers SET name=?, phone=?, subject=?, qualification=?, status=?`;
-    let params = [name, phone, subject || '', qualification || '', status || 'Active'];
+    let query = `UPDATE teachers SET name=?, phone=?, subject=?, qualification=?, status=?, assigned_class=?, can_collect_fees=?`;
+    let params = [name, phone, subject || '', qualification || '', status || 'Active', assigned_class || '', can_collect_fees ? 1 : 0];
 
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);

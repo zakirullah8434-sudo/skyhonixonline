@@ -6981,7 +6981,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const adminScreen = document.getElementById('screen-admin-settings');
       adminScreen.querySelectorAll(':scope > .card, :scope > .grid-3').forEach(c => c.style.display = 'none');
       document.getElementById('panel-' + opt).style.display = 'block';
-      if (opt === 'manage-teachers') loadTeachersList();
+      if (opt === 'manage-teachers') { loadTeachersList(); loadTeacherClassDropdown(); }
       if (opt === 'manage-parents') { loadParentsList(); }
       if (opt === 'manage-timetable') { populateTimetableDropdowns(); }
       if (opt === 'manage-announcements') { loadAnnouncementsList(); }

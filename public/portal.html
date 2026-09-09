@@ -1445,6 +1445,20 @@
                     <label class="form-label">Qualification</label>
                     <input type="text" class="form-control" id="teacher-qualification" placeholder="e.g. M.Sc, B.Ed">
                   </div>
+                  <div class="form-group">
+                    <label class="form-label">Assigned Class</label>
+                    <select class="form-control" id="teacher-assigned-class">
+                      <option value="">-- No Class Assigned --</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="display: flex; align-items: flex-end; gap: 10px;">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px 0;">
+                      <input type="checkbox" id="teacher-can-collect-fees" style="width:18px; height:18px;">
+                      <span style="font-size:0.85rem;">Allow Fee Collection</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="grid-3" style="gap: 15px;">
                   <div class="form-group" style="display: flex; align-items: flex-end; gap: 10px;">
                     <button type="submit" class="btn btn-primary" id="btn-teacher-submit" style="flex: 1;">Add Teacher</button>
                     <button type="button" class="btn btn-outline" id="btn-teacher-cancel" style="display: none;">Cancel</button>
@@ -1462,13 +1476,14 @@
                     <tr>
                       <th>Name</th>
                       <th>Phone</th>
-                      <th>Qualification</th>
+                      <th>Assigned Class</th>
+                      <th>Fee Access</th>
                       <th>Status</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No teachers added yet.</td></tr>
+                    <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No teachers added yet.</td></tr>
                   </tbody>
                 </table>
               </div>

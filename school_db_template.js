@@ -323,6 +323,10 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
+      // 23b. Migrate teachers table - add assigned_class and can_collect_fees
+      db.run(`ALTER TABLE teachers ADD COLUMN assigned_class TEXT DEFAULT ''`);
+      db.run(`ALTER TABLE teachers ADD COLUMN can_collect_fees INTEGER DEFAULT 0`);
+
       // 24. Parents table (for parent portal login)
       db.run(`
         CREATE TABLE IF NOT EXISTS parents (

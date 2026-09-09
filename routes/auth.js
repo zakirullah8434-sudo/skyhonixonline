@@ -280,7 +280,8 @@ router.post('/teacher-login', async (req, res) => {
       schoolName: school.school_name,
       teacherId: foundTeacher.id,
       teacherName: foundTeacher.name,
-      role: 'teacher'
+      role: 'teacher',
+      can_collect_fees: foundTeacher.can_collect_fees || 0
     };
 
     const token = jwt.sign(payload, config.JWT_SECRET, { expiresIn: '7d' });
@@ -294,7 +295,8 @@ router.post('/teacher-login', async (req, res) => {
         subject: foundTeacher.subject,
         role: 'teacher',
         schoolName: school.school_name,
-        schoolId: school.id
+        schoolId: school.id,
+        can_collect_fees: foundTeacher.can_collect_fees || 0
       }
     });
 

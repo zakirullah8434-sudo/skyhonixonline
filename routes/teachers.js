@@ -458,4 +458,114 @@ router.delete('/assignments/:id', authenticateTeacherToken, async (req, res) => 
   }
 });
 
+// GET /api/teachers/fee-students - Get students for fee collection (only assigned class)
+router.get('/fee-students', authenticateTeacherToken, async (req, res) => {
+  const schoolId = req.teacher.schoolId;
+  const teacherId = req.teacher.teacherId;
+
+  try {
+    const teacher = await querySchoolOne(schoolId, 'SELECT assigned_class, can_collect_fees FROM teachers WHERE id = ?', [teacherId]);
+    if (!teacher || !teacher.can_collect_fees) {
+      return res.status(403).json({ error: 'You do not have permission to collect fees.' });
+    }
+    if (!teacher.assigned_class) {
+      return res.status(400).json({ error: 'No class assigned to you. Please contact admin.' });
+    }
+
+    const students = await querySchool(schoolId,
+      `SELECT s.id, s.name, s.roll_no, s.class_name, s.section_name, s.father_name, s.photo
+       FROM students s
+       WHERE s.class_name = ? AND (s.status IS NULL OR s.status != 'Left')
+       ORDER BY CAST(s.roll_no AS INTEGER), s.name`,
+      [teacher.assigned_class]
+    );
+    res.json(students);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/teachers/fee-ledger/:studentId - Get fee ledger for a student
+router.get('/fee-ledger/:studentId', authenticateTeacherToken, async (req, res) => {
+  const schoolId = req.teacher.schoolId;
+  const teacherId = req.teacher.teacherId;
+  const studentId = req.params.studentId;
+
+  try {
+    const teacher = await querySchoolOne(schoolId, 'SELECT assigned_class, can_collect_fees FROM teachers WHERE id = ?', [teacherId]);
+    if (!teacher || !teacher.can_collect_fees) {
+      return res.status(403).json({ error: 'You do not have permission to collect fees.' });
+    }
+
+    const ledger = await querySchool(schoolId,
+      `SELECT fl.*, s.name as student_name, s.roll_no, s.father_name
+       FROM fee_ledger fl
+       JOIN students s ON s.id = fl.student_id
+       WHERE fl.student_id = ? ORDER BY fl.year DESC, fl.month DESC`,
+      [studentId]
+    );
+
+    const payments = await querySchool(schoolId,
+      `SELECT * FROM fee_payments WHERE student_id = ? ORDER BY payment_date DESC`,
+      [studentId]
+    );
+
+    const dues = await querySchool(schoolId,
+      `SELECT * FROM fee_dues WHERE student_id = ?`,
+      [studentId]
+    );
+
+    res.json({ ledger, payments, dues });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/teachers/fee-pay - Collect fee payment
+router.post('/fee-pay', authenticateTeacherToken, async (req, res) => {
+  const schoolId = req.teacher.schoolId;
+  const teacherId = req.teacher.teacherId;
+  const { ledger_id, amount_paid, payment_date } = req.body;
+
+  try {
+    const teacher = await querySchoolOne(schoolId, 'SELECT assigned_class, can_collect_fees FROM teachers WHERE id = ?', [teacherId]);
+    if (!teacher || !teacher.can_collect_fees) {
+      return res.status(403).json({ error: 'You do not have permission to collect fees.' });
+    }
+
+    if (!ledger_id || !amount_paid || amount_paid <= 0) {
+      return res.status(400).json({ error: 'Valid ledger ID and amount are required' });
+    }
+
+    const ledger = await querySchoolOne(schoolId, 'SELECT * FROM fee_ledger WHERE id = ?', [ledger_id]);
+    if (!ledger) {
+      return res.status(404).json({ error: 'Fee ledger record not found' });
+    }
+
+    // Verify the student belongs to the teacher's assigned class
+    if (teacher.assigned_class && ledger.class_name !== teacher.assigned_class) {
+      return res.status(403).json({ error: 'You can only collect fees for your assigned class.' });
+    }
+
+    const newPaid = (ledger.paid_amount || 0) + parseFloat(amount_paid);
+    const totalPayable = ledger.total_payable || 0;
+    let status = 'Unpaid';
+    if (newPaid >= totalPayable) status = 'Paid';
+    else if (newPaid > 0) status = 'Partial';
+
+    const payDate = payment_date || new Date().toISOString().split('T')[0];
+
+    await runSchool(schoolId, 'UPDATE fee_ledger SET paid_amount = ?, status = ? WHERE id = ?', [newPaid, status, ledger_id]);
+    await runSchool(schoolId,
+      `INSERT INTO fee_payments (student_id, class_name, month, year, amount_paid, payment_date, fee_ledger_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [ledger.student_id, ledger.class_name, ledger.month, ledger.year, parseFloat(amount_paid), payDate, ledger_id]
+    );
+
+    res.json({ message: 'Payment recorded successfully', new_paid: newPaid, status });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

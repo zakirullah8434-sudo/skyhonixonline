@@ -614,4 +614,125 @@ document.addEventListener('DOMContentLoaded', () => {
   loadMarksFilters();
   loadAnnouncements();
   loadDashboardAssignments();
+  initFeeCollection();
 });
+
+// ==================== FEE COLLECTION ====================
+let feeSelectedStudent = null;
+
+async function initFeeCollection() {
+  // Check if teacher has fee collection permission
+  try {
+    const user = JSON.parse(localStorage.getItem('skyhonix_user') || '{}');
+    if (user.can_collect_fees) {
+      document.getElementById('nav-fee-collection').style.display = '';
+    }
+  } catch (e) {}
+
+  document.getElementById('fee-student-search').addEventListener('input', async function() {
+    const q = this.value.trim();
+    const listEl = document.getElementById('fee-student-list');
+    if (q.length < 2) { listEl.innerHTML = ''; return; }
+    try {
+      const students = await apiCall(`/api/teachers/fee-students`);
+      const filtered = students.filter(s => s.name.toLowerCase().includes(q.toLowerCase()) || String(s.roll_no).includes(q));
+      listEl.innerHTML = filtered.slice(0, 10).map(s => `
+        <div style="padding:10px; cursor:pointer; border-bottom:1px solid var(--border-color); display:flex; align-items:center; gap:10px;" class="fee-student-pick" data-id="${s.id}" data-name="${s.name}" data-class="${s.class_name}" data-section="${s.section_name || ''}" data-roll="${s.roll_no || ''}" data-father="${s.father_name || ''}" data-photo="${s.photo || ''}">
+          <img src="${s.photo ? (s.photo.startsWith('data:') ? s.photo : '/' + s.photo) : 'school_assets/school_logo.png'}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;">
+          <div><div style="font-weight:600;">${s.name}</div><div style="font-size:0.8rem; color:var(--text-muted);">Roll: ${s.roll_no || '-'} | ${s.class_name}</div></div>
+        </div>
+      `).join('');
+      if (filtered.length === 0) listEl.innerHTML = '<div style="padding:10px; color:var(--text-muted);">No students found</div>';
+
+      listEl.querySelectorAll('.fee-student-pick').forEach(el => {
+        el.addEventListener('click', async () => {
+          feeSelectedStudent = { id: el.dataset.id, name: el.dataset.name, class_name: el.dataset.class, section_name: el.dataset.section, roll_no: el.dataset.roll, father_name: el.dataset.father, photo: el.dataset.photo };
+          document.getElementById('fee-student-name').textContent = feeSelectedStudent.name;
+          document.getElementById('fee-student-class').textContent = `${feeSelectedStudent.class_name} | Roll: ${feeSelectedStudent.roll_no} | Father: ${feeSelectedStudent.father_name}`;
+          document.getElementById('fee-student-photo').src = feeSelectedStudent.photo ? (feeSelectedStudent.photo.startsWith('data:') ? feeSelectedStudent.photo : '/' + feeSelectedStudent.photo) : 'school_assets/school_logo.png';
+          listEl.innerHTML = '';
+          document.getElementById('fee-student-search').value = feeSelectedStudent.name;
+          await loadFeeLedger(feeSelectedStudent.id);
+        });
+      });
+    } catch (err) { showToast('Error loading students: ' + err.message, true); }
+  });
+
+  document.getElementById('btn-cancel-pay').addEventListener('click', () => {
+    document.getElementById('fee-payment-form').style.display = 'none';
+  });
+
+  document.getElementById('btn-confirm-pay').addEventListener('click', async () => {
+    const ledgerId = document.getElementById('pay-ledger-id').value;
+    const amount = parseFloat(document.getElementById('pay-amount').value);
+    const payDate = document.getElementById('pay-date').value;
+
+    if (!amount || amount <= 0) { showToast('Please enter a valid amount', true); return; }
+
+    try {
+      const res = await apiCall('/api/teachers/fee-pay', 'POST', { ledger_id: parseInt(ledgerId), amount_paid: amount, payment_date: payDate });
+      showToast(res.message);
+      document.getElementById('fee-payment-form').style.display = 'none';
+      if (feeSelectedStudent) await loadFeeLedger(feeSelectedStudent.id);
+    } catch (err) { showToast('Payment failed: ' + err.message, true); }
+  });
+}
+
+async function loadFeeLedger(studentId) {
+  const section = document.getElementById('fee-ledger-section');
+  const tableContainer = document.getElementById('fee-ledger-table-container');
+  section.style.display = 'block';
+
+  try {
+    const data = await apiCall(`/api/teachers/fee-ledger/${studentId}`);
+    if (!data.ledger || data.ledger.length === 0) {
+      tableContainer.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted);">No fee records found for this student.</div>';
+      return;
+    }
+
+    const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    tableContainer.innerHTML = `
+      <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+        <thead>
+          <tr style="background:rgba(255,255,255,0.05);">
+            <th style="padding:10px; text-align:left; border-bottom:2px solid var(--border-color);">Month</th>
+            <th style="padding:10px; text-align:right; border-bottom:2px solid var(--border-color);">Total</th>
+            <th style="padding:10px; text-align:right; border-bottom:2px solid var(--border-color);">Paid</th>
+            <th style="padding:10px; text-align:right; border-bottom:2px solid var(--border-color);">Remaining</th>
+            <th style="padding:10px; text-align:center; border-bottom:2px solid var(--border-color);">Status</th>
+            <th style="padding:10px; text-align:center; border-bottom:2px solid var(--border-color);">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.ledger.map(fl => {
+            const remaining = (fl.total_payable || 0) - (fl.paid_amount || 0);
+            const statusBadge = fl.status === 'Paid' ? 'badge-green' : fl.status === 'Partial' ? 'badge-yellow' : 'badge-red';
+            const canPay = fl.status !== 'Paid';
+            return `<tr style="border-bottom:1px solid var(--border-color);">
+              <td style="padding:10px;">${monthNames[fl.month] || fl.month} ${fl.year}</td>
+              <td style="padding:10px; text-align:right;">Rs. ${fl.total_payable || 0}</td>
+              <td style="padding:10px; text-align:right; color:var(--success);">Rs. ${fl.paid_amount || 0}</td>
+              <td style="padding:10px; text-align:right; color:${remaining > 0 ? 'var(--danger)' : 'var(--success)'};">Rs. ${remaining}</td>
+              <td style="padding:10px; text-align:center;"><span class="badge ${statusBadge}">${fl.status}</span></td>
+              <td style="padding:10px; text-align:center;">${canPay ? `<button class="btn btn-primary btn-sm btn-pay-fee" data-id="${fl.id}" data-month="${monthNames[fl.month] || fl.month} ${fl.year}" data-total="${fl.total_payable}" data-paid="${fl.paid_amount}" data-remaining="${remaining}">Pay</button>` : '<span style="color:var(--text-muted);">-</span>'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+
+    tableContainer.querySelectorAll('.btn-pay-fee').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.getElementById('pay-ledger-id').value = btn.dataset.id;
+        document.getElementById('pay-month').textContent = btn.dataset.month;
+        document.getElementById('pay-total').textContent = 'Rs. ' + btn.dataset.total;
+        document.getElementById('pay-paid').textContent = 'Rs. ' + btn.dataset.paid;
+        document.getElementById('pay-remaining').textContent = 'Rs. ' + btn.dataset.remaining;
+        document.getElementById('pay-amount').value = '';
+        document.getElementById('pay-amount').max = btn.dataset.remaining;
+        document.getElementById('pay-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('fee-payment-form').style.display = 'block';
+      });
+    });
+  } catch (err) { tableContainer.innerHTML = '<div style="padding:20px; text-align:center; color:var(--danger);">Error loading fee data</div>'; }
+}
