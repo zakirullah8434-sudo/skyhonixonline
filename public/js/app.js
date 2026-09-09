@@ -1843,7 +1843,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      students.forEach(s => {
+      const rows = students.map(s => {
         const hasSibling = s.family_head_id ? `<span class="sib-badge">Sibling</span>` : (s.family_head_id === null ? '' : '');
         const roleText = s.family_head_id ? `Linked to Head` : 'Family Head';
         
@@ -1852,7 +1852,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (s.discount_amount > 0) waiverText = `-${s.discount_amount} PKR`;
         else if (s.discount_percent > 0) waiverText = `-${s.discount_percent}%`;
 
-        tbody.innerHTML += `
+        return `
           <tr>
             <td>${s.student_id}</td>
             <td><strong>${s.roll_no || '-'}</strong></td>
@@ -1877,6 +1877,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </tr>
         `;
       });
+      tbody.innerHTML = rows.join('');
 
       // Bind events
       attachStudentTableEvents();
@@ -2008,11 +2009,23 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {}
   });
 
-  // Table events linking
+  // Table events linking — use event delegation to avoid memory leaks
+  let _studentTableDelegationBound = false;
   function attachStudentTableEvents() {
-    // Edit Profile Clicked
-    document.querySelectorAll('.btn-edit-student').forEach(btn => {
-      btn.addEventListener('click', async () => {
+    if (_studentTableDelegationBound) return;
+    _studentTableDelegationBound = true;
+
+    const modalQr = document.getElementById('modal-print-qr');
+    const qrPlaceholder = document.getElementById('qr-code-placeholder');
+    const modalSibling = document.getElementById('modal-sibling');
+    const sibHeadSelect = document.getElementById('sib-head-select');
+
+    // Event delegation on the student table body
+    document.querySelector('#table-students tbody').addEventListener('click', async (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+
+      if (btn.classList.contains('btn-edit-student')) {
         const id = btn.getAttribute('data-id');
         try {
           const data = await apiCall(`/students/${id}`);
@@ -2046,12 +2059,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
           modalStudent.classList.add('open');
         } catch (e) {}
-      });
-    });
+      }
 
-    // Archive Clicked
-    document.querySelectorAll('.btn-archive-student').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      if (btn.classList.contains('btn-archive-student')) {
         const id = btn.getAttribute('data-id');
         if (confirm('Are you sure you want to mark this student as Left (Inactive)?')) {
           try {
@@ -2060,14 +2070,9 @@ document.addEventListener('DOMContentLoaded', () => {
             loadStudentsList();
           } catch (e) {}
         }
-      });
-    });
+      }
 
-    // QR Print Clicked
-    const modalQr = document.getElementById('modal-print-qr');
-    const qrPlaceholder = document.getElementById('qr-code-placeholder');
-    document.querySelectorAll('.btn-qr-student').forEach(btn => {
-      btn.addEventListener('click', () => {
+      if (btn.classList.contains('btn-qr-student')) {
         const name = btn.getAttribute('data-name');
         const roll = btn.getAttribute('data-roll');
         const className = btn.getAttribute('data-class');
@@ -2078,38 +2083,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('qr-card-roll').innerText = `Roll No: ${roll || 'N/A'} | Class: ${className}`;
         document.getElementById('qr-card-id').innerText = `Student ID: ${code}`;
 
-        // Generate QR code using QRServer API
         qrPlaceholder.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(code)}" alt="Student Code QR" style="width:130px; height:130px;">`;
         
         modalQr.classList.add('open');
-      });
-    });
+      }
 
-    document.getElementById('btn-close-qr-modal').addEventListener('click', () => {
-      modalQr.classList.remove('open');
-    });
-
-    document.getElementById('btn-print-qr-execute').addEventListener('click', () => {
-      const printContents = document.getElementById('print-card-content').innerHTML;
-      const originalContents = document.body.innerHTML;
-
-      document.body.innerHTML = `
-        <div style="display:flex; align-items:center; justify-content:center; height:100vh; background:white; color:black;">
-          <div style="width:300px; padding:20px; border:2px solid black; border-radius:10px; text-align:center;">
-            ${printContents}
-          </div>
-        </div>
-      `;
-      window.print();
-      // Reload page to restore UI state after printing
-      window.location.reload();
-    });
-
-    // Sibling Links modal triggers
-    const modalSibling = document.getElementById('modal-sibling');
-    const sibHeadSelect = document.getElementById('sib-head-select');
-    document.querySelectorAll('.btn-sib-student').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      if (btn.classList.contains('btn-sib-student')) {
         const id = btn.getAttribute('data-id');
         const name = btn.getAttribute('data-name');
         const currentHead = btn.getAttribute('data-head');
@@ -2119,7 +2098,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('sib-target-status').innerText = currentHead ? `Sibling (linked to ID: ${currentHead})` : 'Individual Account (unlinked)';
         
         try {
-          // Fetch prospective sibling heads (excluding current student)
           const candidates = await apiCall(`/students/sibling-candidates/all?excludeId=${id}`);
           sibHeadSelect.innerHTML = '<option value="">-- Choose Head Student --</option>';
           candidates.forEach(c => {
@@ -2129,21 +2107,41 @@ document.addEventListener('DOMContentLoaded', () => {
           if (currentHead) sibHeadSelect.value = currentHead;
           modalSibling.classList.add('open');
         } catch (e) {}
-      });
+      }
+    });
+
+    // Global modal buttons — bound ONCE
+    document.getElementById('btn-close-qr-modal').addEventListener('click', () => {
+      modalQr.classList.remove('open');
+    });
+
+    document.getElementById('btn-print-qr-execute').addEventListener('click', () => {
+      const printContents = document.getElementById('print-card-content').innerHTML;
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <html><head><title>Print Card</title></head>
+        <body style="display:flex; align-items:center; justify-content:center; height:100vh; background:white; margin:0;">
+          <div style="width:300px; padding:20px; border:2px solid black; border-radius:10px; text-align:center;">
+            ${printContents}
+          </div>
+        </body></html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
     });
 
     document.getElementById('btn-close-sib-modal').addEventListener('click', () => {
       modalSibling.classList.remove('open');
     });
 
-    // Submit Sibling Link Form
     document.getElementById('form-link-sibling').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('sib-student-id').value;
       const familyHeadId = sibHeadSelect.value;
 
       try {
-        // Fetch current details, modify family head mapping
         const data = await apiCall(`/students/${id}`);
         const s = data.student;
         s.family_head_id = familyHeadId;
@@ -2155,7 +2153,6 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {}
     });
 
-    // Unlink Sibling Trigger
     document.getElementById('btn-unlink-sibling').addEventListener('click', async () => {
       const id = document.getElementById('sib-student-id').value;
       try {
@@ -2578,15 +2575,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      students.forEach(s => {
+      const rows = students.map(s => {
         const statuses = ['Present', 'Absent', 'Late', 'Leave'];
-        let options = '';
-        statuses.forEach(st => {
+        const options = statuses.map(st => {
           const sel = s.status === st || (!s.status && st === 'Present') ? 'selected' : '';
-          options += `<option value="${st}" ${sel}>${st}</option>`;
-        });
+          return `<option value="${st}" ${sel}>${st}</option>`;
+        }).join('');
 
-        tbody.innerHTML += `
+        return `
           <tr data-student-id="${s.id}">
             <td><strong>${s.roll_no || '-'}</strong></td>
             <td>
@@ -2607,6 +2603,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </tr>
         `;
       });
+      tbody.innerHTML = rows.join('');
 
       document.getElementById('att-grid-actions').style.display = 'block';
 
@@ -2748,19 +2745,17 @@ document.addEventListener('DOMContentLoaded', () => {
         studentLogs[log.student_id].records.push({ date: log.date, status: log.status });
       });
 
-      Object.keys(studentLogs).forEach(id => {
+      const rows = Object.keys(studentLogs).map(id => {
         const student = studentLogs[id];
-        let pills = '';
         
-        // Render up to 31 day summary details
         student.records.sort((a,b) => new Date(a.date) - new Date(b.date));
-        student.records.forEach(r => {
+        const pills = student.records.map(r => {
           const day = r.date.split('-')[2];
           const badgeClass = r.status === 'Present' ? 'status-present' : (r.status === 'Absent' ? 'status-unpaid' : 'status-partial');
-          pills += `<span class="status-badge ${badgeClass}" style="margin:2px; font-size:0.7rem;" title="${r.date}">${day}: ${r.status.substring(0, 1)}</span>`;
-        });
+          return `<span class="status-badge ${badgeClass}" style="margin:2px; font-size:0.7rem;" title="${r.date}">${day}: ${r.status.substring(0, 1)}</span>`;
+        }).join('');
 
-        tbody.innerHTML += `
+        return `
           <tr>
             <td><strong>${student.roll_no || '-'}</strong></td>
             <td><strong>${student.name}</strong></td>
@@ -2768,6 +2763,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </tr>
         `;
       });
+      tbody.innerHTML = rows.join('');
 
     } catch (e) {}
   });
@@ -2985,14 +2981,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      fees.forEach(f => {
-        tbody.innerHTML += `
+      const rows = fees.map(f => `
           <tr>
             <td><strong>${f.class_name}</strong></td>
             <td><strong>${f.monthly_fee.toLocaleString()} PKR</strong></td>
           </tr>
-        `;
-      });
+      `);
+      tbody.innerHTML = rows.join('');
     } catch (e) {}
   }
 
@@ -3040,12 +3035,12 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
-        filtered.forEach(l => {
+        const rows = filtered.map(l => {
           const remaining = l.total_payable - l.paid_amount;
           let badgeClass = 'status-unpaid';
           if (l.status === 'Partial') badgeClass = 'status-partial';
 
-          tbody.innerHTML += `
+          return `
             <tr>
               <td>
                 <div style="font-weight:700;">${l.student_name}</div>
@@ -3067,17 +3062,26 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>
           `;
         });
+        tbody.innerHTML = rows.join('');
 
         attachFeePaymentFormEvents();
       } catch (e) {}
     });
   }
 
-  // Collect modal form bindings
+  // Collect modal form bindings — use event delegation
   const modalTx = document.getElementById('modal-transaction');
+  let _feeTxDelegationBound = false;
   function attachFeePaymentFormEvents() {
-    document.querySelectorAll('.btn-record-tx').forEach(btn => {
-      btn.addEventListener('click', () => {
+    if (_feeTxDelegationBound) return;
+    _feeTxDelegationBound = true;
+    
+    // Event delegation on the ledger table body
+    const ledgerBody = document.querySelector('#table-fee-ledger-search tbody');
+    if (ledgerBody) {
+      ledgerBody.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-record-tx');
+        if (!btn) return;
         const id = btn.getAttribute('data-id');
         const name = btn.getAttribute('data-name');
         const month = btn.getAttribute('data-month');
@@ -3092,7 +3096,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         modalTx.classList.add('open');
       });
-    });
+    }
   }
 
   const btnCloseTxModal = document.getElementById('btn-close-tx-modal');
@@ -3157,7 +3161,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      data.forEach(l => {
+      const rows = data.map(l => {
         const hasLedger = l.ledger_id !== null;
         let badge = '-';
         if (l.status === 'Paid') badge = '<span class="status-badge status-present">PAID</span>';
@@ -3168,7 +3172,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ? `<button class="btn btn-danger btn-sm btn-delete-history-ledger" data-id="${l.ledger_id}">Delete</button>`
           : `<button class="btn btn-outline btn-success btn-sm btn-generate-history-ledger" data-student-id="${l.student_id}">Generate</button>`;
 
-        tbody.innerHTML += `
+        return `
           <tr>
             <td>${l.student_id}</td>
             <td>${l.roll_no || 'N/A'}</td>
@@ -3191,30 +3195,32 @@ document.addEventListener('DOMContentLoaded', () => {
           </tr>
         `;
       });
+      tbody.innerHTML = rows.join('');
 
-      // Bind single generate/delete buttons
-      document.querySelectorAll('.btn-generate-history-ledger').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const student_id = btn.getAttribute('data-student-id');
+      // Event delegation for generate/delete buttons
+      tbody.onclick = async (e) => {
+        const genBtn = e.target.closest('.btn-generate-history-ledger');
+        if (genBtn) {
+          const student_id = genBtn.getAttribute('data-student-id');
           try {
             const res = await apiCall('/fees/generate-single', 'POST', { student_id, month, year });
             showToast(res.message);
             refreshAllFeeViews();
-          } catch (e) {}
-        });
-      });
-
-      document.querySelectorAll('.btn-delete-history-ledger').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const ledger_id = btn.getAttribute('data-id');
+          } catch (err) {}
+          return;
+        }
+        const delBtn = e.target.closest('.btn-delete-history-ledger');
+        if (delBtn) {
+          const ledger_id = delBtn.getAttribute('data-id');
           if (!confirm('Are you sure you want to delete this student\'s ledger for this month?')) return;
           try {
             const res = await apiCall(`/fees/ledger/${ledger_id}`, 'DELETE');
             showToast(res.message);
             refreshAllFeeViews();
-          } catch (e) {}
-        });
-      });
+          } catch (err) {}
+          return;
+        }
+      };
 
     } catch (e) {
       console.error('loadHistoryLedger error:', e);
@@ -6236,12 +6242,12 @@ document.addEventListener('DOMContentLoaded', () => {
             '<div class="rollno-slip" style="width:100%; display:flex; flex-direction:column; justify-content:space-between; padding:5% 10px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
 
               // === HEADER: School name ===
-              '<div style="text-align:center;">' +
+              '<div style="text-align:center; margin-top:8px;">' +
                 '<div style="font-size:17px; font-weight:900; color:#000; text-transform:uppercase; letter-spacing:1.5px; line-height:1.2;">' + currentUser.schoolName + '</div>' +
               '</div>' +
 
               // === Logo + ROLL NO SLIP title ===
-              '<div style="display:flex; align-items:center; gap:12px;">' +
+              '<div style="display:flex; align-items:center; gap:12px; margin-top:-6px;">' +
                 '<img src="' + logoUrl + '" alt="Logo" style="width:55px; height:55px; border-radius:50%; flex-shrink:0; border:2px solid #ddd;" onerror="this.style.display=\'none\'">' +
                 '<div style="text-align:center; flex:1;">' +
                   '<div style="font-size:15px; font-weight:900; letter-spacing:2px; color:#000;">ROLL NO SLIP</div>' +
