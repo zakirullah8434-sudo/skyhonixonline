@@ -6258,7 +6258,7 @@ document.addEventListener('DOMContentLoaded', () => {
               '</div>' +
 
               // === Exam table ===
-              '<div style="display:flex; flex-direction:column; overflow:hidden;">' +
+              '<div class="rollno-exam-table-wrap" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">' +
                 '<table style="width:100%; border-collapse:collapse; font-size:11px; table-layout:fixed;">' +
                   '<colgroup>' +
                     '<col style="width:6%;">' +
@@ -6281,7 +6281,7 @@ document.addEventListener('DOMContentLoaded', () => {
               '</div>' +
 
               // === Footer: Instructions + Signature ===
-              '<div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; margin-top:auto; font-size:10.5px;">' +
+              '<div class="rollno-footer" style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; margin-top:auto; flex-shrink:0; font-size:10.5px;">' +
                 '<div style="max-width:55%;">' +
                   '<div style="font-weight:700; margin-bottom:2px; font-size:11px;">Instructions:</div>' +
                   '<ul style="margin:0; padding-left:16px; list-style:disc; line-height:1.5;">' + instHtml + '</ul>' +
@@ -6321,21 +6321,23 @@ document.addEventListener('DOMContentLoaded', () => {
         '<style>' +
           /* ========== A4 LANDSCAPE PAGE SETUP ========== */
           '@page { size: A4 landscape; margin: 8mm; }' +
-          'html { margin:0; padding:0; }' +
-          'body {' +
+          'html, body {' +
             'margin:0 !important;' +
             'padding:0 !important;' +
+            'height:100% !important;' +
             'background:white !important;' +
             'font-family:Arial, sans-serif;' +
             '-webkit-print-color-adjust:exact !important;' +
             'print-color-adjust:exact !important;' +
           '}' +
-          /* ========== ROLLNO-PAGE: 2 slips per page ========== */
+          /* ========== ROLLNO-PAGE: 2 slips per page, fills full page height ========== */
           '.rollno-page {' +
             'display:grid !important;' +
             'grid-template-columns:repeat(2, 1fr) !important;' +
+            'grid-template-rows:1fr !important;' +
             'gap:4mm !important;' +
             'width:100% !important;' +
+            'height:100% !important;' +
             'padding:0 !important;' +
             'margin:0 !important;' +
             'page-break-after:always !important;' +
@@ -6343,9 +6345,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'box-sizing:border-box !important;' +
           '}' +
           '.rollno-page:last-child { page-break-after:auto !important; }' +
-          /* ========== ROLLNO-SLIP: individual slip ========== */
+          /* ========== ROLLNO-SLIP: stretches to fill page height ========== */
           '.rollno-slip {' +
             'width:100% !important;' +
+            'height:100% !important;' +
             'max-width:none !important;' +
             'min-width:0 !important;' +
             'box-sizing:border-box !important;' +
@@ -6353,6 +6356,16 @@ document.addEventListener('DOMContentLoaded', () => {
             'page-break-inside:avoid !important;' +
             'border:none !important;' +
             'border-radius:0 !important;' +
+            'overflow:hidden !important;' +
+            'display:flex !important;' +
+            'flex-direction:column !important;' +
+            'align-self:stretch !important;' +
+          '}' +
+          /* ========== EXAM TABLE SECTION: fills remaining vertical space ========== */
+          '.rollno-slip .rollno-exam-table-wrap {' +
+            'flex:1 !important;' +
+            'display:flex !important;' +
+            'flex-direction:column !important;' +
             'overflow:hidden !important;' +
           '}' +
           /* ========== TABLE: fixed layout ========== */
@@ -6374,13 +6387,19 @@ document.addEventListener('DOMContentLoaded', () => {
           '.rollno-slip table th:nth-child(3),.rollno-slip table td:nth-child(3){width:20%!important;}' +
           '.rollno-slip table th:nth-child(4),.rollno-slip table td:nth-child(4){width:30%!important;}' +
           '.rollno-slip table th:nth-child(5),.rollno-slip table td:nth-child(5){width:22%!important;}' +
+          /* ========== FOOTER: sticks to bottom ========== */
+          '.rollno-slip .rollno-footer {' +
+            'margin-top:auto !important;' +
+            'flex-shrink:0 !important;' +
+          '}' +
           /* ========== PRINT MEDIA: force landscape, override all responsive ========== */
           '@media print {' +
             '@page { size: A4 landscape !important; margin: 8mm !important; }' +
-            'html,body{margin:0!important;padding:0!important;background:white!important;}' +
-            '.rollno-page{display:grid!important;grid-template-columns:repeat(2,1fr)!important;gap:4mm!important;width:100%!important;padding:0!important;margin:0!important;page-break-after:always!important;}' +
+            'html,body{margin:0!important;padding:0!important;height:100%!important;background:white!important;}' +
+            '.rollno-page{display:grid!important;grid-template-columns:repeat(2,1fr)!important;grid-template-rows:1fr!important;gap:4mm!important;width:100%!important;height:100%!important;padding:0!important;margin:0!important;page-break-after:always!important;}' +
             '.rollno-page:last-child{page-break-after:auto!important;}' +
-            '.rollno-slip{width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important;break-inside:avoid!important;page-break-inside:avoid!important;border:none!important;border-radius:0!important;}' +
+            '.rollno-slip{width:100%!important;height:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important;break-inside:avoid!important;page-break-inside:avoid!important;border:none!important;border-radius:0!important;display:flex!important;flex-direction:column!important;align-self:stretch!important;}' +
+            '.rollno-slip .rollno-exam-table-wrap{flex:1!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}' +
             '.rollno-slip table{width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;}' +
             '.rollno-slip table th,.rollno-slip table td{word-wrap:break-word!important;overflow-wrap:break-word!important;padding:3px 4px!important;font-size:10px!important;}' +
           '}' +
