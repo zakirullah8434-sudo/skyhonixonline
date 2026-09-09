@@ -2394,3 +2394,109 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* Print-specific styles: A4 Landscape, 2 slips per page */
+@media print {
+  /* Force A4 Landscape regardless of screen size */
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Override ALL mobile CSS: force 2-column grid for print */
+  .rollno-page {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 4mm !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    page-break-after: always !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .rollno-page:last-child {
+    page-break-after: auto !important;
+  }
+
+  .rollno-slip {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 8px 10px !important;
+  }
+
+  /* Fixed table layout for exam schedule */
+  .rollno-slip table {
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+  }
+
+  .rollno-slip table th,
+  .rollno-slip table td {
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    padding: 3px 4px !important;
+    font-size: 10px !important;
+  }
+
+  /* Column widths for print */
+  .rollno-slip table th:nth-child(1),
+  .rollno-slip table td:nth-child(1) { width: 6% !important; }
+  .rollno-slip table th:nth-child(2),
+  .rollno-slip table td:nth-child(2) { width: 22% !important; }
+  .rollno-slip table th:nth-child(3),
+  .rollno-slip table td:nth-child(3) { width: 20% !important; }
+  .rollno-slip table th:nth-child(4),
+  .rollno-slip table td:nth-child(4) { width: 30% !important; }
+  .rollno-slip table th:nth-child(5),
+  .rollno-slip table td:nth-child(5) { width: 22% !important; }
+}
+
+/* Mobile print: force A4 Landscape even when printing from phone */
+@media print and (max-width: 768px) {
+  @page {
+    size: A4 landscape !important;
+    margin: 8mm !important;
+  }
+
+  body {
+    width: auto !important;
+  }
+
+  .rollno-page {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 4mm !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    page-break-after: always !important;
+  }
+
+  .rollno-slip {
+    width: 100% !important;
+    font-size: 9px !important;
+  }
+
+  .rollno-slip table th,
+  .rollno-slip table td {
+    padding: 2px 3px !important;
+    font-size: 8px !important;
+  }
+}
+

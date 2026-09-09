@@ -6201,11 +6201,11 @@ document.addEventListener('DOMContentLoaded', () => {
               const dayName = dateObj ? dateObj.toLocaleDateString('en-US', { weekday: 'long' }) : '-';
               const dateFormatted = dateObj ? dateObj.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
               tableRows += '<tr>' +
-                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:center;">' + (i + 1) + '</td>' +
-                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:center;">' + dateFormatted + '</td>' +
-                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:center;">' + dayName + '</td>' +
-                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:left;">' + sub.subject + '</td>' +
-                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:center;">' + (sub.time || '-') + '</td>' +
+                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + (i + 1) + '</td>' +
+                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + dateFormatted + '</td>' +
+                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + dayName + '</td>' +
+                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:left; word-wrap:break-word; overflow-wrap:break-word;">' + sub.subject + '</td>' +
+                '<td style="border:1.5px solid #000; padding:4px 6px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + (sub.time || '-') + '</td>' +
                 '</tr>';
             });
           } else {
@@ -6233,7 +6233,7 @@ document.addEventListener('DOMContentLoaded', () => {
             : (exam ? exam.exam_name + ' Exam ' + exam.year : '');
 
           slipsHtml +=
-            '<div class="rollno-slip" style="width:100%; height:100%; display:flex; flex-direction:column; padding:5% 14px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
+            '<div class="rollno-slip" style="width:100%; display:flex; flex-direction:column; padding:8px 10px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
 
               // === HEADER: School name ===
               '<div style="text-align:center; margin-bottom:4px;">' +
@@ -6258,15 +6258,22 @@ document.addEventListener('DOMContentLoaded', () => {
               '</div>' +
 
               // === Exam table ===
-              '<div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">' +
-                '<table style="width:100%; height:100%; border-collapse:collapse; font-size:11px; table-layout:fixed;">' +
+              '<div style="display:flex; flex-direction:column; overflow:hidden;">' +
+                '<table style="width:100%; border-collapse:collapse; font-size:11px; table-layout:fixed;">' +
+                  '<colgroup>' +
+                    '<col style="width:6%;">' +
+                    '<col style="width:22%;">' +
+                    '<col style="width:20%;">' +
+                    '<col style="width:30%;">' +
+                    '<col style="width:22%;">' +
+                  '</colgroup>' +
                   '<thead>' +
                     '<tr>' +
-                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:center; width:6%; font-weight:700; background:#f0f0f0;">#</th>' +
-                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:center; width:22%; font-weight:700; background:#f0f0f0;">Date</th>' +
-                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:center; width:20%; font-weight:700; background:#f0f0f0;">Day</th>' +
-                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:left; width:28%; font-weight:700; background:#f0f0f0;">Subject</th>' +
-                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:center; width:24%; font-weight:700; background:#f0f0f0;">Time</th>' +
+                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:center; font-weight:700; background:#f0f0f0;">#</th>' +
+                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:center; font-weight:700; background:#f0f0f0;">Date</th>' +
+                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:center; font-weight:700; background:#f0f0f0;">Day</th>' +
+                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:left; font-weight:700; background:#f0f0f0;">Subject</th>' +
+                      '<th style="border:1.5px solid #000; padding:5px 6px; text-align:center; font-weight:700; background:#f0f0f0;">Time</th>' +
                     '</tr>' +
                   '</thead>' +
                   '<tbody>' + tableRows + '</tbody>' +
@@ -6310,18 +6317,72 @@ document.addEventListener('DOMContentLoaded', () => {
       const content = document.getElementById('rollno-printable-content').innerHTML;
       const printHtml = '<!DOCTYPE html><html><head>' +
         '<meta charset="utf-8">' +
-        '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
         '<title>Roll No Slips</title>' +
         '<style>' +
-          '@page { size: A4 landscape; margin: 0; }' +
-          'html, body { margin:0; padding:0; background:white; font-family:Arial,sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact; }' +
-          '.rollno-page { width:297mm; height:210mm; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:0; page-break-after:always; overflow:hidden; box-sizing:border-box; }' +
-          '.rollno-page:last-child { page-break-after:auto; }' +
-          '.rollno-slip { box-sizing:border-box; border:0.5px solid #ccc; }' +
+          /* ========== A4 LANDSCAPE PAGE SETUP ========== */
+          '@page { size: A4 landscape; margin: 8mm; }' +
+          'html { margin:0; padding:0; }' +
+          'body {' +
+            'margin:0 !important;' +
+            'padding:0 !important;' +
+            'background:white !important;' +
+            'font-family:Arial, sans-serif;' +
+            '-webkit-print-color-adjust:exact !important;' +
+            'print-color-adjust:exact !important;' +
+          '}' +
+          /* ========== ROLLNO-PAGE: 2 slips per page ========== */
+          '.rollno-page {' +
+            'display:grid !important;' +
+            'grid-template-columns:repeat(2, 1fr) !important;' +
+            'gap:4mm !important;' +
+            'width:100% !important;' +
+            'padding:0 !important;' +
+            'margin:0 !important;' +
+            'page-break-after:always !important;' +
+            'overflow:hidden !important;' +
+            'box-sizing:border-box !important;' +
+          '}' +
+          '.rollno-page:last-child { page-break-after:auto !important; }' +
+          /* ========== ROLLNO-SLIP: individual slip ========== */
+          '.rollno-slip {' +
+            'width:100% !important;' +
+            'max-width:none !important;' +
+            'min-width:0 !important;' +
+            'box-sizing:border-box !important;' +
+            'break-inside:avoid !important;' +
+            'page-break-inside:avoid !important;' +
+            'border:none !important;' +
+            'border-radius:0 !important;' +
+            'overflow:hidden !important;' +
+          '}' +
+          /* ========== TABLE: fixed layout ========== */
+          '.rollno-slip table {' +
+            'width:100% !important;' +
+            'table-layout:fixed !important;' +
+            'border-collapse:collapse !important;' +
+          '}' +
+          '.rollno-slip table th,' +
+          '.rollno-slip table td {' +
+            'word-wrap:break-word !important;' +
+            'overflow-wrap:break-word !important;' +
+            'padding:3px 4px !important;' +
+            'font-size:10px !important;' +
+          '}' +
+          /* ========== COLUMN WIDTHS ========== */
+          '.rollno-slip table th:nth-child(1),.rollno-slip table td:nth-child(1){width:6%!important;}' +
+          '.rollno-slip table th:nth-child(2),.rollno-slip table td:nth-child(2){width:22%!important;}' +
+          '.rollno-slip table th:nth-child(3),.rollno-slip table td:nth-child(3){width:20%!important;}' +
+          '.rollno-slip table th:nth-child(4),.rollno-slip table td:nth-child(4){width:30%!important;}' +
+          '.rollno-slip table th:nth-child(5),.rollno-slip table td:nth-child(5){width:22%!important;}' +
+          /* ========== PRINT MEDIA: force landscape, override all responsive ========== */
           '@media print {' +
-            'html,body{margin:0;padding:0;background:white;}' +
-            '.rollno-page{width:297mm;height:210mm;padding:0;gap:0;}' +
-            '.rollno-slip{border:none;}' +
+            '@page { size: A4 landscape !important; margin: 8mm !important; }' +
+            'html,body{margin:0!important;padding:0!important;background:white!important;}' +
+            '.rollno-page{display:grid!important;grid-template-columns:repeat(2,1fr)!important;gap:4mm!important;width:100%!important;padding:0!important;margin:0!important;page-break-after:always!important;}' +
+            '.rollno-page:last-child{page-break-after:auto!important;}' +
+            '.rollno-slip{width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important;break-inside:avoid!important;page-break-inside:avoid!important;border:none!important;border-radius:0!important;}' +
+            '.rollno-slip table{width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;}' +
+            '.rollno-slip table th,.rollno-slip table td{word-wrap:break-word!important;overflow-wrap:break-word!important;padding:3px 4px!important;font-size:10px!important;}' +
           '}' +
         '</style>' +
         '</head><body>' +
@@ -6939,6 +7000,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   // TEACHERS
   // ==========================================
+  async function loadTeacherClassDropdown() {
+    try {
+      const classes = await apiCall('/students/classes');
+      const sel = document.getElementById('teacher-assigned-class');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- No Class Assigned --</option>';
+      classes.forEach(c => {
+        const name = typeof c === 'object' ? c.class_name : c;
+        sel.innerHTML += `<option value="${name}">${name}</option>`;
+      });
+    } catch (e) {}
+  }
+
   async function loadTeachersList() {
     try {
       const teachers = await apiCall('/staff/teachers');
@@ -6949,29 +7023,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       tbody.innerHTML = teachers.map(t => {
-        // Build assignments display
-        let assignmentsHtml = '<span style="color: var(--text-muted); font-size: 0.85rem;">Not assigned</span>';
-        if (t.assignments && t.assignments.length > 0) {
-          const grouped = {};
-          t.assignments.forEach(a => {
-            const key = `${a.class_name}${a.section_name ? ' - ' + a.section_name : ''}`;
-            if (!grouped[key]) grouped[key] = [];
-            grouped[key].push(a.subject);
-          });
-          assignmentsHtml = Object.entries(grouped).map(([cls, subjects]) => {
-            const uniqueSubjects = [...new Set(subjects)];
-            return `<div style="margin-bottom:3px;"><strong style="color:var(--primary);">${cls}</strong> <span style="color:var(--text-muted);">— ${uniqueSubjects.join(', ')}</span></div>`;
-          }).join('');
-        }
+        const assignedClass = t.assigned_class || '<span style="color:var(--text-muted);">None</span>';
+        const feeAccess = t.can_collect_fees ? '<span class="badge badge-green">Yes</span>' : '<span class="badge badge-red">No</span>';
         return `
         <tr>
           <td><strong>${t.name}</strong></td>
           <td>${t.phone}</td>
-          <td>${t.subject || '-'}</td>
-          <td>${assignmentsHtml}</td>
+          <td>${assignedClass}</td>
+          <td>${feeAccess}</td>
           <td><span class="badge ${t.status === 'Active' ? 'badge-green' : 'badge-red'}">${t.status}</span></td>
           <td>
-            <button class="btn btn-outline btn-sm btn-edit-teacher" data-id="${t.id}" data-name="${t.name}" data-phone="${t.phone}" data-qualification="${t.qualification || ''}" data-status="${t.status}">Edit</button>
+            <button class="btn btn-outline btn-sm btn-edit-teacher" data-id="${t.id}" data-name="${t.name}" data-phone="${t.phone}" data-qualification="${t.qualification || ''}" data-status="${t.status}" data-assigned-class="${t.assigned_class || ''}" data-can-collect-fees="${t.can_collect_fees || 0}">Edit</button>
             <button class="btn btn-danger btn-sm btn-delete-teacher" data-id="${t.id}">Delete</button>
           </td>
         </tr>`;
@@ -6983,6 +7045,8 @@ document.addEventListener('DOMContentLoaded', () => {
           document.getElementById('teacher-name').value = btn.dataset.name;
           document.getElementById('teacher-phone').value = btn.dataset.phone;
           document.getElementById('teacher-qualification').value = btn.dataset.qualification;
+          document.getElementById('teacher-assigned-class').value = btn.dataset.assignedClass;
+          document.getElementById('teacher-can-collect-fees').checked = btn.dataset.canCollectFees === '1';
           document.getElementById('teacher-password').value = '';
           document.getElementById('teacher-form-title').textContent = 'Edit Teacher';
           document.getElementById('btn-teacher-submit').textContent = 'Update Teacher';
@@ -7010,18 +7074,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const phone = document.getElementById('teacher-phone').value.trim();
     const password = document.getElementById('teacher-password').value;
     const qualification = document.getElementById('teacher-qualification').value.trim();
+    const assigned_class = document.getElementById('teacher-assigned-class').value;
+    const can_collect_fees = document.getElementById('teacher-can-collect-fees').checked;
 
     if (!name || !phone) return;
     if (!editId && !password) { showToast('Password is required for new teacher', true); return; }
 
     try {
       if (editId) {
-        const body = { name, phone, qualification };
+        const body = { name, phone, qualification, assigned_class, can_collect_fees };
         if (password) body.password = password;
         await apiCall(`/staff/teachers/${editId}`, 'PUT', body);
         showToast('Teacher updated');
       } else {
-        await apiCall('/staff/teachers', 'POST', { name, phone, password, qualification });
+        await apiCall('/staff/teachers', 'POST', { name, phone, password, qualification, assigned_class, can_collect_fees });
         showToast('Teacher added');
       }
       document.getElementById('form-teacher').reset();
