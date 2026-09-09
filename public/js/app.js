@@ -466,9 +466,9 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('stat-pending-dues').innerText = `${totalPending.toLocaleString()} PKR`;
 
       document.getElementById('dash-school-title').innerText = settings.school_name;
-      document.getElementById('dash-school-phone').innerText = `Phone: ${settings.phone || 'N/A'}`;
-      document.getElementById('dash-school-reg').innerText = `Reg No: ${settings.registration_number || 'N/A'}`;
-      document.getElementById('dash-school-id').innerText = `School ID: ${currentUser.schoolId || 'N/A'}`;
+      document.getElementById('dash-school-phone').innerText = settings.phone || 'N/A';
+      document.getElementById('dash-school-reg').innerText = settings.registration_number || 'N/A';
+      document.getElementById('dash-school-id').innerText = currentUser.schoolId || 'N/A';
       if (settings.logo_path) {
         document.getElementById('dash-school-logo').src = imgSrc(settings.logo_path);
       }
@@ -479,10 +479,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Dashboard shortcuts
-  document.getElementById('dash-btn-students').addEventListener('click', () => {
-    document.querySelector('[data-screen="students"]').click();
-    document.getElementById('btn-add-student').click();
-  });
   document.getElementById('dash-btn-scan').addEventListener('click', () => {
     document.querySelector('[data-screen="attendance"]').click();
     document.querySelector('[data-tab="att-scan"]').click();
@@ -492,6 +488,91 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('[data-screen="fees"]').click();
     document.querySelector('[data-tab="fee-generator"]').click();
   });
+
+  // Dashboard Result Comparison
+  async function loadDashboardExamDropdown() {
+    try {
+      const exams = await apiCall('/exams');
+      const sel = document.getElementById('dash-compare-exam');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- Select Exam --</option>';
+      exams.forEach(ex => {
+        sel.innerHTML += `<option value="${ex.id}">${ex.exam_name} (${ex.year})</option>`;
+      });
+    } catch (e) {}
+  }
+
+  document.getElementById('dash-btn-load-comparison').addEventListener('click', async () => {
+    const examId = document.getElementById('dash-compare-exam').value;
+    const term = document.getElementById('dash-compare-term').value;
+    if (!examId) { showToast('Please select an exam', true); return; }
+
+    try {
+      const data = await apiCall(`/exams/results/comparison?exam_id=${examId}&term=${encodeURIComponent(term)}`);
+      const tbody = document.querySelector('#dash-compare-table tbody');
+      const summary = document.getElementById('dash-compare-summary');
+
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 30px;">No result data found for this exam/term. Calculate results first.</td></tr>';
+        summary.style.display = 'none';
+        return;
+      }
+
+      // Summary
+      summary.style.display = 'block';
+      const totalStudents = data.reduce((s, c) => s + c.total_students, 0);
+      const totalPassed = data.reduce((s, c) => s + c.passed, 0);
+      const overallAvg = (data.reduce((s, c) => s + c.avg_percentage * c.total_students, 0) / totalStudents).toFixed(1);
+      const overallPassRate = ((totalPassed / totalStudents) * 100).toFixed(1);
+      const topClass = data.reduce((best, c) => c.avg_percentage > best.avg_percentage ? c : best, data[0]);
+
+      document.getElementById('dash-compare-total-classes').textContent = data.length;
+      document.getElementById('dash-compare-overall-avg').textContent = overallAvg + '%';
+      document.getElementById('dash-compare-pass-rate').textContent = overallPassRate + '%';
+      document.getElementById('dash-compare-top-class').textContent = topClass.class_name;
+
+      // Table rows
+      tbody.innerHTML = data.map(c => {
+        const gradeBar = `
+          <div style="display:flex; gap:2px; height:18px; border-radius:4px; overflow:hidden; min-width:120px;">
+            ${c.grade_distribution.A ? `<div style="flex:${c.grade_distribution.A}; background:#059669;" title="A: ${c.grade_distribution.A}"></div>` : ''}
+            ${c.grade_distribution.B ? `<div style="flex:${c.grade_distribution.B}; background:#2563EB;" title="B: ${c.grade_distribution.B}"></div>` : ''}
+            ${c.grade_distribution.C ? `<div style="flex:${c.grade_distribution.C}; background:#D97706;" title="C: ${c.grade_distribution.C}"></div>` : ''}
+            ${c.grade_distribution.D ? `<div style="flex:${c.grade_distribution.D}; background:#F97316;" title="D: ${c.grade_distribution.D}"></div>` : ''}
+            ${c.grade_distribution.F ? `<div style="flex:${c.grade_distribution.F}; background:#DC2626;" title="F: ${c.grade_distribution.F}"></div>` : ''}
+          </div>
+          <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">A:${c.grade_distribution.A} B:${c.grade_distribution.B} C:${c.grade_distribution.C} D:${c.grade_distribution.D} F:${c.grade_distribution.F}</div>
+        `;
+
+        return `
+          <tr>
+            <td><strong>${c.class_name}</strong></td>
+            <td>${c.total_students}</td>
+            <td style="font-weight:600; color:${c.avg_percentage >= 60 ? 'var(--success)' : c.avg_percentage >= 40 ? 'var(--warning)' : 'var(--danger)'};">${c.avg_percentage}%</td>
+            <td style="color:var(--success); font-weight:500;">${c.max_percentage}%</td>
+            <td style="color:var(--danger); font-weight:500;">${c.min_percentage}%</td>
+            <td style="font-weight:600;">${c.pass_rate}%</td>
+            <td><span style="color:var(--success);">${c.passed}P</span> / <span style="color:var(--danger);">${c.failed}F</span></td>
+            <td>${c.top_student ? `${c.top_student.name} (${c.top_student.percentage}%)` : '-'}</td>
+            <td>${gradeBar}</td>
+          </tr>
+        `;
+      }).join('');
+
+    } catch (err) {
+      showToast('Failed to load comparison: ' + err.message, true);
+    }
+  });
+
+  // Load dashboard exam dropdown on screen switch
+  const observer = new MutationObserver(() => {
+    const dashScreen = document.getElementById('screen-dashboard');
+    if (dashScreen && dashScreen.style.display !== 'none') {
+      loadDashboardExamDropdown();
+    }
+  });
+  const dashEl = document.getElementById('screen-dashboard');
+  if (dashEl) observer.observe(dashEl, { attributes: true, attributeFilter: ['style'] });
 
   // ==========================================
   // MODULE: PROMOTE STUDENTS
@@ -5016,18 +5097,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!container) return;
     try {
       const classes = await getCachedClasses(apiCall);
-      container.innerHTML = `
-        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
+      const allLabel = `<label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
           <input type="checkbox" id="exam-class-all" value="All Classes"> <span>All Classes</span>
-        </label>
-      `;
-      classes.forEach(cls => {
-        container.innerHTML += `
+        </label>`;
+      const classLabels = classes.map(cls => `
           <label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
             <input type="checkbox" class="exam-class-check" value="${cls}"> <span>${cls}</span>
           </label>
-        `;
-      });
+        `);
+      container.innerHTML = allLabel + classLabels.join('');
       document.getElementById('exam-class-all').addEventListener('change', (e) => {
         document.querySelectorAll('.exam-class-check').forEach(cb => cb.checked = e.target.checked);
       });
@@ -5286,24 +5364,23 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    list.forEach(s => {
-      dmcStudentsTable.innerHTML += `
+    const rows = list.map(s => `
         <tr class="clickable-row select-dmc-stud-row" data-id="${s.id}" style="cursor:pointer;">
           <td><strong>${s.roll_no || '-'}</strong></td>
           <td>${s.name}</td>
           <td>${s.class_name} - ${s.section_name || 'N/A'}</td>
         </tr>
-      `;
-    });
+      `);
+    dmcStudentsTable.innerHTML = rows.join('');
 
-    document.querySelectorAll('.select-dmc-stud-row').forEach(row => {
-      row.addEventListener('click', () => {
-        document.querySelectorAll('.select-dmc-stud-row').forEach(r => r.style.background = 'none');
-        row.style.background = 'rgba(99, 102, 241, 0.15)';
-        activeStudentDmcId = row.getAttribute('data-id');
-        document.getElementById('dmc-fallback-msg').style.display = 'none';
-      });
-    });
+    dmcStudentsTable.onclick = (e) => {
+      const row = e.target.closest('.select-dmc-stud-row');
+      if (!row) return;
+      document.querySelectorAll('.select-dmc-stud-row').forEach(r => r.style.background = 'none');
+      row.style.background = 'rgba(99, 102, 241, 0.15)';
+      activeStudentDmcId = row.getAttribute('data-id');
+      document.getElementById('dmc-fallback-msg').style.display = 'none';
+    };
   }
 
   // Text search also works with class filter
@@ -5980,9 +6057,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnPrintDatesheet) {
     btnPrintDatesheet.addEventListener('click', () => {
       const content = document.getElementById('datesheet-printable-content').innerHTML;
-      document.body.innerHTML = '<div style="padding:40px; background:white; color:black; font-family:sans-serif; min-height:100vh;">' + content + '</div>';
-      window.print();
-      window.location.reload();
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`<html><head><title>Print Datesheet</title><style>@page{margin:0;size:A4;}</style></head><body style="padding:40px;background:white;color:black;font-family:sans-serif;min-height:100vh;">${content}</body></html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
     });
   }
 
@@ -6237,12 +6317,12 @@ document.addEventListener('DOMContentLoaded', () => {
             '<div class="rollno-slip" style="width:100%; display:flex; flex-direction:column; justify-content:space-between; padding:5% 10px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
 
               // === HEADER: School name ===
-              '<div style="text-align:center; margin-top:15px;">' +
+              '<div style="text-align:center; margin-top:25px;">' +
                 '<div style="font-size:17px; font-weight:900; color:#000; text-transform:uppercase; letter-spacing:1.5px; line-height:1.2;">' + currentUser.schoolName + '</div>' +
               '</div>' +
 
               // === Logo + ROLL NO SLIP title ===
-              '<div style="display:flex; align-items:center; gap:12px; margin-top:-15px;">' +
+              '<div style="display:flex; align-items:center; gap:12px; margin-top:-25px;">' +
                 '<img src="' + logoUrl + '" alt="Logo" style="width:55px; height:55px; border-radius:50%; flex-shrink:0; border:2px solid #ddd;" onerror="this.style.display=\'none\'">' +
                 '<div style="text-align:center; flex:1;">' +
                   '<div style="font-size:15px; font-weight:900; letter-spacing:2px; color:#000;">ROLL NO SLIP</div>' +
@@ -6251,7 +6331,7 @@ document.addEventListener('DOMContentLoaded', () => {
               '</div>' +
 
               // === Student info ===
-              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 20px; font-size:11px; padding:4px 0; font-weight:600;">' +
+              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 20px; font-size:13px; padding:4px 0; font-weight:600;">' +
                 '<div><strong>Name:</strong>&nbsp;&nbsp;' + (s.name || '-') + '</div>' +
                 '<div><strong>Class:</strong>&nbsp;&nbsp;' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
                 '<div><strong>Father Name:</strong>&nbsp;&nbsp;' + (s.father_name || '-') + '</div>' +
@@ -6412,9 +6492,12 @@ document.addEventListener('DOMContentLoaded', () => {
         printWindow.document.close();
         setTimeout(() => { printWindow.print(); }, 600);
       } else {
-        document.body.innerHTML = printHtml;
-        window.print();
-        window.location.reload();
+        const pw = window.open('', '_blank');
+        pw.document.write(printHtml);
+        pw.document.close();
+        pw.focus();
+        pw.print();
+        pw.close();
       }
     });
   }
@@ -8023,5 +8106,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   checkBillingStatus();
   loadDashboardStats();
+  loadDashboardExamDropdown();
 
 });
