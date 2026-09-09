@@ -319,13 +319,11 @@ function createSchoolDatabaseSchema(db) {
           qualification TEXT,
           status TEXT DEFAULT 'Active',
           school_id INTEGER,
-          created_at TEXT
+          created_at TEXT,
+          assigned_class TEXT DEFAULT '',
+          can_collect_fees INTEGER DEFAULT 0
         )
       `);
-
-      // 23b. Migrate teachers table - add assigned_class and can_collect_fees
-      db.run(`ALTER TABLE teachers ADD COLUMN assigned_class TEXT DEFAULT ''`);
-      db.run(`ALTER TABLE teachers ADD COLUMN can_collect_fees INTEGER DEFAULT 0`);
 
       // 24. Parents table (for parent portal login)
       db.run(`
@@ -479,6 +477,20 @@ function createSchoolDatabaseSchema(db) {
             db.run("ALTER TABLE teachers ADD COLUMN school_id INTEGER", (e) => {
               if (e) console.error('Migration: failed to add school_id to teachers:', e.message);
               else console.log('Migration: added school_id to teachers table');
+            });
+          }
+          const hasAssignedClass = columns.some(c => c.name === 'assigned_class');
+          if (!hasAssignedClass) {
+            db.run("ALTER TABLE teachers ADD COLUMN assigned_class TEXT DEFAULT ''", (e) => {
+              if (e) console.error('Migration: failed to add assigned_class to teachers:', e.message);
+              else console.log('Migration: added assigned_class to teachers table');
+            });
+          }
+          const hasCanCollectFees = columns.some(c => c.name === 'can_collect_fees');
+          if (!hasCanCollectFees) {
+            db.run("ALTER TABLE teachers ADD COLUMN can_collect_fees INTEGER DEFAULT 0", (e) => {
+              if (e) console.error('Migration: failed to add can_collect_fees to teachers:', e.message);
+              else console.log('Migration: added can_collect_fees to teachers table');
             });
           }
         }

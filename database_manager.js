@@ -227,6 +227,9 @@ async function ensureSchoolTables(db) {
   for (const t of tables) {
     await run(`ALTER TABLE ${t} ADD COLUMN school_id INTEGER`).catch(() => {});
   }
+  // Migrate teachers table - add assigned_class and can_collect_fees
+  await run(`ALTER TABLE teachers ADD COLUMN assigned_class TEXT DEFAULT ''`).catch(() => {});
+  await run(`ALTER TABLE teachers ADD COLUMN can_collect_fees INTEGER DEFAULT 0`).catch(() => {});
 }
 function getSchoolDb(schoolId) {
   return new Promise((resolve, reject) => {
