@@ -6318,7 +6318,7 @@ document.addEventListener('DOMContentLoaded', () => {
             '<div class="rollno-slip" style="width:100%; display:flex; flex-direction:column; justify-content:space-between; padding:5% 10px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
 
               // === HEADER: School name ===
-              '<div style="text-align:center; margin-top:25px;">' +
+              '<div style="text-align:center; margin-top:45px;">' +
                 '<div style="font-size:17px; font-weight:900; color:#000; text-transform:uppercase; letter-spacing:1.5px; line-height:1.2;">' + currentUser.schoolName + '</div>' +
               '</div>' +
 
@@ -6332,7 +6332,7 @@ document.addEventListener('DOMContentLoaded', () => {
               '</div>' +
 
               // === Student info ===
-              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 20px; font-size:13px; padding:4px 0; font-weight:600; margin-top:-50px;">' +
+              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 20px; font-size:13px; padding:4px 0; font-weight:600; margin-top:-70px;">' +
                 '<div><strong>Name:</strong>&nbsp;&nbsp;' + (s.name || '-') + '</div>' +
                 '<div><strong>Class:</strong>&nbsp;&nbsp;' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
                 '<div><strong>Father Name:</strong>&nbsp;&nbsp;' + (s.father_name || '-') + '</div>' +
