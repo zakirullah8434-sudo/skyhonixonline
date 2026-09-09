@@ -6200,7 +6200,7 @@ document.addEventListener('DOMContentLoaded', () => {
               const dateObj = sub.date ? new Date(sub.date + 'T00:00:00') : null;
               const dayName = dateObj ? dateObj.toLocaleDateString('en-US', { weekday: 'long' }) : '-';
               const dateFormatted = dateObj ? dateObj.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
-              tableRows += '<tr style="height:100%;">' +
+              tableRows += '<tr>' +
                 '<td style="border:1.5px solid #000; padding:3px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + (i + 1) + '</td>' +
                 '<td style="border:1.5px solid #000; padding:3px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + dateFormatted + '</td>' +
                 '<td style="border:1.5px solid #000; padding:3px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + dayName + '</td>' +
@@ -6233,15 +6233,15 @@ document.addEventListener('DOMContentLoaded', () => {
             : (exam ? exam.exam_name + ' Exam ' + exam.year : '');
 
           slipsHtml +=
-            '<div class="rollno-slip" style="width:100%; display:flex; flex-direction:column; padding:5% 10px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
+            '<div class="rollno-slip" style="width:100%; display:flex; flex-direction:column; justify-content:space-between; padding:5% 10px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
 
               // === HEADER: School name ===
-              '<div style="text-align:center; margin-bottom:2px; flex-shrink:0;">' +
+              '<div style="text-align:center;">' +
                 '<div style="font-size:17px; font-weight:900; color:#000; text-transform:uppercase; letter-spacing:1.5px; line-height:1.2;">' + currentUser.schoolName + '</div>' +
               '</div>' +
 
               // === Logo + ROLL NO SLIP title ===
-              '<div style="display:flex; align-items:center; gap:12px; margin-bottom:6px; flex-shrink:0;">' +
+              '<div style="display:flex; align-items:center; gap:12px;">' +
                 '<img src="' + logoUrl + '" alt="Logo" style="width:55px; height:55px; border-radius:50%; flex-shrink:0; border:2px solid #ddd;" onerror="this.style.display=\'none\'">' +
                 '<div style="text-align:center; flex:1;">' +
                   '<div style="font-size:15px; font-weight:900; letter-spacing:2px; color:#000;">ROLL NO SLIP</div>' +
@@ -6250,16 +6250,16 @@ document.addEventListener('DOMContentLoaded', () => {
               '</div>' +
 
               // === Student info ===
-              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 20px; font-size:11px; padding:4px 0; margin-bottom:4px; font-weight:600; flex-shrink:0;">' +
+              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 20px; font-size:11px; padding:4px 0; font-weight:600;">' +
                 '<div><strong>Name:</strong>&nbsp;&nbsp;' + (s.name || '-') + '</div>' +
                 '<div><strong>Class:</strong>&nbsp;&nbsp;' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
                 '<div><strong>Father Name:</strong>&nbsp;&nbsp;' + (s.father_name || '-') + '</div>' +
                 '<div><strong>Roll No:</strong>&nbsp;&nbsp;' + (s.roll_no || '-') + '</div>' +
               '</div>' +
 
-              // === Exam table (fills remaining space) ===
-              '<div class="rollno-exam-table-wrap" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">' +
-                '<table style="width:100%; height:100%; border-collapse:collapse; font-size:11px; table-layout:fixed;">' +
+              // === Exam table (natural height, no forced stretch) ===
+              '<div class="rollno-exam-table-wrap">' +
+                '<table style="width:100%; border-collapse:collapse; font-size:11px; table-layout:fixed;">' +
                   '<colgroup>' +
                     '<col style="width:6%;">' +
                     '<col style="width:22%;">' +
@@ -6281,7 +6281,7 @@ document.addEventListener('DOMContentLoaded', () => {
               '</div>' +
 
               // === Footer: Instructions + Signature ===
-              '<div class="rollno-footer" style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:6px; margin-top:auto; flex-shrink:0; font-size:10px;">' +
+              '<div class="rollno-footer" style="display:flex; justify-content:space-between; align-items:flex-end; font-size:10px;">' +
                 '<div style="max-width:55%;">' +
                   '<div style="font-weight:700; margin-bottom:1px; font-size:10px;">Instructions:</div>' +
                   '<ul style="margin:0; padding-left:14px; list-style:disc; line-height:1.4;">' + instHtml + '</ul>' +
@@ -6345,7 +6345,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'box-sizing:border-box !important;' +
           '}' +
           '.rollno-page:last-child { page-break-after:auto !important; }' +
-          /* ========== ROLLNO-SLIP: stretches to fill page height ========== */
+          /* ========== ROLLNO-SLIP: fills page height, sections distributed evenly ========== */
           '.rollno-slip {' +
             'width:100% !important;' +
             'height:100% !important;' +
@@ -6359,26 +6359,18 @@ document.addEventListener('DOMContentLoaded', () => {
             'overflow:hidden !important;' +
             'display:flex !important;' +
             'flex-direction:column !important;' +
+            'justify-content:space-between !important;' +
             'align-self:stretch !important;' +
           '}' +
-          /* ========== EXAM TABLE SECTION: fills remaining vertical space ========== */
+          /* ========== EXAM TABLE SECTION: natural height, no forced stretch ========== */
           '.rollno-slip .rollno-exam-table-wrap {' +
-            'flex:1 !important;' +
-            'display:flex !important;' +
-            'flex-direction:column !important;' +
-            'overflow:hidden !important;' +
+            'width:100% !important;' +
           '}' +
-          /* ========== TABLE: fixed layout ========== */
+          /* ========== TABLE: fixed layout, natural row height ========== */
           '.rollno-slip table {' +
             'width:100% !important;' +
-            'height:100% !important;' +
             'table-layout:fixed !important;' +
             'border-collapse:collapse !important;' +
-          '}' +
-          '.rollno-slip table thead,' +
-          '.rollno-slip table tbody,' +
-          '.rollno-slip table tr {' +
-            'height:100% !important;' +
           '}' +
           '.rollno-slip table th,' +
           '.rollno-slip table td {' +
@@ -6393,10 +6385,9 @@ document.addEventListener('DOMContentLoaded', () => {
           '.rollno-slip table th:nth-child(3),.rollno-slip table td:nth-child(3){width:20%!important;}' +
           '.rollno-slip table th:nth-child(4),.rollno-slip table td:nth-child(4){width:30%!important;}' +
           '.rollno-slip table th:nth-child(5),.rollno-slip table td:nth-child(5){width:22%!important;}' +
-          /* ========== FOOTER: sticks to bottom ========== */
+          /* ========== FOOTER ========== */
           '.rollno-slip .rollno-footer {' +
-            'margin-top:auto !important;' +
-            'flex-shrink:0 !important;' +
+            'width:100% !important;' +
           '}' +
           /* ========== PRINT MEDIA: force landscape, override all responsive ========== */
           '@media print {' +
@@ -6404,12 +6395,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'html,body{margin:0!important;padding:0!important;height:100%!important;background:white!important;}' +
             '.rollno-page{display:grid!important;grid-template-columns:repeat(2,1fr)!important;grid-template-rows:1fr!important;gap:4mm!important;width:100%!important;height:100%!important;padding:0!important;margin:0!important;page-break-after:always!important;}' +
             '.rollno-page:last-child{page-break-after:auto!important;}' +
-            '.rollno-slip{width:100%!important;height:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important;break-inside:avoid!important;page-break-inside:avoid!important;border:none!important;border-radius:0!important;display:flex!important;flex-direction:column!important;align-self:stretch!important;}' +
-            '.rollno-slip .rollno-exam-table-wrap{flex:1!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}' +
-            '.rollno-slip table{width:100%!important;height:100%!important;table-layout:fixed!important;border-collapse:collapse!important;}' +
-            '.rollno-slip table thead,.rollno-slip table tbody,.rollno-slip table tr{height:100%!important;}' +
+            '.rollno-slip{width:100%!important;height:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important;break-inside:avoid!important;page-break-inside:avoid!important;border:none!important;border-radius:0!important;display:flex!important;flex-direction:column!important;justify-content:space-between!important;align-self:stretch!important;}' +
+            '.rollno-slip .rollno-exam-table-wrap{width:100%!important;}' +
+            '.rollno-slip table{width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;}' +
             '.rollno-slip table th,.rollno-slip table td{word-wrap:break-word!important;overflow-wrap:break-word!important;padding:3px 5px!important;font-size:10px!important;}' +
-            '.rollno-slip .rollno-footer{margin-top:auto!important;flex-shrink:0!important;}' +
           '}' +
         '</style>' +
         '</head><body>' +
