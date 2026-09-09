@@ -3318,7 +3318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      list.forEach(s => {
+      const rows = list.map(s => {
         let siblingText = 'Primary Head';
         if (s.family_head_id) siblingText = `Sibling (Head ID: ${s.family_head_id})`;
 
@@ -3336,7 +3336,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const isValDisabled = waiverType === 'none' || waiverType === 'free';
 
-        tbody.innerHTML += `
+        return `
           <tr data-student-id="${s.id}">
             <td>${s.roll_no || 'N/A'}</td>
             <td><strong>${s.name}</strong></td>
@@ -3364,12 +3364,14 @@ document.addEventListener('DOMContentLoaded', () => {
           </tr>
         `;
       });
+      tbody.innerHTML = rows.join('');
 
-      // Bind waiver select change to toggle discount input
-      document.querySelectorAll('.val-waiver-type').forEach(sel => {
-        sel.addEventListener('change', (e) => {
+      // Event delegation for waiver type change and save buttons
+      tbody.onchange = (e) => {
+        const sel = e.target.closest('.val-waiver-type');
+        if (sel) {
           const row = sel.closest('tr');
-          const type = e.target.value;
+          const type = sel.value;
           const valInput = row.querySelector('.val-discount-value');
           if (type === 'none' || type === 'free') {
             valInput.value = 0;
@@ -3377,43 +3379,42 @@ document.addEventListener('DOMContentLoaded', () => {
           } else {
             valInput.disabled = false;
           }
-        });
-      });
+        }
+      };
 
-      // Bind save buttons
-      document.querySelectorAll('.btn-save-student-fee').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const id = btn.getAttribute('data-id');
-          const row = btn.closest('tr');
-          const type = row.querySelector('.val-waiver-type').value;
-          const discountVal = parseFloat(row.querySelector('.val-discount-value').value) || 0;
-          const transport_fee = parseFloat(row.querySelector('.val-transport-fee').value) || 0;
+      tbody.onclick = async (e) => {
+        const btn = e.target.closest('.btn-save-student-fee');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        const row = btn.closest('tr');
+        const type = row.querySelector('.val-waiver-type').value;
+        const discountVal = parseFloat(row.querySelector('.val-discount-value').value) || 0;
+        const transport_fee = parseFloat(row.querySelector('.val-transport-fee').value) || 0;
 
-          let is_free = 0;
-          let discount_amount = 0;
-          let discount_percent = 0;
+        let is_free = 0;
+        let discount_amount = 0;
+        let discount_percent = 0;
 
-          if (type === 'free') {
-            is_free = 1;
-          } else if (type === 'amount') {
-            discount_amount = discountVal;
-          } else if (type === 'percent') {
-            discount_percent = discountVal;
-          }
+        if (type === 'free') {
+          is_free = 1;
+        } else if (type === 'amount') {
+          discount_amount = discountVal;
+        } else if (type === 'percent') {
+          discount_percent = discountVal;
+        }
 
-          try {
-            const res = await apiCall('/fees/student-settings', 'POST', {
-              student_id: id,
-              is_free,
-              discount_amount,
-              discount_percent,
-              transport_fee
-            });
-            showToast(res.message);
-            loadStudentFeeList();
-          } catch (e) {}
-        });
-      });
+        try {
+          const res = await apiCall('/fees/student-settings', 'POST', {
+            student_id: id,
+            is_free,
+            discount_amount,
+            discount_percent,
+            transport_fee
+          });
+          showToast(res.message);
+          loadStudentFeeList();
+        } catch (err) {}
+      };
 
     } catch (e) {}
   }
@@ -3832,8 +3833,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      data.classWise.forEach(c => {
-        let badgeColor = '#ff5252'; // Poor
+      const rows = data.classWise.map(c => {
+        let badgeColor = '#ff5252';
         let statusIcon = '●';
         if (c.status === 'Good') {
           badgeColor = '#4caf50';
@@ -3847,7 +3848,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const trendIcon = isTrendPositive ? '▲' : '▼';
         const trendColor = isTrendPositive ? '#4caf50' : '#ff5252';
 
-        tbody.innerHTML += `
+        return `
           <tr>
             <td><strong>${c.class_name}</strong></td>
             <td>${c.total_students}</td>
@@ -3860,6 +3861,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </tr>
         `;
       });
+      tbody.innerHTML = rows.join('');
 
       // Update bottom totals label
       const sTotals = document.getElementById('analytics-class-summary-totals');
@@ -4028,12 +4030,12 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
-        list.forEach(l => {
+        const rows = list.map(l => {
           let badge = 'status-unpaid';
           if (l.status === 'Paid') badge = 'status-present';
           else if (l.status === 'Partial') badge = 'status-partial';
 
-          tbody.innerHTML += `
+          return `
             <tr>
               <td>${l.roll_no || '-'}</td>
               <td><strong>${l.student_name}</strong></td>
@@ -4049,6 +4051,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>
           `;
         });
+        tbody.innerHTML = rows.join('');
       } catch (e) {}
     });
   }
@@ -4083,9 +4086,8 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
-        students.forEach(s => {
-          slipStudentsCache.push(s);
-          tbody.innerHTML += `
+        students.forEach(s => slipStudentsCache.push(s));
+        const rows = students.map(s => `
             <tr>
               <td>${s.roll_no || 'N/A'}</td>
               <td><strong>${s.name}</strong></td>
@@ -4093,17 +4095,17 @@ document.addEventListener('DOMContentLoaded', () => {
               <td>${s.father_name || '-'}</td>
               <td>${s.family_head_id ? '<span style="color:var(--text-muted);font-size:0.8rem;">Linked (No Slip)</span>' : `<button class="btn btn-primary btn-sm btn-generate-slip" data-id="${s.id}">Generate Slip</button>`}</td>
             </tr>
-          `;
-        });
+          `);
+        tbody.innerHTML = rows.join('');
 
         const nonLinkedStudents = slipStudentsCache.filter(s => !s.family_head_id);
 
-        document.querySelectorAll('.btn-generate-slip').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const studentId = btn.getAttribute('data-id');
-            generateSlipsForStudents([slipStudentsCache.find(s => s.id == studentId)]);
-          });
-        });
+        tbody.onclick = (e) => {
+          const btn = e.target.closest('.btn-generate-slip');
+          if (!btn) return;
+          const studentId = btn.getAttribute('data-id');
+          generateSlipsForStudents([slipStudentsCache.find(s => s.id == studentId)]);
+        };
 
         if (nonLinkedStudents.length > 0) {
           generateSlipsForStudents([...nonLinkedStudents]);
@@ -5148,7 +5150,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      grid.forEach(s => {
+      const rows = grid.map(s => {
         let rowHtml = '<tr data-student-id="' + s.id + '">';
         rowHtml += '<td style="position:sticky;left:0;background:var(--bg-primary);z-index:1;"><strong>' + (s.roll_no || '-') + '</strong></td>';
         rowHtml += '<td style="position:sticky;left:80px;background:var(--bg-primary);z-index:1;"><strong>' + s.name + '</strong></td>';
@@ -5158,8 +5160,9 @@ document.addEventListener('DOMContentLoaded', () => {
           rowHtml += '<td><input type="number" class="marks-input marks-cell" data-subject="' + sub.subject + '" data-max="' + sub.max_marks + '" value="' + val + '" min="0" max="' + sub.max_marks + '" placeholder="0"></td>';
         });
         rowHtml += '</tr>';
-        tbody.innerHTML += rowHtml;
+        return rowHtml;
       });
+      tbody.innerHTML = rows.join('');
 
       document.getElementById('marks-grid-actions').style.display = 'block';
     } catch (e) {
@@ -5564,20 +5567,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-print-dmc').addEventListener('click', () => {
     const sheetContent = document.getElementById('dmc-printable-sheet').innerHTML;
 
-    document.body.innerHTML = `
-      <style>
-        @page { margin: 0; size: A4; }
-        @media print {
-          body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          html { margin: 0; padding: 0; }
-        }
-      </style>
-      <div style="padding:40px; background:white; color:black; font-family:sans-serif; min-height:100vh;">
-        ${sheetContent}
-      </div>
-    `;
-    window.print();
-    window.location.reload();
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<html><head><title>Print DMC</title><style>@page{margin:0;size:A4;}@media print{body{margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body style="padding:40px;background:white;color:black;font-family:sans-serif;min-height:100vh;">${sheetContent}</body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
   });
 
   // ==========================================
@@ -6242,12 +6237,12 @@ document.addEventListener('DOMContentLoaded', () => {
             '<div class="rollno-slip" style="width:100%; display:flex; flex-direction:column; justify-content:space-between; padding:5% 10px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
 
               // === HEADER: School name ===
-              '<div style="text-align:center; margin-top:8px;">' +
+              '<div style="text-align:center; margin-top:15px;">' +
                 '<div style="font-size:17px; font-weight:900; color:#000; text-transform:uppercase; letter-spacing:1.5px; line-height:1.2;">' + currentUser.schoolName + '</div>' +
               '</div>' +
 
               // === Logo + ROLL NO SLIP title ===
-              '<div style="display:flex; align-items:center; gap:12px; margin-top:-6px;">' +
+              '<div style="display:flex; align-items:center; gap:12px; margin-top:-15px;">' +
                 '<img src="' + logoUrl + '" alt="Logo" style="width:55px; height:55px; border-radius:50%; flex-shrink:0; border:2px solid #ddd;" onerror="this.style.display=\'none\'">' +
                 '<div style="text-align:center; flex:1;">' +
                   '<div style="font-size:15px; font-weight:900; letter-spacing:2px; color:#000;">ROLL NO SLIP</div>' +
@@ -6675,12 +6670,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      data.paymentHistory.forEach(slip => {
+      const rows = data.paymentHistory.map(slip => {
         let statusBadge = 'status-partial';
         if (slip.status === 'approved') statusBadge = 'status-present';
         else if (slip.status === 'rejected') statusBadge = 'status-absent';
 
-        tbody.innerHTML += `
+        return `
           <tr>
             <td>${slip.payment_date}</td>
             <td><strong>${slip.amount.toLocaleString()} PKR</strong></td>
@@ -6691,6 +6686,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </tr>
         `;
       });
+      tbody.innerHTML = rows.join('');
 
     } catch (e) {}
   }
@@ -6832,7 +6828,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    slips.forEach(slip => {
+    const rows = slips.map(slip => {
       const isPending = slip.status === 'pending';
       const actionButtons = isPending ? `
         <div style="display:flex; gap:8px;">
@@ -6845,7 +6841,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (slip.status === 'approved') badge = 'status-present';
       else if (slip.status === 'rejected') badge = 'status-absent';
 
-      tbody.innerHTML += `
+      return `
         <tr>
           <td>
             <strong>${slip.school_name}</strong>
@@ -6860,22 +6856,24 @@ document.addEventListener('DOMContentLoaded', () => {
         </tr>
       `;
     });
+    tbody.innerHTML = rows.join('');
 
-    // Action Handlers
-    document.querySelectorAll('.btn-master-approve').forEach(btn => {
-      btn.style.cursor = 'pointer';
-      btn.addEventListener('click', () => processMasterSlipAction(btn.getAttribute('data-id'), 'approve', pin));
-    });
-
-    document.querySelectorAll('.btn-master-reject').forEach(btn => {
-      btn.style.cursor = 'pointer';
-      btn.addEventListener('click', () => {
+    // Action Handlers — event delegation
+    tbody.onclick = (e) => {
+      const approveBtn = e.target.closest('.btn-master-approve');
+      if (approveBtn) {
+        processMasterSlipAction(approveBtn.getAttribute('data-id'), 'approve', pin);
+        return;
+      }
+      const rejectBtn = e.target.closest('.btn-master-reject');
+      if (rejectBtn) {
         const notes = prompt('Reason for rejection:');
         if (notes !== null) {
-          processMasterSlipAction(btn.getAttribute('data-id'), 'reject', pin, notes);
+          processMasterSlipAction(rejectBtn.getAttribute('data-id'), 'reject', pin, notes);
         }
-      });
-    });
+        return;
+      }
+    };
   }
 
   function generateSchoolId() {
@@ -6896,7 +6894,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    schools.forEach(school => {
+    const rows = schools.map(school => {
       let badge = 'status-absent';
       if (school.subscription_status === 'active') badge = 'status-present';
       else if (school.subscription_status === 'trial') badge = 'status-partial';
@@ -6905,7 +6903,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const codeDisplay = school.school_code || 'Not Assigned';
       const needsCode = !school.school_code;
 
-      tbody.innerHTML += `
+      return `
         <tr>
           <td><code style="color: var(--accent); font-weight: 600;">${codeDisplay}</code></td>
           <td><strong>${school.school_name}</strong></td>
@@ -6934,39 +6932,41 @@ document.addEventListener('DOMContentLoaded', () => {
         </tr>
       `;
     });
+    tbody.innerHTML = rows.join('');
 
-    // Action Handlers for schools
-    document.querySelectorAll('.btn-allow-access').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const schoolId = btn.getAttribute('data-school-id');
-        const select = document.querySelector(`.select-months-${schoolId}`);
-        const months = select ? select.value : '1';
-        const codeInput = document.querySelector(`.school-code-input-${schoolId}`);
-        const schoolCode = codeInput ? codeInput.value.trim() : '';
+    // Action Handlers — event delegation
+    tbody.onclick = async (e) => {
+      const btn = e.target.closest('.btn-allow-access');
+      if (!btn) return;
+      const schoolId = btn.getAttribute('data-school-id');
+      const select = document.querySelector(`.select-months-${schoolId}`);
+      const months = select ? select.value : '1';
+      const codeInput = document.querySelector(`.school-code-input-${schoolId}`);
+      const schoolCode = codeInput ? codeInput.value.trim() : '';
 
-        try {
-          const body = { school_id: schoolId, months: months };
-          if (schoolCode) body.school_code = schoolCode;
+      try {
+        const body = { school_id: schoolId, months: months };
+        if (schoolCode) body.school_code = schoolCode;
 
-          const response = await fetch('/api/billing/admin/allow', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-master-pin': pin
-            },
-            body: JSON.stringify(body)
-          });
+        const response = await fetch('/api/billing/admin/allow', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-master-pin': pin
+          },
+          body: JSON.stringify(body)
+        });
 
-          const res = await response.json();
-          if (!response.ok) throw new Error(res.error);
+        const res = await response.json();
+        if (!response.ok) throw new Error(res.error);
 
-          showToast(res.message);
-          refreshMasterSchools(pin);
-          checkBillingStatus();
-        } catch (err) {
-          showToast(err.message, true);
-        }
-      });
+        showToast(res.message);
+        refreshMasterSchools(pin);
+        checkBillingStatus();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    };
     });
   }
 
