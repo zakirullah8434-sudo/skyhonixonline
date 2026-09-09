@@ -2005,7 +2005,7 @@ textarea.form-control {
   .rollno-slip .rollno-exam-table-wrap { width: 100% !important; }
   .rollno-slip .rollno-footer { width: 100% !important; }
   .rollno-slip table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; }
-  .rollno-slip table th, .rollno-slip table td { word-wrap: break-word !important; overflow-wrap: break-word !important; padding: 3px 5px !important; font-size: 10px !important; }
+  .rollno-slip table th, .rollno-slip table td { word-wrap: break-word !important; overflow-wrap: break-word !important; padding: 6px 5px !important; font-size: 10px !important; }
   .rollno-slip table th:nth-child(1), .rollno-slip table td:nth-child(1) { width: 6% !important; }
   .rollno-slip table th:nth-child(2), .rollno-slip table td:nth-child(2) { width: 22% !important; }
   .rollno-slip table th:nth-child(3), .rollno-slip table td:nth-child(3) { width: 20% !important; }

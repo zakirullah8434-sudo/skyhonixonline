@@ -6283,11 +6283,11 @@ document.addEventListener('DOMContentLoaded', () => {
               const dayName = dateObj ? dateObj.toLocaleDateString('en-US', { weekday: 'long' }) : '-';
               const dateFormatted = dateObj ? dateObj.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
               tableRows += '<tr>' +
-                '<td style="border:1.5px solid #000; padding:3px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + (i + 1) + '</td>' +
-                '<td style="border:1.5px solid #000; padding:3px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + dateFormatted + '</td>' +
-                '<td style="border:1.5px solid #000; padding:3px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + dayName + '</td>' +
-                '<td style="border:1.5px solid #000; padding:3px 5px; text-align:left; word-wrap:break-word; overflow-wrap:break-word;">' + sub.subject + '</td>' +
-                '<td style="border:1.5px solid #000; padding:3px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + (sub.time || '-') + '</td>' +
+                '<td style="border:1.5px solid #000; padding:6px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + (i + 1) + '</td>' +
+                '<td style="border:1.5px solid #000; padding:6px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + dateFormatted + '</td>' +
+                '<td style="border:1.5px solid #000; padding:6px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + dayName + '</td>' +
+                '<td style="border:1.5px solid #000; padding:6px 5px; text-align:left; word-wrap:break-word; overflow-wrap:break-word;">' + sub.subject + '</td>' +
+                '<td style="border:1.5px solid #000; padding:6px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + (sub.time || '-') + '</td>' +
                 '</tr>';
             });
           } else {
@@ -6351,11 +6351,11 @@ document.addEventListener('DOMContentLoaded', () => {
                   '</colgroup>' +
                   '<thead>' +
                     '<tr>' +
-                      '<th style="border:1.5px solid #000; padding:4px 5px; text-align:center; font-weight:700; background:#f0f0f0;">#</th>' +
-                      '<th style="border:1.5px solid #000; padding:4px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Date</th>' +
-                      '<th style="border:1.5px solid #000; padding:4px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Day</th>' +
+                      '<th style="border:1.5px solid #000; padding:8px 5px; text-align:center; font-weight:700; background:#f0f0f0;">#</th>' +
+                      '<th style="border:1.5px solid #000; padding:8px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Date</th>' +
+                      '<th style="border:1.5px solid #000; padding:8px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Day</th>' +
                       '<th style="border:1.5px solid #000; padding:4px 5px; text-align:left; font-weight:700; background:#f0f0f0;">Subject</th>' +
-                      '<th style="border:1.5px solid #000; padding:4px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Time</th>' +
+                      '<th style="border:1.5px solid #000; padding:8px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Time</th>' +
                     '</tr>' +
                   '</thead>' +
                   '<tbody>' + tableRows + '</tbody>' +
@@ -6480,7 +6480,7 @@ document.addEventListener('DOMContentLoaded', () => {
             '.rollno-slip{width:100%!important;height:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important;break-inside:avoid!important;page-break-inside:avoid!important;border:none!important;border-radius:0!important;display:flex!important;flex-direction:column!important;justify-content:space-between!important;align-self:stretch!important;}' +
             '.rollno-slip .rollno-exam-table-wrap{width:100%!important;}' +
             '.rollno-slip table{width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;}' +
-            '.rollno-slip table th,.rollno-slip table td{word-wrap:break-word!important;overflow-wrap:break-word!important;padding:3px 5px!important;font-size:10px!important;}' +
+            '.rollno-slip table th,.rollno-slip table td{word-wrap:break-word!important;overflow-wrap:break-word!important;padding:6px 5px!important;font-size:10px!important;}' +
           '}' +
         '</style>' +
         '</head><body>' +
