@@ -143,6 +143,35 @@ const promotionsRoutes = require('./routes/promotions');
 const transportRoutes = require('./routes/transport');
 const salaryRoutes = require('./routes/salary');
 
+// ─── Ping endpoint (for offline connectivity detection) ───
+app.get('/api/auth/ping', (req, res) => {
+  res.status(200).json({ ok: true, timestamp: Date.now() });
+});
+
+// ─── Idempotency middleware for offline sync ───
+// Prevents duplicate records when retries hit the server
+const idempotencyCache = new Map();
+app.use('/api', (req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD') return next();
+  const idempotencyKey = req.headers['x-idempotency-key'];
+  if (idempotencyKey) {
+    if (idempotencyCache.has(idempotencyKey)) {
+      const cached = idempotencyCache.get(idempotencyKey);
+      return res.status(cached.status).json(cached.data);
+    }
+    const originalJson = res.json.bind(res);
+    res.json = function(data) {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        idempotencyCache.set(idempotencyKey, { status: res.statusCode, data });
+        // Cleanup after 24h
+        setTimeout(() => idempotencyCache.delete(idempotencyKey), 86400000);
+      }
+      return originalJson(data);
+    };
+  }
+  next();
+});
+
 // Mount API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentsRoutes);

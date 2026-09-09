@@ -23,8 +23,46 @@ document.addEventListener('DOMContentLoaded', () => {
   const headerUserBadge = document.getElementById('header-user-badge');
   headerUserBadge.textContent = `${currentUser.teacherName} | ${currentUser.schoolName}`;
 
-  // API Helper
+  // API Helper (offline-integrated)
   async function apiCall(endpoint, method = 'GET', body = null) {
+    const isMutation = method !== 'GET' && method !== 'HEAD';
+    const isOffline = window.SkyNetwork && !window.SkyNetwork.isServerReachable();
+
+    // OFFLINE + GET: serve from cache
+    if (isOffline && !isMutation && window.SkyCacheManager) {
+      const cached = await window.SkyCacheManager.getCached(endpoint);
+      if (cached) return cached;
+      if (window.SkyOfflineDB) {
+        const fallback = await window.SkyOfflineDB.getCachedData(endpoint);
+        if (fallback && fallback.data) return fallback.data;
+      }
+      throw new Error('You are offline. No cached data available.');
+    }
+
+    // OFFLINE + MUTATION: queue for sync
+    if (isOffline && isMutation && window.SkySyncQueue) {
+      const action = await window.SkySyncQueue.enqueue({
+        operation: method === 'DELETE' ? 'DELETE' : method === 'PUT' ? 'UPDATE' : 'CREATE',
+        entity: resolveEntity(endpoint),
+        entityId: extractEntityId(endpoint, body),
+        payload: {
+          ...body,
+          _endpoint: endpoint,
+          _method: method,
+          _localId: window.SkyOfflineDB.generateLocalId()
+        },
+        metadata: {
+          userId: currentUser.teacherId,
+          schoolId: currentUser.schoolId,
+          role: 'teacher'
+        }
+      });
+
+      window.SkySyncUI && window.SkySyncUI.showToast('Saved locally — will sync when online', 'info');
+      return getOptimisticResponse(endpoint, method, body, action);
+    }
+
+    // ONLINE: proceed normally
     const options = {
       method,
       headers: {
@@ -35,12 +73,70 @@ document.addEventListener('DOMContentLoaded', () => {
     if (body && method !== 'GET') {
       options.body = JSON.stringify(body);
     }
-    const response = await fetch(endpoint, options);
-    const text = await response.text();
-    let data;
-    try { data = JSON.parse(text); } catch { throw new Error('Server returned an invalid response. Please try again.'); }
-    if (!response.ok) throw new Error(data.error || 'Request failed');
-    return data;
+    try {
+      const response = await fetch(endpoint, options);
+      const text = await response.text();
+      let data;
+      try { data = JSON.parse(text); } catch { throw new Error('Server returned an invalid response. Please try again.'); }
+      if (!response.ok) throw new Error(data.error || 'Request failed');
+
+      // Cache GET responses
+      if (method === 'GET' && window.SkyCacheManager) {
+        await window.SkyCacheManager.cacheResponse(endpoint, data);
+      }
+      return data;
+    } catch (err) {
+      // Network failure on mutation: queue it
+      if (isMutation && window.SkySyncQueue && err.message.includes('Failed to fetch')) {
+        const action = await window.SkySyncQueue.enqueue({
+          operation: method === 'DELETE' ? 'DELETE' : method === 'PUT' ? 'UPDATE' : 'CREATE',
+          entity: resolveEntity(endpoint),
+          entityId: extractEntityId(endpoint, body),
+          payload: {
+            ...body,
+            _endpoint: endpoint,
+            _method: method,
+            _localId: window.SkyOfflineDB.generateLocalId()
+          },
+          metadata: {
+            userId: currentUser.teacherId,
+            schoolId: currentUser.schoolId,
+            role: 'teacher'
+          }
+        });
+        window.SkySyncUI && window.SkySyncUI.showToast('Saved locally — will sync when online', 'info');
+        return getOptimisticResponse(endpoint, method, body, action);
+      }
+      throw err;
+    }
+  }
+
+  function resolveEntity(endpoint) {
+    if (endpoint.includes('/attendance')) return 'attendance';
+    if (endpoint.includes('/marks')) return 'marks';
+    if (endpoint.includes('/assignments')) return 'assignment';
+    if (endpoint.includes('/fee-pay')) return 'fee';
+    if (endpoint.includes('/fee-setup')) return 'fee_setup';
+    return 'unknown';
+  }
+
+  function extractEntityId(endpoint, body) {
+    const parts = endpoint.split('?')[0].split('/');
+    const last = parts[parts.length - 1];
+    if (last && !isNaN(last)) return last;
+    if (body && body.student_id) return body.student_id;
+    if (body && body.id) return body.id;
+    return window.SkyOfflineDB ? window.SkyOfflineDB.generateLocalId() : Date.now().toString();
+  }
+
+  function getOptimisticResponse(endpoint, method, body, action) {
+    const entity = resolveEntity(endpoint);
+    const base = { message: 'Saved locally', _offline: true, _actionId: action.id };
+    if (entity === 'attendance') return { message: 'Attendance saved locally', _offline: true, _actionId: action.id };
+    if (entity === 'marks') return { message: 'Marks saved locally', _offline: true, _actionId: action.id };
+    if (entity === 'assignment') return { id: action.payload._localId, ...body, _offline: true, _actionId: action.id };
+    if (entity === 'fee') return { message: 'Payment recorded locally', _offline: true, _actionId: action.id };
+    return base;
   }
 
   // Load school settings (logo + name)

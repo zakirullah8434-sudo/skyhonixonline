@@ -5,8 +5,13 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="description" content="SkyHonix School Management System Dashboard. Manage students, QR attendance, carry-forward dues, exam matrixes, and settings.">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SkyHonix">
+  <link rel="manifest" href="manifest.json">
   <title>SkyHonix Workspace | School Portal</title>
   
   <!-- Preload Google Fonts for faster rendering -->
@@ -4134,7 +4139,50 @@
     <p id="toast-text"></p>
   </div>
 
+  <!-- Offline-First Infrastructure -->
+  <script src="js/offline-db.js"></script>
+  <script src="js/network-manager.js"></script>
+  <script src="js/sync-queue.js"></script>
+  <script src="js/sync-engine.js"></script>
+  <script src="js/cache-manager.js"></script>
+  <script src="js/sync-ui.js"></script>
+  <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        reg.onupdatefound = () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.onstatechange = () => {
+              if (newWorker.state === 'activated') {
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+              }
+            };
+          }
+        };
+      }).catch(() => {});
+    }
+    // Initialize offline infrastructure
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        await window.SkyOfflineDB.open();
+        window.SkyNetwork.start();
+        window.SkySyncEngine.startAutoSync();
+        window.SkySyncUI.create();
+      } catch (e) { console.warn('Offline init failed:', e); }
+    });
+    // Listen for SW sync trigger
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'TRIGGER_SYNC') {
+          window.SkySyncEngine && window.SkySyncEngine.syncNow();
+        }
+      });
+    }
+  </script>
+
   <!-- Application logic -->
-  <script src="js/app.js?v=7"></script>
+  <script src="js/offline-core.js"></script>
+  <script src="js/app.js?v=8"></script>
 </body>
 </html>

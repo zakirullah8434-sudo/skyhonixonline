@@ -193,8 +193,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // REST API Client helper (Enhanced with sync event handling)
+  // REST API Client helper (Enhanced with offline-first sync)
   async function apiCall(endpoint, method = 'GET', body = null, isFormData = false) {
+    const isMutation = method !== 'GET' && method !== 'HEAD';
+
+    // Use offline engine for mutations and cached GETs
+    if (window.SkyHonixOffline && window.SkyHonixOffline._initialized) {
+      try {
+        return await window.SkyHonixOffline.offlineAPI.call(endpoint, method, body, {
+          entity: resolveEntity(endpoint),
+          entityId: extractEntityId(endpoint, body),
+          isFormData
+        });
+      } catch (err) {
+        // If offline engine error is about being offline, rethrow
+        if (err.message.includes('offline') || err.message.includes('connection')) throw err;
+        // Otherwise fall through to direct call for reads
+        if (!isMutation) throw err;
+      }
+    }
+
+    // Fallback: direct API call (original logic)
     const headers = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -223,10 +242,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (response.status === 401 || response.status === 403) {
         if (result.suspended || result.pending) {
-          // Trigger billing lock overlay for suspended/pending schools
           lockOverlay.style.display = 'flex';
         } else {
-          // Token expired, log out
           localStorage.removeItem('skyhonix_token');
           localStorage.removeItem('skyhonix_user');
           window.location.href = 'index.html';
@@ -237,17 +254,58 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(result.error || 'API Request failed');
       }
 
-      // SYNC: Handle sync events emitted from backend
       if (result.syncEvent) {
         await handleSyncEvent(result.syncEvent, result);
       }
 
       return result;
     } catch (err) {
+      // Network failure on mutation: queue via offline engine
+      if (isMutation && window.SkyHonixOffline && window.SkyHonixOffline._initialized && err.message.includes('Failed to fetch')) {
+        return await window.SkyHonixOffline.offlineAPI._queueMutation(
+          endpoint, method, body, resolveEntity(endpoint), extractEntityId(endpoint, body)
+        );
+      }
+
       console.error(`API Call failed (${endpoint}):`, err);
       showToast(err.message, true);
       throw err;
     }
+  }
+
+  // Resolve entity type from endpoint
+  function resolveEntity(endpoint) {
+    const path = endpoint.split('?')[0];
+    if (path.includes('/students')) return 'student';
+    if (path.includes('/attendance')) return 'attendance';
+    if (path.includes('/fees/pay')) return 'fee';
+    if (path.includes('/fees/setup')) return 'fee_setup';
+    if (path.includes('/fees/dues')) return 'fee_dues';
+    if (path.includes('/fees/ledger')) return 'fee';
+    if (path.includes('/exams/marks')) return 'marks';
+    if (path.includes('/exams/subjects')) return 'exam_subject';
+    if (path.includes('/exams')) return 'exam';
+    if (path.includes('/staff/teachers')) return 'teacher';
+    if (path.includes('/staff/announcements')) return 'announcement';
+    if (path.includes('/staff/parents')) return 'parent';
+    if (path.includes('/teachers/assignments')) return 'assignment';
+    if (path.includes('/teachers/my-marks')) return 'marks';
+    if (path.includes('/teachers/fee-pay')) return 'fee';
+    if (path.includes('/settings')) return 'settings';
+    if (path.includes('/transport/vehicles')) return 'vehicle';
+    if (path.includes('/transport/drivers')) return 'driver';
+    if (path.includes('/transport/routes')) return 'route';
+    return 'unknown';
+  }
+
+  function extractEntityId(endpoint, body) {
+    const parts = endpoint.split('?')[0].split('/');
+    const last = parts[parts.length - 1];
+    if (last && !isNaN(last)) return last;
+    if (body && body.student_id) return body.student_id;
+    if (body && body.teacher_id) return body.teacher_id;
+    if (body && body.id) return body.id;
+    return 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   }
 
   // Check Billing / Lock status
