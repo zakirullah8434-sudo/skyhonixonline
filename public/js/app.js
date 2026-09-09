@@ -8161,6 +8161,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // INITIALIZATIONS
   // ==========================================
+
+  // Initialize Offline-First Engine
+  (async function initOfflineEngine() {
+    try {
+      await window.SkyHonixOffline.init({
+        token: token,
+        apiBase: ''
+      });
+      window.SkyHonixOffline.setOnlineApiCall(async (endpoint, method, body, isFormData) => {
+        const headers = { 'Authorization': `Bearer ${token}` };
+        if (!isFormData) headers['Content-Type'] = 'application/json';
+        const options = { method, headers };
+        if (body) options.body = isFormData ? body : JSON.stringify(body);
+        const response = await fetch(`/api${endpoint}`, options);
+        const text = await response.text();
+        let result;
+        try { result = JSON.parse(text); } catch (e) { throw new Error('Invalid server response'); }
+        if (!response.ok) throw new Error(result.error || 'Request failed');
+        if (response.status === 401 || response.status === 403) {
+          if (result.suspended || result.pending) {
+            lockOverlay.style.display = 'flex';
+          } else {
+            localStorage.removeItem('skyhonix_token');
+            localStorage.removeItem('skyhonix_user');
+            window.location.href = 'index.html';
+          }
+        }
+        if (result.syncEvent) await handleSyncEvent(result.syncEvent, result);
+        return result;
+      });
+    } catch (e) {
+      console.warn('[Offline] Engine init failed:', e);
+    }
+  })();
+
   checkBillingStatus();
   loadDashboardStats();
   loadDashboardExamDropdown();

@@ -474,12 +474,7 @@
   </div>
 
   <!-- Offline-First Infrastructure -->
-  <script src="js/offline-db.js"></script>
-  <script src="js/network-manager.js"></script>
-  <script src="js/sync-queue.js"></script>
-  <script src="js/sync-engine.js"></script>
-  <script src="js/cache-manager.js"></script>
-  <script src="js/sync-ui.js"></script>
+  <script src="js/offline-core.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').then(reg => {
@@ -510,7 +505,6 @@
     }
   </script>
 
-  <script src="js/offline-core.js"></script>
   <script src="js/teacher-portal.js" defer></script>
 </body>
 </html>

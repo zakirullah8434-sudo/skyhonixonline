@@ -23,46 +23,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const headerUserBadge = document.getElementById('header-user-badge');
   headerUserBadge.textContent = `${currentUser.teacherName} | ${currentUser.schoolName}`;
 
-  // API Helper (offline-integrated)
+  // API Helper (offline-integrated via SkyHonixOffline)
   async function apiCall(endpoint, method = 'GET', body = null) {
     const isMutation = method !== 'GET' && method !== 'HEAD';
-    const isOffline = window.SkyNetwork && !window.SkyNetwork.isServerReachable();
 
-    // OFFLINE + GET: serve from cache
-    if (isOffline && !isMutation && window.SkyCacheManager) {
-      const cached = await window.SkyCacheManager.getCached(endpoint);
-      if (cached) return cached;
-      if (window.SkyOfflineDB) {
-        const fallback = await window.SkyOfflineDB.getCachedData(endpoint);
-        if (fallback && fallback.data) return fallback.data;
+    // Use offline engine for mutations and cached GETs
+    if (window.SkyHonixOffline && window.SkyHonixOffline._initialized) {
+      try {
+        return await window.SkyHonixOffline.offlineAPI.call(endpoint, method, body, {
+          entity: resolveEntity(endpoint),
+          entityId: extractEntityId(endpoint, body)
+        });
+      } catch (err) {
+        if (err.message.includes('offline') || err.message.includes('connection')) throw err;
+        if (!isMutation) throw err;
       }
-      throw new Error('You are offline. No cached data available.');
     }
 
-    // OFFLINE + MUTATION: queue for sync
-    if (isOffline && isMutation && window.SkySyncQueue) {
-      const action = await window.SkySyncQueue.enqueue({
-        operation: method === 'DELETE' ? 'DELETE' : method === 'PUT' ? 'UPDATE' : 'CREATE',
-        entity: resolveEntity(endpoint),
-        entityId: extractEntityId(endpoint, body),
-        payload: {
-          ...body,
-          _endpoint: endpoint,
-          _method: method,
-          _localId: window.SkyOfflineDB.generateLocalId()
-        },
-        metadata: {
-          userId: currentUser.teacherId,
-          schoolId: currentUser.schoolId,
-          role: 'teacher'
-        }
-      });
-
-      window.SkySyncUI && window.SkySyncUI.showToast('Saved locally — will sync when online', 'info');
-      return getOptimisticResponse(endpoint, method, body, action);
-    }
-
-    // ONLINE: proceed normally
+    // Fallback: direct API call
     const options = {
       method,
       headers: {
@@ -79,33 +57,13 @@ document.addEventListener('DOMContentLoaded', () => {
       let data;
       try { data = JSON.parse(text); } catch { throw new Error('Server returned an invalid response. Please try again.'); }
       if (!response.ok) throw new Error(data.error || 'Request failed');
-
-      // Cache GET responses
-      if (method === 'GET' && window.SkyCacheManager) {
-        await window.SkyCacheManager.cacheResponse(endpoint, data);
-      }
       return data;
     } catch (err) {
-      // Network failure on mutation: queue it
-      if (isMutation && window.SkySyncQueue && err.message.includes('Failed to fetch')) {
-        const action = await window.SkySyncQueue.enqueue({
-          operation: method === 'DELETE' ? 'DELETE' : method === 'PUT' ? 'UPDATE' : 'CREATE',
-          entity: resolveEntity(endpoint),
-          entityId: extractEntityId(endpoint, body),
-          payload: {
-            ...body,
-            _endpoint: endpoint,
-            _method: method,
-            _localId: window.SkyOfflineDB.generateLocalId()
-          },
-          metadata: {
-            userId: currentUser.teacherId,
-            schoolId: currentUser.schoolId,
-            role: 'teacher'
-          }
-        });
-        window.SkySyncUI && window.SkySyncUI.showToast('Saved locally — will sync when online', 'info');
-        return getOptimisticResponse(endpoint, method, body, action);
+      // Network failure on mutation: queue via offline engine
+      if (isMutation && window.SkyHonixOffline && window.SkyHonixOffline._initialized && err.message.includes('Failed to fetch')) {
+        return await window.SkyHonixOffline.offlineAPI._queueMutation(
+          endpoint, method, body, resolveEntity(endpoint), extractEntityId(endpoint, body)
+        );
       }
       throw err;
     }
@@ -126,18 +84,36 @@ document.addEventListener('DOMContentLoaded', () => {
     if (last && !isNaN(last)) return last;
     if (body && body.student_id) return body.student_id;
     if (body && body.id) return body.id;
-    return window.SkyOfflineDB ? window.SkyOfflineDB.generateLocalId() : Date.now().toString();
+    return 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   }
 
-  function getOptimisticResponse(endpoint, method, body, action) {
-    const entity = resolveEntity(endpoint);
-    const base = { message: 'Saved locally', _offline: true, _actionId: action.id };
-    if (entity === 'attendance') return { message: 'Attendance saved locally', _offline: true, _actionId: action.id };
-    if (entity === 'marks') return { message: 'Marks saved locally', _offline: true, _actionId: action.id };
-    if (entity === 'assignment') return { id: action.payload._localId, ...body, _offline: true, _actionId: action.id };
-    if (entity === 'fee') return { message: 'Payment recorded locally', _offline: true, _actionId: action.id };
-    return base;
-  }
+  // Initialize Offline Engine for Teacher Portal
+  (async function initTeacherOffline() {
+    try {
+      await window.SkyHonixOffline.init({
+        token: token,
+        apiBase: ''
+      });
+      window.SkyHonixOffline.setOnlineApiCall(async (endpoint, method, body) => {
+        const options = {
+          method,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        };
+        if (body && method !== 'GET') options.body = JSON.stringify(body);
+        const response = await fetch(endpoint, options);
+        const text = await response.text();
+        let data;
+        try { data = JSON.parse(text); } catch { throw new Error('Invalid server response'); }
+        if (!response.ok) throw new Error(data.error || 'Request failed');
+        return data;
+      });
+    } catch (e) {
+      console.warn('[Offline] Teacher engine init failed:', e);
+    }
+  })();
 
   // Load school settings (logo + name)
   async function loadSchoolSettings() {
