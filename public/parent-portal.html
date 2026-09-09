@@ -4,68 +4,385 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Parent Portal - SkyHonix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
   <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #F8FAFC;
+      color: #1E293B;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
     .portal-layout { display: flex; min-height: 100vh; }
-    .portal-sidebar { width: 240px; background: var(--glass-bg); border-right: 1px solid var(--border-glow); padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; }
-    .portal-sidebar .brand { padding: 0 20px 20px; border-bottom: 1px solid var(--border-glow); }
-    .portal-sidebar .brand h3 { margin: 0; font-size: 1rem; color: var(--primary); }
-    .portal-sidebar .brand small { color: var(--text-muted); font-size: 0.75rem; }
+
+    .portal-sidebar {
+      width: 240px;
+      background: #FFFFFF;
+      border-right: 1px solid #E5E7EB;
+      padding: 20px 0;
+      position: fixed;
+      height: 100vh;
+      overflow-y: auto;
+      z-index: 100;
+    }
+
+    .portal-sidebar .brand {
+      padding: 0 20px 20px;
+      border-bottom: 1px solid #E5E7EB;
+    }
+
+    .portal-sidebar .brand h3 {
+      margin: 0;
+      font-size: 1rem;
+      color: #4F46E5;
+      font-weight: 700;
+    }
+
+    .portal-sidebar .brand small {
+      color: #94A3B8;
+      font-size: 0.75rem;
+    }
+
     .portal-sidebar nav { padding: 10px 0; }
-    .portal-sidebar nav a { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; cursor: pointer; }
-    .portal-sidebar nav a:hover, .portal-sidebar nav a.active { background: rgba(99,102,241,0.1); color: var(--primary); border-right: 3px solid var(--primary); }
-    .portal-main { flex: 1; margin-left: 240px; padding: 20px 30px; }
-    .portal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border-glow); }
-    .portal-header h2 { margin: 0; font-size: 1.3rem; }
-    .user-badge { display: flex; align-items: center; gap: 8px; background: var(--glass-bg); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border-glow); font-size: 0.85rem; }
-    .child-selector { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+
+    .portal-sidebar nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      color: #64748B;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      cursor: pointer;
+      border-right: 3px solid transparent;
+    }
+
+    .portal-sidebar nav a:hover {
+      background: #F1F5F9;
+      color: #4F46E5;
+    }
+
+    .portal-sidebar nav a.active {
+      background: #EEF2FF;
+      color: #4F46E5;
+      border-right-color: #4F46E5;
+      font-weight: 600;
+    }
+
+    .portal-main {
+      flex: 1;
+      margin-left: 240px;
+      padding: 20px 30px;
+    }
+
+    .portal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #E5E7EB;
+      background: #FFFFFF;
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .portal-header h2 { margin: 0; font-size: 1.3rem; color: #1E293B; }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #F1F5F9;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid #E5E7EB;
+      font-size: 0.85rem;
+      color: #475569;
+    }
+
+    .child-selector {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
     .child-selector select { min-width: 200px; }
-    .stat-card { text-align: center; padding: 20px; background: var(--glass-bg); border-radius: 12px; border: 1px solid var(--border-glow); }
-    .stat-card h3 { margin: 0; font-size: 1.8rem; color: var(--primary); }
-    .stat-card p { margin: 6px 0 0; color: var(--text-muted); font-size: 0.85rem; }
-    .record-card { background: var(--glass-bg); border-radius: 12px; border: 1px solid var(--border-glow); padding: 16px; margin-bottom: 12px; }
-    .record-card h4 { margin: 0 0 8px; color: var(--primary); }
-    .news-ticker { background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 10px; padding: 12px 20px; margin-bottom: 20px; display: none; overflow: hidden; position: relative; }
-    .news-ticker .ticker-content { display: flex; gap: 60px; animation: tickerScroll 30s linear infinite; white-space: nowrap; }
+
+    .stat-card {
+      text-align: center;
+      padding: 20px;
+      background: #FFFFFF;
+      border-radius: 12px;
+      border: 1px solid #E5E7EB;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .stat-card h3 { margin: 0; font-size: 1.8rem; color: #4F46E5; font-weight: 700; }
+    .stat-card p { margin: 6px 0 0; color: #94A3B8; font-size: 0.85rem; }
+
+    .record-card {
+      background: #FFFFFF;
+      border-radius: 12px;
+      border: 1px solid #E5E7EB;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .record-card h4 { margin: 0 0 8px; color: #4F46E5; }
+
+    .news-ticker {
+      background: linear-gradient(135deg, #4F46E5, #7C3AED);
+      border-radius: 10px;
+      padding: 12px 20px;
+      margin-bottom: 20px;
+      display: none;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .news-ticker .ticker-content {
+      display: flex;
+      gap: 60px;
+      animation: tickerScroll 30s linear infinite;
+      white-space: nowrap;
+    }
+
     .news-ticker .ticker-item { color: white; font-size: 0.85rem; }
-    .news-ticker .ticker-label { background: rgba(255,255,255,0.2); padding: 2px 10px; border-radius: 10px; margin-right: 10px; font-weight: 700; font-size: 0.75rem; }
-    @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-    .fee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-    .month-card { padding: 12px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); text-align: center; }
-    .month-card.paid { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.05); }
-    .month-card.unpaid { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.05); }
-    .month-card .month-name { font-weight: 600; font-size: 0.85rem; }
-    .month-card .amount { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
-    .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
-    .hamburger:hover { background: rgba(255,255,255,0.1); }
+
+    .news-ticker .ticker-label {
+      background: rgba(255,255,255,0.2);
+      padding: 2px 10px;
+      border-radius: 10px;
+      margin-right: 10px;
+      font-weight: 700;
+      font-size: 0.75rem;
+    }
+
+    @keyframes tickerScroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    .fee-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .month-card {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #E5E7EB;
+      background: #FFFFFF;
+      text-align: center;
+    }
+
+    .month-card.paid {
+      border-color: #86EFAC;
+      background: #F0FDF4;
+    }
+
+    .month-card.unpaid {
+      border-color: #FCA5A5;
+      background: #FEF2F2;
+    }
+
+    .month-card .month-name { font-weight: 600; font-size: 0.85rem; color: #1E293B; }
+    .month-card .amount { font-size: 0.75rem; color: #94A3B8; margin-top: 4px; }
+
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      color: #475569;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    .hamburger:hover { background: #F1F5F9; }
+
+    .card {
+      background: #FFFFFF;
+      border-radius: 12px;
+      border: 1px solid #E5E7EB;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .form-control {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #E5E7EB;
+      background: #FFFFFF;
+      color: #1E293B;
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-control:focus {
+      border-color: #4F46E5;
+      box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+    }
+
+    .form-label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #475569;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #4F46E5;
+      color: #FFFFFF;
+      border-color: #4F46E5;
+    }
+
+    .btn-primary:hover { background: #4338CA; }
+
+    .btn-outline {
+      background: transparent;
+      color: #4F46E5;
+      border-color: #E5E7EB;
+    }
+
+    .btn-outline:hover {
+      background: #F1F5F9;
+      border-color: #CBD5E1;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid #E5E7EB;
+      font-size: 0.85rem;
+    }
+
+    .data-table th {
+      background: #F8FAFC;
+      color: #64748B;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .data-table tbody tr:hover { background: #F8FAFC; }
+
+    .screen-section { display: block; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      background: #1E293B;
+      color: white;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      z-index: 9999;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
     @media (max-width: 768px) {
-      .portal-sidebar { position: fixed; z-index: 2000; transform: translateX(-100%); transition: transform 0.3s; width: 260px; }
+      .portal-sidebar {
+        position: fixed;
+        z-index: 2000;
+        transform: translateX(-100%);
+        transition: transform 0.3s;
+        width: 260px;
+      }
+
       .portal-sidebar.open { transform: translateX(0); }
+
       .portal-main { margin-left: 0; padding: 12px 10px; }
+
       .hamburger { display: block; font-size: 1.4rem; }
-      .portal-header { flex-wrap: wrap; gap: 8px; padding: 10px 0; }
-      .portal-header h2 { font-size: 1rem; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+      .portal-header {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 10px 12px;
+        border-radius: 10px;
+      }
+
+      .portal-header h2 {
+        font-size: 1rem;
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
       .user-badge { font-size: 0.75rem; padding: 4px 10px; }
+
       .child-selector { flex-direction: column; align-items: stretch; gap: 8px; }
       .child-selector select { max-width: 100%; min-width: 0; width: 100%; }
+
       .grid-4 { grid-template-columns: 1fr 1fr; gap: 10px; }
+
       .stat-card { padding: 14px 10px; }
       .stat-card h3 { font-size: 1.3rem; }
       .stat-card p { font-size: 0.75rem; }
+
       .card { padding: 14px; }
       .card h3 { font-size: 1rem; }
+
       .record-card { padding: 12px; }
       .record-card h4 { font-size: 0.95rem; }
+
       .fee-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
       .month-card { padding: 10px 8px; }
+
       .data-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
       .data-table th, .data-table td { padding: 6px 8px; font-size: 0.75rem; white-space: nowrap; }
     }
+
     @media (max-width: 480px) {
       .portal-header h2 { font-size: 0.9rem; max-width: 120px; }
       .stat-card h3 { font-size: 1.1rem; }
       .fee-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
     }
+
     @media (min-width: 16px) and (max-width: 768px) {
       input, select, textarea { font-size: 16px !important; }
     }
@@ -73,12 +390,12 @@
 </head>
 <body>
   <!-- Sidebar Overlay (mobile backdrop) -->
-  <div id="sidebar-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1999;" onclick="document.getElementById('sidebar').classList.remove('open'); this.style.display='none';"></div>
+  <div id="sidebar-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.3); backdrop-filter:blur(2px); z-index:1999;" onclick="document.getElementById('sidebar').classList.remove('open'); this.style.display='none';"></div>
 
   <div class="portal-layout">
     <aside class="portal-sidebar" id="sidebar">
       <div class="brand">
-        <img id="sidebar-school-logo" src="" alt="Logo" style="width:48px; height:48px; border-radius:50%; object-fit:cover; display:none; margin-bottom:8px;">
+        <img id="sidebar-school-logo" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Logo" style="width:48px; height:48px; border-radius:50%; object-fit:cover; display:none; margin-bottom:8px;">
         <h3 id="sidebar-school-name">SkyHonix / Parent</h3>
         <small>Parent Portal</small>
       </div>
@@ -96,7 +413,7 @@
       <header class="portal-header">
         <div style="display:flex; align-items:center; gap:12px;">
           <button class="hamburger" id="btn-hamburger">☰</button>
-          <img id="header-school-logo" src="" alt="Logo" style="width:30px; height:30px; border-radius:50%; object-fit:cover; display:none;">
+          <img id="header-school-logo" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Logo" style="width:30px; height:30px; border-radius:50%; object-fit:cover; display:none;">
           <h2 id="header-title">Dashboard</h2>
         </div>
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
@@ -143,7 +460,7 @@
         <div style="margin-bottom: 24px;">
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
             <span style="font-size:1.3rem;">📢</span>
-            <h3 style="margin:0;">Latest Announcements</h3>
+            <h3 style="margin:0; color:#1E293B;">Latest Announcements</h3>
           </div>
           <div id="dashboard-announcements-container"></div>
         </div>
@@ -153,7 +470,7 @@
           <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px;">
             <div style="display:flex; align-items:center; gap:10px;">
               <span style="font-size:1.3rem;">📚</span>
-              <h3 style="margin:0;">Homework & Tests</h3>
+              <h3 style="margin:0; color:#1E293B;">Homework & Tests</h3>
             </div>
             <button class="btn btn-primary" style="font-size:0.8rem; padding:6px 14px;" onclick="showPanel('assignments')">View All →</button>
           </div>
@@ -161,7 +478,7 @@
         </div>
 
         <div class="card">
-          <h3 style="margin: 0 0 16px;">Children Overview</h3>
+          <h3 style="margin: 0 0 16px; color:#1E293B;">Children Overview</h3>
           <div id="children-overview-container"></div>
         </div>
       </div>
@@ -169,9 +486,9 @@
       <!-- PANEL: Fees -->
       <div id="panel-fees" class="screen-section" style="display:none;">
         <div class="card">
-          <h3 style="margin: 0 0 16px;">Fee Records</h3>
+          <h3 style="margin: 0 0 16px; color:#1E293B;">Fee Records</h3>
           <div id="fees-container">
-            <p style="color: var(--text-muted);">Select a child to view fee records.</p>
+            <p style="color: #94A3B8;">Select a child to view fee records.</p>
           </div>
         </div>
       </div>
@@ -179,9 +496,9 @@
       <!-- PANEL: Exams -->
       <div id="panel-exams" class="screen-section" style="display:none;">
         <div class="card">
-          <h3 style="margin: 0 0 16px;">Exam Results</h3>
+          <h3 style="margin: 0 0 16px; color:#1E293B;">Exam Results</h3>
           <div id="exams-container">
-            <p style="color: var(--text-muted);">Select a child to view exam results.</p>
+            <p style="color: #94A3B8;">Select a child to view exam results.</p>
           </div>
         </div>
       </div>
@@ -190,14 +507,14 @@
       <div id="panel-attendance" class="screen-section" style="display:none;">
         <div class="card">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
-            <h3 style="margin: 0;">Attendance Record</h3>
+            <h3 style="margin: 0; color:#1E293B;">Attendance Record</h3>
             <div style="display:flex; gap:8px;">
               <select class="form-control" id="att-month" style="width:auto;"></select>
               <select class="form-control" id="att-year" style="width:auto;"></select>
             </div>
           </div>
           <div id="attendance-container">
-            <p style="color: var(--text-muted);">Select a child to view attendance.</p>
+            <p style="color: #94A3B8;">Select a child to view attendance.</p>
           </div>
         </div>
       </div>
@@ -205,10 +522,10 @@
       <!-- PANEL: Assignments (Homework & Tests) -->
       <div id="panel-assignments" class="screen-section" style="display:none;">
         <div class="card" style="margin-bottom: 20px;">
-          <h3 style="margin: 0 0 16px;">📚 Homework & Tests</h3>
-          <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0 0 16px;">View homework, class tests, monthly tests, and projects assigned by teachers.</p>
+          <h3 style="margin: 0 0 16px; color:#1E293B;">📚 Homework & Tests</h3>
+          <p style="color: #94A3B8; font-size: 0.9rem; margin: 0 0 16px;">View homework, class tests, monthly tests, and projects assigned by teachers.</p>
           <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
-            <select id="assignment-filter-type" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary); font-size: 0.85rem;">
+            <select id="assignment-filter-type" class="form-control">
               <option value="">All Types</option>
               <option value="homework">Homework</option>
               <option value="monthly_test">Monthly Test</option>
@@ -217,7 +534,7 @@
               <option value="project">Project</option>
               <option value="other">Other</option>
             </select>
-            <select id="assignment-filter-subject" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary); font-size: 0.85rem;">
+            <select id="assignment-filter-subject" class="form-control">
               <option value="">All Subjects</option>
             </select>
           </div>
@@ -228,7 +545,7 @@
       <!-- PANEL: Announcements -->
       <div id="panel-announcements" class="screen-section" style="display:none;">
         <div class="card">
-          <h3 style="margin: 0 0 16px;">School Announcements</h3>
+          <h3 style="margin: 0 0 16px; color:#1E293B;">School Announcements</h3>
           <div id="announcements-container"></div>
         </div>
       </div>
@@ -237,6 +554,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="js/parent-portal.js"></script>
+  <script src="js/parent-portal.js" defer></script>
 </body>
 </html>

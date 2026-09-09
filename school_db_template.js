@@ -684,6 +684,27 @@ function createSchoolDatabaseSchema(db) {
         }
       });
 
+      // Performance indexes for frequently queried columns
+      db.run(`CREATE INDEX IF NOT EXISTS idx_students_class_section ON students(class_name, section_name, status)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_students_family_head ON students(family_head_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_students_status ON students(status)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_fee_ledger_student ON fee_ledger(student_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_fee_ledger_month_year ON fee_ledger(month, year)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_fee_ledger_class_month ON fee_ledger(class_name, month, year)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_fee_payments_student ON fee_payments(student_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_marks_student_exam ON marks(student_id, exam_id, term)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_marks_exam_subject ON marks(exam_id, subject, term)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_results_student_exam ON results(student_id, exam_id, term)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_results_exam_term ON results(exam_id, term)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_attendance_class_date ON attendance(class_name, date)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_exam_subjects_exam_class ON exam_subjects(exam_id, class, term)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_assignments_teacher ON assignments(teacher_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_assignments_class ON assignments(class_name, section_name)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_timetable_teacher ON timetable(teacher_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_student_parents_student ON student_parents(student_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_student_parents_parent ON student_parents(parent_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_promotion_history_student ON student_promotion_history(student_id)`);
+
       db.run("PRAGMA user_version = 1", (err) => {
         if (err) reject(err);
         else resolve();

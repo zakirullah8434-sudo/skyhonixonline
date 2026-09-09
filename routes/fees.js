@@ -168,6 +168,53 @@ router.post('/generate', authenticateToken, async (req, res) => {
       'July': 7, 'August': 8, 'September': 9, 'October': 10, 'November': 11, 'December': 12
     };
 
+    // 3. Bulk pre-fetch: all existing ledgers for this month/year
+    const existingRows = await querySchool(
+      schoolId,
+      'SELECT student_id FROM fee_ledger WHERE month = ? AND year = ?',
+      [month, parseInt(year)]
+    );
+    const existingSet = new Set(existingRows.map(r => r.student_id));
+
+    // 4. Bulk pre-fetch: all siblings (students with a family_head_id)
+    const allSiblings = await querySchool(
+      schoolId,
+      `SELECT id, family_head_id, class_name, is_free, discount_amount, discount_percent, transport_fee
+       FROM students
+       WHERE family_head_id IS NOT NULL AND family_head_id != '' AND (status IS NULL OR status != 'Left')`
+    );
+    const siblingsByHead = {};
+    allSiblings.forEach(sib => {
+      if (!siblingsByHead[sib.family_head_id]) siblingsByHead[sib.family_head_id] = [];
+      siblingsByHead[sib.family_head_id].push(sib);
+    });
+
+    // 5. Bulk pre-fetch: all previous ledger entries
+    const allPrevLedgers = await querySchool(
+      schoolId,
+      'SELECT student_id, total_payable, paid_amount, month, year FROM fee_ledger'
+    );
+    const prevLedgersByStudent = {};
+    allPrevLedgers.forEach(l => {
+      if (!prevLedgersByStudent[l.student_id]) prevLedgersByStudent[l.student_id] = [];
+      prevLedgersByStudent[l.student_id].push(l);
+    });
+    // Sort each student's ledgers chronologically
+    for (const sid in prevLedgersByStudent) {
+      prevLedgersByStudent[sid].sort((a, b) => {
+        if (a.year !== b.year) return b.year - a.year;
+        return monthOrder[b.month] - monthOrder[a.month];
+      });
+    }
+
+    // 6. Bulk pre-fetch: all opening dues
+    const allOpeningDues = await querySchool(
+      schoolId,
+      'SELECT student_id, due_amount FROM fee_dues'
+    );
+    const openingDuesMap = {};
+    allOpeningDues.forEach(d => { openingDuesMap[d.student_id] = d.due_amount; });
+
     let generatedCount = 0;
     let skippedCount = 0;
 
@@ -181,24 +228,13 @@ router.post('/generate', authenticateToken, async (req, res) => {
       }
 
       // Rule B: Prevent duplicates. Check if ledger already exists for student, class, month, and year.
-      const existingLedger = await querySchoolOne(
-        schoolId,
-        'SELECT id FROM fee_ledger WHERE student_id = ? AND class_name = ? AND month = ? AND year = ?',
-        [studentId, student.class_name, month, year]
-      );
-      if (existingLedger) {
+      if (existingSet.has(studentId)) {
         skippedCount++;
         continue;
       }
 
       // Rule C: Calculate siblings' extra fees and sibling transport fees
-      const siblings = await querySchool(
-        schoolId,
-        `SELECT id, name, class_name, is_free, discount_amount, discount_percent, transport_fee 
-         FROM students 
-         WHERE family_head_id = ? AND (status IS NULL OR status != 'Left')`,
-        [studentId]
-      );
+      const siblings = siblingsByHead[studentId] || [];
 
       let familyExtraFee = 0;
       let familyTransportFee = 0;
@@ -225,20 +261,11 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
       // Rule D: Calculate previous unpaid balance (carry forward)
       // Retrieve the most chronologically recent ledger entry
-      const prevLedgers = await querySchool(
-        schoolId,
-        `SELECT total_payable, paid_amount, month, year FROM fee_ledger WHERE student_id = ?`,
-        [studentId]
-      );
+      const prevLedgers = prevLedgersByStudent[studentId] || [];
 
       let previousDue = 0;
 
       if (prevLedgers.length > 0) {
-        // Sort chronologically using month mapping
-        prevLedgers.sort((a, b) => {
-          if (a.year !== b.year) return b.year - a.year;
-          return monthOrder[b.month] - monthOrder[a.month];
-        });
         const latestPrev = prevLedgers[0];
         const unpaid = latestPrev.total_payable - latestPrev.paid_amount;
         if (unpaid > 0) {
@@ -246,13 +273,9 @@ router.post('/generate', authenticateToken, async (req, res) => {
         }
       } else {
         // Fallback to opening fee dues table
-        const openingDue = await querySchoolOne(
-          schoolId,
-          'SELECT due_amount FROM fee_dues WHERE student_id = ?',
-          [studentId]
-        );
-        if (openingDue && openingDue.due_amount > 0) {
-          previousDue = openingDue.due_amount;
+        const openingDue = openingDuesMap[studentId] || 0;
+        if (openingDue > 0) {
+          previousDue = openingDue;
         }
       }
 
@@ -454,10 +477,31 @@ router.get('/history-management', authenticateToken, async (req, res) => {
       ledgerMap[l.student_id] = l;
     });
 
-    const monthOrder = {
-      'January': 1, 'February': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
-      'July': 7, 'August': 8, 'September': 9, 'October': 10, 'November': 11, 'December': 12
-    };
+    // 3. Bulk pre-fetch: all previous ledger entries for students not in current month
+    const studentsWithoutLedger = students.filter(s => !ledgerMap[s.id]);
+    const allPrevLedgers = studentsWithoutLedger.length > 0 ? await querySchool(
+      schoolId,
+      'SELECT student_id, total_payable, paid_amount, month, year FROM fee_ledger'
+    ) : [];
+    const prevLedgersByStudent = {};
+    allPrevLedgers.forEach(l => {
+      if (!prevLedgersByStudent[l.student_id]) prevLedgersByStudent[l.student_id] = [];
+      prevLedgersByStudent[l.student_id].push(l);
+    });
+    for (const sid in prevLedgersByStudent) {
+      prevLedgersByStudent[sid].sort((a, b) => {
+        if (a.year !== b.year) return b.year - a.year;
+        return monthOrder[b.month] - monthOrder[a.month];
+      });
+    }
+
+    // 4. Bulk pre-fetch: opening dues
+    const allOpeningDues = studentsWithoutLedger.length > 0 ? await querySchool(
+      schoolId,
+      'SELECT student_id, due_amount FROM fee_dues'
+    ) : [];
+    const openingDuesMap = {};
+    allOpeningDues.forEach(d => { openingDuesMap[d.student_id] = d.due_amount; });
 
     const result = [];
     for (const student of students) {
@@ -480,31 +524,19 @@ router.get('/history-management', authenticateToken, async (req, res) => {
         });
       } else {
         // Find previous dues chronologically
-        const prevLedgers = await querySchool(
-          schoolId,
-          `SELECT total_payable, paid_amount, month, year FROM fee_ledger WHERE student_id = ?`,
-          [student.id]
-        );
+        const prevLedgers = prevLedgersByStudent[student.id] || [];
 
         let previousDue = 0;
         if (prevLedgers.length > 0) {
-          prevLedgers.sort((a, b) => {
-            if (a.year !== b.year) return b.year - a.year;
-            return monthOrder[b.month] - monthOrder[a.month];
-          });
           const latestPrev = prevLedgers[0];
           const unpaid = latestPrev.total_payable - latestPrev.paid_amount;
           if (unpaid > 0) {
             previousDue = unpaid;
           }
         } else {
-          const openingDue = await querySchoolOne(
-            schoolId,
-            'SELECT due_amount FROM fee_dues WHERE student_id = ?',
-            [student.id]
-          );
-          if (openingDue && openingDue.due_amount > 0) {
-            previousDue = openingDue.due_amount;
+          const openingDue = openingDuesMap[student.id] || 0;
+          if (openingDue > 0) {
+            previousDue = openingDue;
           }
         }
 

@@ -8,218 +8,274 @@
   <meta http-equiv="Expires" content="0">
   <meta name="description" content="SkyHonix Master Admin Panel - Manage school registrations and subscriptions">
   <title>SkyHonix Admin Panel | School Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
   <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
     .admin-container {
       min-height: 100vh;
       display: flex;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #F8FAFC;
       align-items: center;
       justify-content: center;
       padding: 20px;
     }
 
     .admin-login-card {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
+      background: #FFFFFF;
+      border-radius: 16px;
       padding: 40px;
       width: 100%;
       max-width: 450px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+      border: 1px solid #E5E7EB;
     }
 
     .admin-header {
       text-align: center;
-      margin-bottom: 30px;
+      margin-bottom: 32px;
     }
 
     .admin-header h1 {
-      font-size: 28px;
-      color: #333;
-      margin: 0 0 10px 0;
+      font-size: 26px;
+      color: #111827;
+      margin: 0 0 8px 0;
+      font-weight: 700;
+      letter-spacing: -0.3px;
     }
 
     .admin-header p {
-      color: #666;
+      color: #6B7280;
       font-size: 14px;
       margin: 0;
+      font-weight: 400;
     }
 
     .admin-dashboard {
       display: none;
+      background: #F8FAFC;
+      min-height: 100vh;
     }
 
     .admin-sidebar {
-      background: rgba(102, 126, 234, 0.95);
-      backdrop-filter: blur(10px);
-      width: 250px;
-      padding: 20px;
-      border-radius: 15px;
-      margin-right: 20px;
+      background: linear-gradient(180deg, #4F46E5 0%, #4338CA 100%);
+      width: 260px;
+      padding: 24px 20px;
+      border-radius: 0;
+      margin-right: 0;
       min-height: 100vh;
       position: fixed;
       left: 0;
       top: 0;
-      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+      z-index: 50;
     }
 
     .admin-main {
-      margin-left: 270px;
-      padding: 30px;
+      margin-left: 260px;
+      padding: 32px;
+      min-height: 100vh;
     }
 
     .admin-nav-menu {
       list-style: none;
       padding: 0;
       margin: 0;
+      flex: 1;
     }
 
     .admin-nav-item {
-      margin-bottom: 10px;
+      margin-bottom: 4px;
     }
 
     .admin-nav-link {
-      display: block;
-      padding: 12px 15px;
-      color: rgba(255, 255, 255, 0.8);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 14px;
+      color: rgba(255, 255, 255, 0.75);
       text-decoration: none;
-      border-radius: 8px;
-      transition: all 0.3s ease;
+      border-radius: 10px;
+      transition: all 0.2s ease;
       cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
     }
 
-    .admin-nav-link:hover,
+    .admin-nav-link:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
     .admin-nav-link.active {
       background: rgba(255, 255, 255, 0.2);
       color: #fff;
+      font-weight: 600;
     }
 
     .admin-section {
       display: none;
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 15px;
-      padding: 30px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: #FFFFFF;
+      border-radius: 12px;
+      padding: 28px;
+      border: 1px solid #E5E7EB;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
 
     .admin-section.active {
       display: block;
     }
 
+    .admin-section h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 4px;
+    }
+
+    .admin-section > p {
+      color: #6B7280;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
     .schools-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
+      margin-top: 16px;
     }
 
     .schools-table th {
-      background: rgba(102, 126, 234, 0.1);
-      padding: 12px;
+      background: #F9FAFB;
+      padding: 12px 14px;
       text-align: left;
-      color: #333;
+      color: #374151;
       font-weight: 600;
-      border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #E5E7EB;
     }
 
     .schools-table td {
-      padding: 12px;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      padding: 14px;
+      border-bottom: 1px solid #F3F4F6;
+      color: #374151;
+      font-size: 14px;
     }
 
     .schools-table tr:hover {
-      background: rgba(102, 126, 234, 0.05);
+      background: #F9FAFB;
+    }
+
+    .schools-table td strong {
+      color: #111827;
+    }
+
+    .schools-table td small {
+      color: #6B7280;
     }
 
     .status-badge {
       display: inline-block;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
 
     .status-suspended {
-      background: rgba(220, 53, 69, 0.2);
-      color: #dc3545;
+      background: #FEF2F2;
+      color: #DC2626;
     }
 
     .status-pending {
-      background: rgba(255, 193, 7, 0.2);
-      color: #ffc107;
+      background: #FFFBEB;
+      color: #D97706;
     }
 
     .status-active {
-      background: rgba(40, 167, 69, 0.2);
-      color: #28a745;
+      background: #ECFDF5;
+      color: #059669;
     }
 
     .status-trial {
-      background: rgba(255, 193, 7, 0.2);
-      color: #ffc107;
+      background: #FFFBEB;
+      color: #D97706;
     }
 
     .action-buttons {
       display: flex;
-      gap: 10px;
+      gap: 8px;
     }
 
     .btn {
-      padding: 8px 15px;
+      padding: 8px 14px;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
       font-size: 12px;
       font-weight: 600;
-      transition: all 0.3s ease;
+      transition: all 0.2s ease;
+      font-family: 'Inter', sans-serif;
     }
 
     .btn-approve {
-      background: rgba(40, 167, 69, 0.2);
-      color: #28a745;
-      border: 1px solid #28a745;
+      background: #ECFDF5;
+      color: #059669;
+      border: 1px solid #A7F3D0;
     }
 
     .btn-approve:hover {
-      background: #28a745;
+      background: #059669;
       color: #fff;
+      border-color: #059669;
     }
 
     .btn-suspend {
-      background: rgba(220, 53, 69, 0.2);
-      color: #dc3545;
-      border: 1px solid #dc3545;
+      background: #FEF2F2;
+      color: #DC2626;
+      border: 1px solid #FECACA;
     }
 
     .btn-suspend:hover {
-      background: #dc3545;
+      background: #DC2626;
       color: #fff;
+      border-color: #DC2626;
     }
 
     .btn-view {
-      background: rgba(102, 126, 234, 0.2);
-      color: #667eea;
-      border: 1px solid #667eea;
+      background: #EEF2FF;
+      color: #4F46E5;
+      border: 1px solid #C7D2FE;
     }
 
     .btn-view:hover {
-      background: #667eea;
+      background: #4F46E5;
       color: #fff;
+      border-color: #4F46E5;
     }
 
     .btn-logout {
-      background: rgba(220, 53, 69, 0.2);
-      color: #dc3545;
-      border: 1px solid #dc3545;
+      background: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       width: 100%;
       margin-top: 20px;
+      padding: 11px 14px;
+      font-size: 14px;
+      border-radius: 10px;
     }
 
     .btn-logout:hover {
-      background: #dc3545;
+      background: rgba(255, 255, 255, 0.2);
       color: #fff;
     }
 
@@ -231,7 +287,7 @@
       top: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.4);
       align-items: center;
       justify-content: center;
     }
@@ -241,111 +297,175 @@
     }
 
     .modal-content {
-      background: rgba(255, 255, 255, 0.95);
-      padding: 30px;
-      border-radius: 15px;
+      background: #FFFFFF;
+      padding: 0;
+      border-radius: 16px;
       max-width: 600px;
       width: 100%;
       max-height: 80vh;
       overflow-y: auto;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 1px solid #E5E7EB;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
     }
 
     .modal-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
-      border-bottom: 2px solid rgba(102, 126, 234, 0.2);
-      padding-bottom: 15px;
+      padding: 20px 24px;
+      border-bottom: 1px solid #E5E7EB;
     }
 
     .modal-header h2 {
       margin: 0;
-      color: #333;
+      color: #111827;
+      font-size: 18px;
+      font-weight: 700;
     }
 
     .close-modal {
-      background: none;
+      background: #F3F4F6;
       border: none;
-      font-size: 24px;
+      font-size: 18px;
       cursor: pointer;
-      color: #666;
+      color: #6B7280;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
     }
 
     .close-modal:hover {
-      color: #333;
+      background: #E5E7EB;
+      color: #111827;
     }
 
     .info-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 15px;
-      margin-bottom: 20px;
+      gap: 12px;
+      padding: 20px 24px;
     }
 
     .info-item {
-      background: rgba(102, 126, 234, 0.05);
-      padding: 15px;
-      border-radius: 8px;
-      border-left: 4px solid #667eea;
+      background: #F9FAFB;
+      padding: 14px 16px;
+      border-radius: 10px;
+      border-left: 3px solid #4F46E5;
     }
 
     .info-label {
-      font-size: 12px;
-      color: #666;
+      font-size: 11px;
+      color: #6B7280;
       font-weight: 600;
       text-transform: uppercase;
-      margin-bottom: 5px;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
     }
 
     .info-value {
-      font-size: 16px;
-      color: #333;
+      font-size: 15px;
+      color: #111827;
       font-weight: 600;
     }
 
     .alert {
-      padding: 15px;
-      border-radius: 8px;
+      padding: 14px 16px;
+      border-radius: 10px;
       margin-bottom: 20px;
       border-left: 4px solid;
+      font-size: 14px;
     }
 
     .alert-success {
-      background: rgba(40, 167, 69, 0.1);
-      color: #28a745;
-      border-color: #28a745;
+      background: #ECFDF5;
+      color: #059669;
+      border-color: #059669;
     }
 
     .alert-error {
-      background: rgba(220, 53, 69, 0.1);
-      color: #dc3545;
-      border-color: #dc3545;
+      background: #FEF2F2;
+      color: #DC2626;
+      border-color: #DC2626;
     }
 
     .alert-info {
-      background: rgba(102, 126, 234, 0.1);
-      color: #667eea;
-      border-color: #667eea;
+      background: #EEF2FF;
+      color: #4F46E5;
+      border-color: #4F46E5;
     }
 
     .sidebar-brand {
-      margin-bottom: 30px;
+      margin-bottom: 32px;
       padding-bottom: 20px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     }
 
     .sidebar-brand h2 {
       color: #fff;
       margin: 0;
-      font-size: 20px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
     }
 
     .sidebar-info {
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 12px;
-      margin-top: 5px;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 13px;
+      margin-top: 6px;
+      font-weight: 400;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #D1D5DB;
+      border-radius: 10px;
+      font-size: 14px;
+      color: #111827;
+      background: #FFFFFF;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: #4F46E5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .form-control::placeholder {
+      color: #9CA3AF;
+    }
+
+    .btn-primary {
+      background: #4F46E5;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+    }
+
+    .btn-primary:hover {
+      background: #4338CA;
     }
 
     @media (max-width: 768px) {
@@ -354,9 +474,8 @@
         min-height: auto;
         position: static;
         margin-right: 0;
-        margin-bottom: 20px;
         border-right: none;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
       }
 
       .admin-main {
@@ -376,7 +495,7 @@
 <div id="login-screen" class="admin-container">
   <div class="admin-login-card">
     <div class="admin-header">
-      <h1>🔐 SkyHonix Admin</h1>
+      <h1>SkyHonix Admin</h1>
       <p>Master Panel - School Management</p>
     </div>
 
@@ -395,12 +514,12 @@
         Login to Admin Panel
       </button>
 
-      <p id="login-error" style="color: #dc3545; margin-top: 15px; display: none; text-align: center;"></p>
+      <p id="login-error" style="color: #DC2626; margin-top: 15px; display: none; text-align: center;"></p>
     </form>
 
-    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(0, 0, 0, 0.1);">
-      <p style="font-size: 12px; color: #666; margin: 0;">
-        Not admin? <a href="/" style="color: #667eea; text-decoration: none; font-weight: 600;">Register a school</a> or <a href="/portal.html" style="color: #667eea; text-decoration: none; font-weight: 600;">go to portal</a>
+    <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #F3F4F6;">
+      <p style="font-size: 13px; color: #6B7280; margin: 0; text-align: center;">
+        Not admin? <a href="/" style="color: #4F46E5; text-decoration: none; font-weight: 600;">Register a school</a> or <a href="/portal.html" style="color: #4F46E5; text-decoration: none; font-weight: 600;">go to portal</a>
       </p>
     </div>
   </div>
@@ -417,99 +536,98 @@
     <ul class="admin-nav-menu">
       <li class="admin-nav-item">
         <a href="#" class="admin-nav-link active" data-tab="schools">
-          📊 All Schools
+          All Schools
         </a>
       </li>
       <li class="admin-nav-item">
         <a href="#" class="admin-nav-link" data-tab="pending">
-          ⏳ Pending Approval
+          Pending Approval
         </a>
       </li>
       <li class="admin-nav-item">
         <a href="#" class="admin-nav-link" data-tab="active">
-          ✅ Active Schools
+          Active Schools
         </a>
       </li>
       <li class="admin-nav-item">
         <a href="#" class="admin-nav-link" data-tab="suspended">
-          🔒 Suspended
+          Suspended
         </a>
       </li>
       <li class="admin-nav-item">
         <a href="#" class="admin-nav-link" data-tab="stats">
-          📈 Statistics
+          Statistics
         </a>
       </li>
     </ul>
 
-    <button class="btn btn-logout" id="logout-btn">🚪 Logout</button>
+    <button class="btn btn-logout" id="logout-btn">Logout</button>
   </aside>
 
   <div class="admin-main">
     <!-- All Schools Tab -->
     <div id="schools-tab" class="admin-section active">
       <h2>All Schools</h2>
-      <p style="color: #666;">View and manage all registered schools</p>
+      <p>View and manage all registered schools</p>
       <div id="schools-list"></div>
     </div>
 
     <!-- Pending Approval Tab -->
     <div id="pending-tab" class="admin-section">
       <h2>Pending Approval</h2>
-      <p style="color: #666;">Schools awaiting admin activation</p>
+      <p>Schools awaiting admin activation</p>
       <div id="pending-list"></div>
     </div>
 
     <!-- Active Schools Tab -->
     <div id="active-tab" class="admin-section">
       <h2>Active Schools</h2>
-      <p style="color: #666;">Currently active and subscribed schools</p>
+      <p>Currently active and subscribed schools</p>
       <div id="active-list"></div>
     </div>
 
     <!-- Suspended Schools Tab -->
     <div id="suspended-tab" class="admin-section">
       <h2>Suspended Schools</h2>
-      <p style="color: #666;">Schools with suspended subscriptions</p>
+      <p>Schools with suspended subscriptions</p>
       <div id="suspended-list"></div>
     </div>
 
     <!-- Statistics Tab -->
     <div id="stats-tab" class="admin-section">
       <h2>Statistics & Overview</h2>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 20px;">
-        <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 12px; border-left: 4px solid #667eea;">
-          <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase;">Total Schools</div>
-          <div style="font-size: 32px; color: #667eea; font-weight: 700; margin-top: 8px;" id="stat-total">0</div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 20px;">
+        <div style="background: #EEF2FF; padding: 20px; border-radius: 12px; border-left: 3px solid #4F46E5;">
+          <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Schools</div>
+          <div style="font-size: 32px; color: #4F46E5; font-weight: 700; margin-top: 8px;" id="stat-total">0</div>
         </div>
-        <div style="background: rgba(255, 193, 7, 0.1); padding: 20px; border-radius: 12px; border-left: 4px solid #ffc107;">
-          <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase;">Pending</div>
-          <div style="font-size: 32px; color: #ffc107; font-weight: 700; margin-top: 8px;" id="stat-pending">0</div>
+        <div style="background: #FFFBEB; padding: 20px; border-radius: 12px; border-left: 3px solid #D97706;">
+          <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Pending</div>
+          <div style="font-size: 32px; color: #D97706; font-weight: 700; margin-top: 8px;" id="stat-pending">0</div>
         </div>
-        <div style="background: rgba(40, 167, 69, 0.1); padding: 20px; border-radius: 12px; border-left: 4px solid #28a745;">
-          <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase;">Active</div>
-          <div style="font-size: 32px; color: #28a745; font-weight: 700; margin-top: 8px;" id="stat-active">0</div>
+        <div style="background: #ECFDF5; padding: 20px; border-radius: 12px; border-left: 3px solid #059669;">
+          <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Active</div>
+          <div style="font-size: 32px; color: #059669; font-weight: 700; margin-top: 8px;" id="stat-active">0</div>
         </div>
-        <div style="background: rgba(220, 53, 69, 0.1); padding: 20px; border-radius: 12px; border-left: 4px solid #dc3545;">
-          <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase;">Suspended</div>
-          <div style="font-size: 32px; color: #dc3545; font-weight: 700; margin-top: 8px;" id="stat-suspended">0</div>
+        <div style="background: #FEF2F2; padding: 20px; border-radius: 12px; border-left: 3px solid #DC2626;">
+          <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Suspended</div>
+          <div style="font-size: 32px; color: #DC2626; font-weight: 700; margin-top: 8px;" id="stat-suspended">0</div>
         </div>
-        <div style="background: rgba(23, 162, 184, 0.1); padding: 20px; border-radius: 12px; border-left: 4px solid #17a2b8;">
-          <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase;">Total Students</div>
-          <div style="font-size: 32px; color: #17a2b8; font-weight: 700; margin-top: 8px;" id="stat-total-students">0</div>
+        <div style="background: #F0FDFA; padding: 20px; border-radius: 12px; border-left: 3px solid #0D9488;">
+          <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Students</div>
+          <div style="font-size: 32px; color: #0D9488; font-weight: 700; margin-top: 8px;" id="stat-total-students">0</div>
         </div>
-        <div style="background: rgba(111, 66, 193, 0.1); padding: 20px; border-radius: 12px; border-left: 4px solid #6f42c1;">
-          <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase;">Total Storage</div>
-          <div style="font-size: 28px; color: #6f42c1; font-weight: 700; margin-top: 8px;" id="stat-total-storage">0 B</div>
+        <div style="background: #F5F3FF; padding: 20px; border-radius: 12px; border-left: 3px solid #7C3AED;">
+          <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Storage</div>
+          <div style="font-size: 28px; color: #7C3AED; font-weight: 700; margin-top: 8px;" id="stat-total-storage">0 B</div>
         </div>
-        <div style="background: rgba(253, 126, 20, 0.1); padding: 20px; border-radius: 12px; border-left: 4px solid #fd7e14;">
-          <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase;">Total Revenue</div>
-          <div style="font-size: 28px; color: #fd7e14; font-weight: 700; margin-top: 8px;" id="stat-total-revenue">0 PKR</div>
+        <div style="background: #FFF7ED; padding: 20px; border-radius: 12px; border-left: 3px solid #EA580C;">
+          <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Revenue</div>
+          <div style="font-size: 28px; color: #EA580C; font-weight: 700; margin-top: 8px;" id="stat-total-revenue">0 PKR</div>
         </div>
-        <div style="background: rgba(32, 201, 151, 0.1); padding: 20px; border-radius: 12px; border-left: 4px solid #20c997;">
-          <div style="font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase;">Total Bandwidth</div>
-          <div style="font-size: 28px; color: #20c997; font-weight: 700; margin-top: 8px;" id="stat-total-bandwidth">0 B</div>
-        </div>
+        <div style="background: #ECFDF5; padding: 20px; border-radius: 12px; border-left: 3px solid #059669;">
+          <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Bandwidth</div>
+          <div style="font-size: 28px; color: #059669; font-weight: 700; margin-top: 8px;" id="stat-total-bandwidth">0 B</div>
         </div>
       </div>
     </div>
@@ -534,13 +652,13 @@
       <h2>Edit School ID</h2>
       <button class="close-modal" onclick="closeEditCodeModal()">&times;</button>
     </div>
-    <div style="padding: 20px;">
-      <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">School ID (alphanumeric)</label>
-      <input type="text" id="edit-code-input" class="form-control" placeholder="e.g. SKH-A3F9K2" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
-      <p id="edit-code-error" style="color: #dc3545; margin-top: 8px; display: none; font-size: 13px;"></p>
+    <div style="padding: 20px 24px;">
+      <label style="display: block; margin-bottom: 6px; font-weight: 600; color: #374151; font-size: 13px;">School ID (alphanumeric)</label>
+      <input type="text" id="edit-code-input" class="form-control" placeholder="e.g. SKH-A3F9K2" style="width: 100%;">
+      <p id="edit-code-error" style="color: #DC2626; margin-top: 8px; display: none; font-size: 13px;"></p>
       <div style="display: flex; gap: 10px; margin-top: 16px;">
-        <button onclick="saveSchoolId()" style="flex: 1; padding: 10px; background: #667eea; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Save</button>
-        <button onclick="closeEditCodeModal()" style="flex: 1; padding: 10px; background: #6c757d; color: #fff; border: none; border-radius: 8px; cursor: pointer;">Cancel</button>
+        <button onclick="saveSchoolId()" style="flex: 1; padding: 10px; background: #4F46E5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif;">Save</button>
+        <button onclick="closeEditCodeModal()" style="flex: 1; padding: 10px; background: #6B7280; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-family: 'Inter', sans-serif;">Cancel</button>
       </div>
     </div>
   </div>
@@ -684,7 +802,7 @@
     const container = document.getElementById(containerId);
     if (!container) return;
     if (!schools || !schools.length) {
-      container.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #888;"><p style="font-size: 16px; margin: 0;">No schools found</p><p style="font-size: 13px; margin: 8px 0 0 0;">Schools will appear here once registered</p></div>';
+      container.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #9CA3AF;"><p style="font-size: 16px; margin: 0;">No schools found</p><p style="font-size: 13px; margin: 8px 0 0 0;">Schools will appear here once registered</p></div>';
       return;
     }
 
@@ -706,15 +824,15 @@
         <tbody>
           ${schools.map(s => `
             <tr>
-              <td><strong>${s.school_name}</strong><br><small style="color:#888;">${s.email}</small></td>
+              <td><strong>${s.school_name}</strong><br><small style="color:#6B7280;">${s.email}</small></td>
               <td>
-                <code style="background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px;">${s.school_code || 'Not Assigned'}</code>
-                <button onclick="editSchoolId(${s.id}, '${(s.school_code || '').replace(/'/g, "\\'")}')" style="background: #667eea; color: #fff; border: none; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 11px; margin-left: 6px;">Edit</button>
+                <code style="background: #F3F4F6; padding: 4px 8px; border-radius: 6px; font-size: 12px; color: #374151;">${s.school_code || 'Not Assigned'}</code>
+                <button onclick="editSchoolId(${s.id}, '${(s.school_code || '').replace(/'/g, "\\'")}')" style="background: #4F46E5; color: #fff; border: none; border-radius: 6px; padding: 3px 8px; cursor: pointer; font-size: 11px; margin-left: 6px;">Edit</button>
               </td>
               <td><strong>${s.student_count || 0}</strong></td>
               <td><small>${s.db_size_formatted || '0 B'}</small></td>
-              <td><small>${s.bandwidth_formatted || '0 B'}</small><br><small style="color:#888;">${s.request_count || 0} reqs</small></td>
-              <td>${s.selected_package || '-'}<br><small style="color:#666;">${s.subscription_amount || 1500} PKR/mo</small></td>
+              <td><small>${s.bandwidth_formatted || '0 B'}</small><br><small style="color:#6B7280;">${s.request_count || 0} reqs</small></td>
+              <td>${s.selected_package || '-'}<br><small style="color:#6B7280;">${s.subscription_amount || 1500} PKR/mo</small></td>
               <td><span class="status-badge status-${s.subscription_status}">${s.subscription_status.toUpperCase()}</span></td>
               <td><small>${s.next_due_date ? new Date(s.next_due_date).toLocaleDateString() : 'N/A'}</small></td>
               <td>
@@ -816,7 +934,7 @@
           </div>
           <div class="info-item">
             <div class="info-label">Bandwidth Used</div>
-            <div class="info-value">${school.bandwidth_formatted || '0 B'}<br><small style="color:#888;">${school.request_count || 0} API requests</small></div>
+            <div class="info-value">${school.bandwidth_formatted || '0 B'}<br><small style="color:#6B7280;">${school.request_count || 0} API requests</small></div>
           </div>
           <div class="info-item">
             <div class="info-label">Created</div>
@@ -827,12 +945,12 @@
             <div class="info-value">${school.next_due_date ? new Date(school.next_due_date).toLocaleDateString() : 'N/A'}</div>
           </div>
         </div>
-        <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <div style="display: flex; gap: 10px; padding: 0 24px 20px;">
           ${school.subscription_status === 'suspended' ? `
-            <button class="btn btn-approve" onclick="approveSchool(${school.id}); closeModal()" style="flex: 1; padding: 10px;">✅ Approve & Activate</button>
+            <button class="btn btn-approve" onclick="approveSchool(${school.id}); closeModal()" style="flex: 1; padding: 10px;">Approve & Activate</button>
           ` : ''}
           ${school.subscription_status !== 'suspended' ? `
-            <button class="btn btn-suspend" onclick="suspendSchool(${school.id}); closeModal()" style="flex: 1; padding: 10px;">🔒 Suspend</button>
+            <button class="btn btn-suspend" onclick="suspendSchool(${school.id}); closeModal()" style="flex: 1; padding: 10px;">Suspend</button>
           ` : ''}
         </div>
       `;

@@ -15,8 +15,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Bandwidth tracking per school (in-memory, resets on server restart)
+// Optimized: skip tracking for static assets and non-API requests
 const bandwidthTracker = {};
 app.use((req, res, next) => {
+  if (!req.path.startsWith('/api')) return next();
   const startBytes = JSON.stringify(req.body || {}).length;
   const originalJson = res.json.bind(res);
   res.json = function(data) {
@@ -157,13 +159,18 @@ app.use('/api/promotions', promotionsRoutes);
 app.use('/api/transport', transportRoutes);
 app.use('/api/salary', salaryRoutes);
 
-// Serve static frontend files
+// Serve static frontend files with optimized caching
 app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1d',
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
+    if (filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
+    } else if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (filePath.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/)) {
+      res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
     }
   }
 }));

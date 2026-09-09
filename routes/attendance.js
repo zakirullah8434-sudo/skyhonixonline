@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('./auth');
-const { querySchool, querySchoolOne, runSchool } = require('../database_manager');
+const { querySchool, querySchoolOne, runSchool, runSchoolTransaction } = require('../database_manager');
 
 // GET /attendance/students - Get attendance grid for a class/section on a specific date
 router.get('/students', authenticateToken, async (req, res) => {
@@ -79,20 +79,20 @@ router.post('/save', authenticateToken, async (req, res) => {
   }
 
   try {
+    const statements = [];
     for (const record of attendanceList) {
       const time = record.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      await runSchool(
-        schoolId,
-        `DELETE FROM attendance WHERE student_id = ? AND date = ?`,
-        [record.student_id, date]
-      );
-      await runSchool(
-        schoolId,
-        `INSERT INTO attendance (student_id, class_name, section_name, date, status, time, school_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [record.student_id, record.class_name, record.section_name || '', date, record.status, time, schoolId]
-      );
+      statements.push({
+        sql: 'DELETE FROM attendance WHERE student_id = ? AND date = ?',
+        params: [record.student_id, date]
+      });
+      statements.push({
+        sql: `INSERT INTO attendance (student_id, class_name, section_name, date, status, time, school_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        params: [record.student_id, record.class_name, record.section_name || '', date, record.status, time, schoolId]
+      });
     }
+    await runSchoolTransaction(schoolId, statements);
     res.json({ message: 'Attendance saved successfully!' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to save attendance: ' + err.message });

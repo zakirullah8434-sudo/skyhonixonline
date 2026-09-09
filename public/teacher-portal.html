@@ -4,7 +4,165 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SkyHonix | Teacher Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #F8FAFC;
+      color: #1E293B;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .main-header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      display: flex; justify-content: space-between; align-items: center;
+      height: 64px; padding: 0 24px;
+      background: #FFFFFF;
+      border-bottom: 1px solid #E5E7EB;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .header-right { display: flex; align-items: center; gap: 14px; }
+    .nav-hamburger {
+      background: none; border: none; font-size: 1.35rem; cursor: pointer;
+      color: #475569; padding: 6px; border-radius: 8px;
+      transition: background 0.2s;
+    }
+    .nav-hamburger:hover { background: #F1F5F9; }
+    .header-title {
+      font-size: 1.1rem; font-weight: 700; color: #1E293B;
+      margin: 0; white-space: nowrap;
+    }
+    .user-badge {
+      background: #EEF2FF; color: #4F46E5; font-weight: 600;
+      padding: 5px 14px; border-radius: 20px; font-size: 0.8rem;
+    }
+    .btn { cursor: pointer; font-family: inherit; border-radius: 8px; font-weight: 600; border: none; transition: all 0.2s; }
+    .btn-sm { padding: 6px 16px; font-size: 0.8rem; }
+    .btn-outline {
+      background: transparent; border: 1px solid #E5E7EB; color: #475569;
+    }
+    .btn-outline:hover { background: #F1F5F9; border-color: #CBD5E1; }
+    .btn-primary {
+      background: #4F46E5; color: #fff;
+      box-shadow: 0 1px 3px rgba(79,70,229,0.3);
+    }
+    .btn-primary:hover { background: #4338CA; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      position: fixed; top: 64px; left: 0; bottom: 0;
+      width: 240px; background: #FFFFFF;
+      border-right: 1px solid #E5E7EB;
+      display: flex; flex-direction: column; z-index: 900;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.03);
+      transition: transform 0.3s ease;
+    }
+    .sidebar-brand {
+      padding: 20px 16px 16px;
+      text-align: center;
+      border-bottom: 1px solid #F1F5F9;
+    }
+    .sidebar-brand span {
+      display: block; font-size: 1.05rem; font-weight: 700; color: #1E293B;
+    }
+    .sidebar-brand small {
+      display: block; font-size: 0.72rem; color: #94A3B8;
+      text-transform: uppercase; letter-spacing: 1px; margin-top: 2px;
+    }
+    .sidebar-nav {
+      flex: 1; display: flex; flex-direction: column;
+      padding: 12px 10px; gap: 4px; overflow-y: auto;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 14px; border-radius: 10px; border: none;
+      background: transparent; color: #475569; font-weight: 500;
+      font-size: 0.88rem; cursor: pointer; width: 100%;
+      text-align: left; font-family: inherit; transition: all 0.15s;
+    }
+    .nav-item:hover { background: #F1F5F9; color: #1E293B; }
+    .nav-item.active {
+      background: #EEF2FF; color: #4F46E5; font-weight: 600;
+      box-shadow: 0 1px 2px rgba(79,70,229,0.08);
+    }
+
+    /* ── Main Content ── */
+    .main-content {
+      margin-left: 240px; margin-top: 64px;
+      padding: 28px 32px; min-height: calc(100vh - 64px);
+      background: #F8FAFC;
+    }
+    .content-panel { display: none; }
+    .content-panel.active { display: block; animation: panelFadeIn 0.25s ease; }
+    @keyframes panelFadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .text-muted { color: #64748B; font-size: 0.9rem; }
+
+    h2 { font-size: 1.2rem; font-weight: 700; color: #1E293B; margin-bottom: 4px; }
+
+    /* ── Forms ── */
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 0.82rem; font-weight: 600; color: #374151; margin-bottom: 5px; }
+    .form-control {
+      width: 100%; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid #E5E7EB; background: #FFFFFF; color: #1E293B;
+      font-family: inherit; font-size: 0.88rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-control:focus {
+      outline: none; border-color: #4F46E5;
+      box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; }
+
+    /* ── News Ticker ── */
+    .news-ticker {
+      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+      border-radius: 12px; padding: 14px 20px; margin-bottom: 20px;
+      overflow: hidden; color: #fff;
+      box-shadow: 0 2px 8px rgba(79,70,229,0.25);
+    }
+    .ticker-badge {
+      background: rgba(255,255,255,0.2); padding: 4px 12px;
+      border-radius: 8px; font-weight: 700; font-size: 0.8rem;
+      white-space: nowrap; backdrop-filter: blur(4px);
+    }
+
+    /* ── Toast ── */
+    #toast {
+      display: none; position: fixed; bottom: 30px; right: 30px;
+      padding: 16px 24px; border-radius: 12px; background: #FFFFFF;
+      border: 1px solid #4F46E5; z-index: 10000;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1); color: #1E293B;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.12); }
+      .main-content { margin-left: 0; padding: 20px 16px; }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
 
@@ -12,7 +170,7 @@
   <header class="main-header" id="main-header">
     <div class="header-left">
       <button class="nav-hamburger" id="sidebar-toggle" aria-label="Menu">&#9776;</button>
-      <img id="header-school-logo" src="" alt="Logo" style="width:32px; height:32px; border-radius:50%; object-fit:cover; display:none;">
+      <img id="header-school-logo" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Logo" style="width:32px; height:32px; border-radius:50%; object-fit:cover; display:none;">
       <h1 class="header-title" id="header-school-title">Teacher Portal</h1>
     </div>
     <div class="header-right">
@@ -24,7 +182,7 @@
   <!-- Sidebar -->
   <aside class="sidebar" id="main-sidebar">
     <div class="sidebar-brand">
-      <img id="sidebar-school-logo" src="" alt="Logo" style="width:40px; height:40px; border-radius:50%; object-fit:cover; display:none; margin-bottom:6px;">
+      <img id="sidebar-school-logo" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Logo" style="width:40px; height:40px; border-radius:50%; object-fit:cover; display:none; margin-bottom:6px;">
       <span id="sidebar-school-name">SkyHonix</span>
       <small>Teacher</small>
     </div>
@@ -33,7 +191,7 @@
       <button class="nav-item" data-opt="marks-entry">Marks Entry</button>
       <button class="nav-item" data-opt="assignments">Assignments</button>
       <button class="nav-item" data-opt="announcements">Announcements</button>
-      <button class="nav-item" data-opt="fee-collection" id="nav-fee-collection" style="display:none;">💰 Fee Collection</button>
+      <button class="nav-item" data-opt="fee-collection" id="nav-fee-collection" style="display:none;">&#128176; Fee Collection</button>
     </nav>
   </aside>
 
@@ -41,9 +199,9 @@
   <main class="main-content" id="main-content">
 
     <!-- Announcement News Ticker -->
-    <div id="news-ticker" style="display: none; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; overflow: hidden;">
+    <div id="news-ticker" class="news-ticker" style="display: none;">
       <div style="display: flex; align-items: center; gap: 12px;">
-        <span style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; white-space: nowrap; color: #fff;">📢 NEWS</span>
+        <span class="ticker-badge">&#128226; NEWS</span>
         <div style="overflow: hidden; flex: 1; position: relative; height: 24px;">
           <div id="news-ticker-content" style="display: flex; gap: 60px; animation: tickerScroll 20s linear infinite; position: absolute; white-space: nowrap;">
           </div>
@@ -66,7 +224,7 @@
       <!-- Announcements Headlines on Dashboard -->
       <div style="margin-top:30px;">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-          <span style="font-size:1.3rem;">📢</span>
+          <span style="font-size:1.3rem;">&#128226;</span>
           <h2 style="margin:0;">Latest Announcements</h2>
         </div>
         <div id="dashboard-announcements-container"></div>
@@ -76,10 +234,10 @@
       <div style="margin-top:30px;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px;">
           <div style="display:flex; align-items:center; gap:10px;">
-            <span style="font-size:1.3rem;">📚</span>
+            <span style="font-size:1.3rem;">&#128218;</span>
             <h2 style="margin:0;">My Assignments</h2>
           </div>
-          <button class="btn btn-primary" style="font-size:0.8rem; padding:6px 14px;" onclick="document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active')); document.querySelector('[data-opt=assignments]').classList.add('active'); document.querySelectorAll('.content-panel').forEach(p=>p.classList.remove('active')); document.getElementById('panel-assignments').classList.add('active');">View All →</button>
+          <button class="btn btn-primary" style="font-size:0.8rem; padding:6px 14px;" onclick="document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active')); document.querySelector('[data-opt=assignments]').classList.add('active'); document.querySelectorAll('.content-panel').forEach(p=>p.classList.remove('active')); document.getElementById('panel-assignments').classList.add('active');">View All &rarr;</button>
         </div>
         <div id="dashboard-assignments-container"></div>
       </div>
@@ -145,9 +303,9 @@
             <table style="width:100%; border-collapse:collapse;">
               <thead>
                 <tr>
-                  <th style="text-align:left; padding:10px; border-bottom:2px solid var(--primary);">Roll No</th>
-                  <th style="text-align:left; padding:10px; border-bottom:2px solid var(--primary);">Student Name</th>
-                  <th style="text-align:center; padding:10px; border-bottom:2px solid var(--primary); width:150px;">Marks <span id="marks-max-label" style="font-size:0.75rem; font-weight:400; color:var(--text-muted);"></span></th>
+                  <th style="text-align:left; padding:10px; border-bottom:2px solid #4F46E5;">Roll No</th>
+                  <th style="text-align:left; padding:10px; border-bottom:2px solid #4F46E5;">Student Name</th>
+                  <th style="text-align:center; padding:10px; border-bottom:2px solid #4F46E5; width:150px;">Marks <span id="marks-max-label" style="font-size:0.75rem; font-weight:400; color:#94A3B8;"></span></th>
                 </tr>
               </thead>
               <tbody id="marks-grid-body"></tbody>
@@ -161,7 +319,7 @@
     <section class="content-panel" id="panel-assignments">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px;">
         <div>
-          <h2 style="margin: 0;">📚 Assignments & Homework</h2>
+          <h2 style="margin: 0;">&#128218; Assignments & Homework</h2>
           <p class="text-muted" style="margin: 4px 0 0;">Create and manage homework, tests, and projects for your students.</p>
         </div>
         <button class="btn btn-primary" id="btn-new-assignment">+ New Assignment</button>
@@ -174,12 +332,12 @@
           <input type="hidden" id="assignment-edit-id" value="">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
             <div>
-              <label>Title *</label>
-              <input type="text" id="assignment-title" required placeholder="e.g. Chapter 5 Exercise" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary);">
+              <label class="form-label">Title *</label>
+              <input type="text" id="assignment-title" required placeholder="e.g. Chapter 5 Exercise" class="form-control">
             </div>
             <div>
-              <label>Type *</label>
-              <select id="assignment-type" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary);">
+              <label class="form-label">Type *</label>
+              <select id="assignment-type" required class="form-control">
                 <option value="homework">Homework</option>
                 <option value="monthly_test">Monthly Test</option>
                 <option value="class_test">Class Test</option>
@@ -189,30 +347,30 @@
               </select>
             </div>
             <div>
-              <label>Subject *</label>
-              <select id="assignment-subject" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary);">
+              <label class="form-label">Subject *</label>
+              <select id="assignment-subject" required class="form-control">
                 <option value="">Select subject...</option>
               </select>
             </div>
             <div>
-              <label>Class *</label>
-              <select id="assignment-class" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary);">
+              <label class="form-label">Class *</label>
+              <select id="assignment-class" required class="form-control">
                 <option value="">Select class...</option>
               </select>
             </div>
             <div>
-              <label>Section</label>
-              <select id="assignment-section" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary);">
+              <label class="form-label">Section</label>
+              <select id="assignment-section" class="form-control">
                 <option value="">All Sections</option>
               </select>
             </div>
             <div>
-              <label>Due Date</label>
-              <input type="date" id="assignment-due-date" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary);">
+              <label class="form-label">Due Date</label>
+              <input type="date" id="assignment-due-date" class="form-control">
             </div>
             <div>
-              <label>Priority</label>
-              <select id="assignment-priority" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary);">
+              <label class="form-label">Priority</label>
+              <select id="assignment-priority" class="form-control">
                 <option value="low">Low</option>
                 <option value="medium" selected>Medium</option>
                 <option value="high">High</option>
@@ -220,12 +378,12 @@
             </div>
           </div>
           <div style="margin-top: 16px;">
-            <label>Description / Instructions</label>
-            <textarea id="assignment-description" rows="4" placeholder="Write detailed instructions for students and parents..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-glow); background: var(--glass-bg); color: var(--text-primary); resize: vertical;"></textarea>
+            <label class="form-label">Description / Instructions</label>
+            <textarea id="assignment-description" rows="4" placeholder="Write detailed instructions for students and parents..." class="form-control" style="resize: vertical;"></textarea>
           </div>
           <div style="display: flex; gap: 12px; margin-top: 16px;">
             <button type="submit" class="btn btn-primary" id="btn-save-assignment">Save Assignment</button>
-            <button type="button" class="btn" id="btn-cancel-assignment" style="background: var(--text-muted);">Cancel</button>
+            <button type="button" class="btn btn-outline" id="btn-cancel-assignment">Cancel</button>
           </div>
         </form>
       </div>
@@ -236,18 +394,18 @@
 
     <!-- Announcements Panel -->
     <section class="content-panel" id="panel-announcements">
-      <h2>📢 School Announcements</h2>
+      <h2>&#128226; School Announcements</h2>
       <p class="text-muted" style="margin-bottom:20px;">Latest updates and notices from school administration.</p>
       <div id="announcements-container"></div>
     </section>
 
     <!-- Fee Collection Panel -->
     <section class="content-panel" id="panel-fee-collection">
-      <h2>💰 Fee Collection</h2>
+      <h2>&#128176; Fee Collection</h2>
       <p class="text-muted" style="margin-bottom:20px;">Collect fees for students in your assigned class.</p>
 
       <!-- Student Search -->
-      <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:var(--border-radius); padding:16px; margin-bottom:20px;">
+      <div class="card" style="padding:16px; margin-bottom:20px;">
         <div style="display:flex; gap:8px;">
           <input type="text" class="form-control" id="fee-student-search" placeholder="Search student by name or roll no..." style="flex:1;">
         </div>
@@ -257,43 +415,43 @@
       <!-- Fee Ledger (shown after selecting student) -->
       <div id="fee-ledger-section" style="display:none;">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
-          <img id="fee-student-photo" src="" style="width:50px; height:50px; border-radius:50%; object-fit:cover;">
+          <img id="fee-student-photo" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" style="width:50px; height:50px; border-radius:50%; object-fit:cover;">
           <div>
             <div style="font-weight:700;" id="fee-student-name">-</div>
-            <div style="font-size:0.85rem; color:var(--text-muted);" id="fee-student-class">-</div>
+            <div style="font-size:0.85rem; color:#64748B;" id="fee-student-class">-</div>
           </div>
         </div>
 
         <div id="fee-ledger-table-container" style="overflow-x:auto;"></div>
 
         <!-- Payment Modal -->
-        <div id="fee-payment-form" style="display:none; background:var(--bg-card); border:1px solid var(--border-color); border-radius:var(--border-radius); padding:20px; margin-top:16px;">
+        <div id="fee-payment-form" class="card" style="display:none; padding:20px; margin-top:16px;">
           <h3 style="margin-bottom:12px;">Record Payment</h3>
           <input type="hidden" id="pay-ledger-id">
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
             <div>
-              <label style="font-size:0.85rem; color:var(--text-muted);">Month</label>
+              <label style="font-size:0.85rem; color:#64748B;">Month</label>
               <div style="font-weight:600;" id="pay-month">-</div>
             </div>
             <div>
-              <label style="font-size:0.85rem; color:var(--text-muted);">Total Payable</label>
+              <label style="font-size:0.85rem; color:#64748B;">Total Payable</label>
               <div style="font-weight:600;" id="pay-total">-</div>
             </div>
             <div>
-              <label style="font-size:0.85rem; color:var(--text-muted);">Already Paid</label>
+              <label style="font-size:0.85rem; color:#64748B;">Already Paid</label>
               <div style="font-weight:600;" id="pay-paid">-</div>
             </div>
             <div>
-              <label style="font-size:0.85rem; color:var(--text-muted);">Remaining</label>
-              <div style="font-weight:600; color:var(--danger);" id="pay-remaining">-</div>
+              <label style="font-size:0.85rem; color:#64748B;">Remaining</label>
+              <div style="font-weight:600; color:#EF4444;" id="pay-remaining">-</div>
             </div>
           </div>
           <div style="margin-top:12px;">
-            <label style="font-size:0.85rem; color:var(--text-muted);">Amount to Pay *</label>
+            <label class="form-label">Amount to Pay *</label>
             <input type="number" class="form-control" id="pay-amount" min="1" placeholder="Enter amount">
           </div>
           <div style="margin-top:12px;">
-            <label style="font-size:0.85rem; color:var(--text-muted);">Payment Date</label>
+            <label class="form-label">Payment Date</label>
             <input type="date" class="form-control" id="pay-date">
           </div>
           <div style="display:flex; gap:8px; margin-top:16px;">
@@ -306,10 +464,10 @@
 
   </main>
 
-  <div id="toast" style="display: none; position: fixed; bottom: 30px; right: 30px; padding: 16px 24px; border-radius: var(--border-radius); background: var(--bg-card); border: 1px solid var(--primary); backdrop-filter: blur(10px); z-index: 10000; box-shadow: var(--glass-shadow); color: white; animation: fadeIn 0.3s ease;">
+  <div id="toast" style="display: none; position: fixed; bottom: 30px; right: 30px; padding: 16px 24px; border-radius: 12px; background: #FFFFFF; border: 1px solid #4F46E5; z-index: 10000; box-shadow: 0 4px 16px rgba(0,0,0,0.1); color: #1E293B; animation: fadeIn 0.3s ease;">
     <p id="toast-text"></p>
   </div>
 
-  <script src="js/teacher-portal.js"></script>
+  <script src="js/teacher-portal.js" defer></script>
 </body>
 </html>

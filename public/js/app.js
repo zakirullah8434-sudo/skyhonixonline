@@ -3978,7 +3978,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnRefreshAnalytics.addEventListener('click', refreshFeeAnalytics);
   }
 
-  function renderAnalyticsChart(classWiseData) {
+  async function renderAnalyticsChart(classWiseData) {
     const chartCanvas = document.getElementById('chart-collection-rate');
     if (!chartCanvas) return;
 
@@ -3986,6 +3986,7 @@ document.addEventListener('DOMContentLoaded', () => {
       collectionChartInstance.destroy();
     }
 
+    await window._loadChartJs();
     const ctx = chartCanvas.getContext('2d');
     const labels = classWiseData.map(c => c.class_name);
     const dataValues = classWiseData.map(c => c.collection_rate);
@@ -6362,9 +6363,9 @@ document.addEventListener('DOMContentLoaded', () => {
               '</div>' +
 
               // === Footer: Instructions + Signature ===
-              '<div class="rollno-footer" style="display:flex; justify-content:space-between; align-items:flex-end; font-size:10px;">' +
+              '<div class="rollno-footer" style="display:flex; justify-content:space-between; align-items:flex-end; font-size:11px; margin-top:-15px;">' +
                 '<div style="max-width:55%;">' +
-                  '<div style="font-weight:700; margin-bottom:1px; font-size:10px;">Instructions:</div>' +
+                  '<div style="font-weight:700; margin-bottom:1px; font-size:11px;">Instructions:</div>' +
                   '<ul style="margin:0; padding-left:14px; list-style:disc; line-height:1.4;">' + instHtml + '</ul>' +
                 '</div>' +
                 '<div style="text-align:center;">' +
@@ -6372,7 +6373,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     '<img src="' + principal_sign + '" alt="Sign" style="max-height:30px; max-width:70px; opacity:0.85;" onerror="this.style.display=\'none\'">' :
                     '<div style="height:30px;"></div>'
                   ) +
-                  '<div style="border-top:1px solid #000; width:110px; margin:0 auto; padding-top:3px; font-size:9px; font-weight:600;">Principal Signature</div>' +
+                  '<div style="border-top:1px solid #000; width:110px; margin:0 auto; padding-top:3px; font-size:10px; font-weight:600;">Principal Signature</div>' +
                 '</div>' +
               '</div>' +
 
@@ -7050,7 +7051,6 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(err.message, true);
       }
     };
-    });
   }
 
   async function processMasterSlipAction(slip_id, action, pin, notes = '') {

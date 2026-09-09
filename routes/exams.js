@@ -300,18 +300,31 @@ router.post('/calculate', authenticateToken, async (req, res) => {
 
         const totalMarks = subjects.reduce((sum, s) => sum + s.max_marks, 0);
 
-        // Process student scores
-        for (const student of students) {
-          const marksRows = await querySchool(
-            schoolId,
-            'SELECT subject, marks FROM marks WHERE student_id = ? AND exam_id = ? AND term = ?',
-            [student.id, parseInt(exam_id), term]
-          );
+        // Bulk pre-fetch: all marks for all students in this class/term
+        const studentIds = students.map(s => s.id);
+        const placeholders = studentIds.map(() => '?').join(',');
+        const allMarksRows = await querySchool(
+          schoolId,
+          `SELECT student_id, subject, marks FROM marks WHERE student_id IN (${placeholders}) AND exam_id = ? AND term = ?`,
+          [...studentIds, parseInt(exam_id), term]
+        );
+        const marksByStudent = {};
+        allMarksRows.forEach(m => {
+          if (!marksByStudent[m.student_id]) marksByStudent[m.student_id] = {};
+          marksByStudent[m.student_id][m.subject.toUpperCase()] = m.marks;
+        });
 
-          const marksMap = {};
-          marksRows.forEach(m => {
-            marksMap[m.subject.toUpperCase()] = m.marks;
-          });
+        // Bulk delete previous results for all students in this class
+        await runSchool(
+          schoolId,
+          `DELETE FROM results WHERE student_id IN (${placeholders}) AND exam_id = ? AND term = ?`,
+          [...studentIds, parseInt(exam_id), term]
+        );
+
+        // Build all result rows and insert in batch
+        const resultRows = [];
+        for (const student of students) {
+          const marksMap = marksByStudent[student.id] || {};
 
           // Sum obtained marks
           const obtained = subjects.reduce((sum, sub) => {
@@ -323,19 +336,16 @@ router.post('/calculate', authenticateToken, async (req, res) => {
           const grade = getGrade(percentage);
           const remarks = getRemarks(percentage);
 
-          // Clear previous results
-          await runSchool(
-            schoolId,
-            'DELETE FROM results WHERE student_id = ? AND exam_id = ? AND term = ?',
-            [student.id, parseInt(exam_id), term]
-          );
+          resultRows.push([student.id, parseInt(exam_id), term, totalMarks, obtained, percentage, grade, remarks]);
+        }
 
-          // Insert results
+        // Batch insert results
+        for (const row of resultRows) {
           await runSchool(
             schoolId,
             `INSERT INTO results (student_id, exam_id, term, total, obtained, percentage, grade, position, remarks)
              VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-            [student.id, parseInt(exam_id), term, totalMarks, obtained, percentage, grade, remarks]
+            row
           );
         }
 
@@ -425,6 +435,73 @@ router.get('/results', authenticateToken, async (req, res) => {
   try {
     const list = await querySchool(schoolId, query, params);
     res.json(list);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /exams/results/comparison - Class-wise result comparison for dashboard
+router.get('/results/comparison', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { exam_id, term } = req.query;
+
+  if (!exam_id || !term) {
+    return res.status(400).json({ error: 'exam_id and term are required' });
+  }
+
+  try {
+    const classes = await querySchool(
+      schoolId,
+      "SELECT DISTINCT class_name FROM students WHERE (status IS NULL OR status != 'Left') ORDER BY class_name"
+    );
+
+    const comparison = [];
+
+    for (const cls of classes) {
+      const students = await querySchool(
+        schoolId,
+        `SELECT r.*, s.name as student_name, s.roll_no
+         FROM results r
+         JOIN students s ON s.id = r.student_id
+         WHERE r.exam_id = ? AND r.term = ? AND s.class_name = ?`,
+        [parseInt(exam_id), term, cls.class_name]
+      );
+
+      if (students.length === 0) continue;
+
+      const percentages = students.map(s => s.percentage || 0);
+      const avg = percentages.length ? (percentages.reduce((a, b) => a + b, 0) / percentages.length).toFixed(1) : 0;
+      const max = percentages.length ? Math.max(...percentages).toFixed(1) : 0;
+      const min = percentages.length ? Math.min(...percentages).toFixed(1) : 0;
+      const passed = percentages.filter(p => p >= 40).length;
+      const passRate = percentages.length ? ((passed / percentages.length) * 100).toFixed(1) : 0;
+      const topStudent = students.reduce((best, s) => (!best || s.percentage > best.percentage) ? s : best, null);
+
+      let gradeDist = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+      percentages.forEach(p => {
+        if (p >= 80) gradeDist.A++;
+        else if (p >= 65) gradeDist.B++;
+        else if (p >= 50) gradeDist.C++;
+        else if (p >= 40) gradeDist.D++;
+        else gradeDist.F++;
+      });
+
+      comparison.push({
+        class_name: cls.class_name,
+        total_students: students.length,
+        avg_percentage: parseFloat(avg),
+        max_percentage: parseFloat(max),
+        min_percentage: parseFloat(min),
+        pass_rate: parseFloat(passRate),
+        passed,
+        failed: students.length - passed,
+        top_student: topStudent ? { name: topStudent.student_name, roll_no: topStudent.roll_no, percentage: topStudent.percentage } : null,
+        grade_distribution: gradeDist
+      });
+    }
+
+    comparison.sort((a, b) => a.class_name.localeCompare(b.class_name, undefined, { numeric: true }));
+    res.json(comparison);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -581,23 +658,48 @@ router.get('/dmc/class/:className', authenticateToken, async (req, res) => {
       );
     }
 
+    // Bulk pre-fetch: all results and marks for all students in this class
+    const studentIds = students.map(s => s.id);
+    const placeholders = studentIds.map(() => '?').join(',');
+
+    const allResults = await querySchool(
+      schoolId,
+      `SELECT student_id, total, obtained, percentage, grade, position, remarks
+       FROM results WHERE student_id IN (${placeholders}) AND exam_id = ? AND term = ?`,
+      [...studentIds, parseInt(exam_id), term]
+    );
+    const resultMap = {};
+    allResults.forEach(r => { resultMap[r.student_id] = r; });
+
+    const allMarksRows = await querySchool(
+      schoolId,
+      `SELECT student_id, subject, marks FROM marks WHERE student_id IN (${placeholders}) AND exam_id = ? AND term = ?`,
+      [...studentIds, parseInt(exam_id), term]
+    );
+    const marksByStudent = {};
+    allMarksRows.forEach(m => {
+      if (!marksByStudent[m.student_id]) marksByStudent[m.student_id] = {};
+      marksByStudent[m.student_id][m.subject.toUpperCase()] = m.marks;
+    });
+
+    // Bulk pre-fetch: all students in class for O(1) ranking
+    const allClassStudents = await querySchool(
+      schoolId,
+      `SELECT s.id, COALESCE(SUM(m.marks), 0) as total_obt
+       FROM students s
+       LEFT JOIN marks m ON m.student_id = s.id AND m.exam_id = ? AND m.term = ?
+       WHERE s.class_name = ? AND (s.status IS NULL OR s.status != 'Left')
+       GROUP BY s.id ORDER BY total_obt DESC`,
+      [parseInt(exam_id), term, className]
+    );
+    const rankMap = {};
+    allClassStudents.forEach((row, idx) => { rankMap[row.id] = idx + 1; });
+
     const results = [];
     for (const student of students) {
-      // Get summary
-      const summary = await querySchoolOne(
-        schoolId,
-        'SELECT total, obtained, percentage, grade, position, remarks FROM results WHERE student_id = ? AND exam_id = ? AND term = ?',
-        [student.id, parseInt(exam_id), term]
-      );
+      const summary = resultMap[student.id] || null;
 
-      // Get marks
-      const marks = await querySchool(
-        schoolId,
-        'SELECT subject, marks FROM marks WHERE student_id = ? AND exam_id = ? AND term = ?',
-        [student.id, parseInt(exam_id), term]
-      );
-      const marksMap = {};
-      marks.forEach(m => { marksMap[m.subject.toUpperCase()] = m.marks; });
+      const marksMap = marksByStudent[student.id] || {};
 
       const reportDetails = subjects.map(sub => {
         const obMarks = marksMap[sub.subject.toUpperCase()] !== undefined ? marksMap[sub.subject.toUpperCase()] : 0;
@@ -618,43 +720,7 @@ router.get('/dmc/class/:className', authenticateToken, async (req, res) => {
       else if (percentage >= 33) grade = 'E';
 
       const savedResult = summary || {};
-
-      // Calculate position on-the-fly if not saved
-      let position = savedResult.position || null;
-      if (!position || position === 0) {
-        // First try from results table
-        const rankRow = await querySchoolOne(
-          schoolId,
-          `SELECT COUNT(*) + 1 as position FROM results r
-           JOIN students s ON s.id = r.student_id
-           WHERE r.exam_id = ? AND r.term = ? AND s.class_name = ?
-           AND r.obtained > ?`,
-          [parseInt(exam_id), term, className, obtained]
-        );
-        position = rankRow ? rankRow.position : null;
-
-        // If results table is empty, calculate from marks directly
-        if (!position || position === 1) {
-          const allClassStudents = await querySchool(
-            schoolId,
-            `SELECT s.id FROM students s
-             WHERE s.class_name = ? AND (s.status IS NULL OR s.status != 'Left')`,
-            [className]
-          );
-          let rank = 1;
-          for (const other of allClassStudents) {
-            if (other.id === student.id) continue;
-            const otherMarks = await querySchool(
-              schoolId,
-              'SELECT COALESCE(SUM(marks), 0) as total_obt FROM marks WHERE student_id = ? AND exam_id = ? AND term = ?',
-              [other.id, parseInt(exam_id), term]
-            );
-            const otherObt = otherMarks[0] ? otherMarks[0].total_obt : 0;
-            if (otherObt > obtained) rank++;
-          }
-          position = rank;
-        }
-      }
+      let position = savedResult.position || rankMap[student.id] || '-';
 
       results.push({
         student,

@@ -356,85 +356,22 @@ router.get('/:id/profile', authenticateToken, async (req, res) => {
 
     const safeQuery = (sql, params=[]) => querySchool(schoolId, sql, params).catch(() => []);
 
-    // 2. Fee ledger
-    const feeLedger = await safeQuery(
-      `SELECT * FROM fee_ledger WHERE student_id = ? ORDER BY year DESC, month DESC`, [studentId]
-    );
-
-    // 3. Payments
-    const payments = await safeQuery(
-      `SELECT * FROM fee_payments WHERE student_id = ? ORDER BY payment_date DESC`, [studentId]
-    );
-
-    // 4. Marks
-    const marks = await safeQuery(
-      `SELECT m.*, e.exam_name, e.year
-       FROM marks m
-       JOIN exams e ON e.id = m.exam_id
-       WHERE m.student_id = ?
-       ORDER BY e.year DESC, e.exam_name, m.term, m.subject`, [studentId]
-    );
-
-    // 5. Results
-    const results = await safeQuery(
-      `SELECT r.*, e.exam_name, e.year
-       FROM results r
-       JOIN exams e ON e.id = r.exam_id
-       WHERE r.student_id = ?
-       ORDER BY e.year DESC, e.exam_name`, [studentId]
-    );
-
-    // 6. Attendance
-    const attendance = await safeQuery(
-      `SELECT * FROM attendance WHERE student_id = ? ORDER BY date DESC`, [studentId]
-    );
-
-    // 7. Fee exceptions/discounts
-    const exceptions = await safeQuery(
-      `SELECT * FROM student_fee_exceptions WHERE student_id = ?`, [studentId]
-    );
-
-    // 8. Dues
-    const dues = await safeQuery(
-      `SELECT * FROM fee_dues WHERE student_id = ?`, [studentId]
-    );
-
-    // 9. Parent information
-    const parents = await safeQuery(
-      `SELECT p.*, sp.relation
-       FROM student_parents sp
-       JOIN parents p ON p.id = sp.parent_id
-       WHERE sp.student_id = ?`, [studentId]
-    );
-
-    // 10. Promotion history
-    const promotionHistory = await safeQuery(
-      `SELECT * FROM student_promotion_history WHERE student_id = ? ORDER BY promotion_date DESC`, [studentId]
-    );
-
-    // 11. Homework/Assignments for student's class
-    const homework = await safeQuery(
-      `SELECT a.*, t.name as teacher_name
-       FROM assignments a
-       LEFT JOIN teachers t ON t.id = a.teacher_id
-       WHERE a.class_name = ? AND (a.section_name = ? OR a.section_name = '' OR a.section_name IS NULL)
-       ORDER BY a.created_at DESC`, [student.class_name, student.section_name || '']
-    );
-
-    // 12. Certificates
-    const certificates = await safeQuery(
-      `SELECT * FROM student_certificates WHERE student_id = ? ORDER BY issue_date DESC`, [studentId]
-    );
-
-    // 13. Documents
-    const documents = await safeQuery(
-      `SELECT id, student_id, document_name, document_type, upload_date, description, created_at FROM student_documents WHERE student_id = ? ORDER BY created_at DESC`, [studentId]
-    );
-
-    // 14. Transfer history
-    const transferHistory = await safeQuery(
-      `SELECT * FROM student_transfer_history WHERE student_id = ? ORDER BY transfer_date DESC`, [studentId]
-    );
+    // Parallel fetch all profile sub-queries
+    const [feeLedger, payments, marks, results, attendance, exceptions, dues, parents, promotionHistory, homework, certificates, documents, transferHistory] = await Promise.all([
+      safeQuery(`SELECT * FROM fee_ledger WHERE student_id = ? ORDER BY year DESC, month DESC`, [studentId]),
+      safeQuery(`SELECT * FROM fee_payments WHERE student_id = ? ORDER BY payment_date DESC`, [studentId]),
+      safeQuery(`SELECT m.*, e.exam_name, e.year FROM marks m JOIN exams e ON e.id = m.exam_id WHERE m.student_id = ? ORDER BY e.year DESC, e.exam_name, m.term, m.subject`, [studentId]),
+      safeQuery(`SELECT r.*, e.exam_name, e.year FROM results r JOIN exams e ON e.id = r.exam_id WHERE r.student_id = ? ORDER BY e.year DESC, e.exam_name`, [studentId]),
+      safeQuery(`SELECT * FROM attendance WHERE student_id = ? ORDER BY date DESC`, [studentId]),
+      safeQuery(`SELECT * FROM student_fee_exceptions WHERE student_id = ?`, [studentId]),
+      safeQuery(`SELECT * FROM fee_dues WHERE student_id = ?`, [studentId]),
+      safeQuery(`SELECT p.*, sp.relation FROM student_parents sp JOIN parents p ON p.id = sp.parent_id WHERE sp.student_id = ?`, [studentId]),
+      safeQuery(`SELECT * FROM student_promotion_history WHERE student_id = ? ORDER BY promotion_date DESC`, [studentId]),
+      safeQuery(`SELECT a.*, t.name as teacher_name FROM assignments a LEFT JOIN teachers t ON t.id = a.teacher_id WHERE a.class_name = ? AND (a.section_name = ? OR a.section_name = '' OR a.section_name IS NULL) ORDER BY a.created_at DESC`, [student.class_name, student.section_name || '']),
+      safeQuery(`SELECT * FROM student_certificates WHERE student_id = ? ORDER BY issue_date DESC`, [studentId]),
+      safeQuery(`SELECT id, student_id, document_name, document_type, upload_date, description, created_at FROM student_documents WHERE student_id = ? ORDER BY created_at DESC`, [studentId]),
+      safeQuery(`SELECT * FROM student_transfer_history WHERE student_id = ? ORDER BY transfer_date DESC`, [studentId])
+    ]);
 
     // Calculate stats
     let totalPaid = 0;
