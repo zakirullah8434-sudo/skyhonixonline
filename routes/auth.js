@@ -5,6 +5,14 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { queryMain, queryMainOne, runMain, runSchool, querySchoolOne, querySchool } = require('../database_manager');
 
+// Subscription status cache — eliminates per-request DB hit (60s TTL)
+const subscriptionCache = new Map();
+const SUB_CACHE_TTL = 60000;
+
+function invalidateSubCache(schoolId) {
+  subscriptionCache.delete(schoolId);
+}
+
 // Middleware to verify JWT token and inject req.user
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -19,35 +27,38 @@ function authenticateToken(req, res, next) {
       return res.status(403).json({ error: 'Invalid or expired session. Please log in again.' });
     }
 
-    req.user = decoded; // Contains: schoolId, username, role
+    req.user = decoded;
 
-    // Check school status in main DB
     try {
-      const school = await queryMainOne(
-        'SELECT subscription_status, next_due_date FROM schools WHERE id = ?',
-        [req.user.schoolId]
-      );
-
-      if (!school) {
-        return res.status(404).json({ error: 'School registration not found' });
+      // Check cache first
+      const cacheKey = req.user.schoolId;
+      let school = subscriptionCache.get(cacheKey);
+      if (school && (Date.now() - school._cachedAt) < SUB_CACHE_TTL) {
+        req.user.subscriptionStatus = school.subscription_status;
+        req.user.nextDueDate = school.next_due_date;
+      } else {
+        const dbSchool = await queryMainOne(
+          'SELECT subscription_status, next_due_date FROM schools WHERE id = ?',
+          [req.user.schoolId]
+        );
+        if (!dbSchool) {
+          return res.status(404).json({ error: 'School registration not found' });
+        }
+        req.user.subscriptionStatus = dbSchool.subscription_status;
+        req.user.nextDueDate = dbSchool.next_due_date;
+        subscriptionCache.set(cacheKey, { ...dbSchool, _cachedAt: Date.now() });
       }
 
-      req.user.subscriptionStatus = school.subscription_status;
-      req.user.nextDueDate = school.next_due_date;
-
-      // Allow access to billing endpoints even if pending/suspended
       const isBillingRoute = req.originalUrl.includes('/billing') || req.originalUrl.includes('/subscription');
 
-      // Block pending schools from non-billing endpoints
-      if (school.subscription_status === 'pending' && !isBillingRoute) {
+      if (req.user.subscriptionStatus === 'pending' && !isBillingRoute) {
         return res.status(403).json({ 
           error: 'Your school registration is pending admin approval. Please wait for activation.', 
           pending: true 
         });
       }
 
-      // Block suspended schools from non-billing endpoints
-      if (school.subscription_status === 'suspended' && !isBillingRoute) {
+      if (req.user.subscriptionStatus === 'suspended' && !isBillingRoute) {
         return res.status(403).json({ 
           error: 'Subscription suspended. Access locked. Please proceed to Billing to renew.', 
           suspended: true 

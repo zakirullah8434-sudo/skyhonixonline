@@ -1,4 +1,4 @@
-const sqlite3 = require('sqlite3').verbose();
+const sqlite3 = require('sqlite3');
 const path = require('path');
 const fs = require('fs');
 const config = require('./config');
@@ -11,9 +11,40 @@ if (config.useTurso) {
 
 const mainDbPath = path.join(config.DATABASES_DIR, 'main.db');
 let mainDb = null;
+
+// LRU-style school DB cache with max size and pending connection tracking
+const SCHOOL_DB_MAX = 50;
 const schoolDbCache = {};
+const schoolDbPending = {}; // prevents race condition on concurrent connects
+const schoolDbAccessOrder = [];
 
 let tursoClient = null;
+
+// Module-level SQL keywords (not recreated per query)
+const SQL_KEYWORDS = new Set([
+  'WHERE', 'SET', 'VALUES', 'ORDER', 'GROUP', 'HAVING',
+  'LIMIT', 'OFFSET', 'UNION', 'EXCEPT', 'INTERSECT',
+  'INNER', 'LEFT', 'RIGHT', 'OUTER', 'CROSS', 'JOIN',
+  'ON', 'AND', 'OR', 'NOT', 'INSERT', 'UPDATE', 'DELETE',
+  'SELECT', 'FROM', 'INTO', 'CREATE', 'DROP', 'ALTER',
+  'TABLE', 'INDEX', 'VIEW', 'TRIGGER', 'PRIMARY', 'KEY',
+  'FOREIGN', 'REFERENCES', 'CONSTRAINT', 'UNIQUE', 'CHECK',
+  'DEFAULT', 'NULL', 'IS', 'IN', 'LIKE', 'BETWEEN',
+  'EXISTS', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
+  'AS', 'DISTINCT', 'ALL', 'ASC', 'DESC', 'NULLS',
+  'FIRST', 'LAST', 'LIMIT', 'OFFSET', 'FETCH', 'NEXT',
+  'ROW', 'ROWS', 'ONLY', 'WITH', 'RECURSIVE',
+  'BEGIN', 'COMMIT', 'ROLLBACK', 'SAVEPOINT', 'RELEASE',
+  'TRANSACTION', 'DEFERRED', 'IMMEDIATE', 'EXCLUSIVE',
+  'OR', 'REPLACE', 'CONFLICT', 'ABORT', 'ROLLBACK',
+  'IGNORE', 'FAIL', 'AUTOINCREMENT', 'COLLATE', 'NO',
+  'CONFLICT', 'GLOB', 'REGEXP', 'MATCH', 'QUERY',
+  'PLAN', 'ANALYZE', 'ATTACH', 'DETACH', 'DATABASE',
+  'PRAGMA', 'TABLE_INFO', 'INDEX_LIST', 'INDEX_INFO',
+  'VACUUM', 'REINDEX', 'INSTEAD', 'OF', 'BEFORE',
+  'AFTER', 'TEMPORARY', 'TEMP', 'IF', 'RENAME',
+  'ADD', 'COLUMN', 'TO', 'RENAME', 'TABLE'
+]);
 
 function getTursoClient() {
   if (!tursoClient) {
@@ -32,12 +63,10 @@ class SchoolDbTursoProxy {
   }
 
   _getFirstTable(sql) {
+    const upper = sql.toUpperCase().trim();
     const SQL_KEYWORDS = new Set([
-      'WHERE', 'SET', 'VALUES', 'ORDER', 'GROUP', 'HAVING',
-      'LIMIT', 'OFFSET', 'UNION', 'EXCEPT', 'INTERSECT',
-      'INNER', 'LEFT', 'RIGHT', 'OUTER', 'CROSS', 'JOIN',
-      'ON', 'AND', 'OR', 'NOT', 'INSERT', 'UPDATE', 'DELETE',
-      'SELECT', 'FROM', 'INTO', 'CREATE', 'DROP', 'ALTER',
+      'SELECT', 'FROM', 'WHERE', 'JOIN', 'ON', 'AND', 'OR', 'NOT',
+      'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER',
       'INDEX', 'TABLE', 'DISTINCT', 'AS', 'CASE', 'WHEN',
       'THEN', 'ELSE', 'END', 'IN', 'BETWEEN', 'LIKE', 'IS',
       'NULL', 'ASC', 'DESC', 'REPLACE', 'INTO'
@@ -153,6 +182,11 @@ function getMainDb() {
     mainDb = new sqlite3.Database(mainDbPath, (err) => {
       if (err) {
         console.error('CRITICAL: Failed to open main.db:', err);
+      } else {
+        // WAL mode for concurrent read/write performance
+        mainDb.run('PRAGMA journal_mode=WAL');
+        mainDb.run('PRAGMA busy_timeout=5000');
+        mainDb.run('PRAGMA synchronous=NORMAL');
       }
     });
   }
@@ -234,6 +268,11 @@ async function ensureSchoolTables(db) {
 function getSchoolDb(schoolId) {
   return new Promise((resolve, reject) => {
     if (schoolDbCache[schoolId]) {
+      // Move to end of access order (MRU)
+      const idx = schoolDbAccessOrder.indexOf(schoolId);
+      if (idx > -1) schoolDbAccessOrder.splice(idx, 1);
+      schoolDbAccessOrder.push(schoolId);
+
       if (!migratedSchools.has(schoolId)) {
         migratedSchools.add(schoolId);
         ensureSchoolTables(schoolDbCache[schoolId]).then(() => resolve(schoolDbCache[schoolId])).catch(() => resolve(schoolDbCache[schoolId]));
@@ -243,52 +282,73 @@ function getSchoolDb(schoolId) {
       return;
     }
 
+    // Prevent race condition: if a connect is pending, wait for it
+    if (schoolDbPending[schoolId]) {
+      return schoolDbPending[schoolId].then(resolve).catch(reject);
+    }
+
     if (config.useTurso) {
       const proxy = new SchoolDbTursoProxy(getTursoClient(), schoolId);
       schoolDbCache[schoolId] = proxy;
+      schoolDbAccessOrder.push(schoolId);
       return resolve(proxy);
     }
 
-    const lookupAndConnect = async () => {
-      let school;
-      school = await new Promise((res, rej) => {
-        const db = getMainDb();
-        db.get('SELECT db_file FROM schools WHERE id = ?', [schoolId], (err, row) => {
-          if (err) rej(err);
-          else res(row);
+    // Create pending promise to prevent race condition
+    schoolDbPending[schoolId] = (async () => {
+      try {
+        const school = await new Promise((res, rej) => {
+          const db = getMainDb();
+          db.get('SELECT db_file FROM schools WHERE id = ?', [schoolId], (err, row) => {
+            if (err) rej(err);
+            else res(row);
+          });
         });
-      });
 
-      if (!school) {
-        throw new Error('School not found or invalid tenant ID');
-      }
-
-      const schoolDbPath = path.join(config.DATABASES_DIR, school.db_file);
-
-      const dir = path.dirname(schoolDbPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-
-      const schoolDb = new sqlite3.Database(schoolDbPath, (dbErr) => {
-        if (dbErr) {
-          console.error(`Failed to connect to tenant database ${school.db_file}:`, dbErr);
-          return reject(dbErr);
+        if (!school) {
+          throw new Error('School not found or invalid tenant ID');
         }
 
-        createSchoolDatabaseSchema(schoolDb)
-          .then(() => {
-            schoolDbCache[schoolId] = schoolDb;
-            resolve(schoolDb);
-          })
-          .catch((schemaErr) => {
-            console.error(`Schema initialization failed for tenant ${school.db_file}:`, schemaErr);
-            reject(schemaErr);
-          });
-      });
-    };
+        const schoolDbPath = path.join(config.DATABASES_DIR, school.db_file);
+        const dir = path.dirname(schoolDbPath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
 
-    lookupAndConnect().catch(reject);
+        const schoolDb = await new Promise((res, rej) => {
+          const db = new sqlite3.Database(schoolDbPath, (dbErr) => {
+            if (dbErr) {
+              console.error(`Failed to connect to tenant database ${school.db_file}:`, dbErr);
+              return rej(dbErr);
+            }
+            // WAL mode + busy timeout for concurrent access
+            db.run('PRAGMA journal_mode=WAL');
+            db.run('PRAGMA busy_timeout=5000');
+            db.run('PRAGMA synchronous=NORMAL');
+            res(db);
+          });
+        });
+
+        await createSchoolDatabaseSchema(schoolDb);
+
+        // LRU eviction if cache is full
+        while (schoolDbAccessOrder.length >= SCHOOL_DB_MAX) {
+          const lruId = schoolDbAccessOrder.shift();
+          if (lruId && schoolDbCache[lruId]) {
+            try { schoolDbCache[lruId].close(); } catch (e) {}
+            delete schoolDbCache[lruId];
+          }
+        }
+
+        schoolDbCache[schoolId] = schoolDb;
+        schoolDbAccessOrder.push(schoolId);
+        return schoolDb;
+      } finally {
+        delete schoolDbPending[schoolId];
+      }
+    })();
+
+    schoolDbPending[schoolId].then(resolve).catch(reject);
   });
 }
 

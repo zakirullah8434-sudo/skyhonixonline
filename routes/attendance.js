@@ -102,29 +102,51 @@ router.post('/save', authenticateToken, async (req, res) => {
 // POST /attendance/scan - Register attendance via QR Scanner (Webcam scan in browser)
 router.post('/scan', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
-  const { scanValue, date } = req.body; // scanValue could be student_id (ST-...) or roll_no, or simple number
+  const { scanValue, date } = req.body;
 
   if (!scanValue) {
     return res.status(400).json({ error: 'Scan value is required' });
   }
 
+  // Clean the scan value: trim, decode URL encoding, handle common QR artifacts
+  let cleaned = scanValue.trim();
+  try { cleaned = decodeURIComponent(cleaned); } catch(e) {}
+  cleaned = cleaned.trim();
+
   const currentDate = date || new Date().toISOString().split('T')[0];
   const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   try {
-    // 1. Find student by student_id or roll_no
+    // Try exact match first, then numeric id match
     let student = await querySchoolOne(
       schoolId,
-      "SELECT * FROM students WHERE (student_id = ? OR roll_no = ? OR id = ?) AND (status IS NULL OR status != 'Left')",
-      [scanValue, scanValue, scanValue]
+      "SELECT * FROM students WHERE (student_id = ? OR roll_no = ?) AND (status IS NULL OR status != 'Left')",
+      [cleaned, cleaned]
     );
 
-    // If not found, try stripping prefix or matching name (but strict ID/Roll is best)
-    if (!student) {
-      return res.status(404).json({ error: `Student with code '${scanValue}' not found` });
+    // If not found and it's numeric, try matching by id
+    if (!student && !isNaN(cleaned)) {
+      student = await querySchoolOne(
+        schoolId,
+        "SELECT * FROM students WHERE id = ? AND (status IS NULL OR status != 'Left')",
+        [parseInt(cleaned)]
+      );
     }
 
-    // 2. Insert or replace attendance
+    // If still not found, try case-insensitive student_id match
+    if (!student) {
+      student = await querySchoolOne(
+        schoolId,
+        "SELECT * FROM students WHERE UPPER(student_id) = UPPER(?) AND (status IS NULL OR status != 'Left')",
+        [cleaned]
+      );
+    }
+
+    if (!student) {
+      return res.status(404).json({ error: `Student with code '${cleaned}' not found. Check that the QR code contains a valid Student ID.` });
+    }
+
+    // Insert or replace attendance
     await runSchool(schoolId, `DELETE FROM attendance WHERE student_id = ? AND date = ?`, [student.id, currentDate]);
     await runSchool(
       schoolId,
@@ -147,6 +169,7 @@ router.post('/scan', authenticateToken, async (req, res) => {
     });
 
   } catch (err) {
+    console.error('[QR Scan] Error:', err);
     res.status(500).json({ error: 'QR Scan failed: ' + err.message });
   }
 });

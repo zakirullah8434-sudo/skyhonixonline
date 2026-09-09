@@ -30,12 +30,16 @@ function fileToDataUri(file) {
   return `data:${mime};base64,${file.buffer.toString('base64')}`;
 }
 
-// GET /students - Search, filter, and list students
+// GET /students - Search, filter, and list students (optimized: no photo, with pagination)
 router.get('/', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
-  const { class_name, section_name, status, search } = req.query;
+  const { class_name, section_name, status, search, page, limit } = req.query;
 
-  let query = 'SELECT * FROM students WHERE 1=1';
+  // Exclude heavy photo column from list views
+  let query = `SELECT id, student_id, name, roll_no, class_name, section_name, father_name, phone,
+    status, is_free, discount_amount, discount_percent, transport_fee, family_head_id,
+    dob, admission_date, gender, blood_group
+    FROM students WHERE 1=1`;
   const params = [];
 
   if (class_name) {
@@ -54,7 +58,6 @@ router.get('/', authenticateToken, async (req, res) => {
     query += ' AND status = ?';
     params.push(status);
   } else {
-    // Default to active students
     query += " AND (status IS NULL OR status != 'Left')";
   }
 
@@ -64,11 +67,44 @@ router.get('/', authenticateToken, async (req, res) => {
     params.push(searchParam, searchParam, searchParam, searchParam, searchParam);
   }
 
-  query += ' ORDER BY class_name, CAST(roll_no AS INTEGER), name';
+  // Pagination
+  const pageNum = Math.max(1, parseInt(page) || 1);
+  const pageSize = Math.min(500, Math.max(1, parseInt(limit) || 200));
+  const offset = (pageNum - 1) * pageSize;
+
+  // Get total count for pagination metadata
+  let countQuery = 'SELECT COUNT(*) as total FROM students WHERE 1=1';
+  const countParams = [];
+  if (class_name) { countQuery += ' AND class_name = ?'; countParams.push(class_name); }
+  if (section_name) {
+    if (section_name === 'No Section') { countQuery += " AND (section_name IS NULL OR section_name = '')"; }
+    else { countQuery += ' AND section_name = ?'; countParams.push(section_name); }
+  }
+  if (status) { countQuery += ' AND status = ?'; countParams.push(status); }
+  else { countQuery += " AND (status IS NULL OR status != 'Left')"; }
+  if (search) {
+    countQuery += ' AND (name LIKE ? OR roll_no LIKE ? OR student_id LIKE ? OR father_name LIKE ? OR phone LIKE ?)';
+    const sp = `%${search}%`;
+    countParams.push(sp, sp, sp, sp, sp);
+  }
+
+  query += ' ORDER BY class_name, CAST(roll_no AS INTEGER), name LIMIT ? OFFSET ?';
+  params.push(pageSize, offset);
 
   try {
-    const students = await querySchool(schoolId, query, params);
-    res.json(students);
+    const [students, countResult] = await Promise.all([
+      querySchool(schoolId, query, params),
+      querySchoolOne(schoolId, countQuery, countParams)
+    ]);
+    res.json({
+      data: students,
+      pagination: {
+        page: pageNum,
+        limit: pageSize,
+        total: countResult ? countResult.total : students.length,
+        pages: Math.ceil((countResult ? countResult.total : 0) / pageSize)
+      }
+    });
   } catch (err) {
     console.error('Fetch students error:', err);
     res.status(500).json({ error: 'Failed to retrieve students: ' + err.message });
@@ -356,21 +392,21 @@ router.get('/:id/profile', authenticateToken, async (req, res) => {
 
     const safeQuery = (sql, params=[]) => querySchool(schoolId, sql, params).catch(() => []);
 
-    // Parallel fetch all profile sub-queries
+    // Parallel fetch all profile sub-queries (with LIMIT to prevent memory blowup)
     const [feeLedger, payments, marks, results, attendance, exceptions, dues, parents, promotionHistory, homework, certificates, documents, transferHistory] = await Promise.all([
-      safeQuery(`SELECT * FROM fee_ledger WHERE student_id = ? ORDER BY year DESC, month DESC`, [studentId]),
-      safeQuery(`SELECT * FROM fee_payments WHERE student_id = ? ORDER BY payment_date DESC`, [studentId]),
-      safeQuery(`SELECT m.*, e.exam_name, e.year FROM marks m JOIN exams e ON e.id = m.exam_id WHERE m.student_id = ? ORDER BY e.year DESC, e.exam_name, m.term, m.subject`, [studentId]),
-      safeQuery(`SELECT r.*, e.exam_name, e.year FROM results r JOIN exams e ON e.id = r.exam_id WHERE r.student_id = ? ORDER BY e.year DESC, e.exam_name`, [studentId]),
-      safeQuery(`SELECT * FROM attendance WHERE student_id = ? ORDER BY date DESC`, [studentId]),
-      safeQuery(`SELECT * FROM student_fee_exceptions WHERE student_id = ?`, [studentId]),
-      safeQuery(`SELECT * FROM fee_dues WHERE student_id = ?`, [studentId]),
-      safeQuery(`SELECT p.*, sp.relation FROM student_parents sp JOIN parents p ON p.id = sp.parent_id WHERE sp.student_id = ?`, [studentId]),
-      safeQuery(`SELECT * FROM student_promotion_history WHERE student_id = ? ORDER BY promotion_date DESC`, [studentId]),
-      safeQuery(`SELECT a.*, t.name as teacher_name FROM assignments a LEFT JOIN teachers t ON t.id = a.teacher_id WHERE a.class_name = ? AND (a.section_name = ? OR a.section_name = '' OR a.section_name IS NULL) ORDER BY a.created_at DESC`, [student.class_name, student.section_name || '']),
-      safeQuery(`SELECT * FROM student_certificates WHERE student_id = ? ORDER BY issue_date DESC`, [studentId]),
-      safeQuery(`SELECT id, student_id, document_name, document_type, upload_date, description, created_at FROM student_documents WHERE student_id = ? ORDER BY created_at DESC`, [studentId]),
-      safeQuery(`SELECT * FROM student_transfer_history WHERE student_id = ? ORDER BY transfer_date DESC`, [studentId])
+      safeQuery(`SELECT id, month, year, base_fee, discount, monthly_fee, previous_due, total_payable, paid_amount, status, transport_fee FROM fee_ledger WHERE student_id = ? ORDER BY year DESC, month DESC LIMIT 60`, [studentId]),
+      safeQuery(`SELECT id, month, year, amount_paid, payment_date, fee_ledger_id FROM fee_payments WHERE student_id = ? ORDER BY payment_date DESC LIMIT 100`, [studentId]),
+      safeQuery(`SELECT m.id, m.student_id, m.exam_id, m.subject, m.marks, m.term, e.exam_name, e.year FROM marks m JOIN exams e ON e.id = m.exam_id WHERE m.student_id = ? ORDER BY e.year DESC, e.exam_name, m.term, m.subject LIMIT 500`, [studentId]),
+      safeQuery(`SELECT r.id, r.student_id, r.exam_id, r.term, r.total, r.obtained, r.percentage, r.grade, r.position, r.remarks, e.exam_name, e.year FROM results r JOIN exams e ON e.id = r.exam_id WHERE r.student_id = ? ORDER BY e.year DESC, e.exam_name LIMIT 100`, [studentId]),
+      safeQuery(`SELECT id, date, status, time FROM attendance WHERE student_id = ? ORDER BY date DESC LIMIT 180`, [studentId]),
+      safeQuery(`SELECT id, student_id, exception_type, amount, reason, date FROM student_fee_exceptions WHERE student_id = ?`, [studentId]),
+      safeQuery(`SELECT id, student_id, due_amount FROM fee_dues WHERE student_id = ?`, [studentId]),
+      safeQuery(`SELECT p.id, p.name, p.phone, p.email, sp.relation FROM student_parents sp JOIN parents p ON p.id = sp.parent_id WHERE sp.student_id = ?`, [studentId]),
+      safeQuery(`SELECT id, student_id, from_class, to_class, exam_year, promotion_date, final_percentage, remarks FROM student_promotion_history WHERE student_id = ? ORDER BY promotion_date DESC LIMIT 20`, [studentId]),
+      safeQuery(`SELECT a.id, a.title, a.subject, a.description, a.type, a.due_date, a.priority, a.created_at, t.name as teacher_name FROM assignments a LEFT JOIN teachers t ON t.id = a.teacher_id WHERE a.class_name = ? AND (a.section_name = ? OR a.section_name = '' OR a.section_name IS NULL) ORDER BY a.created_at DESC LIMIT 50`, [student.class_name, student.section_name || '']),
+      safeQuery(`SELECT id, student_id, certificate_name, certificate_type, issue_date, description FROM student_certificates WHERE student_id = ? ORDER BY issue_date DESC LIMIT 20`, [studentId]),
+      safeQuery(`SELECT id, student_id, document_name, document_type, upload_date, description, created_at FROM student_documents WHERE student_id = ? ORDER BY created_at DESC LIMIT 50`, [studentId]),
+      safeQuery(`SELECT id, student_id, transfer_date, from_class, to_class, to_school, reason, remarks FROM student_transfer_history WHERE student_id = ? ORDER BY transfer_date DESC LIMIT 20`, [studentId])
     ]);
 
     // Calculate stats

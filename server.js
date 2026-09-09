@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
@@ -9,14 +10,23 @@ const { resetMainDb } = require('./database_manager');
 
 const app = express();
 
+// CRITICAL: Compression — reduces bandwidth 60-80% for JSON/HTML
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  },
+  level: 6,
+  threshold: 1024
+}));
+
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Bandwidth tracking per school (in-memory, resets on server restart)
-// Optimized: skip tracking for static assets and non-API requests
-const bandwidthTracker = {};
+// Bandwidth tracking — lightweight, no JWT verify (uses req.user after auth)
+const bandwidthTracker = new Map();
 app.use((req, res, next) => {
   if (!req.path.startsWith('/api')) return next();
   const startBytes = JSON.stringify(req.body || {}).length;
@@ -24,21 +34,17 @@ app.use((req, res, next) => {
   res.json = function(data) {
     const endBytes = JSON.stringify(data || {}).length;
     try {
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.split(' ')[1];
-        const decoded = jwt.verify(token, config.JWT_SECRET);
-        if (decoded.schoolId) {
-          const sid = decoded.schoolId;
-          if (!bandwidthTracker[sid]) {
-            bandwidthTracker[sid] = { requests: 0, bytesIn: 0, bytesOut: 0 };
-          }
-          bandwidthTracker[sid].requests++;
-          bandwidthTracker[sid].bytesIn += startBytes;
-          bandwidthTracker[sid].bytesOut += endBytes;
+      if (req.user && req.user.schoolId) {
+        const sid = req.user.schoolId;
+        if (!bandwidthTracker.has(sid)) {
+          bandwidthTracker.set(sid, { requests: 0, bytesIn: 0, bytesOut: 0 });
         }
+        const tracker = bandwidthTracker.get(sid);
+        tracker.requests++;
+        tracker.bytesIn += startBytes;
+        tracker.bytesOut += endBytes;
       }
-    } catch (e) {}
+    } catch (e) { /* non-critical */ }
     return originalJson(data);
   };
   next();
@@ -149,8 +155,8 @@ app.get('/api/auth/ping', (req, res) => {
 });
 
 // ─── Idempotency middleware for offline sync ───
-// Prevents duplicate records when retries hit the server
 const idempotencyCache = new Map();
+const IDEMPOTENCY_MAX = 10000;
 app.use('/api', (req, res, next) => {
   if (req.method === 'GET' || req.method === 'HEAD') return next();
   const idempotencyKey = req.headers['x-idempotency-key'];
@@ -159,11 +165,15 @@ app.use('/api', (req, res, next) => {
       const cached = idempotencyCache.get(idempotencyKey);
       return res.status(cached.status).json(cached.data);
     }
+    // Evict oldest entries if cache is full
+    if (idempotencyCache.size >= IDEMPOTENCY_MAX) {
+      const firstKey = idempotencyCache.keys().next().value;
+      idempotencyCache.delete(firstKey);
+    }
     const originalJson = res.json.bind(res);
     res.json = function(data) {
       if (res.statusCode >= 200 && res.statusCode < 300) {
         idempotencyCache.set(idempotencyKey, { status: res.statusCode, data });
-        // Cleanup after 24h
         setTimeout(() => idempotencyCache.delete(idempotencyKey), 86400000);
       }
       return originalJson(data);
@@ -190,7 +200,6 @@ app.use('/api/salary', salaryRoutes);
 
 // Serve static frontend files with optimized caching
 app.use(express.static(path.join(__dirname, 'public'), {
-  maxAge: '1d',
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -198,24 +207,26 @@ app.use(express.static(path.join(__dirname, 'public'), {
       res.setHeader('Expires', '0');
     } else if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    } else if (filePath.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/)) {
+    } else if (filePath.match(/\.(jpg|jpeg|png|gif|webp|svg|ico|woff2?|ttf|eot)$/)) {
       res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
     }
   }
 }));
 
-// Catch-all for ALL methods (GET, POST, PUT, DELETE) - return JSON for API, HTML for pages
-app.all('*', (req, res) => {
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ error: 'Endpoint not found: ' + req.method + ' ' + req.path });
-  }
+// API 404
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ error: 'Endpoint not found: ' + req.method + ' ' + req.path });
+});
+
+// Catch-all: serve index.html for page navigation
+app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Global error handler - always return JSON, never HTML
+// Global error handler — never leak internals in production
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: err.message || 'Internal server error' });
+  console.error('Unhandled error:', err.message);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 // Start Server after initializing main registry database

@@ -2782,8 +2782,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Webcam QR Scanner logic
   const btnStartScanner = document.getElementById('btn-start-scanner');
   const btnStopScanner = document.getElementById('btn-stop-scanner');
+  const btnFlipCamera = document.getElementById('btn-flip-camera');
   const scanHistoryTable = document.querySelector('#table-scan-history tbody');
   const scanFeedback = document.getElementById('scan-feedback-container');
+  let currentFacing = 'environment'; // Default to back camera
 
   btnStartScanner.addEventListener('click', () => {
     if (html5QrcodeScanner) return;
@@ -2792,28 +2794,35 @@ document.addEventListener('DOMContentLoaded', () => {
     html5QrcodeScanner = new Html5Qrcode('reader');
     
     html5QrcodeScanner.start(
-      { facingMode: 'user' }, // use front/self camera
+      { facingMode: currentFacing },
       {
         fps: 10,
         qrbox: { width: 250, height: 250 }
       },
       async (decodedText) => {
-        // Scanned QR code
+        // Trim whitespace from decoded text
+        const scanValue = (decodedText || '').trim();
+        if (!scanValue) return;
+
+        // Prevent duplicate rapid scans of the same code within 3 seconds
+        const now = Date.now();
+        if (window._lastScanValue === scanValue && (now - (window._lastScanTime || 0)) < 3000) return;
+        window._lastScanValue = scanValue;
+        window._lastScanTime = now;
+
         try {
           const dateStr = new Date().toISOString().split('T')[0];
-          const result = await apiCall('/attendance/scan', 'POST', { scanValue: decodedText, date: dateStr });
+          const result = await apiCall('/attendance/scan', 'POST', { scanValue, date: dateStr });
           
           playBeep('success');
           showToast(result.message);
 
-          // Update success display
           document.getElementById('scan-name').innerText = result.student.name;
           document.getElementById('scan-roll-class').innerText = `Roll No: ${result.student.roll_no || '-'} | Class: ${result.student.class_name}`;
           document.getElementById('scan-time').innerText = `Checked in: ${result.student.time}`;
           document.getElementById('scan-photo').src = imgSrc(result.student.photo);
           scanFeedback.style.display = 'block';
 
-          // Append to log table
           const existingRows = scanHistoryTable.innerHTML;
           if (existingRows.includes('Awaiting QR card scan')) {
             scanHistoryTable.innerHTML = '';
@@ -2829,15 +2838,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (err) {
           playBeep('fail');
-          showToast(`Invalid scan check-in: ${err.message}`, true);
+          showToast(`Scan failed: ${err.message}`, true);
         }
       },
       (errorMessage) => {
-        // Verbose scanner error, ignore
+        // Scanner verbose error, ignore
       }
     ).catch(err => {
-      showToast(`Camera activation error: ${err}`, true);
+      showToast(`Camera error: ${err}`, true);
     });
+
+    btnFlipCamera.style.display = 'inline-block';
+  });
+
+  // Flip Camera button
+  btnFlipCamera.addEventListener('click', async () => {
+    if (!html5QrcodeScanner) return;
+    currentFacing = currentFacing === 'environment' ? 'user' : 'environment';
+    try {
+      await html5QrcodeScanner.stop();
+      html5QrcodeScanner = null;
+      document.getElementById('reader').innerHTML = '';
+      btnStartScanner.click(); // Restart with new facing
+    } catch (e) {
+      showToast('Could not flip camera', true);
+    }
   });
 
   function stopQrScanner() {
@@ -2845,6 +2870,7 @@ document.addEventListener('DOMContentLoaded', () => {
       html5QrcodeScanner.stop().then(() => {
         html5QrcodeScanner = null;
         document.getElementById('reader').innerHTML = '';
+        btnFlipCamera.style.display = 'none';
       }).catch(err => console.error(err));
     }
   }
