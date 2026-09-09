@@ -2014,11 +2014,12 @@ textarea.form-control {
   html, body { margin: 0 !important; padding: 0 !important; height: 100% !important; background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   .rollno-page { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; grid-template-rows: 1fr !important; gap: 4mm !important; width: 100% !important; height: 100% !important; padding: 0 !important; margin: 0 !important; page-break-after: always !important; overflow: hidden !important; box-sizing: border-box !important; }
   .rollno-page:last-child { page-break-after: auto !important; }
-  .rollno-slip { width: 100% !important; height: 100% !important; max-width: none !important; min-width: 0 !important; box-sizing: border-box !important; break-inside: avoid !important; page-break-inside: avoid !important; border: none !important; border-radius: 0 !important; padding: 8px 10px !important; display: flex !important; flex-direction: column !important; align-self: stretch !important; }
+  .rollno-slip { width: 100% !important; height: 100% !important; max-width: none !important; min-width: 0 !important; box-sizing: border-box !important; break-inside: avoid !important; page-break-inside: avoid !important; border: none !important; border-radius: 0 !important; padding: 5% 10px !important; display: flex !important; flex-direction: column !important; align-self: stretch !important; }
   .rollno-slip .rollno-exam-table-wrap { flex: 1 !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; }
   .rollno-slip .rollno-footer { margin-top: auto !important; flex-shrink: 0 !important; }
-  .rollno-slip table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; }
-  .rollno-slip table th, .rollno-slip table td { word-wrap: break-word !important; overflow-wrap: break-word !important; padding: 3px 4px !important; font-size: 10px !important; }
+  .rollno-slip table { width: 100% !important; height: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; }
+  .rollno-slip table thead, .rollno-slip table tbody, .rollno-slip table tr { height: 100% !important; }
+  .rollno-slip table th, .rollno-slip table td { word-wrap: break-word !important; overflow-wrap: break-word !important; padding: 3px 5px !important; font-size: 10px !important; }
   .rollno-slip table th:nth-child(1), .rollno-slip table td:nth-child(1) { width: 6% !important; }
   .rollno-slip table th:nth-child(2), .rollno-slip table td:nth-child(2) { width: 22% !important; }
   .rollno-slip table th:nth-child(3), .rollno-slip table td:nth-child(3) { width: 20% !important; }
@@ -2030,8 +2031,9 @@ textarea.form-control {
   @page { size: A4 landscape !important; margin: 8mm !important; }
   html, body { height: 100% !important; }
   .rollno-page { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; grid-template-rows: 1fr !important; gap: 4mm !important; width: 100% !important; height: 100% !important; padding: 0 !important; margin: 0 !important; page-break-after: always !important; }
-  .rollno-slip { width: 100% !important; height: 100% !important; font-size: 9px !important; display: flex !important; flex-direction: column !important; align-self: stretch !important; }
+  .rollno-slip { width: 100% !important; height: 100% !important; padding: 5% 10px !important; font-size: 9px !important; display: flex !important; flex-direction: column !important; align-self: stretch !important; }
   .rollno-slip .rollno-exam-table-wrap { flex: 1 !important; }
+  .rollno-slip table thead, .rollno-slip table tbody, .rollno-slip table tr { height: 100% !important; }
   .rollno-slip table th, .rollno-slip table td { padding: 2px 3px !important; font-size: 8px !important; }
 }
 
