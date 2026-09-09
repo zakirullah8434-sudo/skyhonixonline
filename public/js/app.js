@@ -7806,11 +7806,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const previewEl = document.getElementById('rp-ocr-preview');
       statusEl.style.display = 'block';
       previewEl.style.display = 'none';
-      statusEl.textContent = '⏳ Loading OCR engine...';
-      btnRpExtract.disabled = true;
-
-      try {
         statusEl.textContent = '⏳ Loading OCR engine...';
+        btnRpExtract.disabled = true;
+
+        try {
+          await window._loadTesseract();
+          statusEl.textContent = '⏳ Recognizing text... This may take a moment.';
 
         // Read image as data URL first
         const imageDataUrl = await new Promise((resolve, reject) => {
@@ -7819,8 +7820,6 @@ document.addEventListener('DOMContentLoaded', () => {
           reader.onerror = () => reject(new Error('Failed to read file'));
           reader.readAsDataURL(fileInput.files[0]);
         });
-
-        statusEl.textContent = '⏳ Recognizing text... This may take a moment.';
 
         // Use simple recognize API
         const result = await Tesseract.recognize(imageDataUrl, 'eng', {
