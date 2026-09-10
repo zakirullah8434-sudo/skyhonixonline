@@ -8,26 +8,38 @@ const { querySchool, querySchoolOne, runSchool } = require('../database_manager'
 // TEACHERS CRUD
 // ==========================================
 
-// GET /staff/teachers - List all teachers with their timetable assignments
+// GET /staff/teachers - List all teachers with their timetable assignments (single query, no N+1)
 router.get('/teachers', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
-    const teachers = await querySchool(schoolId,
-      'SELECT id, name, phone, subject, qualification, status, created_at, assigned_class, can_collect_fees FROM teachers ORDER BY name'
+    const rows = await querySchool(schoolId,
+      `SELECT t.id, t.name, t.phone, t.subject, t.qualification, t.status, t.created_at, t.assigned_class, t.can_collect_fees,
+              tm.class_name, tm.section_name, tm.subject as tm_subject, tm.day, tm.start_time, tm.end_time
+       FROM teachers t
+       LEFT JOIN timetable tm ON tm.teacher_id = t.id
+       ORDER BY t.name, tm.class_name, tm.section_name`
     );
 
-    // Get timetable assignments for each teacher
-    for (const teacher of teachers) {
-      const assignments = await querySchool(schoolId,
-        `SELECT class_name, section_name, subject, day, start_time, end_time
-         FROM timetable WHERE teacher_id = ?
-         ORDER BY class_name, section_name`,
-        [teacher.id]
-      );
-      teacher.assignments = assignments;
+    // Group timetable assignments by teacher
+    const teacherMap = new Map();
+    for (const row of rows) {
+      if (!teacherMap.has(row.id)) {
+        teacherMap.set(row.id, {
+          id: row.id, name: row.name, phone: row.phone, subject: row.subject,
+          qualification: row.qualification, status: row.status, created_at: row.created_at,
+          assigned_class: row.assigned_class, can_collect_fees: row.can_collect_fees,
+          assignments: []
+        });
+      }
+      if (row.class_name) {
+        teacherMap.get(row.id).assignments.push({
+          class_name: row.class_name, section_name: row.section_name,
+          subject: row.tm_subject, day: row.day, start_time: row.start_time, end_time: row.end_time
+        });
+      }
     }
 
-    res.json(teachers);
+    res.json(Array.from(teacherMap.values()));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

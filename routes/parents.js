@@ -186,24 +186,40 @@ router.get('/my-exams/:studentId', authenticateParentToken, async (req, res) => 
        ORDER BY e.year DESC, e.exam_name ASC`
     );
 
-    const results = [];
-    for (const exam of exams) {
-      try {
-        const classes = JSON.parse(exam.classes || '[]');
-        if (!classes.includes(child.class_name)) continue;
+    // Filter exams for this child's class
+    const relevantExams = exams.filter(exam => {
+      try { return JSON.parse(exam.classes || '[]').includes(child.class_name); }
+      catch { return false; }
+    });
 
-        const marks = await querySchool(schoolId,
-          `SELECT m.subject, m.marks, m.term, es.max_marks
-           FROM marks m
-           LEFT JOIN exam_subjects es ON m.exam_id = es.exam_id AND m.subject = es.subject AND es.class = ?
-           WHERE m.exam_id = ? AND m.student_id = ?
-           ORDER BY m.subject`,
-          [child.class_name, exam.id, studentId]
-        );
-        if (marks.length > 0) {
-          results.push({ exam, marks });
-        }
-      } catch (e) {}
+    // Bulk fetch all marks for this student in one query (no N+1)
+    const examIds = relevantExams.map(e => e.id);
+    let allMarks = [];
+    if (examIds.length > 0) {
+      const placeholders = examIds.map(() => '?').join(',');
+      allMarks = await querySchool(schoolId,
+        `SELECT m.exam_id, m.subject, m.marks, m.term, es.max_marks
+         FROM marks m
+         LEFT JOIN exam_subjects es ON m.exam_id = es.exam_id AND m.subject = es.subject AND es.class = ?
+         WHERE m.exam_id IN (${placeholders}) AND m.student_id = ?
+         ORDER BY m.exam_id, m.subject`,
+        [child.class_name, ...examIds, studentId]
+      );
+    }
+
+    // Group marks by exam_id
+    const marksByExam = new Map();
+    for (const m of allMarks) {
+      if (!marksByExam.has(m.exam_id)) marksByExam.set(m.exam_id, []);
+      marksByExam.get(m.exam_id).push(m);
+    }
+
+    const results = [];
+    for (const exam of relevantExams) {
+      const marks = marksByExam.get(exam.id) || [];
+      if (marks.length > 0) {
+        results.push({ exam, marks });
+      }
     }
     res.json(results);
   } catch (err) {
@@ -281,31 +297,19 @@ router.get('/my-assignments', authenticateParentToken, async (req, res) => {
       return res.json([]);
     }
 
-    // Get assignments for each child's class
-    const allAssignments = [];
-    for (const child of children) {
-      const assignments = await querySchool(schoolId,
-        `SELECT a.*, s.name as student_name
-         FROM assignments a
-         CROSS JOIN students s
-         WHERE s.id = ? AND a.class_name = s.class_name
-           AND (a.section_name = '' OR a.section_name = s.section_name)
-         ORDER BY a.created_at DESC`,
-        [child.id]
-      );
-      allAssignments.push(...assignments);
-    }
+    // Bulk fetch assignments for all children's classes in one query (no N+1)
+    const classPairs = children.map(c => `('${(c.class_name || '').replace(/'/g, "''")}','${(c.section_name || '').replace(/'/g, "''")}')`).join(',');
+    const allAssignments = classPairs
+      ? await querySchool(schoolId,
+          `SELECT DISTINCT a.id, a.title, a.subject, a.class_name, a.section_name, a.type,
+                  a.priority, a.due_date, a.description, a.created_at, a.created_by
+           FROM assignments a
+           WHERE (${children.map(c => `(a.class_name = '${(c.class_name || '').replace(/'/g, "''")}' AND (a.section_name = '' OR a.section_name = '${(c.section_name || '').replace(/'/g, "''")}'))`).join(' OR ')})
+           ORDER BY a.created_at DESC`
+        )
+      : [];
 
-    // Remove duplicates (same assignment for same class)
-    const seen = new Set();
-    const unique = allAssignments.filter(a => {
-      const key = `${a.id}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
-    res.json(unique);
+    res.json(allAssignments);
   } catch (err) {
     console.error('Error fetching parent assignments:', err);
     res.status(500).json({ error: err.message });

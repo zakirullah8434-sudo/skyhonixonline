@@ -96,6 +96,10 @@ router.get('/', authenticateToken, async (req, res) => {
       querySchool(schoolId, query, params),
       querySchoolOne(schoolId, countQuery, countParams)
     ]);
+    // If no page param, return plain array for backward compatibility
+    if (!page && !limit) {
+      return res.json(students);
+    }
     res.json({
       data: students,
       pagination: {

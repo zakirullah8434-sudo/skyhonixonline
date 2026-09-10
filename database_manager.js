@@ -69,7 +69,11 @@ class SchoolDbTursoProxy {
       'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER',
       'INDEX', 'TABLE', 'DISTINCT', 'AS', 'CASE', 'WHEN',
       'THEN', 'ELSE', 'END', 'IN', 'BETWEEN', 'LIKE', 'IS',
-      'NULL', 'ASC', 'DESC', 'REPLACE', 'INTO'
+      'NULL', 'ASC', 'DESC', 'REPLACE', 'INTO',
+      'ORDER', 'GROUP', 'HAVING', 'LIMIT', 'OFFSET', 'UNION', 'EXCEPT', 'INTERSECT',
+      'SET', 'VALUES', 'INNER', 'LEFT', 'RIGHT', 'FULL', 'CROSS', 'NATURAL',
+      'IF', 'EXISTS', 'PRIMARY', 'KEY', 'FOREIGN', 'REFERENCES', 'CONSTRAINT',
+      'DEFAULT', 'CHECK', 'UNIQUE', 'AUTO_INCREMENT', 'INTEGER', 'TEXT', 'REAL', 'BLOB', 'NUMERIC'
     ]);
     const m = sql.match(/\bFROM\s+(\w+)(?:\s+(\w+))?/i);
     if (m) {
@@ -94,15 +98,26 @@ class SchoolDbTursoProxy {
 
   _rewrite(sql, params) {
     const sid = this.schoolId;
+    if (sid === undefined || sid === null) {
+      console.error('[TURSO_PROXY] schoolId is null/undefined, skipping rewrite. SQL:', sql);
+      return { sql, params };
+    }
 
     if (/^\s*INSERT\s+/i.test(sql)) {
-      const m = sql.match(/INSERT\s+(?:OR\s+REPLACE\s+)?INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/i);
+      const m = sql.match(/(INSERT\s+(?:OR\s+(?:REPLACE|IGNORE)\s+)?)INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/i);
       if (m) {
-        const cols = m[2].split(',').map(c => c.trim());
-        const vals = m[3].split(',').map(v => v.trim());
-        cols.push('school_id');
-        vals.push('?');
-        return { sql: `INSERT INTO ${m[1]} (${cols.join(', ')}) VALUES (${vals.join(', ')})`, params: [...params, sid] };
+        const prefix = m[1];
+        const table = m[2];
+        const colsRaw = m[3].split(',').map(c => c.trim());
+        const valsRaw = m[4].split(',').map(v => v.trim());
+        const hasSchoolId = colsRaw.some(c => c.toLowerCase() === 'school_id');
+        if (!hasSchoolId) {
+          colsRaw.push('school_id');
+          valsRaw.push('?');
+        }
+        const suffix = sql.slice(sql.indexOf('VALUES') + 6).replace(/\(([^)]*)\)/i, '').trim();
+        const finalSql = `${prefix}INTO ${table} (${colsRaw.join(', ')}) VALUES (${valsRaw.join(', ')})${suffix ? ' ' + suffix : ''}`;
+        return { sql: finalSql, params: [...params, ...(hasSchoolId ? [] : [sid])] };
       }
     }
 
@@ -125,7 +140,8 @@ class SchoolDbTursoProxy {
       }
       const cond = after.slice(0, endIdx).trim();
       const rest = after.slice(endIdx);
-      return { sql: before + ' (' + cond + ') AND ' + qualified + ' = ?' + rest, params: [...params, sid] };
+      const paddedRest = rest.startsWith(' ') ? rest : ' ' + rest;
+      return { sql: before + ' (' + cond + ') AND ' + qualified + ' = ?' + paddedRest, params: [...params, sid] };
     }
 
     if (/^\s*UPDATE\s+/i.test(sql)) {
@@ -145,29 +161,41 @@ class SchoolDbTursoProxy {
 
   all(sql, params = [], callback) {
     if (typeof params === 'function') { callback = params; params = []; }
-    const { sql: s, params: p } = this._rewrite(sql, params);
+    const sanitized = params.map(p => (p === undefined || p === null) ? null : p);
+    const { sql: s, params: p } = this._rewrite(sql, sanitized);
     this.client.execute({ sql: s, args: p })
       .then(r => callback(null, r.rows))
-      .catch(e => callback(e));
+      .catch(e => {
+        console.error('[TURSO_PROXY_ERR]', e.message, '\n  SQL:', s, '\n  Params:', JSON.stringify(p));
+        callback(e);
+      });
   }
 
   get(sql, params = [], callback) {
     if (typeof params === 'function') { callback = params; params = []; }
-    const { sql: s, params: p } = this._rewrite(sql, params);
+    const sanitized = params.map(p => (p === undefined || p === null) ? null : p);
+    const { sql: s, params: p } = this._rewrite(sql, sanitized);
     this.client.execute({ sql: s, args: p })
       .then(r => callback(null, r.rows[0] || undefined))
-      .catch(e => callback(e));
+      .catch(e => {
+        console.error('[TURSO_PROXY_ERR]', e.message, '\n  SQL:', s, '\n  Params:', JSON.stringify(p));
+        callback(e);
+      });
   }
 
   run(sql, params = [], callback) {
     if (typeof params === 'function') { callback = params; params = []; }
-    const { sql: s, params: p } = this._rewrite(sql, params);
+    const sanitized = params.map(p => (p === undefined || p === null) ? null : p);
+    const { sql: s, params: p } = this._rewrite(sql, sanitized);
     this.client.execute({ sql: s, args: p })
       .then(r => {
         const ctx = { lastID: Number(r.lastInsertRowid), changes: r.rowsAffected };
         if (callback) callback.call(ctx, null);
       })
-      .catch(e => { if (callback) callback(e); else console.error('Turso run error:', e); });
+      .catch(e => {
+        console.error('[TURSO_PROXY_ERR]', e.message, '\n  SQL:', s, '\n  Params:', JSON.stringify(p));
+        if (callback) callback(e); else console.error('Turso run error:', e);
+      });
   }
 
   serialize(callback) { callback(); }
@@ -256,7 +284,7 @@ async function ensureSchoolTables(db) {
     'parents', 'student_parents', 'timetable', 'fee_reminders',
     'announcements', 'assignments', 'student_certificates', 'student_documents',
     'student_transfer_history', 'transport_vehicles', 'transport_drivers', 'transport_routes', 'transport_assignments', 'roll_slip_templates',
-    'teacher_salaries', 'salary_payments'
+    'teachers', 'teacher_salaries', 'salary_payments'
   ];
   for (const t of tables) {
     await run(`ALTER TABLE ${t} ADD COLUMN school_id INTEGER`).catch(() => {});

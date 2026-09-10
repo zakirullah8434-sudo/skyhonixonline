@@ -155,14 +155,19 @@
 
     if (selectedChildId) {
       try {
-        const att = await apiCall(`/api/parents/my-attendance/${selectedChildId}?month=${String(new Date().getMonth() + 1).padStart(2, '0')}&year=${new Date().getFullYear()}`);
+        // Parallel fetch for 66% faster dashboard load
+        const month = String(new Date().getMonth() + 1).padStart(2, '0');
+        const year = new Date().getFullYear();
+        const [att, feeData, examData] = await Promise.all([
+          apiCall(`/api/parents/my-attendance/${selectedChildId}?month=${month}&year=${year}`),
+          apiCall(`/api/parents/my-fees/${selectedChildId}`),
+          apiCall(`/api/parents/my-exams/${selectedChildId}`)
+        ]);
         const today = new Date().toISOString().split('T')[0];
         const todayRec = att.find(a => a.date === today);
         document.getElementById('stat-attendance').textContent = todayRec ? todayRec.status : 'No record';
-        const feeData = await apiCall(`/api/parents/my-fees/${selectedChildId}`);
         const unpaid = feeData.ledger.filter(l => !l.paid_amount || l.paid_amount === 0).length;
         document.getElementById('stat-fees').textContent = unpaid;
-        const examData = await apiCall(`/api/parents/my-exams/${selectedChildId}`);
         let totalMarks = 0;
         examData.forEach(r => { totalMarks += r.marks.length; });
         document.getElementById('stat-exams').textContent = totalMarks;

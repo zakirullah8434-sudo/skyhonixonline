@@ -14,158 +14,21 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #F8FAFC;
-      color: #1E293B;
-      min-height: 100vh;
-    }
-
-    /* ── Header ── */
-    .main-header {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-      display: flex; justify-content: space-between; align-items: center;
-      height: 64px; padding: 0 24px;
-      background: #FFFFFF;
-      border-bottom: 1px solid #E5E7EB;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-    .header-left { display: flex; align-items: center; gap: 14px; }
-    .header-right { display: flex; align-items: center; gap: 14px; }
-    .nav-hamburger {
-      background: none; border: none; font-size: 1.35rem; cursor: pointer;
-      color: #475569; padding: 6px; border-radius: 8px;
-      transition: background 0.2s;
-    }
-    .nav-hamburger:hover { background: #F1F5F9; }
-    .header-title {
-      font-size: 1.1rem; font-weight: 700; color: #1E293B;
-      margin: 0; white-space: nowrap;
-    }
-    .user-badge {
-      background: #EEF2FF; color: #4F46E5; font-weight: 600;
-      padding: 5px 14px; border-radius: 20px; font-size: 0.8rem;
-    }
-    .btn { cursor: pointer; font-family: inherit; border-radius: 8px; font-weight: 600; border: none; transition: all 0.2s; }
-    .btn-sm { padding: 6px 16px; font-size: 0.8rem; }
-    .btn-outline {
-      background: transparent; border: 1px solid #E5E7EB; color: #475569;
-    }
-    .btn-outline:hover { background: #F1F5F9; border-color: #CBD5E1; }
-    .btn-primary {
-      background: #4F46E5; color: #fff;
-      box-shadow: 0 1px 3px rgba(79,70,229,0.3);
-    }
-    .btn-primary:hover { background: #4338CA; }
-
-    /* ── Sidebar ── */
-    .sidebar {
-      position: fixed; top: 64px; left: 0; bottom: 0;
-      width: 240px; background: #FFFFFF;
-      border-right: 1px solid #E5E7EB;
-      display: flex; flex-direction: column; z-index: 900;
-      box-shadow: 2px 0 8px rgba(0,0,0,0.03);
-      transition: transform 0.3s ease;
-    }
-    .sidebar-brand {
-      padding: 20px 16px 16px;
-      text-align: center;
-      border-bottom: 1px solid #F1F5F9;
-    }
-    .sidebar-brand span {
-      display: block; font-size: 1.05rem; font-weight: 700; color: #1E293B;
-    }
-    .sidebar-brand small {
-      display: block; font-size: 0.72rem; color: #94A3B8;
-      text-transform: uppercase; letter-spacing: 1px; margin-top: 2px;
-    }
-    .sidebar-nav {
-      flex: 1; display: flex; flex-direction: column;
-      padding: 12px 10px; gap: 4px; overflow-y: auto;
-    }
-    .nav-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 11px 14px; border-radius: 10px; border: none;
-      background: transparent; color: #475569; font-weight: 500;
-      font-size: 0.88rem; cursor: pointer; width: 100%;
-      text-align: left; font-family: inherit; transition: all 0.15s;
-    }
-    .nav-item:hover { background: #F1F5F9; color: #1E293B; }
-    .nav-item.active {
-      background: #EEF2FF; color: #4F46E5; font-weight: 600;
-      box-shadow: 0 1px 2px rgba(79,70,229,0.08);
-    }
-
-    /* ── Main Content ── */
-    .main-content {
-      margin-left: 240px; margin-top: 64px;
-      padding: 28px 32px; min-height: calc(100vh - 64px);
-      background: #F8FAFC;
-    }
+    /* Teacher Portal unique styles (shared styles from styles.css) */
+    .sidebar { position: fixed; top: 64px; left: 0; bottom: 0; width: 240px; z-index: 900; }
+    .sidebar-brand { padding: 20px 16px 16px; text-align: center; border-bottom: 1px solid #F1F5F9; }
+    .sidebar-brand span { display: block; font-size: 1.05rem; font-weight: 700; color: #1E293B; }
+    .sidebar-brand small { display: block; font-size: 0.72rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+    .main-content { margin-left: 240px; margin-top: 64px; padding: 28px 32px; min-height: calc(100vh - 64px); background: #F8FAFC; }
     .content-panel { display: none; }
     .content-panel.active { display: block; animation: panelFadeIn 0.25s ease; }
-    @keyframes panelFadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    .card {
-      background: #FFFFFF;
-      border: 1px solid #E5E7EB;
-      border-radius: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-    .text-muted { color: #64748B; font-size: 0.9rem; }
-
-    h2 { font-size: 1.2rem; font-weight: 700; color: #1E293B; margin-bottom: 4px; }
-
-    /* ── Forms ── */
-    .form-group { margin-bottom: 14px; }
-    .form-label { display: block; font-size: 0.82rem; font-weight: 600; color: #374151; margin-bottom: 5px; }
-    .form-control {
-      width: 100%; padding: 10px 12px; border-radius: 8px;
-      border: 1px solid #E5E7EB; background: #FFFFFF; color: #1E293B;
-      font-family: inherit; font-size: 0.88rem;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .form-control:focus {
-      outline: none; border-color: #4F46E5;
-      box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
-    }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; }
-
-    /* ── News Ticker ── */
-    .news-ticker {
-      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
-      border-radius: 12px; padding: 14px 20px; margin-bottom: 20px;
-      overflow: hidden; color: #fff;
-      box-shadow: 0 2px 8px rgba(79,70,229,0.25);
-    }
-    .ticker-badge {
-      background: rgba(255,255,255,0.2); padding: 4px 12px;
-      border-radius: 8px; font-weight: 700; font-size: 0.8rem;
-      white-space: nowrap; backdrop-filter: blur(4px);
-    }
-
-    /* ── Toast ── */
-    #toast {
-      display: none; position: fixed; bottom: 30px; right: 30px;
-      padding: 16px 24px; border-radius: 12px; background: #FFFFFF;
-      border: 1px solid #4F46E5; z-index: 10000;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.1); color: #1E293B;
-      animation: fadeIn 0.3s ease;
-    }
-
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-    /* ── Responsive ── */
+    @keyframes panelFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .news-ticker { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; overflow: hidden; color: #fff; box-shadow: 0 2px 8px rgba(79,70,229,0.25); }
+    .ticker-badge { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; white-space: nowrap; backdrop-filter: blur(4px); }
     @media (max-width: 900px) {
       .sidebar { transform: translateX(-100%); }
       .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.12); }
       .main-content { margin-left: 0; padding: 20px 16px; }
-      .grid-2 { grid-template-columns: 1fr; }
     }
   </style>
 </head>

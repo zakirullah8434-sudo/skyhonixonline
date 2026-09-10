@@ -42,7 +42,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Show toast notification helper
   function showToast(message, isError = false) {
     toastText.innerText = message;
-    toast.style.borderColor = isError ? 'var(--danger)' : 'var(--primary)';
+    if (isError) {
+      toast.style.background = '#DC2626';
+      toast.style.borderColor = '#FCA5A5';
+    } else {
+      toast.style.background = '#1F2937';
+      toast.style.borderColor = 'var(--primary)';
+    }
+    toast.style.color = '#F9FAFB';
     toast.style.display = 'block';
     setTimeout(() => {
       toast.style.display = 'none';

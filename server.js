@@ -182,6 +182,101 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
+// ─── Rate Limiting — prevents brute-force and abuse ───
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX = 100; // 100 requests per minute per IP
+const LOGIN_RATE_LIMIT_MAX = 10; // 10 login attempts per minute per IP
+const RATE_LIMIT_CLEANUP = 300000; // cleanup every 5 min
+
+function rateLimit(req, res, next) {
+  const ip = req.ip || req.connection.remoteAddress || 'unknown';
+  const now = Date.now();
+  const key = req.path.includes('/login') ? `login:${ip}` : `api:${ip}`;
+  const max = req.path.includes('/login') ? LOGIN_RATE_LIMIT_MAX : RATE_LIMIT_MAX;
+
+  if (!rateLimitMap.has(key)) {
+    rateLimitMap.set(key, { count: 1, start: now });
+    return next();
+  }
+
+  const entry = rateLimitMap.get(key);
+  if (now - entry.start > RATE_LIMIT_WINDOW) {
+    entry.count = 1;
+    entry.start = now;
+    return next();
+  }
+
+  entry.count++;
+  if (entry.count > max) {
+    const retryAfter = Math.ceil((entry.start + RATE_LIMIT_WINDOW - now) / 1000);
+    res.setHeader('Retry-After', retryAfter);
+    return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+  }
+  next();
+}
+
+// Periodic cleanup of rate limit map
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateLimitMap) {
+    if (now - entry.start > RATE_LIMIT_WINDOW) rateLimitMap.delete(key);
+  }
+}, RATE_LIMIT_CLEANUP).unref();
+
+app.use('/api', rateLimit);
+
+// ─── Dashboard aggregate stats (lightweight, cached 30s per school) ───
+const dashboardCache = new Map();
+const DASHBOARD_CACHE_TTL = 30000;
+const { querySchool: querySchoolDb, querySchoolOne: querySchoolOneDb } = require('./database_manager');
+
+app.get('/api/dashboard/stats', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Access denied' });
+    const decoded = jwt.verify(token, config.JWT_SECRET);
+    const schoolId = decoded.schoolId;
+    if (!schoolId) return res.status(401).json({ error: 'Invalid token' });
+
+    const cacheKey = String(schoolId);
+    const cached = dashboardCache.get(cacheKey);
+    if (cached && Date.now() - cached.time < DASHBOARD_CACHE_TTL) {
+      return res.json(cached.data);
+    }
+
+    const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
+    const currentYear = new Date().getFullYear();
+    const today = new Date().toISOString().split('T')[0];
+
+    const [studentCount, attStats, feeAgg, settings] = await Promise.all([
+      querySchoolOneDb(schoolId, "SELECT COUNT(*) as cnt FROM students WHERE status IS NULL OR status != 'Left'"),
+      querySchoolDb(schoolId,
+        `SELECT status, COUNT(*) as count FROM attendance WHERE date = ? GROUP BY status`, [today]),
+      querySchoolOneDb(schoolId,
+        `SELECT SUM(total_payable - paid_amount) as pending_dues,
+                SUM(CASE WHEN month = ? AND year = ? THEN paid_amount ELSE 0 END) as month_collected
+         FROM fee_ledger`, [currentMonth, currentYear]),
+      querySchoolOneDb(schoolId, 'SELECT school_name, logo_path, phone, registration_number FROM fee_settings LIMIT 1')
+    ]);
+
+    const result = {
+      totalStudents: studentCount ? studentCount.cnt : 0,
+      attendanceStats: attStats || [],
+      pendingDues: feeAgg ? (feeAgg.pending_dues || 0) : 0,
+      monthCollected: feeAgg ? (feeAgg.month_collected || 0) : 0,
+      settings: settings || {}
+    };
+
+    dashboardCache.set(cacheKey, { data: result, time: Date.now() });
+    res.json(result);
+  } catch (err) {
+    console.error('Dashboard stats error:', err.message);
+    res.status(500).json({ error: 'Failed to load dashboard stats' });
+  }
+});
+
 // Mount API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentsRoutes);

@@ -140,7 +140,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const toastText = document.getElementById('toast-text');
   function showToast(msg, isError = false) {
     toastText.innerText = msg;
-    toast.style.borderColor = isError ? 'var(--danger)' : 'var(--primary)';
+    if (isError) {
+      toast.style.background = '#DC2626';
+      toast.style.borderColor = '#FCA5A5';
+      toast.style.color = '#FFFFFF';
+    } else {
+      toast.style.background = '#FFFFFF';
+      toast.style.borderColor = 'var(--primary)';
+      toast.style.color = '#1E293B';
+    }
     toast.style.display = 'block';
     setTimeout(() => { toast.style.display = 'none'; }, 3000);
   }
@@ -655,12 +663,14 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAssignments();
   });
 
-  // Dashboard assignments summary
+  // Dashboard assignments summary — uses cached data from loadAssignments
   async function loadDashboardAssignments() {
     const container = document.getElementById('dashboard-assignments-container');
     if (!container) return;
     try {
-      const assignments = await apiCall('/api/teachers/assignments');
+      // Reuse cached assignments if available, otherwise fetch
+      const assignments = cachedAssignments.length > 0 ? cachedAssignments : await apiCall('/api/teachers/assignments');
+      if (cachedAssignments.length === 0) cachedAssignments = assignments;
       if (assignments.length === 0) {
         container.innerHTML = `<div style="text-align:center; padding:30px 20px; background:rgba(255,255,255,0.02); border-radius:16px; border:1px dashed var(--border-glow);"><div style="font-size:2.5rem; margin-bottom:10px;">📚</div><p style="color:var(--text-muted);">No assignments created yet.</p><p style="color:var(--text-muted); font-size:0.85rem;">Click "Assignments" in the sidebar to create your first assignment.</p></div>`;
         return;
@@ -681,12 +691,14 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {}
   }
 
-  // ==================== INIT ====================
-  loadMySubjects();
-  loadMarksFilters();
-  loadAnnouncements();
-  loadDashboardAssignments();
-  initFeeCollection();
+  // ==================== INIT (parallel for faster load) ====================
+  Promise.all([
+    loadMySubjects(),
+    loadMarksFilters(),
+    loadAnnouncements(),
+    loadDashboardAssignments(),
+    initFeeCollection()
+  ]).catch(() => {});
 });
 
 // ==================== FEE COLLECTION ====================
@@ -701,12 +713,21 @@ async function initFeeCollection() {
     }
   } catch (e) {}
 
+  let feeStudentCache = null;
+  let feeSearchTimeout = null;
   document.getElementById('fee-student-search').addEventListener('input', async function() {
     const q = this.value.trim();
     const listEl = document.getElementById('fee-student-list');
     if (q.length < 2) { listEl.innerHTML = ''; return; }
-    try {
-      const students = await apiCall(`/api/teachers/fee-students`);
+    // Debounce 300ms
+    clearTimeout(feeSearchTimeout);
+    feeSearchTimeout = setTimeout(async () => {
+      try {
+        // Cache student list after first fetch
+        if (!feeStudentCache) {
+          feeStudentCache = await apiCall(`/api/teachers/fee-students`);
+        }
+        const students = feeStudentCache;
       const filtered = students.filter(s => s.name.toLowerCase().includes(q.toLowerCase()) || String(s.roll_no).includes(q));
       listEl.innerHTML = filtered.slice(0, 10).map(s => `
         <div style="padding:10px; cursor:pointer; border-bottom:1px solid var(--border-color); display:flex; align-items:center; gap:10px;" class="fee-student-pick" data-id="${s.id}" data-name="${s.name}" data-class="${s.class_name}" data-section="${s.section_name || ''}" data-roll="${s.roll_no || ''}" data-father="${s.father_name || ''}" data-photo="${s.photo || ''}">
@@ -728,6 +749,7 @@ async function initFeeCollection() {
         });
       });
     } catch (err) { showToast('Error loading students: ' + err.message, true); }
+    }, 300);
   });
 
   document.getElementById('btn-cancel-pay').addEventListener('click', () => {
