@@ -95,7 +95,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Toast Notification Helper
   function showToast(message, isError = false) {
     toastText.innerText = message;
-    toast.style.borderColor = isError ? 'var(--danger)' : 'var(--primary)';
+    if (isError) {
+      toast.style.background = '#DC2626';
+      toast.style.borderColor = '#FCA5A5';
+      toast.style.color = '#FFFFFF';
+    } else {
+      toast.style.background = '#1E293B';
+      toast.style.borderColor = 'var(--primary)';
+      toast.style.color = '#F9FAFB';
+    }
     toast.style.display = 'block';
     setTimeout(() => {
       toast.style.display = 'none';
@@ -488,19 +496,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   async function loadDashboardStats() {
     try {
-      const dateStr = new Date().toISOString().split('T')[0];
-      const [totalStudents, attStats, ledger, settings] = await Promise.all([
-        apiCall('/students'),
-        apiCall(`/attendance/analytics?date=${dateStr}`),
-        apiCall('/fees/ledger'),
-        apiCall('/settings')
-      ]);
+      const stats = await apiCall('/dashboard/stats');
 
-      document.getElementById('stat-total-students').innerText = totalStudents.length;
+      document.getElementById('stat-total-students').innerText = stats.totalStudents;
 
       let presentCount = 0;
       let totalAttLogs = 0;
-      attStats.stats.forEach(s => {
+      (stats.attendanceStats || []).forEach(s => {
         if (s.status === 'Present') presentCount = s.count;
         totalAttLogs += s.count;
       });
@@ -508,27 +510,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const rate = totalAttLogs > 0 ? Math.round((presentCount / totalAttLogs) * 100) : 0;
       document.getElementById('stat-attendance-rate').innerText = totalAttLogs > 0 ? `${rate}%` : '0%';
 
-      let totalPending = 0;
-      let totalCollected = 0;
-      const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
-      const currentYear = new Date().getFullYear();
+      document.getElementById('stat-month-fees').innerText = `${(stats.monthCollected || 0).toLocaleString()} PKR`;
+      document.getElementById('stat-pending-dues').innerText = `${(stats.pendingDues || 0).toLocaleString()} PKR`;
 
-      ledger.forEach(row => {
-        totalPending += (row.total_payable - row.paid_amount);
-        if (row.month === currentMonth && row.year === currentYear) {
-          totalCollected += row.paid_amount;
-        }
-      });
-
-      document.getElementById('stat-month-fees').innerText = `${totalCollected.toLocaleString()} PKR`;
-      document.getElementById('stat-pending-dues').innerText = `${totalPending.toLocaleString()} PKR`;
-
-      document.getElementById('dash-school-title').innerText = settings.school_name;
-      document.getElementById('dash-school-phone').innerText = settings.phone || 'N/A';
-      document.getElementById('dash-school-reg').innerText = settings.registration_number || 'N/A';
+      document.getElementById('dash-school-title').innerText = stats.settings.school_name || '';
+      document.getElementById('dash-school-phone').innerText = stats.settings.phone || 'N/A';
+      document.getElementById('dash-school-reg').innerText = stats.settings.registration_number || 'N/A';
       document.getElementById('dash-school-id').innerText = currentUser.schoolId || 'N/A';
-      if (settings.logo_path) {
-        document.getElementById('dash-school-logo').src = imgSrc(settings.logo_path);
+      if (stats.settings.logo_path) {
+        document.getElementById('dash-school-logo').src = imgSrc(stats.settings.logo_path);
       }
 
     } catch (e) {
@@ -6367,11 +6357,11 @@ document.addEventListener('DOMContentLoaded', () => {
               const dayName = dateObj ? dateObj.toLocaleDateString('en-US', { weekday: 'long' }) : '-';
               const dateFormatted = dateObj ? dateObj.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
               tableRows += '<tr>' +
-                '<td style="border:1.5px solid #000; padding:6px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + (i + 1) + '</td>' +
-                '<td style="border:1.5px solid #000; padding:6px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + dateFormatted + '</td>' +
-                '<td style="border:1.5px solid #000; padding:6px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + dayName + '</td>' +
-                '<td style="border:1.5px solid #000; padding:6px 5px; text-align:left; word-wrap:break-word; overflow-wrap:break-word;">' + sub.subject + '</td>' +
-                '<td style="border:1.5px solid #000; padding:6px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + (sub.time || '-') + '</td>' +
+                '<td style="border:1.5px solid #000; padding:5px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + (i + 1) + '</td>' +
+                '<td style="border:1.5px solid #000; padding:5px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + dateFormatted + '</td>' +
+                '<td style="border:1.5px solid #000; padding:5px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + dayName + '</td>' +
+                '<td style="border:1.5px solid #000; padding:5px 5px; text-align:left; word-wrap:break-word; overflow-wrap:break-word;">' + sub.subject + '</td>' +
+                '<td style="border:1.5px solid #000; padding:5px 5px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + (sub.time || '-') + '</td>' +
                 '</tr>';
             });
           } else {
@@ -6399,15 +6389,15 @@ document.addEventListener('DOMContentLoaded', () => {
             : (exam ? exam.exam_name + ' Exam ' + exam.year : '');
 
           slipsHtml +=
-            '<div class="rollno-slip" style="width:100%; display:flex; flex-direction:column; justify-content:space-between; padding:5% 10px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
+            '<div class="rollno-slip" style="width:100%; display:flex; flex-direction:column; padding:4% 10px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
 
               // === HEADER: School name ===
-              '<div style="text-align:center; margin-top:45px;">' +
+              '<div style="text-align:center;">' +
                 '<div style="font-size:17px; font-weight:900; color:#000; text-transform:uppercase; letter-spacing:1.5px; line-height:1.2;">' + currentUser.schoolName + '</div>' +
               '</div>' +
 
               // === Logo + ROLL NO SLIP title ===
-              '<div style="display:flex; align-items:center; gap:12px; margin-top:-25px;">' +
+              '<div style="display:flex; align-items:center; gap:12px; margin-top:4px;">' +
                 '<img src="' + logoUrl + '" alt="Logo" style="width:55px; height:55px; border-radius:50%; flex-shrink:0; border:2px solid #ddd;" onerror="this.style.display=\'none\'">' +
                 '<div style="text-align:center; flex:1;">' +
                   '<div style="font-size:15px; font-weight:900; letter-spacing:2px; color:#000;">ROLL NO SLIP</div>' +
@@ -6416,14 +6406,14 @@ document.addEventListener('DOMContentLoaded', () => {
               '</div>' +
 
               // === Student info ===
-              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 20px; font-size:13px; padding:4px 0; font-weight:600; margin-top:-70px;">' +
+              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 20px; font-size:13px; padding:6px 0; font-weight:600;">' +
                 '<div><strong>Name:</strong>&nbsp;&nbsp;' + (s.name || '-') + '</div>' +
                 '<div><strong>Class:</strong>&nbsp;&nbsp;' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
                 '<div><strong>Father Name:</strong>&nbsp;&nbsp;' + (s.father_name || '-') + '</div>' +
                 '<div><strong>Roll No:</strong>&nbsp;&nbsp;' + (s.roll_no || '-') + '</div>' +
               '</div>' +
 
-              // === Exam table (natural height, no forced stretch) ===
+              // === Exam table ===
               '<div class="rollno-exam-table-wrap">' +
                 '<table style="width:100%; border-collapse:collapse; font-size:11px; table-layout:fixed;">' +
                   '<colgroup>' +
@@ -6435,29 +6425,29 @@ document.addEventListener('DOMContentLoaded', () => {
                   '</colgroup>' +
                   '<thead>' +
                     '<tr>' +
-                      '<th style="border:1.5px solid #000; padding:8px 5px; text-align:center; font-weight:700; background:#f0f0f0;">#</th>' +
-                      '<th style="border:1.5px solid #000; padding:8px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Date</th>' +
-                      '<th style="border:1.5px solid #000; padding:8px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Day</th>' +
-                      '<th style="border:1.5px solid #000; padding:4px 5px; text-align:left; font-weight:700; background:#f0f0f0;">Subject</th>' +
-                      '<th style="border:1.5px solid #000; padding:8px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Time</th>' +
+                      '<th style="border:1.5px solid #000; padding:5px 5px; text-align:center; font-weight:700; background:#f0f0f0;">#</th>' +
+                      '<th style="border:1.5px solid #000; padding:5px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Date</th>' +
+                      '<th style="border:1.5px solid #000; padding:5px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Day</th>' +
+                      '<th style="border:1.5px solid #000; padding:5px 5px; text-align:left; font-weight:700; background:#f0f0f0;">Subject</th>' +
+                      '<th style="border:1.5px solid #000; padding:5px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Time</th>' +
                     '</tr>' +
                   '</thead>' +
                   '<tbody>' + tableRows + '</tbody>' +
                 '</table>' +
               '</div>' +
 
-              // === Footer: Instructions + Signature ===
-              '<div class="rollno-footer" style="display:flex; justify-content:space-between; align-items:flex-end; font-size:12px; margin-top:-30px;">' +
+              // === Footer: Instructions + Signature (pinned to bottom) ===
+              '<div class="rollno-footer" style="display:flex; justify-content:space-between; align-items:flex-end; font-size:12px; margin-top:auto; padding-top:8px;">' +
                 '<div style="max-width:55%;">' +
-                  '<div style="font-weight:700; margin-bottom:1px; font-size:12px;">Instructions:</div>' +
-                  '<ul style="margin:0; padding-left:14px; list-style:disc; line-height:1.4;">' + instHtml + '</ul>' +
+                  '<div style="font-weight:700; margin-bottom:2px; font-size:12px;">Instructions:</div>' +
+                  '<ul style="margin:0; padding-left:14px; list-style:disc; line-height:1.5;">' + instHtml + '</ul>' +
                 '</div>' +
                 '<div style="text-align:center;">' +
                   (principal_sign ?
-                    '<img src="' + principal_sign + '" alt="Sign" style="max-height:30px; max-width:70px; opacity:0.85;" onerror="this.style.display=\'none\'">' :
-                    '<div style="height:30px;"></div>'
+                    '<img src="' + principal_sign + '" alt="Sign" style="max-height:35px; max-width:80px; opacity:0.85;" onerror="this.style.display=\'none\'">' :
+                    '<div style="height:35px;"></div>'
                   ) +
-                  '<div style="border-top:1px solid #000; width:110px; margin:0 auto; padding-top:3px; font-size:11px; font-weight:600;">Principal Signature</div>' +
+                  '<div style="border-top:1px solid #000; width:120px; margin:0 auto; padding-top:4px; font-size:11px; font-weight:600;">Principal Signature</div>' +
                 '</div>' +
               '</div>' +
 
@@ -6511,7 +6501,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'box-sizing:border-box !important;' +
           '}' +
           '.rollno-page:last-child { page-break-after:auto !important; }' +
-          /* ========== ROLLNO-SLIP: fills page height, sections distributed evenly ========== */
+          /* ========== ROLLNO-SLIP: fills page height ========== */
           '.rollno-slip {' +
             'width:100% !important;' +
             'height:100% !important;' +
@@ -6525,14 +6515,13 @@ document.addEventListener('DOMContentLoaded', () => {
             'overflow:hidden !important;' +
             'display:flex !important;' +
             'flex-direction:column !important;' +
-            'justify-content:space-between !important;' +
             'align-self:stretch !important;' +
           '}' +
-          /* ========== EXAM TABLE SECTION: natural height, no forced stretch ========== */
+          /* ========== EXAM TABLE SECTION ========== */
           '.rollno-slip .rollno-exam-table-wrap {' +
             'width:100% !important;' +
           '}' +
-          /* ========== TABLE: fixed layout, natural row height ========== */
+          /* ========== TABLE: fixed layout ========== */
           '.rollno-slip table {' +
             'width:100% !important;' +
             'table-layout:fixed !important;' +
@@ -6542,7 +6531,7 @@ document.addEventListener('DOMContentLoaded', () => {
           '.rollno-slip table td {' +
             'word-wrap:break-word !important;' +
             'overflow-wrap:break-word !important;' +
-            'padding:3px 5px !important;' +
+            'padding:5px 5px !important;' +
             'font-size:10px !important;' +
           '}' +
           /* ========== COLUMN WIDTHS ========== */
@@ -6551,9 +6540,10 @@ document.addEventListener('DOMContentLoaded', () => {
           '.rollno-slip table th:nth-child(3),.rollno-slip table td:nth-child(3){width:20%!important;}' +
           '.rollno-slip table th:nth-child(4),.rollno-slip table td:nth-child(4){width:30%!important;}' +
           '.rollno-slip table th:nth-child(5),.rollno-slip table td:nth-child(5){width:22%!important;}' +
-          /* ========== FOOTER ========== */
+          /* ========== FOOTER: pinned to bottom ========== */
           '.rollno-slip .rollno-footer {' +
             'width:100% !important;' +
+            'margin-top:auto !important;' +
           '}' +
           /* ========== PRINT MEDIA: force landscape, override all responsive ========== */
           '@media print {' +
@@ -6561,10 +6551,11 @@ document.addEventListener('DOMContentLoaded', () => {
             'html,body{margin:0!important;padding:0!important;height:100%!important;background:white!important;}' +
             '.rollno-page{display:grid!important;grid-template-columns:repeat(2,1fr)!important;grid-template-rows:1fr!important;gap:4mm!important;width:100%!important;height:100%!important;padding:0!important;margin:0!important;page-break-after:always!important;}' +
             '.rollno-page:last-child{page-break-after:auto!important;}' +
-            '.rollno-slip{width:100%!important;height:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important;break-inside:avoid!important;page-break-inside:avoid!important;border:none!important;border-radius:0!important;display:flex!important;flex-direction:column!important;justify-content:space-between!important;align-self:stretch!important;}' +
+            '.rollno-slip{width:100%!important;height:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important;break-inside:avoid!important;page-break-inside:avoid!important;border:none!important;border-radius:0!important;display:flex!important;flex-direction:column!important;align-self:stretch!important;}' +
             '.rollno-slip .rollno-exam-table-wrap{width:100%!important;}' +
             '.rollno-slip table{width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;}' +
-            '.rollno-slip table th,.rollno-slip table td{word-wrap:break-word!important;overflow-wrap:break-word!important;padding:6px 5px!important;font-size:10px!important;}' +
+            '.rollno-slip table th,.rollno-slip table td{word-wrap:break-word!important;overflow-wrap:break-word!important;padding:5px 5px!important;font-size:10px!important;}' +
+            '.rollno-slip .rollno-footer{width:100%!important;margin-top:auto!important;}' +
           '}' +
         '</style>' +
         '</head><body>' +
