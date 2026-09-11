@@ -296,7 +296,23 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
-      // 22. Result sections (Virtual roll range splitting)
+      // 22. Holidays table (Festival / Holiday tracking)
+      db.run(`
+        CREATE TABLE IF NOT EXISTS holidays (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          name TEXT NOT NULL,
+          type TEXT DEFAULT 'Holiday',
+          school_id INTEGER
+        )
+      `);
+
+      db.run(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_date
+        ON holidays (date)
+      `);
+
+      // 23. Result sections (Virtual roll range splitting)
       db.run(`
         CREATE TABLE IF NOT EXISTS result_sections (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -308,7 +324,7 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
-      // 23. Teachers table (for teacher portal login)
+      // 24. Teachers table (for teacher portal login)
       db.run(`
         CREATE TABLE IF NOT EXISTS teachers (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -325,7 +341,7 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
-      // 24. Parents table (for parent portal login)
+      // 25. Parents table (for parent portal login)
       db.run(`
         CREATE TABLE IF NOT EXISTS parents (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -340,7 +356,7 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
-      // 25. Student-Parent mapping
+      // 26. Student-Parent mapping
       db.run(`
         CREATE TABLE IF NOT EXISTS student_parents (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -352,7 +368,7 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
-      // 26. Timetable
+      // 27. Timetable
       db.run(`
         CREATE TABLE IF NOT EXISTS timetable (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -369,7 +385,7 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
-      // 27. Saved Fee Reminders
+      // 28. Saved Fee Reminders
       db.run(`
         CREATE TABLE IF NOT EXISTS fee_reminders (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -386,7 +402,7 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
-      // 27. Announcements table
+      // 29. Announcements table
       db.run(`
         CREATE TABLE IF NOT EXISTS announcements (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -398,7 +414,7 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
-      // 28. Assignments table (homework, tests, projects shared by teachers)
+      // 30. Assignments table (homework, tests, projects shared by teachers)
       db.run(`
         CREATE TABLE IF NOT EXISTS assignments (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -417,7 +433,7 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
-      // 29. Student Certificates (always ensure exists for existing DBs)
+      // 31. Student Certificates (always ensure exists for existing DBs)
       db.run(`CREATE TABLE IF NOT EXISTS student_certificates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         school_id INTEGER,
@@ -429,7 +445,7 @@ function createSchoolDatabaseSchema(db) {
         created_at TEXT
       )`);
 
-      // 30. Student Documents
+      // 32. Student Documents
       db.run(`CREATE TABLE IF NOT EXISTS student_documents (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         school_id INTEGER,
@@ -442,7 +458,7 @@ function createSchoolDatabaseSchema(db) {
         created_at TEXT
       )`);
 
-      // 31. Student Transfer History
+      // 33. Student Transfer History
       db.run(`CREATE TABLE IF NOT EXISTS student_transfer_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         school_id INTEGER,
@@ -526,7 +542,7 @@ function createSchoolDatabaseSchema(db) {
         }
       });
 
-      // 32. Transport Vehicles
+      // 34. Transport Vehicles
       db.run(`
         CREATE TABLE IF NOT EXISTS transport_vehicles (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -541,7 +557,7 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
-      // 33. Transport Drivers
+      // 35. Transport Drivers
       db.run(`
         CREATE TABLE IF NOT EXISTS transport_drivers (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -556,7 +572,7 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
-      // 34. Transport Routes
+      // 36. Transport Routes
       db.run(`
         CREATE TABLE IF NOT EXISTS transport_routes (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -571,7 +587,7 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
-      // 35. Transport Assignments (Student-Vehicle-Route)
+      // 37. Transport Assignments (Student-Vehicle-Route)
       db.run(`
         CREATE TABLE IF NOT EXISTS transport_assignments (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -587,7 +603,7 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
-      // 36. Teacher Salary Structure
+      // 38. Teacher Salary Structure
       db.run(`
         CREATE TABLE IF NOT EXISTS teacher_salaries (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -605,7 +621,7 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
-      // 37. Salary Payments
+      // 39. Salary Payments
       db.run(`
         CREATE TABLE IF NOT EXISTS salary_payments (
           id INTEGER PRIMARY KEY AUTOINCREMENT,

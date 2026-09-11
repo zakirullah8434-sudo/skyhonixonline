@@ -1955,7 +1955,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isSelectPlaceholder = ['reminder-filter-class', 'slip-class'].includes(sel.id);
         
         if (isAllClasses) {
-          sel.innerHTML = '<option value="All Classes">All Classes</option>' + optsHtml;
+          sel.innerHTML = '<option value="">All Classes</option>' + optsHtml;
         } else if (isSelectPlaceholder) {
           sel.innerHTML = '<option value="">-- Select Class --</option>' + optsHtml;
         } else {
@@ -2938,6 +2938,155 @@ document.addEventListener('DOMContentLoaded', () => {
       tbody.innerHTML = rows.join('');
 
     } catch (e) { console.error('[APP_ERROR]', e.message); }
+  });
+
+  // ==========================================
+  // MODULE: TOTAL ATTENDANCE & HOLIDAYS
+  // ==========================================
+
+  // Load session start date on tab open
+  async function loadSessionInfo() {
+    try {
+      const data = await apiCall('/attendance/session-info');
+      document.getElementById('att-session-start').value = data.session_start_date || '';
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
+  }
+
+  // Save session start date
+  document.getElementById('btn-save-session-start').addEventListener('click', async () => {
+    const date = document.getElementById('att-session-start').value;
+    try {
+      const res = await apiCall('/attendance/session-info', 'POST', { session_start_date: date });
+      showToast(res.message);
+    } catch (e) { showToast('Failed to save: ' + e.message, true); }
+  });
+
+  // Add holiday
+  document.getElementById('btn-add-holiday').addEventListener('click', async () => {
+    const date = document.getElementById('att-holiday-date').value;
+    const name = document.getElementById('att-holiday-name').value.trim();
+    if (!date || !name) {
+      showToast('Date and Holiday Name are required', true);
+      return;
+    }
+    try {
+      const res = await apiCall('/attendance/holidays', 'POST', { date, name, type: 'Holiday' });
+      showToast(res.message);
+      document.getElementById('att-holiday-date').value = '';
+      document.getElementById('att-holiday-name').value = '';
+      loadHolidaysList();
+    } catch (e) { showToast('Failed: ' + e.message, true); }
+  });
+
+  // Load holidays list
+  async function loadHolidaysList() {
+    try {
+      const holidays = await apiCall('/attendance/holidays');
+      const tbody = document.querySelector('#table-holidays-list tbody');
+      tbody.innerHTML = '';
+      if (holidays.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No holidays marked yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = holidays.map(h => `
+        <tr>
+          <td><strong>${h.date}</strong></td>
+          <td>${h.name}</td>
+          <td><span class="status-badge status-partial">${h.type || 'Holiday'}</span></td>
+          <td>
+            <button class="btn btn-danger btn-sm btn-delete-holiday" data-id="${h.id}" title="Remove Holiday">✕</button>
+          </td>
+        </tr>
+      `).join('');
+
+      // Attach delete handlers
+      tbody.querySelectorAll('.btn-delete-holiday').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Remove this holiday?')) return;
+          try {
+            await apiCall(`/attendance/holidays/${btn.dataset.id}`, 'DELETE');
+            showToast('Holiday removed');
+            loadHolidaysList();
+          } catch (e) { showToast('Failed: ' + e.message, true); }
+        });
+      });
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
+  }
+
+  // Load class/section for total attendance tab
+  document.querySelector('[data-tab="att-total"]').addEventListener('click', () => {
+    loadClassesList();
+    loadSessionInfo();
+    loadHolidaysList();
+    document.getElementById('att-total-month').value = new Date().toISOString().slice(0, 7);
+  });
+
+  // Section dropdown for total attendance
+  document.getElementById('att-total-class').addEventListener('change', async (e) => {
+    const cls = e.target.value;
+    const secSelect = document.getElementById('att-total-sec');
+    secSelect.innerHTML = '<option value="">All Sections</option>';
+    if (!cls) return;
+    try {
+      const sections = await apiCall(`/students/sections/${cls}`);
+      sections.forEach(s => {
+        secSelect.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`;
+      });
+      secSelect.innerHTML += '<option value="No Section">No Section</option>';
+    } catch (err) { console.error('[APP_ERROR]', err.message); }
+  });
+
+  // Calculate Total Attendance
+  document.getElementById('btn-load-total-att').addEventListener('click', async () => {
+    const cls = document.getElementById('att-total-class').value;
+    const sec = document.getElementById('att-total-sec').value;
+    const month = document.getElementById('att-total-month').value;
+
+    if (!cls) {
+      showToast('Please select a class', true);
+      return;
+    }
+
+    try {
+      let url = `/attendance/total?class_name=${encodeURIComponent(cls)}&month=${month}`;
+      if (sec) url += `&section_name=${encodeURIComponent(sec)}`;
+
+      const data = await apiCall(url);
+
+      // Show summary cards
+      document.getElementById('att-total-summary').style.display = 'block';
+      document.getElementById('total-att-session').textContent = data.session_start_date || 'Not Set';
+      document.getElementById('total-att-days').textContent = data.total_school_days;
+      document.getElementById('total-att-holidays').textContent = data.holidays_count;
+      document.getElementById('total-att-max').textContent = data.total_school_days * 2;
+
+      // Render table
+      const tbody = document.querySelector('#table-total-attendance tbody');
+      tbody.innerHTML = '';
+
+      if (data.students.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No students found</td></tr>';
+        return;
+      }
+
+      const maxPossible = data.total_school_days * 2;
+      tbody.innerHTML = data.students.map(s => {
+        const pct = maxPossible > 0 ? ((s.total_attendance_count / maxPossible) * 100).toFixed(1) : 0;
+        const pctColor = pct >= 75 ? 'var(--success)' : (pct >= 50 ? 'var(--warning)' : 'var(--danger)');
+        return `
+          <tr>
+            <td><strong>${s.roll_no || '-'}</strong></td>
+            <td>${s.name}</td>
+            <td><span class="status-badge status-present">${s.total_present}</span></td>
+            <td><span class="status-badge status-partial">${s.total_late}</span></td>
+            <td><strong style="color: var(--primary); font-size: 1.1rem;">${s.total_attendance_count}</strong></td>
+            <td><span class="status-badge status-absent">${s.total_absent}</span></td>
+            <td><strong style="color: ${pctColor};">${pct}%</strong></td>
+          </tr>
+        `;
+      }).join('');
+
+    } catch (e) { showToast('Failed: ' + e.message, true); }
   });
 
 

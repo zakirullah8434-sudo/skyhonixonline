@@ -170,7 +170,7 @@ router.get('/backup', authenticateToken, async (req, res) => {
     // Turso / Vercel: export all table data as SQL dump
     const tables = [
       'fee_settings', 'users', 'settings', 'students', 'sections', 'class_fees',
-      'student_fee_exceptions', 'fee_ledger', 'attendance', 'fee_payments',
+      'student_fee_exceptions', 'fee_ledger', 'attendance', 'holidays', 'fee_payments',
       'fee_dues', 'past_dues', 'exams', 'exam_subjects', 'marks', 'results',
       'result_sections', 'student_promotion_history', 'teachers', 'parents',
       'student_parents', 'timetable', 'fee_reminders', 'announcements',

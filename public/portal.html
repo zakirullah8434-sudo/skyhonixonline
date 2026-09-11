@@ -2308,6 +2308,7 @@
             <button class="tab-btn active" data-tab="att-mark">Mark Attendance</button>
             <button class="tab-btn" data-tab="att-scan">Webcam QR Scanner</button>
             <button class="tab-btn" data-tab="att-history">History Calendar</button>
+            <button class="tab-btn" data-tab="att-total">Total Attendance</button>
           </div>
 
           <!-- Tab: Mark Attendance Grid -->
@@ -2443,6 +2444,130 @@
               </table>
             </div>
           </div>
+
+          <!-- Tab: Total Attendance -->
+          <div class="tab-content" id="tab-att-total" style="display: none;">
+            <!-- Session & Holiday Config -->
+            <div class="grid-2" style="margin-bottom: 24px;">
+              <div class="card">
+                <h3>Session Start Date</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px;">
+                  Set the academic session start date. Total attendance will be calculated from this date.
+                </p>
+                <div style="display: flex; gap: 10px; align-items: flex-end;">
+                  <div class="form-group" style="margin-bottom: 0; flex: 1;">
+                    <label class="form-label">Session Start</label>
+                    <input type="date" class="form-control" id="att-session-start">
+                  </div>
+                  <button class="btn btn-primary btn-sm" id="btn-save-session-start" style="margin-bottom: 2px;">Save</button>
+                </div>
+              </div>
+              <div class="card">
+                <h3>Mark Holiday / Festival</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px;">
+                  Mark a day as holiday. Holidays are excluded from total school days count.
+                </p>
+                <div style="display: flex; gap: 10px; align-items: flex-end;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Date</label>
+                    <input type="date" class="form-control" id="att-holiday-date">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0; flex: 1;">
+                    <label class="form-label">Holiday Name</label>
+                    <input type="text" class="form-control" id="att-holiday-name" placeholder="e.g. Eid, Independence Day">
+                  </div>
+                  <button class="btn btn-primary btn-sm" id="btn-add-holiday" style="margin-bottom: 2px;">Add</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Holiday List -->
+            <div class="card" style="margin-bottom: 24px;">
+              <h3>Holidays List</h3>
+              <div class="table-container" style="margin-top: 12px;">
+                <table class="data-table" id="table-holidays-list">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Holiday Name</th>
+                      <th>Type</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No holidays marked yet</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Total Attendance Report -->
+            <div class="card" style="margin-bottom: 24px;">
+              <h3>Total Attendance Report</h3>
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">
+                Calculate total attendance from session start to selected month. Each present day = <strong>2 attendance counts</strong> (morning + afternoon).
+              </p>
+              <div class="grid-3" style="grid-template-columns: 2fr 1fr 1fr auto;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Class</label>
+                  <select class="form-control" id="att-total-class"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Section</label>
+                  <select class="form-control" id="att-total-sec"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Month</label>
+                  <input type="month" class="form-control" id="att-total-month">
+                </div>
+                <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
+                  <button class="btn btn-primary" id="btn-load-total-att" style="width: 100%;">Calculate</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div id="att-total-summary" style="display: none; margin-bottom: 24px;">
+              <div class="grid-4">
+                <div class="card" style="text-align: center; padding: 16px;">
+                  <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Session Start</div>
+                  <div id="total-att-session" style="font-size: 1.3rem; font-weight: 700; color: var(--primary); margin-top: 6px;">-</div>
+                </div>
+                <div class="card" style="text-align: center; padding: 16px;">
+                  <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Total School Days</div>
+                  <div id="total-att-days" style="font-size: 1.3rem; font-weight: 700; color: var(--accent); margin-top: 6px;">-</div>
+                </div>
+                <div class="card" style="text-align: center; padding: 16px;">
+                  <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Holidays</div>
+                  <div id="total-att-holidays" style="font-size: 1.3rem; font-weight: 700; color: var(--warning); margin-top: 6px;">-</div>
+                </div>
+                <div class="card" style="text-align: center; padding: 16px;">
+                  <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Max Possible (x2)</div>
+                  <div id="total-att-max" style="font-size: 1.3rem; font-weight: 700; color: var(--success); margin-top: 6px;">-</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Total Attendance Table -->
+            <div class="table-container">
+              <table class="data-table" id="table-total-attendance">
+                <thead>
+                  <tr>
+                    <th>Roll No</th>
+                    <th>Student Name</th>
+                    <th>Present Days</th>
+                    <th>Late Days</th>
+                    <th>Total Attendance (x2)</th>
+                    <th>Absent Days</th>
+                    <th>Attendance %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Select class and click Calculate...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </article>
 
         <!-- ==================== SCREEN: FEES ==================== -->
@@ -2500,20 +2625,47 @@
             <h2 style="margin-bottom: 24px;">Pay Fee & Payment Entry</h2>
             
             <div class="card" style="margin-bottom: 24px;">
-              <div class="grid-3" style="grid-template-columns: 2fr 1fr 1fr;">
+              <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1.2fr; gap: 12px; align-items: flex-end;">
                 <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Search Student Ledger</label>
-                  <input type="text" class="form-control" id="fee-pay-search" placeholder="Type roll, name, father...">
+                  <label class="form-label">Search Student</label>
+                  <input type="text" class="form-control" id="fee-pay-search" placeholder="Roll, name, father...">
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Ledger Status</label>
-                  <select class="form-control" id="fee-pay-filter-status">
-                    <option value="Unpaid">Unpaid / Partially Paid</option>
-                    <option value="">All Ledgers</option>
+                  <label class="form-label">Class</label>
+                  <select class="form-control" id="fee-pay-class">
+                    <option value="All Classes">All Classes</option>
                   </select>
                 </div>
-                <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
-                  <button class="btn btn-primary" id="btn-search-pay-ledger" style="width: 100%;">Search Ledgers</button>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Section</label>
+                  <select class="form-control" id="fee-pay-section">
+                    <option value="All Sections">All Sections</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Month</label>
+                  <select class="form-control" id="fee-pay-month">
+                    <option>January</option><option>February</option><option>March</option>
+                    <option>April</option><option>May</option><option>June</option>
+                    <option>July</option><option>August</option><option>September</option>
+                    <option>October</option><option>November</option><option>December</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Year</label>
+                  <select class="form-control" id="fee-pay-year"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end; gap: 8px;">
+                  <button class="btn btn-primary" id="btn-search-pay-ledger" style="flex: 1;">Search</button>
+                </div>
+              </div>
+              <div style="margin-top: 10px; display: flex; gap: 12px; align-items: flex-end;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Status</label>
+                  <select class="form-control" id="fee-pay-filter-status">
+                    <option value="Unpaid">Unpaid / Partial</option>
+                    <option value="">All Ledgers</option>
+                  </select>
                 </div>
               </div>
             </div>
