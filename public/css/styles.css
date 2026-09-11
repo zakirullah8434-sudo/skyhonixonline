@@ -64,6 +64,70 @@
   box-sizing: border-box;
 }
 
+/* UNIVERSAL: All inputs/selects/textareas ALWAYS show a clear visible border */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="month"],
+input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+input[type="email"],
+select,
+textarea {
+  border: 2.5px solid #64748B !important;
+  outline: none;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="month"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+input[type="tel"]:focus,
+input[type="url"]:focus,
+input[type="email"]:focus,
+select:focus,
+textarea:focus {
+  border-color: #4F46E5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18) !important;
+}
+
+input[type="text"]:hover,
+input[type="number"]:hover,
+input[type="date"]:hover,
+input[type="month"]:hover,
+input[type="password"]:hover,
+input[type="search"]:hover,
+input[type="tel"]:hover,
+input[type="url"]:hover,
+input[type="email"]:hover,
+select:hover,
+textarea:hover {
+  border-color: #4F46E5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+}
+
+input[readonly],
+input:read-only {
+  border: 2.5px solid #64748B !important;
+  background-color: #F1F5F9 !important;
+}
+
+input[type="file"] {
+  border: 2.5px dashed #64748B !important;
+  padding: 8px 12px !important;
+  background: #F8FAFC !important;
+  cursor: pointer;
+}
+
+input[type="file"]:hover {
+  border-color: #4F46E5 !important;
+  background: #EEF2FF !important;
+}
+
 body {
   font-family: var(--font-body);
   background-color: var(--bg-main);
