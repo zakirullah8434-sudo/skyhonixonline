@@ -307,7 +307,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
     } else if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      res.setHeader('Cache-Control', 'public, max-age=0');
     } else if (filePath.match(/\.(jpg|jpeg|png|gif|webp|svg|ico|woff2?|ttf|eot)$/)) {
       res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
     }
