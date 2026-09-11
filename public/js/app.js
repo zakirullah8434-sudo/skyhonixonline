@@ -5267,10 +5267,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const otherInput = document.getElementById('exam-class-other');
     let selectedClasses = [];
     if (allCb && allCb.checked) {
-      classCbs.forEach(cb => { selectedClasses.push(cb.value); });
-      if (selectedClasses.length === 0) {
-        try { selectedClasses = await apiCall('/students/classes'); } catch (e) { selectedClasses = []; }
-      }
+      selectedClasses = ['All Classes'];
     } else {
       classCbs.forEach(cb => { if (cb.checked) selectedClasses.push(cb.value); });
     }
