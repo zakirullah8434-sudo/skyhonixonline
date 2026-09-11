@@ -275,7 +275,16 @@ const migratedSchools = new Set();
 const BACKFILL_VERSION = 2;
 const backfillVersions = new Map();
 async function ensureSchoolTables(db, schoolId) {
-  const run = (sql) => new Promise((res) => { db.run(sql, () => res()); });
+  // Use raw Turso client for DDL/DML to avoid proxy rewriting (which adds extra WHERE clauses)
+  const isProxy = db && typeof db.client !== 'undefined' && typeof db._rewrite === 'function';
+  const rawClient = isProxy ? db.client : null;
+  const runRaw = async (sql, params = []) => {
+    if (rawClient) {
+      await rawClient.execute({ sql, args: params });
+    } else {
+      await new Promise((res) => { db.run(sql, params, () => res()); });
+    }
+  };
   // Add school_id to EVERY table that the Turso proxy queries
   const tables = [
     'students', 'sections', 'class_fees', 'student_fee_exceptions',
@@ -289,20 +298,21 @@ async function ensureSchoolTables(db, schoolId) {
     'teachers', 'teacher_salaries', 'salary_payments'
   ];
   for (const t of tables) {
-    await run(`ALTER TABLE ${t} ADD COLUMN school_id INTEGER`).catch(() => {});
+    await runRaw(`ALTER TABLE ${t} ADD COLUMN school_id INTEGER`).catch(() => {});
   }
   // Migrate teachers table - add assigned_class and can_collect_fees
-  await run(`ALTER TABLE teachers ADD COLUMN assigned_class TEXT DEFAULT ''`).catch(() => {});
-  await run(`ALTER TABLE teachers ADD COLUMN can_collect_fees INTEGER DEFAULT 0`).catch(() => {});
+  await runRaw(`ALTER TABLE teachers ADD COLUMN assigned_class TEXT DEFAULT ''`).catch(() => {});
+  await runRaw(`ALTER TABLE teachers ADD COLUMN can_collect_fees INTEGER DEFAULT 0`).catch(() => {});
 
   // Backfill school_id for existing rows that have NULL school_id (versioned, runs once)
   if (schoolId) {
     const ver = backfillVersions.get(String(schoolId)) || 0;
     if (ver < BACKFILL_VERSION) {
       for (const t of tables) {
-        await run(`UPDATE ${t} SET school_id = ? WHERE school_id IS NULL`, [schoolId]).catch(() => {});
+        await runRaw(`UPDATE ${t} SET school_id = ? WHERE school_id IS NULL`, [schoolId]).catch(() => {});
       }
       backfillVersions.set(String(schoolId), BACKFILL_VERSION);
+      console.log(`[TURSO_MIGRATE] Backfilled school_id=${schoolId} for ${tables.length} tables`);
     }
   }
 }
