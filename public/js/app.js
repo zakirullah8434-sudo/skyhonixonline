@@ -3010,6 +3010,12 @@ document.addEventListener('DOMContentLoaded', () => {
       updateSectionDropdown('marks-select-class', 'marks-select-sec', true);
     });
   }
+  const feePayClass = document.getElementById('fee-pay-class');
+  if (feePayClass) {
+    feePayClass.addEventListener('change', () => {
+      updateSectionDropdown('fee-pay-class', 'fee-pay-section', true);
+    });
+  }
 
   // Section dropdown helper
   async function updateSectionDropdown(classSelectId, sectionSelectId, includeAllOption = true) {
@@ -3206,9 +3212,17 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSearchPayLedger.addEventListener('click', async () => {
       const search = document.getElementById('fee-pay-search').value.trim();
       const status = document.getElementById('fee-pay-filter-status').value;
+      const cls = document.getElementById('fee-pay-class').value;
+      const sec = document.getElementById('fee-pay-section').value;
+      const month = document.getElementById('fee-pay-month').value;
+      const year = document.getElementById('fee-pay-year').value;
 
       let endpoint = '/fees/ledger?';
       if (status) endpoint += `status=${status}&`;
+      if (cls && cls !== 'All Classes') endpoint += `class_name=${encodeURIComponent(cls)}&`;
+      if (sec && sec !== 'All Sections') endpoint += `section_name=${encodeURIComponent(sec)}&`;
+      if (month) endpoint += `month=${encodeURIComponent(month)}&`;
+      if (year) endpoint += `year=${year}&`;
 
       try {
         const ledgers = await apiCall(endpoint);
@@ -3269,7 +3283,7 @@ document.addEventListener('DOMContentLoaded', () => {
     _feeTxDelegationBound = true;
     
     // Event delegation on the ledger table body
-    const ledgerBody = document.querySelector('#table-fee-ledger-search tbody');
+    const ledgerBody = document.querySelector('#table-unpaid-ledgers tbody');
     if (ledgerBody) {
       ledgerBody.addEventListener('click', (e) => {
         const btn = e.target.closest('.btn-record-tx');
@@ -5875,12 +5889,15 @@ document.addEventListener('DOMContentLoaded', () => {
       container.innerHTML = '';
       datesheetRowCount = 0;
 
+      let dsClasses = [];
+      try { dsClasses = await getCachedClasses(apiCall); } catch (e) {}
+
       const subjects = t.subjects || [];
       subjects.forEach(sub => {
         datesheetRowCount++;
         let classOpts = '<option value="All Classes">All Classes</option>';
-        if (typeof cachedClasses !== 'undefined' && cachedClasses.length > 0) {
-          cachedClasses.forEach(cls => { classOpts += `<option value="${cls}">${cls}</option>`; });
+        if (dsClasses && dsClasses.length > 0) {
+          dsClasses.forEach(cls => { classOpts += `<option value="${cls}">${cls}</option>`; });
         }
         const rowHtml = `
           <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: flex-end;" id="datesheet-row-${datesheetRowCount}">
@@ -5993,14 +6010,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add subject row for date sheet designer (with class selector)
   const btnAddDatesheetRow = document.getElementById('btn-add-datesheet-row');
   if (btnAddDatesheetRow) {
-    btnAddDatesheetRow.addEventListener('click', () => {
+    btnAddDatesheetRow.addEventListener('click', async () => {
       datesheetRowCount++;
       const container = document.getElementById('datesheet-rows-container');
       // Build class options from cached classes
       let classOpts = '<option value="All Classes">All Classes</option>';
-      if (typeof cachedClasses !== 'undefined' && cachedClasses.length > 0) {
-        cachedClasses.forEach(cls => { classOpts += `<option value="${cls}">${cls}</option>`; });
-      }
+      try {
+        const classes = await getCachedClasses(apiCall);
+        if (classes && classes.length > 0) {
+          classes.forEach(cls => { classOpts += `<option value="${cls}">${cls}</option>`; });
+        }
+      } catch (e) { console.error('[DSROW]', e.message); }
       const rowHtml = `
         <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: flex-end;" id="datesheet-row-${datesheetRowCount}">
           <div class="form-group" style="margin-bottom: 0;">
