@@ -16,11 +16,11 @@
   --border-color: #E5E7EB;
   --border-light: #F3F4F6;
 
-  /* Visible Box Borders — Golden Theme */
-  --box-border: #D4A017;
-  --box-border-hover: #FFD700;
-  --box-border-focus: #FFD700;
-  --box-shadow-focus: 0 0 0 3px rgba(212, 160, 23, 0.3);
+  /* Visible Box Borders — Black Theme */
+  --box-border: #000000;
+  --box-border-hover: #333333;
+  --box-border-focus: #000000;
+  --box-shadow-focus: 0 0 0 3px rgba(0, 0, 0, 0.15);
 
   /* Primary */
   --primary: #4F46E5;
@@ -82,7 +82,7 @@ input[type="url"],
 input[type="email"],
 select,
 textarea {
-  border: 2.5px solid var(--box-border) !important;
+  border: 1.5px solid var(--box-border) !important;
   outline: none;
 }
 
@@ -113,17 +113,17 @@ input[type="email"]:hover,
 select:hover,
 textarea:hover {
   border-color: var(--box-border-hover) !important;
-  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.12) !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1) !important;
 }
 
 input[readonly],
 input:read-only {
-  border: 2.5px solid var(--box-border) !important;
+  border: 1.5px solid var(--box-border) !important;
   background-color: #F1F5F9 !important;
 }
 
 input[type="file"] {
-  border: 2.5px dashed var(--box-border) !important;
+  border: 1.5px dashed var(--box-border) !important;
   padding: 8px 12px !important;
   background: #F8FAFC !important;
   cursor: pointer;
@@ -183,7 +183,7 @@ a:hover {
   font-size: 0.875rem;
   cursor: pointer;
   transition: var(--transition);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   font-family: var(--font-body);
   text-decoration: none;
   white-space: nowrap;
@@ -233,7 +233,7 @@ a:hover {
 .btn-outline:hover {
   background: var(--bg-card-hover);
   border-color: var(--box-border-hover);
-  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.15);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
 }
 
 .btn-danger {
@@ -274,7 +274,7 @@ a:hover {
 
 .card {
   background: var(--bg-card);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   border-radius: var(--border-radius-lg);
   padding: 24px;
   transition: all 0.2s ease;
@@ -282,7 +282,7 @@ a:hover {
 
 .card:hover {
   border-color: var(--box-border-hover);
-  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.15);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
 }
 
 /* Cards - no hover shadow for performance */
@@ -309,7 +309,7 @@ a:hover {
   padding: 10px 14px;
   border-radius: var(--border-radius);
   background: #FFFFFF;
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   color: var(--text-primary);
   font-family: var(--font-body);
   font-size: 0.875rem;
@@ -319,7 +319,7 @@ a:hover {
 
 .form-control:hover {
   border-color: var(--box-border-hover);
-  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.12);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
 }
 
 .form-control:focus {
@@ -419,7 +419,7 @@ textarea.form-control {
   padding: 6px 16px;
   background: var(--primary-light);
   color: var(--primary);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   border-radius: 50px;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -495,7 +495,7 @@ textarea.form-control {
   width: 450px;
   height: 100vh;
   background: #fff;
-  border-left: 3px solid var(--box-border);
+   border-left: 2px solid var(--box-border);
   z-index: 1000;
   padding: 32px;
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
@@ -593,7 +593,7 @@ textarea.form-control {
   font-weight: 500;
   font-size: 0.875rem;
   transition: var(--transition);
-  border-left: 4px solid var(--box-border);
+   border-left: 3px solid var(--box-border);
 }
 
 .sidebar-menu-link:hover {
@@ -669,14 +669,14 @@ textarea.form-control {
   align-items: center;
   gap: 16px;
   background: var(--bg-card);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   border-radius: var(--border-radius-lg);
   transition: all 0.2s ease;
 }
 
 .stat-card:hover {
   border-color: var(--box-border-hover);
-  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.15);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
 }
 
 .stat-icon {
@@ -729,7 +729,7 @@ textarea.form-control {
 
 .modal-content {
   background: #fff;
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   border-radius: var(--border-radius-lg);
   width: 100%;
   max-width: 650px;
@@ -772,7 +772,7 @@ textarea.form-control {
 .table-container {
   overflow-x: auto;
   border-radius: var(--border-radius-lg);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   background: #fff;
   margin-bottom: 24px;
 }
@@ -820,25 +820,25 @@ textarea.form-control {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
 }
 
 .status-paid, .status-present, .status-active {
   background: var(--success-light);
   color: var(--success);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
 }
 
 .status-unpaid, .status-absent, .status-suspended {
   background: var(--danger-light);
   color: var(--danger);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
 }
 
 .status-partial, .status-late, .status-pending, .status-trial {
   background: var(--warning-light);
   color: var(--warning);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
 }
 
 /* Generic badges */
@@ -850,16 +850,16 @@ textarea.form-control {
   display: inline-block;
 }
 
-.badge-green { background: var(--success-light); color: var(--success); border: 2px solid var(--box-border); }
-.badge-red { background: var(--danger-light); color: var(--danger); border: 2px solid var(--box-border); }
-.badge-yellow { background: var(--warning-light); color: var(--warning); border: 2px solid var(--box-border); }
-.badge-blue { background: var(--info-light); color: var(--info); border: 2px solid var(--box-border); }
-.badge-purple { background: var(--secondary-light); color: var(--secondary); border: 2px solid var(--box-border); }
+.badge-green { background: var(--success-light); color: var(--success); border: 1.5px solid var(--box-border); }
+.badge-red { background: var(--danger-light); color: var(--danger); border: 1.5px solid var(--box-border); }
+.badge-yellow { background: var(--warning-light); color: var(--warning); border: 1.5px solid var(--box-border); }
+.badge-blue { background: var(--info-light); color: var(--info); border: 1.5px solid var(--box-border); }
+.badge-purple { background: var(--secondary-light); color: var(--secondary); border: 1.5px solid var(--box-border); }
 
 .sib-badge {
   background: var(--primary-light);
   color: var(--primary);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   padding: 4px 12px;
   font-size: 0.8125rem;
   border-radius: 50px;
@@ -887,7 +887,7 @@ textarea.form-control {
 .tab-btn {
   padding: 10px 18px;
   background: none;
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   border-bottom: none;
   color: var(--text-muted);
   cursor: pointer;
@@ -960,7 +960,7 @@ textarea.form-control {
 
 .sp-header-card {
   background: var(--primary-light);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
 }
 
 .sp-avatar {
@@ -1059,7 +1059,7 @@ textarea.form-control {
 
 .sp-parent-card {
   background: var(--bg-main);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   border-radius: var(--border-radius);
   padding: 14px;
   margin-bottom: 10px;
@@ -1071,7 +1071,7 @@ textarea.form-control {
 
 .sp-cert-card, .sp-doc-card {
   background: var(--bg-main);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   border-radius: var(--border-radius);
   padding: 14px;
   margin-bottom: 10px;
@@ -1083,7 +1083,7 @@ textarea.form-control {
 
 .sp-history-item {
   background: var(--bg-main);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   border-radius: var(--border-radius);
   padding: 14px;
   margin-bottom: 10px;
@@ -1116,7 +1116,7 @@ textarea.form-control {
   align-items: center;
   min-height: 140px;
   user-select: none;
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
 }
 
 .fees-dash-card:hover {
@@ -1127,7 +1127,7 @@ textarea.form-control {
 
 .fees-dash-card:active {
   transform: scale(0.98);
-  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.3);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.2);
 }
 
 .fees-card-title {
@@ -1165,7 +1165,7 @@ textarea.form-control {
   border-radius: var(--border-radius-sm);
   color: var(--text-secondary);
   background: var(--bg-main);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   cursor: pointer;
   transition: var(--transition);
 }
@@ -1174,7 +1174,7 @@ textarea.form-control {
   background: var(--bg-card-hover);
   color: var(--primary);
   border-color: var(--box-border-hover);
-  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.15);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
 }
 
 /* Back Button */
@@ -1184,7 +1184,7 @@ textarea.form-control {
   gap: 6px;
   padding: 8px 16px;
   background: var(--bg-main);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   border-radius: var(--border-radius-sm);
   color: var(--text-secondary);
   font-weight: 600;
@@ -1198,7 +1198,7 @@ textarea.form-control {
   background: var(--bg-card-hover);
   color: var(--primary);
   border-color: var(--box-border-hover);
-  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.15);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
 }
 
 /* ==========================================================================
@@ -1209,7 +1209,7 @@ textarea.form-control {
   width: 100%;
   max-width: 450px;
   margin: 0 auto;
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   border-radius: var(--border-radius-lg);
   overflow: hidden;
   position: relative;
@@ -1228,7 +1228,7 @@ textarea.form-control {
   margin-top: 16px;
   padding: 14px;
   background: var(--success-light);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   border-radius: var(--border-radius);
 }
 
@@ -1254,7 +1254,7 @@ textarea.form-control {
   max-width: 550px;
   width: 100%;
   text-align: center;
-  border: 3px solid var(--box-border);
+  border: 2px solid var(--box-border);
   background: #fff;
   border-radius: var(--border-radius-lg);
   padding: 40px;
@@ -1276,7 +1276,7 @@ textarea.form-control {
   padding: 6px 10px;
   border-radius: var(--border-radius-sm);
   background: #FFFFFF;
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   color: var(--text-primary);
   text-align: center;
   font-size: 0.875rem;
@@ -1284,7 +1284,7 @@ textarea.form-control {
 
 .marks-input:hover {
   border-color: var(--box-border-hover);
-  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.12);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
 }
 
 .marks-input:focus {
@@ -1298,7 +1298,7 @@ textarea.form-control {
   width: 95px;
   padding: 6px 10px;
   border-radius: var(--border-radius-sm);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   font-weight: 700;
   text-align: center;
   font-size: 0.875rem;
@@ -1309,7 +1309,7 @@ textarea.form-control {
 
 .editable-due-input:hover {
   border-color: var(--box-border-hover);
-  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.12);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
 }
 
 .editable-due-input.has-ledger {
@@ -1558,7 +1558,7 @@ textarea.form-control {
 
 .user-badge {
   background: var(--primary-light);
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   padding: 5px 14px;
   border-radius: 50px;
   font-size: 0.8125rem;
@@ -1615,7 +1615,7 @@ textarea.form-control {
   padding: 10px 16px;
   text-align: left;
   background: transparent;
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   color: var(--text-secondary);
   font-size: 0.875rem;
   font-family: var(--font-body);
@@ -2083,7 +2083,7 @@ textarea.form-control {
 }
 
 .rollno-slip {
-  border: 2px solid var(--box-border);
+  border: 1.5px solid var(--box-border);
   font-family: Arial, sans-serif;
   color: #000;
   background: #fff;
@@ -2182,7 +2182,7 @@ nav {
 
 /* Focus ring for accessibility */
 *:focus {
-  outline: 2px solid var(--box-border-focus);
+  outline: 1.5px solid var(--box-border-focus);
   outline-offset: 2px;
 }
 
@@ -2203,7 +2203,7 @@ nav {
 }
 
 .data-table tbody tr:hover {
-  border-left: 3px solid var(--box-border);
+   border-left: 2px solid var(--box-border);
 }
 
 /* All modal/drawer elements get golden border */
