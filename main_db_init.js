@@ -127,8 +127,12 @@ async function initMainDbTurso() {
 }
 
 async function initSchoolTablesTurso(client) {
+  let hasErrors = false;
   const t = async (sql) => {
-    try { await client.execute(sql); } catch (e) { /* ignore */ }
+    try { await client.execute(sql); } catch (e) {
+      console.error('[TURSO_INIT] Table creation failed:', e.message, '\n  SQL:', sql.substring(0, 100));
+      hasErrors = true;
+    }
   };
 
   await t(`CREATE TABLE IF NOT EXISTS students (
@@ -466,7 +470,11 @@ async function initSchoolTablesTurso(client) {
     created_at TEXT
   )`);
 
-  console.log('School tenant tables initialized in Turso.');
+  if (hasErrors) {
+    console.error('[TURSO_INIT] Some school tenant tables failed to create. Queries may fail. Check the errors above.');
+  } else {
+    console.log('School tenant tables initialized in Turso.');
+  }
 }
 
 async function initMainDb() {

@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebarLogo.src = logoSrc;
         sidebarLogo.style.display = 'block';
       }
-    } catch (e) {}
+    } catch (e) { console.error('[TEACHER_PORTAL_ERROR]', e.message); }
   }
   loadSchoolSettings();
 
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }).join('');
 
       renderDashboardAnnouncements(announcements);
-    } catch (e) {}
+    } catch (e) { console.error('[TEACHER_PORTAL_ERROR]', e.message); }
   }
   loadNewsTicker();
 
@@ -688,7 +688,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div style="font-size:0.8rem; color:var(--text-muted);">${esc(a.subject)} · ${esc(a.class_name)}${a.section_name ? ' - ' + esc(a.section_name) : ''} ${due ? '· Due ' + due : ''}</div>
           </div>`;
         }).join('') + `</div>`;
-    } catch (err) {}
+    } catch (err) { console.error('[TEACHER_PORTAL_ERROR]', err.message); }
   }
 
   // ==================== INIT (parallel for faster load) ====================
@@ -711,7 +711,7 @@ async function initFeeCollection() {
     if (user.can_collect_fees) {
       document.getElementById('nav-fee-collection').style.display = '';
     }
-  } catch (e) {}
+  } catch (e) { console.error('[TEACHER_PORTAL_ERROR]', e.message); }
 
   let feeStudentCache = null;
   let feeSearchTimeout = null;

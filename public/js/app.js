@@ -25,7 +25,7 @@ async function getCachedSettings(apiCall) {
     _settingsCache = await apiCall('/settings');
     _settingsCacheTime = Date.now();
     return _settingsCache;
-  } catch (e) { return _settingsCache || {}; }
+  } catch (e) { console.error('[SETTINGS_CACHE]', e.message); return _settingsCache || {}; }
 }
 
 // Helper: resolve image src for both data URIs and relative file paths
@@ -553,7 +553,7 @@ document.addEventListener('DOMContentLoaded', () => {
       exams.forEach(ex => {
         sel.innerHTML += `<option value="${ex.id}">${ex.exam_name} (${ex.year})</option>`;
       });
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   document.getElementById('dash-btn-load-comparison').addEventListener('click', async () => {
@@ -655,7 +655,7 @@ document.addEventListener('DOMContentLoaded', () => {
         promoLeaveClass.innerHTML = '<option value="">All Classes</option>' +
           classes.map(c => `<option value="${c.class_name}">${c.class_name} (${c.count})</option>`).join('');
       }
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   async function loadPromoHistory() {
@@ -674,7 +674,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <td>${h.final_percentage !== null ? h.final_percentage + '%' : '-'}</td>
         <td>${h.remarks || '-'}</td>
       </tr>`).join('');
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   async function loadPromoExams() {
@@ -690,7 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
       });
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   function resetPromoPanels() {
@@ -792,7 +792,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tbody.innerHTML = rows || '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No students found.</td></tr>';
       document.getElementById('promo-school-preview-container').style.display = 'block';
       document.getElementById('promo-school-execute').style.display = 'inline-block';
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
   // School Wide Execute
@@ -814,7 +814,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('promo-school-execute').style.display = 'none';
       loadPromoHistory();
       loadClassesList();
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
   // Class Wise Preview
@@ -872,7 +872,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tbody.innerHTML = rows || '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No students found.</td></tr>';
       document.getElementById('promo-class-preview-container').style.display = 'block';
       document.getElementById('promo-class-execute').style.display = 'inline-block';
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
   // Class Wise Execute
@@ -896,7 +896,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('promo-class-execute').style.display = 'none';
       loadPromoHistory();
       loadClassesList();
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
   // Leave Students: Load
@@ -944,7 +944,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       execBtn.style.display = 'none';
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
   // Leave Students: Execute
@@ -964,7 +964,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('btn-promo-leave-execute').style.display = 'none';
       loadPromoClasses();
       loadClassesList();
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
   // ==========================================
@@ -999,7 +999,7 @@ document.addEventListener('DOMContentLoaded', () => {
           teachSelect.innerHTML += `<option value="${t.id}">${t.name} (${t.subject || 'N/A'})</option>`;
         });
       }
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   // PM sub-panel navigation
@@ -1039,7 +1039,7 @@ document.addEventListener('DOMContentLoaded', () => {
           cwClassSelect.innerHTML += `<option value="${name}">${name}</option>`;
         });
       }
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   // Student ID Card: class change loads students
@@ -1060,7 +1060,7 @@ document.addEventListener('DOMContentLoaded', () => {
         studentSelect.innerHTML += `<option value="${s.id}">${s.roll_no || '-'} - ${s.name}</option>`;
       });
       studentSelect.disabled = false;
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
   // Student ID Card: student change loads info
@@ -1088,7 +1088,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Store student data for card generation
       document.getElementById('idcard-stu-student').dataset.studentData = JSON.stringify(s);
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
   // Teacher ID Card: teacher change loads info
@@ -1111,7 +1111,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('idcard-teach-info').style.display = 'block';
       document.getElementById('btn-idcard-teach-generate').disabled = false;
       document.getElementById('idcard-teach-teacher').dataset.teacherData = JSON.stringify(t);
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
   // ID Card design themes
@@ -1477,7 +1477,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (templatesRaw.length > 0 && templatesRaw[0].template && templatesRaw[0].template.principal_sign) {
         principalSign = templatesRaw[0].template.principal_sign;
       }
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
 
     const html = generateIdCardHtml(studentData, design, settings.school_name, settings.logo_path, includeQr, includeBarcode, principalSign);
     document.getElementById('idcard-stu-printable').innerHTML = html;
@@ -1514,7 +1514,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (templatesRaw.length > 0 && templatesRaw[0].template && templatesRaw[0].template.principal_sign) {
         principalSign = templatesRaw[0].template.principal_sign;
       }
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
 
     const html = generateTeacherIdCardHtml(teacherData, design, settings.school_name, settings.logo_path, includeQr, principalSign);
     document.getElementById('idcard-teach-printable').innerHTML = html;
@@ -1551,7 +1551,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (templatesRaw.length > 0 && templatesRaw[0].template && templatesRaw[0].template.principal_sign) {
         principalSign = templatesRaw[0].template.principal_sign;
       }
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
 
     const staff = { name, designation, phone, cnic };
     const html = generateStaffIdCardHtml(staff, design, settings.school_name, settings.logo_path, includeQr, principalSign);
@@ -1583,7 +1583,7 @@ document.addEventListener('DOMContentLoaded', () => {
           classSelect.innerHTML += `<option value="${name}">${name}</option>`;
         });
       }
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   document.getElementById('idcard-cw-class').addEventListener('change', async function() {
@@ -1599,7 +1599,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('idcard-cw-info').style.display = 'block';
       document.getElementById('btn-idcard-cw-generate').disabled = students.length === 0;
       document.getElementById('idcard-cw-class').dataset.studentsData = JSON.stringify(students);
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
   document.getElementById('btn-idcard-cw-generate').addEventListener('click', async () => {
@@ -1621,7 +1621,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (templatesRaw.length > 0 && templatesRaw[0].template && templatesRaw[0].template.principal_sign) {
         principalSign = templatesRaw[0].template.principal_sign;
       }
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
 
     let cardsHtml = '';
     for (const s of students) {
@@ -1844,7 +1844,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (templatesRaw.length > 0 && templatesRaw[0].template && templatesRaw[0].template.principal_sign) {
         principalSign = templatesRaw[0].template.principal_sign;
       }
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
     return { settings, principalSign };
   }
 
@@ -2017,7 +2017,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Bind events
       attachStudentTableEvents();
 
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   // Filter Listeners — Search button triggers the query
@@ -2142,7 +2142,7 @@ document.addEventListener('DOMContentLoaded', () => {
       modalStudent.classList.remove('open');
       loadStudentsList();
       loadClassesList();
-    } catch (err) {}
+    } catch (err) { console.error('[APP_ERROR]', err.message); }
   });
 
   // Table events linking — use event delegation to avoid memory leaks
@@ -2194,7 +2194,7 @@ document.addEventListener('DOMContentLoaded', () => {
           document.getElementById('stud-prev-school-contact').value = s.previous_school_contact || '';
 
           modalStudent.classList.add('open');
-        } catch (e) {}
+        } catch (e) { console.error('[APP_ERROR]', e.message); }
       }
 
       if (btn.classList.contains('btn-archive-student')) {
@@ -2204,7 +2204,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await apiCall(`/students/${id}/archive`, 'POST');
             showToast(res.message);
             loadStudentsList();
-          } catch (e) {}
+          } catch (e) { console.error('[APP_ERROR]', e.message); }
         }
       }
 
@@ -2242,7 +2242,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (currentHead) sibHeadSelect.value = currentHead;
           modalSibling.classList.add('open');
-        } catch (e) {}
+        } catch (e) { console.error('[APP_ERROR]', e.message); }
       }
     });
 
@@ -2286,7 +2286,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Sibling association linked successfully!');
         modalSibling.classList.remove('open');
         loadStudentsList();
-      } catch (err) {}
+      } catch (err) { console.error('[APP_ERROR]', err.message); }
     });
 
     document.getElementById('btn-unlink-sibling').addEventListener('click', async () => {
@@ -2300,7 +2300,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Student unlinked from siblings ledger.');
         modalSibling.classList.remove('open');
         loadStudentsList();
-      } catch (err) {}
+      } catch (err) { console.error('[APP_ERROR]', err.message); }
     });
   }
 
@@ -2320,7 +2320,7 @@ document.addEventListener('DOMContentLoaded', () => {
           classSelect.innerHTML += `<option value="${name}">${name}</option>`;
         });
       }
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   document.getElementById('sp-class-select').addEventListener('change', async function() {
@@ -2332,7 +2332,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const sections = await apiCall(`/students/sections/${encodeURIComponent(className)}`);
         sections.forEach(s => { sectionSelect.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`; });
-      } catch (e) {}
+      } catch (e) { console.error('[APP_ERROR]', e.message); }
     }
     loadStudentProfileList();
   });
@@ -2682,7 +2682,7 @@ document.addEventListener('DOMContentLoaded', () => {
         secSelect.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`;
       });
       secSelect.innerHTML += '<option value="No Section">No Section</option>';
-    } catch (err) {}
+    } catch (err) { console.error('[APP_ERROR]', err.message); }
   });
 
   // Load Grid Students
@@ -2743,7 +2743,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       document.getElementById('att-grid-actions').style.display = 'block';
 
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
   // Save Attendance from grid list
@@ -2773,7 +2773,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await apiCall('/attendance/save', 'POST', { date, attendanceList: list });
       showToast(res.message);
-    } catch (err) {}
+    } catch (err) { console.error('[APP_ERROR]', err.message); }
   });
 
   // Webcam QR Scanner logic
@@ -2927,7 +2927,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       tbody.innerHTML = rows.join('');
 
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
 
@@ -3022,7 +3022,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (includeAllOption) {
         secSelect.innerHTML += '<option value="No Section">No Section</option>';
       }
-    } catch (err) {}
+    } catch (err) { console.error('[APP_ERROR]', err.message); }
   }
 
   // Load configuration details for a specific option panel
@@ -3150,7 +3150,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </tr>
       `);
       tbody.innerHTML = rows.join('');
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   // Save new Tuition fee rule
@@ -3166,7 +3166,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(res.message);
         formFeeSetup.reset();
         loadClassFeeRules();
-      } catch (err) {}
+      } catch (err) { console.error('[APP_ERROR]', err.message); }
     });
   }
 
@@ -3227,7 +3227,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tbody.innerHTML = rows.join('');
 
         attachFeePaymentFormEvents();
-      } catch (e) {}
+      } catch (e) { console.error('[APP_ERROR]', e.message); }
     });
   }
 
@@ -3281,7 +3281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(res.message);
         modalTx.classList.remove('open');
         refreshAllFeeViews();
-      } catch (err) {}
+      } catch (err) { console.error('[APP_ERROR]', err.message); }
     });
   }
 
@@ -3368,7 +3368,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await apiCall('/fees/generate-single', 'POST', { student_id, month, year });
             showToast(res.message);
             refreshAllFeeViews();
-          } catch (err) {}
+          } catch (err) { console.error('[APP_ERROR]', err.message); }
           return;
         }
         const delBtn = e.target.closest('.btn-delete-history-ledger');
@@ -3379,7 +3379,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await apiCall(`/fees/ledger/${ledger_id}`, 'DELETE');
             showToast(res.message);
             refreshAllFeeViews();
-          } catch (err) {}
+          } catch (err) { console.error('[APP_ERROR]', err.message); }
           return;
         }
       };
@@ -3407,7 +3407,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await apiCall('/fees/generate', 'POST', { month, year });
         showToast(res.message);
         refreshAllFeeViews();
-      } catch (e) {}
+      } catch (e) { console.error('[APP_ERROR]', e.message); }
     });
   }
 
@@ -3429,7 +3429,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await apiCall('/fees/save-history-dues', 'POST', { changes });
         showToast(res.message);
         refreshAllFeeViews();
-      } catch (e) {}
+      } catch (e) { console.error('[APP_ERROR]', e.message); }
     });
   }
 
@@ -3452,7 +3452,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await apiCall(url, 'DELETE');
         showToast(res.message);
         refreshAllFeeViews();
-      } catch (e) {}
+      } catch (e) { console.error('[APP_ERROR]', e.message); }
     });
   }
 
@@ -3575,10 +3575,10 @@ document.addEventListener('DOMContentLoaded', () => {
           });
           showToast(res.message);
           loadStudentFeeList();
-        } catch (err) {}
+        } catch (err) { console.error('[APP_ERROR]', err.message); }
       };
 
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   const btnLoadStudentFeeList = document.getElementById('btn-load-student-fee-list');
@@ -3973,7 +3973,7 @@ document.addEventListener('DOMContentLoaded', () => {
           } catch (e) { showToast(e.message, true); }
         });
       });
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   // ==========================================
@@ -4051,7 +4051,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Render Chart.js Bar Chart
       renderAnalyticsChart(data.classWise);
 
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   const btnRefreshAnalytics = document.getElementById('btn-refresh-analytics');
@@ -4215,7 +4215,7 @@ document.addEventListener('DOMContentLoaded', () => {
           `;
         });
         tbody.innerHTML = rows.join('');
-      } catch (e) {}
+      } catch (e) { console.error('[APP_ERROR]', e.message); }
     });
   }
 
@@ -4536,7 +4536,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderRoutesTable(routes);
       renderAssignmentsTable(assignments);
       renderTransportFees(assignments);
-    } catch (err) {}
+    } catch (err) { console.error('[APP_ERROR]', err.message); }
   }
 
   function renderVehiclesTable(vehicles) {
@@ -5261,7 +5261,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loadExamsDropdowns();
       if (allCb) allCb.checked = false;
       classCbs.forEach(cb => cb.checked = false);
-    } catch (err) {}
+    } catch (err) { console.error('[APP_ERROR]', err.message); }
   });
 
   // Marks Spreadsheet loader - fetches all subjects for class
@@ -5402,7 +5402,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!sel) return;
       sel.innerHTML = '<option value="">-- All Classes --</option>';
       classes.forEach(c => { sel.innerHTML += `<option value="${c}">${c}</option>`; });
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
   loadDmcClassFilter();
 
@@ -5415,7 +5415,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const sections = await apiCall(`/students/sections/${encodeURIComponent(cls)}`);
       sections.forEach(s => { secSel.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`; });
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
   // Load students button
@@ -5776,7 +5776,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const style = t.is_active ? ' style="font-weight:bold;color:#16a34a;"' : '';
         sel.innerHTML += '<option value="' + t.id + '"' + style + '>' + t.name + activeMark + '</option>';
       });
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   // Load selected template into the designer form for editing
@@ -5892,7 +5892,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sel.innerHTML += '<option value="' + t.id + '"' + style + '>' + t.name + activeMark + '</option>';
       });
       updateDatesheetActiveBadge(templates);
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   // Show template info when selected
@@ -5924,7 +5924,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ' &mdash; <strong>' + subjects.length + ' exam entries</strong> across ' +
         '<strong>' + classNames.length + ' class(es)</strong>: ' + classNames.join(', ') +
         '<br><strong>Subjects:</strong> ' + subjectNames.join(', ');
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
   function updateDatesheetActiveBadge(templates) {
@@ -6030,7 +6030,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (saveBtn) saveBtn.textContent = 'Save Date Sheet Template';
         loadDatesheetTemplates();
         loadDatesheetDesignerDropdown();
-      } catch (err) {}
+      } catch (err) { console.error('[APP_ERROR]', err.message); }
     });
   }
 
@@ -6131,7 +6131,7 @@ document.addEventListener('DOMContentLoaded', () => {
             '</div>' +
           '</div>';
         document.getElementById('datesheet-preview').style.display = 'block';
-      } catch (err) {}
+      } catch (err) { console.error('[APP_ERROR]', err.message); }
     });
   }
 
@@ -6298,7 +6298,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await apiCall('/exams/rollno-templates', 'POST', { name, template_json: JSON.stringify(template) });
         showToast(res.message);
         formRollnoDesign.reset();
-      } catch (err) {}
+      } catch (err) { console.error('[APP_ERROR]', err.message); }
     });
   }
 
@@ -6470,7 +6470,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('rollno-printable-content').innerHTML = slipsHtml;
         document.getElementById('rollno-preview').style.display = 'block';
-      } catch (err) {}
+      } catch (err) { console.error('[APP_ERROR]', err.message); }
     });
   }
 
@@ -6596,7 +6596,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('set-footer-text').value = data.footer_text;
       document.getElementById('set-phone').value = data.phone;
       document.getElementById('set-reg').value = data.registration_number;
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   // Update profile settings
@@ -6616,7 +6616,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentUser.schoolName = school_name;
       localStorage.setItem('skyhonix_user', JSON.stringify(currentUser));
       loadDashboardStats();
-    } catch (err) {}
+    } catch (err) { console.error('[APP_ERROR]', err.message); }
   });
 
   // Logo upload
@@ -6632,7 +6632,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await apiCall('/settings/logo', 'POST', formData, true);
       showToast(res.message);
       loadDashboardStats();
-    } catch (err) {}
+    } catch (err) { console.error('[APP_ERROR]', err.message); }
   });
 
   // Change staff password
@@ -6650,7 +6650,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await apiCall('/settings/users/password', 'POST', { role, password });
       showToast(res.message);
       document.getElementById('set-pass-val').value = '';
-    } catch (err) {}
+    } catch (err) { console.error('[APP_ERROR]', err.message); }
   });
 
   // Database Backup download
@@ -6882,7 +6882,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       tbody.innerHTML = rows.join('');
 
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   // Upload Payment receipt slip
@@ -6967,7 +6967,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const name = typeof c === 'object' ? c.class_name : c;
         sel.innerHTML += `<option value="${name}">${name}</option>`;
       });
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   async function loadTeachersList() {
@@ -7021,7 +7021,7 @@ document.addEventListener('DOMContentLoaded', () => {
           } catch (e) { showToast(e.message, true); }
         });
       });
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   document.getElementById('form-teacher').addEventListener('submit', async (e) => {
@@ -7121,7 +7121,7 @@ document.addEventListener('DOMContentLoaded', () => {
           } catch (e) { showToast(e.message, true); }
         });
       });
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   // Parent class selector -> load students for that class
@@ -7249,7 +7249,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ttTeacher.innerHTML = '<option value="">-- Select Teacher --</option>';
         teachers.forEach(t => { ttTeacher.innerHTML += `<option value="${t.id}">${t.name}</option>`; });
       }
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   document.getElementById('tt-class').addEventListener('change', async () => {
@@ -7260,7 +7260,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const sections = await apiCall(`/students/sections/${encodeURIComponent(class_name)}`);
       sections.forEach(s => { ttSection.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`; });
-    } catch (e) {}
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
   document.getElementById('btn-load-timetable').addEventListener('click', loadTimetableGrid);

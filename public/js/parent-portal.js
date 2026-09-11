@@ -47,7 +47,7 @@
         sidebarLogo.src = logoSrc;
         sidebarLogo.style.display = 'block';
       }
-    } catch (e) {}
+    } catch (e) { console.error('[PARENT_PORTAL_ERROR]', e.message); }
   }
   loadSchoolSettings();
 
@@ -171,7 +171,7 @@
         let totalMarks = 0;
         examData.forEach(r => { totalMarks += r.marks.length; });
         document.getElementById('stat-exams').textContent = totalMarks;
-      } catch (e) {}
+      } catch (e) { console.error('[PARENT_PORTAL_ERROR]', e.message); }
     }
 
     // Load dashboard assignments summary
@@ -205,7 +205,7 @@
             <div style="font-size:0.8rem; color:var(--text-muted);">${esc(a.subject)} · ${esc(a.teacher_name || 'Teacher')} ${due ? '· Due ' + due : ''}</div>
           </div>`;
         }).join('') + `</div>`;
-    } catch (err) {}
+    } catch (err) { console.error('[PARENT_PORTAL_ERROR]', err.message); }
   }
 
   // ========== FEES ==========

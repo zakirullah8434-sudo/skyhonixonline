@@ -121,7 +121,9 @@ class SchoolDbTursoProxy {
           colsRaw.push('school_id');
           valsRaw.push('?');
         }
-        const suffix = sql.slice(sql.indexOf('VALUES') + 6).replace(/\(([^)]*)\)/i, '').trim();
+        const valuesMatch = sql.match(/VALUES\s*\(([^)]+)\)/i);
+        const suffixStart = valuesMatch ? sql.indexOf(valuesMatch[0]) + valuesMatch[0].length : sql.length;
+        const suffix = sql.slice(suffixStart).trim();
         const finalSql = `${prefix}INTO ${table} (${colsRaw.join(', ')}) VALUES (${valsRaw.join(', ')})${suffix ? ' ' + suffix : ''}`;
         return { sql: finalSql, params: [...params, ...(hasSchoolId ? [] : [sid])] };
       }
@@ -304,7 +306,11 @@ async function ensureSchoolTables(db, schoolId) {
     'teachers', 'teacher_salaries', 'salary_payments'
   ];
   for (const t of tables) {
-    await runRaw(`ALTER TABLE ${t} ADD COLUMN school_id INTEGER`).catch(() => {});
+    await runRaw(`ALTER TABLE ${t} ADD COLUMN school_id INTEGER`).catch((e) => {
+      if (!e.message.includes('duplicate column')) {
+        console.error(`[TURSO_MIGRATE] ALTER TABLE ${t} ADD COLUMN school_id failed:`, e.message);
+      }
+    });
   }
   await runRaw(`ALTER TABLE teachers ADD COLUMN assigned_class TEXT DEFAULT ''`).catch(() => {});
   await runRaw(`ALTER TABLE teachers ADD COLUMN can_collect_fees INTEGER DEFAULT 0`).catch(() => {});
@@ -313,6 +319,7 @@ async function ensureSchoolTables(db, schoolId) {
     const ver = backfillVersions.get(String(schoolId)) || 0;
     if (ver < BACKFILL_VERSION) {
       let totalUpdated = 0;
+      let allSucceeded = true;
       for (const t of tables) {
         try {
           const r = await runRaw(`UPDATE ${t} SET school_id = ? WHERE school_id IS NULL`, [schoolId]);
@@ -320,10 +327,13 @@ async function ensureSchoolTables(db, schoolId) {
           if (affected > 0) totalUpdated += affected;
         } catch (e) {
           console.error(`[TURSO_BACKFILL] Failed on ${t}:`, e.message);
+          allSucceeded = false;
         }
       }
-      backfillVersions.set(String(schoolId), BACKFILL_VERSION);
-      console.log(`[TURSO_BACKFILL] school_id=${schoolId} updated ${totalUpdated} total rows across ${tables.length} tables`);
+      if (allSucceeded) {
+        backfillVersions.set(String(schoolId), BACKFILL_VERSION);
+      }
+      console.log(`[TURSO_BACKFILL] school_id=${schoolId} updated ${totalUpdated} total rows across ${tables.length} tables${allSucceeded ? '' : ' (partial failure - will retry)'}`);
     }
   }
 }
@@ -457,6 +467,7 @@ function runSchoolTransaction(schoolId, statements) {
     // Turso proxy does not support BEGIN/COMMIT over HTTP — execute sequentially
     if (config.useTurso) {
       return new Promise(async (resolve, reject) => {
+        let executed = 0;
         for (const { sql, params } of statements) {
           try {
             await new Promise((res, rej) => {
@@ -465,7 +476,9 @@ function runSchoolTransaction(schoolId, statements) {
                 else res();
               });
             });
+            executed++;
           } catch (err) {
+            console.error(`[TURSO_TXN] Failed at statement ${executed + 1}/${statements.length}:`, err.message, '\n  SQL:', sql.substring(0, 120));
             return reject(err);
           }
         }

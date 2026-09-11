@@ -256,7 +256,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
     const currentYear = new Date().getFullYear();
     const today = new Date().toISOString().split('T')[0];
 
-    const [studentCount, attStats, feeAgg, settings] = await Promise.all([
+    const results = await Promise.allSettled([
       querySchoolOneDb(schoolId, "SELECT COUNT(*) as cnt FROM students WHERE status IS NULL OR status != 'Left'"),
       querySchoolDb(schoolId,
         `SELECT status, COUNT(*) as count FROM attendance WHERE date = ? GROUP BY status`, [today]),
@@ -266,6 +266,15 @@ app.get('/api/dashboard/stats', async (req, res) => {
          FROM fee_ledger`, [currentMonth, currentYear]),
       querySchoolOneDb(schoolId, 'SELECT school_name, logo_path, phone, registration_number FROM fee_settings LIMIT 1')
     ]);
+
+    const studentCount = results[0].status === 'fulfilled' ? results[0].value : null;
+    const attStats = results[1].status === 'fulfilled' ? results[1].value : null;
+    const feeAgg = results[2].status === 'fulfilled' ? results[2].value : null;
+    const settings = results[3].status === 'fulfilled' ? results[3].value : null;
+
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') console.error(`[DASHBOARD] Query ${i} failed:`, r.reason.message);
+    });
 
     const result = {
       totalStudents: studentCount ? studentCount.cnt : 0,

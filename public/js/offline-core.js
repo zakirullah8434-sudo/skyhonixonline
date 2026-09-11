@@ -56,7 +56,7 @@
       try { const c = new AbortController(); const t = setTimeout(() => c.abort(), 5000);
         await fetch(this._apiBase + '/settings', { method: 'HEAD', signal: c.signal, cache: 'no-store' });
         clearTimeout(t); if (!this._online) { this._online = true; this._notify(); }
-      } catch(e) {}
+      } catch(e) { console.error('[OFFLINE_ERROR]', e.message); }
     }
     startPing(ms) { this.stopPing(); this._pingTimer = setInterval(() => this._verify(), ms || 30000); }
     stopPing() { if (this._pingTimer) { clearInterval(this._pingTimer); this._pingTimer = null; } }
@@ -268,7 +268,7 @@
       const p = await this.queue.countPending();
       if (p > 0 && this.network.isOnline) setTimeout(() => this.syncManager.syncAll(), 1000);
       this.indicator = new OfflineIndicator(this.network, this.syncManager, this.queue);
-      if ('serviceWorker' in navigator) { try { await navigator.serviceWorker.register('/service-worker.js'); } catch(e) {} }
+      if ('serviceWorker' in navigator) { try { await navigator.serviceWorker.register('/service-worker.js'); } catch(e) { console.error('[OFFLINE_ERROR]', e.message); } }
       this._initialized = true; return this;
     }
     setOnlineApiCall(fn) { this.offlineAPI.setOnlineApiCall(fn); }
