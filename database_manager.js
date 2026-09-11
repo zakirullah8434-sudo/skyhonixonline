@@ -272,7 +272,9 @@ async function runMain(sql, params = []) {
 
 // Dynamic school db connection pool
 const migratedSchools = new Set();
-async function ensureSchoolTables(db) {
+const BACKFILL_VERSION = 2;
+const backfillVersions = new Map();
+async function ensureSchoolTables(db, schoolId) {
   const run = (sql) => new Promise((res) => { db.run(sql, () => res()); });
   // Add school_id to EVERY table that the Turso proxy queries
   const tables = [
@@ -292,6 +294,17 @@ async function ensureSchoolTables(db) {
   // Migrate teachers table - add assigned_class and can_collect_fees
   await run(`ALTER TABLE teachers ADD COLUMN assigned_class TEXT DEFAULT ''`).catch(() => {});
   await run(`ALTER TABLE teachers ADD COLUMN can_collect_fees INTEGER DEFAULT 0`).catch(() => {});
+
+  // Backfill school_id for existing rows that have NULL school_id (versioned, runs once)
+  if (schoolId) {
+    const ver = backfillVersions.get(String(schoolId)) || 0;
+    if (ver < BACKFILL_VERSION) {
+      for (const t of tables) {
+        await run(`UPDATE ${t} SET school_id = ? WHERE school_id IS NULL`, [schoolId]).catch(() => {});
+      }
+      backfillVersions.set(String(schoolId), BACKFILL_VERSION);
+    }
+  }
 }
 function getSchoolDb(schoolId) {
   return new Promise((resolve, reject) => {
@@ -303,7 +316,7 @@ function getSchoolDb(schoolId) {
 
       if (!migratedSchools.has(schoolId)) {
         migratedSchools.add(schoolId);
-        ensureSchoolTables(schoolDbCache[schoolId]).then(() => resolve(schoolDbCache[schoolId])).catch(() => resolve(schoolDbCache[schoolId]));
+        ensureSchoolTables(schoolDbCache[schoolId], schoolId).then(() => resolve(schoolDbCache[schoolId])).catch(() => resolve(schoolDbCache[schoolId]));
       } else {
         return resolve(schoolDbCache[schoolId]);
       }
@@ -319,6 +332,10 @@ function getSchoolDb(schoolId) {
       const proxy = new SchoolDbTursoProxy(getTursoClient(), schoolId);
       schoolDbCache[schoolId] = proxy;
       schoolDbAccessOrder.push(schoolId);
+      if (!migratedSchools.has(schoolId)) {
+        migratedSchools.add(schoolId);
+        ensureSchoolTables(proxy, schoolId).catch(e => console.error('[TURSO_MIGRATE]', e.message));
+      }
       return resolve(proxy);
     }
 
