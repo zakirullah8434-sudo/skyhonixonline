@@ -1928,6 +1928,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const filterClass = document.getElementById('student-filter-class');
       const attClassSelect = document.getElementById('att-class-select');
       const attHistoryClass = document.getElementById('att-history-class');
+      const attTotalClass = document.getElementById('att-total-class');
       const ledgerFilterClass = document.getElementById('ledger-filter-class');
       const marksSelectClass = document.getElementById('marks-select-class');
       const calcClassSelect = document.getElementById('calc-class-select');
@@ -1940,7 +1941,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const rollnoGenClass = document.getElementById('rollno-gen-class');
 
       const selects = [
-        filterClass, attClassSelect, attHistoryClass, ledgerFilterClass,
+        filterClass, attClassSelect, attHistoryClass, attTotalClass, ledgerFilterClass,
         marksSelectClass, calcClassSelect,
         historyFilterClass, studentFeeClass, reminderFilterClass,
         slipClassSelect, datesheetClassSelect, rollnoClassSelect, rollnoGenClass

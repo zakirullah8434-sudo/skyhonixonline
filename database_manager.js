@@ -2,7 +2,7 @@ const sqlite3 = require('sqlite3');
 const path = require('path');
 const fs = require('fs');
 const config = require('./config');
-const { createSchoolDatabaseSchema } = require('./school_db_template');
+const { createSchoolDatabaseSchema, migrateSchoolDatabase } = require('./school_db_template');
 
 let libsql = null;
 if (config.useTurso) {
@@ -405,6 +405,7 @@ function getSchoolDb(schoolId) {
         });
 
         await createSchoolDatabaseSchema(schoolDb);
+        await migrateSchoolDatabase(schoolDb);
 
         // LRU eviction if cache is full
         while (schoolDbAccessOrder.length >= SCHOOL_DB_MAX) {
