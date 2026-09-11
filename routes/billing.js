@@ -53,9 +53,9 @@ router.get('/status', authenticateToken, async (req, res) => {
       paymentInstructions: {
         amount: school.subscription_amount || 1500,
         methods: [
-          { name: 'EasyPaisa Mobile Account', account_no: '03459191224', title: 'Golden Sun Academy' },
-          { name: 'JazzCash Wallet Account', account_no: '03459191224', title: 'Golden Sun Academy' },
-          { name: 'HBL Bank Account Swat', account_no: '00100405009116', title: 'SkyHonix Education Software (Pvt) Ltd' }
+          { name: 'EasyPaisa Mobile Account', account_no: '03152728272', title: 'Hamid Ullah' },
+          { name: 'JazzCash Wallet Account', account_no: '03152728272', title: 'Hamid Ullah' },
+          { name: 'Meezan Bank Account', account_no: 'PK11 MEZN 0098 8401 0366 5286', title: 'Hamid Ullah' }
         ]
       }
     });
