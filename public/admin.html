@@ -32,7 +32,13 @@
       width: 100%;
       max-width: 450px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
-      border: 1px solid #E5E7EB;
+      border: 2px solid #D4A017;
+      transition: all 0.2s ease;
+    }
+
+    .admin-login-card:hover {
+      border-color: #FFD700;
+      box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.15);
     }
 
     .admin-header {
@@ -123,8 +129,14 @@
       background: #FFFFFF;
       border-radius: 12px;
       padding: 28px;
-      border: 1px solid #E5E7EB;
+      border: 2px solid #D4A017;
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      transition: all 0.2s ease;
+    }
+
+    .admin-section:hover {
+      border-color: #FFD700;
+      box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.15);
     }
 
     .admin-section.active {
@@ -189,6 +201,7 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.3px;
+      border: 2px solid #D4A017;
     }
 
     .status-suspended {
@@ -230,37 +243,40 @@
     .btn-approve {
       background: #ECFDF5;
       color: #059669;
-      border: 1px solid #A7F3D0;
+      border: 2px solid #D4A017;
     }
 
     .btn-approve:hover {
       background: #059669;
       color: #fff;
-      border-color: #059669;
+      border-color: #D4A017;
+      box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.3);
     }
 
     .btn-suspend {
       background: #FEF2F2;
       color: #DC2626;
-      border: 1px solid #FECACA;
+      border: 2px solid #D4A017;
     }
 
     .btn-suspend:hover {
       background: #DC2626;
       color: #fff;
-      border-color: #DC2626;
+      border-color: #D4A017;
+      box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.3);
     }
 
     .btn-view {
       background: #EEF2FF;
       color: #4F46E5;
-      border: 1px solid #C7D2FE;
+      border: 2px solid #D4A017;
     }
 
     .btn-view:hover {
       background: #4F46E5;
       color: #fff;
-      border-color: #4F46E5;
+      border-color: #D4A017;
+      box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.3);
     }
 
     .btn-logout {
@@ -304,7 +320,7 @@
       width: 100%;
       max-height: 80vh;
       overflow-y: auto;
-      border: 1px solid #E5E7EB;
+      border: 2px solid #D4A017;
       box-shadow: 0 20px 60px rgba(0,0,0,0.15);
     }
 
@@ -354,7 +370,7 @@
       background: #F9FAFB;
       padding: 14px 16px;
       border-radius: 10px;
-      border-left: 3px solid #4F46E5;
+      border-left: 4px solid #D4A017;
     }
 
     .info-label {
@@ -434,19 +450,24 @@
     .form-control {
       width: 100%;
       padding: 10px 14px;
-      border: 1px solid #D1D5DB;
+      border: 2px solid #D4A017;
       border-radius: 10px;
       font-size: 14px;
       color: #111827;
       background: #FFFFFF;
-      transition: border-color 0.2s, box-shadow 0.2s;
+      transition: all 0.2s;
       font-family: 'Inter', sans-serif;
+    }
+
+    .form-control:hover {
+      border-color: #FFD700;
+      box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.12);
     }
 
     .form-control:focus {
       outline: none;
-      border-color: #4F46E5;
-      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+      border-color: #FFD700;
+      box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.3);
     }
 
     .form-control::placeholder {
@@ -597,35 +618,35 @@
     <div id="stats-tab" class="admin-section">
       <h2>Statistics & Overview</h2>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 20px;">
-        <div style="background: #EEF2FF; padding: 20px; border-radius: 12px; border-left: 3px solid #4F46E5;">
+          <div style="background: #EEF2FF; padding: 20px; border-radius: 12px; border-left: 4px solid #D4A017;">
           <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Schools</div>
           <div style="font-size: 32px; color: #4F46E5; font-weight: 700; margin-top: 8px;" id="stat-total">0</div>
         </div>
-        <div style="background: #FFFBEB; padding: 20px; border-radius: 12px; border-left: 3px solid #D97706;">
+          <div style="background: #FFFBEB; padding: 20px; border-radius: 12px; border-left: 4px solid #D4A017;">
           <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Pending</div>
           <div style="font-size: 32px; color: #D97706; font-weight: 700; margin-top: 8px;" id="stat-pending">0</div>
         </div>
-        <div style="background: #ECFDF5; padding: 20px; border-radius: 12px; border-left: 3px solid #059669;">
+        <div style="background: #ECFDF5; padding: 20px; border-radius: 12px; border-left: 4px solid #D4A017;">
           <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Active</div>
           <div style="font-size: 32px; color: #059669; font-weight: 700; margin-top: 8px;" id="stat-active">0</div>
         </div>
-        <div style="background: #FEF2F2; padding: 20px; border-radius: 12px; border-left: 3px solid #DC2626;">
+          <div style="background: #FEF2F2; padding: 20px; border-radius: 12px; border-left: 4px solid #D4A017;">
           <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Suspended</div>
           <div style="font-size: 32px; color: #DC2626; font-weight: 700; margin-top: 8px;" id="stat-suspended">0</div>
         </div>
-        <div style="background: #F0FDFA; padding: 20px; border-radius: 12px; border-left: 3px solid #0D9488;">
+          <div style="background: #F0FDFA; padding: 20px; border-radius: 12px; border-left: 4px solid #D4A017;">
           <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Students</div>
           <div style="font-size: 32px; color: #0D9488; font-weight: 700; margin-top: 8px;" id="stat-total-students">0</div>
         </div>
-        <div style="background: #F5F3FF; padding: 20px; border-radius: 12px; border-left: 3px solid #7C3AED;">
+          <div style="background: #F5F3FF; padding: 20px; border-radius: 12px; border-left: 4px solid #D4A017;">
           <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Storage</div>
           <div style="font-size: 28px; color: #7C3AED; font-weight: 700; margin-top: 8px;" id="stat-total-storage">0 B</div>
         </div>
-        <div style="background: #FFF7ED; padding: 20px; border-radius: 12px; border-left: 3px solid #EA580C;">
+          <div style="background: #FFF7ED; padding: 20px; border-radius: 12px; border-left: 4px solid #D4A017;">
           <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Revenue</div>
           <div style="font-size: 28px; color: #EA580C; font-weight: 700; margin-top: 8px;" id="stat-total-revenue">0 PKR</div>
         </div>
-        <div style="background: #ECFDF5; padding: 20px; border-radius: 12px; border-left: 3px solid #059669;">
+        <div style="background: #ECFDF5; padding: 20px; border-radius: 12px; border-left: 4px solid #D4A017;">
           <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Bandwidth</div>
           <div style="font-size: 28px; color: #059669; font-weight: 700; margin-top: 8px;" id="stat-total-bandwidth">0 B</div>
         </div>
