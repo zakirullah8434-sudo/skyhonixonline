@@ -241,6 +241,11 @@ a:hover {
   line-height: 1.5;
 }
 
+.form-control:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-50);
+}
+
 .form-control:focus {
   outline: none;
   border-color: var(--primary);
@@ -1184,6 +1189,11 @@ textarea.form-control {
   font-size: 0.875rem;
 }
 
+.marks-input:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-50);
+}
+
 .marks-input:focus {
   border-color: var(--primary);
   outline: none;
@@ -1202,6 +1212,11 @@ textarea.form-control {
   transition: var(--transition);
   background-color: #DBEAFE !important;
   color: var(--text-primary) !important;
+}
+
+.editable-due-input:hover {
+  border-color: var(--info);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .editable-due-input.has-ledger {
