@@ -115,14 +115,26 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /students/classes - Get unique active classes
+// GET /students/classes - Get unique active classes from sections and students
 router.get('/classes', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
-    const rows = await querySchool(schoolId, "SELECT DISTINCT class_name FROM students WHERE status != 'Left' OR status IS NULL");
-    const classes = rows.map(r => r.class_name).filter(Boolean);
+    const rows = await querySchool(schoolId,
+      `SELECT DISTINCT class_name FROM sections
+       UNION
+       SELECT DISTINCT class_name FROM students WHERE (status != 'Left' OR status IS NULL) AND class_name IS NOT NULL AND class_name != ''
+       ORDER BY class_name`);
+    let classes = rows.map(r => r.class_name).filter(Boolean);
+    if (classes.length === 0) {
+      try {
+        const feeRows = await querySchool(schoolId, 'SELECT DISTINCT class_name FROM class_fees WHERE class_name IS NOT NULL AND class_name != ""');
+        classes = feeRows.map(r => r.class_name).filter(Boolean);
+      } catch (e) {}
+    }
+    console.log(`[CLASSES] schoolId=${schoolId} returning ${classes.length} classes`);
     res.json(classes);
   } catch (err) {
+    console.error('[CLASSES] Error for schoolId=' + schoolId + ':', err.message);
     res.status(500).json({ error: err.message });
   }
 });

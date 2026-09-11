@@ -6,15 +6,23 @@ function esc(str) { const d = document.createElement('div'); d.textContent = str
 let _classCache = null, _classCacheTime = 0;
 async function getCachedClasses(apiCall) {
   const now = Date.now();
-  if (_classCache && (now - _classCacheTime) < 300000) return _classCache;
+  if (_classCache && _classCache.length > 0 && (now - _classCacheTime) < 300000) return _classCache;
   try {
-    _classCache = await apiCall('/students/classes');
-    _classCacheTime = Date.now();
-    return _classCache;
+    const result = await apiCall('/students/classes');
+    if (result && result.length > 0) {
+      _classCache = result;
+      _classCacheTime = Date.now();
+    }
+    return _classCache || result || [];
   } catch (e) {
-    console.error('Failed to load classes:', e);
+    console.error('[CLASSES_CACHE] Failed to load classes:', e);
     return _classCache || [];
   }
+}
+
+function invalidateClassCache() {
+  _classCache = null;
+  _classCacheTime = 0;
 }
 
 let _settingsCache = null, _settingsCacheTime = 0;
@@ -2139,6 +2147,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const res = await apiCall(endpoint, method, formData, true);
       showToast(res.message);
+      invalidateClassCache();
       modalStudent.classList.remove('open');
       loadStudentsList();
       loadClassesList();
@@ -3164,6 +3173,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await apiCall('/fees/setup', 'POST', { class_name, monthly_fee });
         showToast(res.message);
+        invalidateClassCache();
         formFeeSetup.reset();
         loadClassFeeRules();
       } catch (err) { console.error('[APP_ERROR]', err.message); }
@@ -5178,6 +5188,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('exam-class-checkboxes');
     if (!container) return;
     try {
+      invalidateClassCache();
       const classes = await getCachedClasses(apiCall);
       const allLabel = `<label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
           <input type="checkbox" id="exam-class-all" value="All Classes"> <span>All Classes</span>
@@ -5245,7 +5256,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const classCbs = document.querySelectorAll('.exam-class-check');
     let selectedClasses = [];
     if (allCb && allCb.checked) {
-      try { selectedClasses = await apiCall('/students/classes'); } catch (e) { selectedClasses = []; }
+      classCbs.forEach(cb => { selectedClasses.push(cb.value); });
+      if (selectedClasses.length === 0) {
+        try { selectedClasses = await apiCall('/students/classes'); } catch (e) { selectedClasses = []; }
+      }
     } else {
       classCbs.forEach(cb => { if (cb.checked) selectedClasses.push(cb.value); });
     }
