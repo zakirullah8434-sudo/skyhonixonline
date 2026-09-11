@@ -232,8 +232,8 @@ a:hover {
   width: 100%;
   padding: 10px 14px;
   border-radius: var(--border-radius);
-  background: #fff;
-  border: 1px solid var(--border-color);
+  background: #FFFFFF;
+  border: 2px solid #CBD5E1;
   color: var(--text-primary);
   font-family: var(--font-body);
   font-size: 0.875rem;
@@ -245,6 +245,7 @@ a:hover {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-50);
+  background: #FAFBFF;
 }
 
 .form-control::placeholder {
@@ -253,7 +254,8 @@ a:hover {
 
 select.form-control {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-color: #FFFFFF;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
   background-position: right 10px center;
   background-repeat: no-repeat;
   background-size: 1.5em 1.5em;
@@ -1175,8 +1177,8 @@ textarea.form-control {
   width: 70px;
   padding: 6px 10px;
   border-radius: var(--border-radius-sm);
-  background: #fff;
-  border: 1px solid var(--border-color);
+  background: #FFFFFF;
+  border: 2px solid #CBD5E1;
   color: var(--text-primary);
   text-align: center;
   font-size: 0.875rem;
@@ -1193,7 +1195,7 @@ textarea.form-control {
   width: 95px;
   padding: 6px 10px;
   border-radius: var(--border-radius-sm);
-  border: 1px solid var(--border-color);
+  border: 2px solid #CBD5E1;
   font-weight: 700;
   text-align: center;
   font-size: 0.875rem;

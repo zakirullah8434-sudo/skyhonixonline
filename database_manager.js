@@ -344,9 +344,13 @@ function getSchoolDb(schoolId) {
       schoolDbAccessOrder.push(schoolId);
       if (!migratedSchools.has(schoolId)) {
         migratedSchools.add(schoolId);
-        ensureSchoolTables(proxy, schoolId).catch(e => console.error('[TURSO_MIGRATE]', e.message));
+        ensureSchoolTables(proxy, schoolId)
+          .then(() => resolve(proxy))
+          .catch(e => { console.error('[TURSO_MIGRATE]', e.message); resolve(proxy); });
+      } else {
+        return resolve(proxy);
       }
-      return resolve(proxy);
+      return;
     }
 
     // Create pending promise to prevent race condition
