@@ -1,7 +1,33 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('./auth');
-const { querySchool, querySchoolOne, runSchool, runSchoolTransaction } = require('../database_manager');
+const { querySchool, querySchoolOne, runSchool, runSchoolTransaction, getSchoolDb } = require('../database_manager');
+
+// Ensure holidays table exists (defensive migration for existing databases)
+async function ensureHolidaysTable(schoolId) {
+  try {
+    const db = await getSchoolDb(schoolId);
+    await new Promise((resolve, reject) => {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS holidays (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          name TEXT NOT NULL,
+          type TEXT DEFAULT 'Holiday',
+          school_id INTEGER
+        )
+      `, (err) => {
+        if (err) return reject(err);
+        db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_date ON holidays (date)`, (err2) => {
+          if (err2) return reject(err2);
+          resolve();
+        });
+      });
+    });
+  } catch (e) {
+    console.error('[ATTENDANCE] ensureHolidaysTable error:', e.message);
+  }
+}
 
 // GET /attendance/students - Get attendance grid for a class/section on a specific date
 router.get('/students', authenticateToken, async (req, res) => {
@@ -261,6 +287,7 @@ router.post('/session-info', authenticateToken, async (req, res) => {
 router.get('/holidays', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
+    await ensureHolidaysTable(schoolId);
     const holidays = await querySchool(schoolId, "SELECT * FROM holidays ORDER BY date DESC");
     res.json(holidays);
   } catch (err) {
@@ -278,6 +305,7 @@ router.post('/holidays', authenticateToken, async (req, res) => {
   }
 
   try {
+    await ensureHolidaysTable(schoolId);
     await runSchool(
       schoolId,
       `INSERT OR REPLACE INTO holidays (date, name, type, school_id) VALUES (?, ?, ?, ?)`,
@@ -294,6 +322,7 @@ router.delete('/holidays/:id', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { id } = req.params;
   try {
+    await ensureHolidaysTable(schoolId);
     await runSchool(schoolId, "DELETE FROM holidays WHERE id = ?", [id]);
     res.json({ message: 'Holiday removed!' });
   } catch (err) {
@@ -313,6 +342,7 @@ router.get('/total', authenticateToken, async (req, res) => {
   }
 
   try {
+    await ensureHolidaysTable(schoolId);
     // 1. Get session start date from settings
     const sessionRow = await querySchoolOne(schoolId, "SELECT value FROM settings WHERE key = 'session_start_date'");
     const sessionStart = sessionRow ? sessionRow.value : null;

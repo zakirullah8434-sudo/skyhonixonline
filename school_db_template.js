@@ -731,23 +731,19 @@ function createSchoolDatabaseSchema(db) {
 
 function migrateSchoolDatabase(db) {
   return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.run(`
-        CREATE TABLE IF NOT EXISTS holidays (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          date TEXT NOT NULL,
-          name TEXT NOT NULL,
-          type TEXT DEFAULT 'Holiday',
-          school_id INTEGER
-        )
-      `);
-      db.run(`
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_date
-        ON holidays (date)
-      `);
-      db.run("PRAGMA user_version", [], (err, row) => {
-        if (err) reject(err);
-        else resolve();
+    db.run(`
+      CREATE TABLE IF NOT EXISTS holidays (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT DEFAULT 'Holiday',
+        school_id INTEGER
+      )
+    `, (err1) => {
+      if (err1) { console.error('[MIGRATE] holidays table error:', err1.message); }
+      db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_date ON holidays (date)`, (err2) => {
+        if (err2) { console.error('[MIGRATE] holidays index error:', err2.message); }
+        resolve();
       });
     });
   });
