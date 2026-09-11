@@ -216,9 +216,9 @@ document.addEventListener('DOMContentLoaded', () => {
   async function apiCall(endpoint, method = 'GET', body = null, isFormData = false) {
     const isMutation = method !== 'GET' && method !== 'HEAD';
 
-    // Use offline engine for mutations and cached GETs (skip for unmapped entities)
+    // Use offline engine only for mutations (POST/PUT/DELETE), not for GET requests
     const resolvedEntity = resolveEntity(endpoint);
-    if (window.SkyHonixOffline && window.SkyHonixOffline._initialized && resolvedEntity !== 'unknown') {
+    if (window.SkyHonixOffline && window.SkyHonixOffline._initialized && resolvedEntity !== 'unknown' && isMutation) {
       try {
         return await window.SkyHonixOffline.offlineAPI.call(endpoint, method, body, {
           entity: resolvedEntity,
@@ -3041,11 +3041,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
 
     if (opt === 'pay-fee') {
+      // Initialize pay-fee filters
+      invalidateClassCache();
+      loadClassesList();
+      const payYearSelect = document.getElementById('fee-pay-year');
+      if (payYearSelect) {
+        payYearSelect.innerHTML = '';
+        for (let y = currentYear; y >= currentYear - 5; y--) {
+          payYearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+        }
+        payYearSelect.value = currentYear;
+      }
+      const payMonthSelect = document.getElementById('fee-pay-month');
+      if (payMonthSelect) payMonthSelect.value = currentMonth;
+      const payClassSelect = document.getElementById('fee-pay-class');
+      if (payClassSelect) payClassSelect.value = 'All Classes';
+      updateSectionDropdown('fee-pay-class', 'fee-pay-section', true);
       // Auto-load unpaid ledgers when pay-fee panel opens
       const paySearchBtn = document.getElementById('btn-search-pay-ledger');
       if (paySearchBtn) paySearchBtn.click();
     }
     else if (opt === 'fee-history') {
+      // Refresh class dropdown to ensure it's always populated
+      invalidateClassCache();
+      loadClassesList();
       // Setup history filters
       const yearSelect = document.getElementById('history-filter-year');
       if (yearSelect) {

@@ -115,23 +115,36 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /students/classes - Get unique active classes
+// GET /students/classes - Get unique active classes from students, sections, and class_fees
 router.get('/classes', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
-    const rows = await querySchool(schoolId,
-      `SELECT DISTINCT class_name FROM students WHERE (status != 'Left' OR status IS NULL) AND class_name IS NOT NULL AND class_name != ''`);
-    let classes = rows.map(r => r.class_name).filter(Boolean);
-    if (classes.length === 0) {
-      try {
-        const feeRows = await querySchool(schoolId, 'SELECT DISTINCT class_name FROM class_fees WHERE class_name IS NOT NULL AND class_name != ""');
-        classes = feeRows.map(r => r.class_name).filter(Boolean);
-      } catch (e) {}
-    }
-    console.log(`[CLASSES] schoolId=${schoolId} returning ${classes.length} classes`);
+    const classSet = new Set();
+
+    // 1. Get classes from students
+    try {
+      const rows = await querySchool(schoolId,
+        `SELECT DISTINCT class_name FROM students WHERE (status != 'Left' OR status IS NULL) AND class_name IS NOT NULL AND class_name != ''`);
+      rows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
+    } catch (e) {}
+
+    // 2. Get classes from sections
+    try {
+      const secRows = await querySchool(schoolId,
+        `SELECT DISTINCT class_name FROM sections WHERE class_name IS NOT NULL AND class_name != ''`);
+      secRows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
+    } catch (e) {}
+
+    // 3. Get classes from class_fees
+    try {
+      const feeRows = await querySchool(schoolId,
+        `SELECT DISTINCT class_name FROM class_fees WHERE class_name IS NOT NULL AND class_name != ''`);
+      feeRows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
+    } catch (e) {}
+
+    const classes = Array.from(classSet).sort();
     res.json(classes);
   } catch (err) {
-    console.error('[CLASSES] Error for schoolId=' + schoolId + ':', err.message);
     res.status(500).json({ error: err.message });
   }
 });
