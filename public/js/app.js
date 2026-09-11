@@ -6827,6 +6827,34 @@ document.addEventListener('DOMContentLoaded', () => {
       const billAmountEl = document.getElementById('bill-amount');
       if (billAmountEl) billAmountEl.value = monthlyRate;
 
+      // Dynamically render verified payment accounts from API
+      if (data.paymentInstructions && data.paymentInstructions.methods) {
+        const methods = data.paymentInstructions.methods;
+        const colors = ['var(--primary-light)', 'var(--secondary-light)', 'var(--success-light)'];
+        const borders = ['var(--primary)', 'var(--secondary)', 'var(--success)'];
+        const container = document.querySelector('#screen-subscription .grid-2 .card:last-child .card > div:last-child') || document.querySelector('#screen-subscription .grid-2 > div:last-child > div:last-child');
+
+        // Find the container for verified payment accounts
+        const allCards = document.querySelectorAll('#screen-subscription .grid-2 > div');
+        let accountsContainer = null;
+        allCards.forEach(card => {
+          const h3 = card.querySelector('h3');
+          if (h3 && h3.textContent.includes('Verified Payment Accounts')) {
+            accountsContainer = card.querySelector('div:last-child');
+          }
+        });
+
+        if (accountsContainer) {
+          accountsContainer.innerHTML = methods.map((m, i) => `
+            <div style="padding: 15px; background: ${colors[i] || colors[0]}; border-radius: 10px; border-left: 4px solid ${borders[i] || borders[0]};">
+              <h4>${m.name}</h4>
+              <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">${m.name.includes('Bank') ? 'Account' : 'Number'}: <strong>${m.account_no}</strong></p>
+              <p style="color: var(--text-muted); font-size: 0.9rem;">Title: <strong>${m.title}</strong></p>
+            </div>
+          `).join('');
+        }
+      }
+
       // Render payment history
       const tbody = document.querySelector('#table-billing-slips tbody');
       tbody.innerHTML = '';
