@@ -5188,22 +5188,31 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadExamClassCheckboxes() {
     const container = document.getElementById('exam-class-checkboxes');
     if (!container) return;
+
+    const allLabel = `<label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
+        <input type="checkbox" id="exam-class-all" value="All Classes"> <span>All Classes</span>
+      </label>`;
+    const otherLabel = `<label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05); flex: 1 1 100%;">
+        <span style="font-weight:600; min-width:50px;">Other:</span>
+        <input type="text" id="exam-class-other" class="form-control" placeholder="e.g. Nursery, LKG, UKG (comma-separated)" style="flex:1; padding:4px 8px; font-size:0.85rem;">
+      </label>`;
+
+    let classes = [];
     try {
       invalidateClassCache();
-      const classes = await getCachedClasses(apiCall);
-      const allLabel = `<label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
-          <input type="checkbox" id="exam-class-all" value="All Classes"> <span>All Classes</span>
-        </label>`;
-      const classLabels = classes.map(cls => `
-          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
-            <input type="checkbox" class="exam-class-check" value="${cls}"> <span>${cls}</span>
-          </label>
-        `);
-      container.innerHTML = allLabel + classLabels.join('');
-      document.getElementById('exam-class-all').addEventListener('change', (e) => {
-        document.querySelectorAll('.exam-class-check').forEach(cb => cb.checked = e.target.checked);
-      });
+      classes = await getCachedClasses(apiCall);
     } catch (e) { console.error('[EXAM_CLASSES]', e.message); }
+
+    const classLabels = classes.map(cls => `
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
+          <input type="checkbox" class="exam-class-check" value="${cls}"> <span>${cls}</span>
+        </label>
+      `);
+
+    container.innerHTML = allLabel + classLabels.join('') + otherLabel;
+    document.getElementById('exam-class-all').addEventListener('change', (e) => {
+      document.querySelectorAll('.exam-class-check').forEach(cb => cb.checked = e.target.checked);
+    });
   }
 
   function loadExamsData() {
@@ -5255,6 +5264,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Get selected classes
     const allCb = document.getElementById('exam-class-all');
     const classCbs = document.querySelectorAll('.exam-class-check');
+    const otherInput = document.getElementById('exam-class-other');
     let selectedClasses = [];
     if (allCb && allCb.checked) {
       classCbs.forEach(cb => { selectedClasses.push(cb.value); });
@@ -5263,6 +5273,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else {
       classCbs.forEach(cb => { if (cb.checked) selectedClasses.push(cb.value); });
+    }
+
+    // Include manually typed "Other" classes
+    if (otherInput && otherInput.value.trim()) {
+      otherInput.value.split(',').forEach(c => {
+        const trimmed = c.trim();
+        if (trimmed && !selectedClasses.includes(trimmed)) selectedClasses.push(trimmed);
+      });
     }
 
     if (selectedClasses.length === 0) {
@@ -5276,6 +5294,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loadExamsDropdowns();
       if (allCb) allCb.checked = false;
       classCbs.forEach(cb => cb.checked = false);
+      if (otherInput) otherInput.value = '';
     } catch (err) { console.error('[APP_ERROR]', err.message); }
   });
 
