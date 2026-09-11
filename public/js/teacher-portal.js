@@ -27,11 +27,12 @@ document.addEventListener('DOMContentLoaded', () => {
   async function apiCall(endpoint, method = 'GET', body = null) {
     const isMutation = method !== 'GET' && method !== 'HEAD';
 
-    // Use offline engine for mutations and cached GETs
-    if (window.SkyHonixOffline && window.SkyHonixOffline._initialized) {
+    // Use offline engine for mutations and cached GETs (skip for unmapped entities)
+    const resolvedEntity = resolveEntity(endpoint);
+    if (window.SkyHonixOffline && window.SkyHonixOffline._initialized && resolvedEntity !== 'unknown') {
       try {
         return await window.SkyHonixOffline.offlineAPI.call(endpoint, method, body, {
-          entity: resolveEntity(endpoint),
+          entity: resolvedEntity,
           entityId: extractEntityId(endpoint, body)
         });
       } catch (err) {
