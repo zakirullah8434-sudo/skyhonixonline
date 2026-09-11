@@ -3,9 +3,9 @@
  * Provides offline caching for the application shell and static assets.
  * Strategy: Cache-first for static assets, Network-first for API, Stale-while-revalidate for pages.
  */
-const CACHE_NAME = 'skyhonix-v2';
-const STATIC_CACHE = 'skyhonix-static-v2';
-const PAGE_CACHE = 'skyhonix-pages-v2';
+const CACHE_NAME = 'skyhonix-v3';
+const STATIC_CACHE = 'skyhonix-static-v3';
+const PAGE_CACHE = 'skyhonix-pages-v3';
 
 const STATIC_ASSETS = [
   '/',
@@ -73,19 +73,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets (JS, CSS, images): cache-first
+  // Static assets (JS, CSS, images): network-first with cache fallback
   if (url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot)$/)) {
     event.respondWith(
-      caches.match(request).then(cached => {
-        if (cached) return cached;
-        return fetch(request).then(response => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(STATIC_CACHE).then(cache => cache.put(request, clone));
-          }
-          return response;
-        });
-      })
+      fetch(request).then(response => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(STATIC_CACHE).then(cache => cache.put(request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(request))
     );
     return;
   }

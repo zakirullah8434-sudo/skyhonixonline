@@ -6718,7 +6718,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('rollno-printable-content').innerHTML = slipsHtml;
         document.getElementById('rollno-preview').style.display = 'block';
-      } catch (err) { console.error('[APP_ERROR]', err.message); }
+      } catch (err) {
+        console.error('[ROLLNO_ERROR]', err);
+        showToast('Error: ' + (err.message || 'Failed to generate slips'), true);
+      } finally {
+        btnGenerateRollno.disabled = false;
+        btnGenerateRollno.textContent = 'Generate Slips';
+      }
     });
   }
 

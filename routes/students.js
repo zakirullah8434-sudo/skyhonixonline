@@ -34,6 +34,7 @@ function fileToDataUri(file) {
 router.get('/', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { class_name, section_name, status, search, page, limit } = req.query;
+  console.log('[STUDENTS_GET] schoolId:', schoolId, 'class_name:', class_name, 'page:', page, 'limit:', limit);
 
   // Exclude heavy photo column from list views
   let query = `SELECT id, student_id, name, roll_no, class_name, section_name, father_name, phone,
@@ -96,6 +97,7 @@ router.get('/', authenticateToken, async (req, res) => {
       querySchool(schoolId, query, params),
       querySchoolOne(schoolId, countQuery, countParams)
     ]);
+    console.log('[STUDENTS_GET] schoolId:', schoolId, 'results:', students.length, 'total:', countResult ? countResult.total : 0);
     // If no page param, return plain array for backward compatibility
     if (!page && !limit) {
       return res.json(students);
