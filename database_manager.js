@@ -272,20 +272,19 @@ async function runMain(sql, params = []) {
 
 // Dynamic school db connection pool
 const migratedSchools = new Set();
-const BACKFILL_VERSION = 2;
+const BACKFILL_VERSION = 3;
 const backfillVersions = new Map();
 async function ensureSchoolTables(db, schoolId) {
-  // Use raw Turso client for DDL/DML to avoid proxy rewriting (which adds extra WHERE clauses)
+  // Use raw Turso client for DDL/DML to avoid proxy rewriting
   const isProxy = db && typeof db.client !== 'undefined' && typeof db._rewrite === 'function';
   const rawClient = isProxy ? db.client : null;
   const runRaw = async (sql, params = []) => {
     if (rawClient) {
-      await rawClient.execute({ sql, args: params });
+      return rawClient.execute({ sql, args: params });
     } else {
-      await new Promise((res) => { db.run(sql, params, () => res()); });
+      return new Promise((res, rej) => { db.run(sql, params, function(err) { if (err) rej(err); else res(); }); });
     }
   };
-  // Add school_id to EVERY table that the Turso proxy queries
   const tables = [
     'students', 'sections', 'class_fees', 'student_fee_exceptions',
     'fee_ledger', 'attendance', 'fee_payments', 'fee_dues', 'past_dues',
@@ -300,19 +299,24 @@ async function ensureSchoolTables(db, schoolId) {
   for (const t of tables) {
     await runRaw(`ALTER TABLE ${t} ADD COLUMN school_id INTEGER`).catch(() => {});
   }
-  // Migrate teachers table - add assigned_class and can_collect_fees
   await runRaw(`ALTER TABLE teachers ADD COLUMN assigned_class TEXT DEFAULT ''`).catch(() => {});
   await runRaw(`ALTER TABLE teachers ADD COLUMN can_collect_fees INTEGER DEFAULT 0`).catch(() => {});
 
-  // Backfill school_id for existing rows that have NULL school_id (versioned, runs once)
   if (schoolId) {
     const ver = backfillVersions.get(String(schoolId)) || 0;
     if (ver < BACKFILL_VERSION) {
+      let totalUpdated = 0;
       for (const t of tables) {
-        await runRaw(`UPDATE ${t} SET school_id = ? WHERE school_id IS NULL`, [schoolId]).catch(() => {});
+        try {
+          const r = await runRaw(`UPDATE ${t} SET school_id = ? WHERE school_id IS NULL`, [schoolId]);
+          const affected = r && r.rowsAffected ? r.rowsAffected : 0;
+          if (affected > 0) totalUpdated += affected;
+        } catch (e) {
+          console.error(`[TURSO_BACKFILL] Failed on ${t}:`, e.message);
+        }
       }
       backfillVersions.set(String(schoolId), BACKFILL_VERSION);
-      console.log(`[TURSO_MIGRATE] Backfilled school_id=${schoolId} for ${tables.length} tables`);
+      console.log(`[TURSO_BACKFILL] school_id=${schoolId} updated ${totalUpdated} total rows across ${tables.length} tables`);
     }
   }
 }
