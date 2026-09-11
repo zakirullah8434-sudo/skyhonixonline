@@ -452,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (screenName === 'dashboard') {
       loadDashboardStats();
     } else if (screenName === 'students') {
-      loadClassesList();
+      loadClassesList().then(() => loadStudentsList());
     } else if (screenName === 'attendance') {
       loadAttendanceFilters();
     } else if (screenName === 'fees') {
@@ -2031,7 +2031,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Filter Listeners — Search button triggers the query
   document.getElementById('btn-student-search').addEventListener('click', loadStudentsList);
-  document.getElementById('student-filter-class').addEventListener('change', loadStudentsList);
+  document.getElementById('student-filter-class').addEventListener('change', async function() {
+    const className = this.value;
+    const sectionSelect = document.getElementById('student-filter-section');
+    sectionSelect.innerHTML = '<option value="">All Sections</option><option value="No Section">No Section</option>';
+    if (className) {
+      try {
+        const sections = await apiCall(`/students/sections/${encodeURIComponent(className)}`);
+        sections.forEach(s => {
+          if (s.section_name) sectionSelect.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`;
+        });
+      } catch (e) { console.error('[APP_ERROR]', e.message); }
+    }
+    loadStudentsList();
+  });
   document.getElementById('student-filter-section').addEventListener('change', loadStudentsList);
   document.getElementById('student-search').addEventListener('keydown', function(e) { if (e.key === 'Enter') loadStudentsList(); });
 
