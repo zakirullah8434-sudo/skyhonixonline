@@ -6548,12 +6548,15 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
+        const trimmedClass = (class_name || '').trim();
         let students = [];
-        if (class_name === 'All Classes') {
+        if (!trimmedClass || trimmedClass === 'All Classes') {
           students = await apiCall('/students');
         } else {
-          students = await apiCall(`/students?class_name=${encodeURIComponent(class_name)}`);
+          students = await apiCall(`/students?class_name=${encodeURIComponent(trimmedClass)}`);
         }
+        if (students && !Array.isArray(students)) students = students.data || [];
+        console.log('[ROLLNO_DEBUG] class_name:', trimmedClass, 'students count:', Array.isArray(students) ? students.length : 0, students);
 
         let settings = {}, activeDatesheet = null, principal_sign = null, templateInstructions = null, templateTerm = '';
         const [examsRaw, settingsRaw, activeDatesheetRaw, rollnoTemplatesRaw] = await Promise.all([
@@ -6574,7 +6577,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const logoUrl = imgSrc(settings.logo_path, 'school_assets/school_logo.png');
 
-        if (students.length === 0) {
+        if (!Array.isArray(students) || students.length === 0) {
           showToast('No students found', true);
           return;
         }
