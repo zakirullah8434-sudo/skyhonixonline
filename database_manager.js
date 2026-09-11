@@ -63,7 +63,6 @@ class SchoolDbTursoProxy {
   }
 
   _getFirstTable(sql) {
-    const upper = sql.toUpperCase().trim();
     const SQL_KEYWORDS = new Set([
       'SELECT', 'FROM', 'WHERE', 'JOIN', 'ON', 'AND', 'OR', 'NOT',
       'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER',
@@ -75,11 +74,18 @@ class SchoolDbTursoProxy {
       'IF', 'EXISTS', 'PRIMARY', 'KEY', 'FOREIGN', 'REFERENCES', 'CONSTRAINT',
       'DEFAULT', 'CHECK', 'UNIQUE', 'AUTO_INCREMENT', 'INTEGER', 'TEXT', 'REAL', 'BLOB', 'NUMERIC'
     ]);
-    const m = sql.match(/\bFROM\s+(\w+)(?:\s+(\w+))?/i);
+    const m = sql.match(/\bFROM\s+(\w+)(?:\s+AS\s+(\w+))?(?:\s*,|\s+JOIN|\s+INNER|\s+LEFT|\s+RIGHT|\s+CROSS|\s+ON|\s+WHERE|\s+GROUP|\s+ORDER|\s+HAVING|\s+LIMIT|\s+UNION|\s*;|\s*$)/i);
     if (m) {
-      if (m[2] && !SQL_KEYWORDS.has(m[2].toUpperCase())) return m[2];
+      if (m[2]) return m[2];
       return m[1];
     }
+    const m2 = sql.match(/\bFROM\s+(\w+)\s+(\w+)/i);
+    if (m2) {
+      if (!SQL_KEYWORDS.has(m2[2].toUpperCase())) return m2[2];
+      return m2[1];
+    }
+    const m3 = sql.match(/\bFROM\s+(\w+)/i);
+    if (m3) return m3[1];
     const um = sql.match(/\bUPDATE\s+(\w+)/i);
     if (um) return um[1];
     return null;
@@ -272,6 +278,7 @@ async function runMain(sql, params = []) {
 
 // Dynamic school db connection pool
 const migratedSchools = new Set();
+const migrationPromises = {};
 const BACKFILL_VERSION = 3;
 const backfillVersions = new Map();
 async function ensureSchoolTables(db, schoolId) {
@@ -328,13 +335,10 @@ function getSchoolDb(schoolId) {
       if (idx > -1) schoolDbAccessOrder.splice(idx, 1);
       schoolDbAccessOrder.push(schoolId);
 
-      if (!migratedSchools.has(schoolId)) {
-        migratedSchools.add(schoolId);
-        ensureSchoolTables(schoolDbCache[schoolId], schoolId).then(() => resolve(schoolDbCache[schoolId])).catch(() => resolve(schoolDbCache[schoolId]));
-      } else {
-        return resolve(schoolDbCache[schoolId]);
+      if (migrationPromises[schoolId]) {
+        return migrationPromises[schoolId].then(() => resolve(schoolDbCache[schoolId])).catch(() => resolve(schoolDbCache[schoolId]));
       }
-      return;
+      return resolve(schoolDbCache[schoolId]);
     }
 
     // Prevent race condition: if a connect is pending, wait for it
@@ -346,14 +350,12 @@ function getSchoolDb(schoolId) {
       const proxy = new SchoolDbTursoProxy(getTursoClient(), schoolId);
       schoolDbCache[schoolId] = proxy;
       schoolDbAccessOrder.push(schoolId);
-      if (!migratedSchools.has(schoolId)) {
-        migratedSchools.add(schoolId);
-        ensureSchoolTables(proxy, schoolId)
-          .then(() => resolve(proxy))
-          .catch(e => { console.error('[TURSO_MIGRATE]', e.message); resolve(proxy); });
-      } else {
-        return resolve(proxy);
-      }
+
+      const p = ensureSchoolTables(proxy, schoolId)
+        .then(() => { delete migrationPromises[schoolId]; })
+        .catch(e => { console.error('[TURSO_MIGRATE]', e.message); delete migrationPromises[schoolId]; });
+      migrationPromises[schoolId] = p;
+      p.then(() => resolve(proxy));
       return;
     }
 

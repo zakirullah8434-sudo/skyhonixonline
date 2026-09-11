@@ -76,6 +76,7 @@ async function ensureDbInitialized() {
                 const dest = path.join(config.DATABASES_DIR, file);
                 if (!fs.existsSync(dest)) {
                   fs.copyFileSync(src, dest);
+                  console.log(`[INIT] Copied ${file} to /tmp/databases/`);
                 }
               }
             }
@@ -99,10 +100,15 @@ async function ensureDbInitialized() {
             }
           };
           copyDirRecursive(config.READONLY_UPLOADS_DIR, config.UPLOADS_DIR);
+
+          if (!config.useTurso) {
+            console.warn('[WARNING] Running on Vercel WITHOUT Turso. Data in /tmp is ephemeral and will be lost on cold starts. Set TURSO_URL environment variable for persistent storage.');
+          }
         }
         await initMainDb();
         resetMainDb(); // Reset cached connection to ensure fresh connection to new DB
         dbInitialized = true;
+        console.log('[INIT] Database initialized successfully.');
       } catch (initErr) {
         console.error('DB initialization error:', initErr);
         dbInitializationPromise = null;

@@ -38,9 +38,12 @@ router.post('/setup', authenticateToken, async (req, res) => {
 
     await runSchool(
       schoolId,
-      `INSERT INTO class_fees (class_name, monthly_fee)
-       VALUES (?, ?)
-       ON CONFLICT(class_name) DO UPDATE SET monthly_fee=excluded.monthly_fee`,
+      'DELETE FROM class_fees WHERE class_name = ?',
+      [class_name]
+    );
+    await runSchool(
+      schoolId,
+      'INSERT INTO class_fees (class_name, monthly_fee) VALUES (?, ?)',
       [class_name, newFee]
     );
 
@@ -89,9 +92,12 @@ router.post('/dues', authenticateToken, async (req, res) => {
   try {
     await runSchool(
       schoolId,
-      `INSERT INTO fee_dues (student_id, due_amount) 
-       VALUES (?, ?) 
-       ON CONFLICT(student_id) DO UPDATE SET due_amount=excluded.due_amount`,
+      `DELETE FROM fee_dues WHERE student_id = ?`,
+      [parseInt(student_id)]
+    );
+    await runSchool(
+      schoolId,
+      `INSERT INTO fee_dues (student_id, due_amount) VALUES (?, ?)`,
       [parseInt(student_id), parseFloat(due_amount)]
     );
     res.json({ message: 'Opening due saved successfully!' });
@@ -447,6 +453,11 @@ router.get('/history-management', authenticateToken, async (req, res) => {
   }
 
   try {
+    const monthOrder = {
+      'January': 1, 'February': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
+      'July': 7, 'August': 8, 'September': 9, 'October': 10, 'November': 11, 'December': 12
+    };
+
     // 1. Get all active students for this class/section
     let studentQuery = `
       SELECT id, name, roll_no, class_name, section_name, father_name, transport_fee, is_free, discount_amount, discount_percent, family_head_id 
@@ -601,8 +612,12 @@ router.post('/save-history-dues', authenticateToken, async (req, res) => {
         // Update opening dues in fee_dues table
         await runSchool(
           schoolId,
-          `INSERT INTO fee_dues (student_id, due_amount) VALUES (?, ?)
-           ON CONFLICT(student_id) DO UPDATE SET due_amount = excluded.due_amount`,
+          `DELETE FROM fee_dues WHERE student_id = ?`,
+          [student_id]
+        );
+        await runSchool(
+          schoolId,
+          `INSERT INTO fee_dues (student_id, due_amount) VALUES (?, ?)`,
           [student_id, prevDueVal]
         );
       }
