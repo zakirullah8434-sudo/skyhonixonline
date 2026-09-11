@@ -115,15 +115,12 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /students/classes - Get unique active classes from sections and students
+// GET /students/classes - Get unique active classes
 router.get('/classes', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
     const rows = await querySchool(schoolId,
-      `SELECT DISTINCT class_name FROM sections
-       UNION
-       SELECT DISTINCT class_name FROM students WHERE (status != 'Left' OR status IS NULL) AND class_name IS NOT NULL AND class_name != ''
-       ORDER BY class_name`);
+      `SELECT DISTINCT class_name FROM students WHERE (status != 'Left' OR status IS NULL) AND class_name IS NOT NULL AND class_name != ''`);
     let classes = rows.map(r => r.class_name).filter(Boolean);
     if (classes.length === 0) {
       try {
