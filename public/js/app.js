@@ -11,7 +11,10 @@ async function getCachedClasses(apiCall) {
     _classCache = await apiCall('/students/classes');
     _classCacheTime = Date.now();
     return _classCache;
-  } catch (e) { return _classCache || []; }
+  } catch (e) {
+    console.error('Failed to load classes:', e);
+    return _classCache || [];
+  }
 }
 
 let _settingsCache = null, _settingsCacheTime = 0;
@@ -498,7 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const stats = await apiCall('/dashboard/stats');
 
-      document.getElementById('stat-total-students').innerText = stats.totalStudents;
+      document.getElementById('stat-total-students').innerText = stats.totalStudents || 0;
 
       let presentCount = 0;
       let totalAttLogs = 0;
@@ -513,16 +516,20 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('stat-month-fees').innerText = `${(stats.monthCollected || 0).toLocaleString()} PKR`;
       document.getElementById('stat-pending-dues').innerText = `${(stats.pendingDues || 0).toLocaleString()} PKR`;
 
-      document.getElementById('dash-school-title').innerText = stats.settings.school_name || '';
-      document.getElementById('dash-school-phone').innerText = stats.settings.phone || 'N/A';
-      document.getElementById('dash-school-reg').innerText = stats.settings.registration_number || 'N/A';
+      document.getElementById('dash-school-title').innerText = (stats.settings && stats.settings.school_name) || '';
+      document.getElementById('dash-school-phone').innerText = (stats.settings && stats.settings.phone) || 'N/A';
+      document.getElementById('dash-school-reg').innerText = (stats.settings && stats.settings.registration_number) || 'N/A';
       document.getElementById('dash-school-id').innerText = currentUser.schoolId || 'N/A';
-      if (stats.settings.logo_path) {
+      if (stats.settings && stats.settings.logo_path) {
         document.getElementById('dash-school-logo').src = imgSrc(stats.settings.logo_path);
       }
 
     } catch (e) {
-      console.error(e);
+      console.error('Dashboard stats error:', e);
+      document.getElementById('stat-total-students').innerText = '0';
+      document.getElementById('stat-attendance-rate').innerText = '0%';
+      document.getElementById('stat-month-fees').innerText = '0 PKR';
+      document.getElementById('stat-pending-dues').innerText = '0 PKR';
     }
   }
 
@@ -6787,7 +6794,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ==========================================
-  // MODULE: BILLING, SUBSCRIPTION, & MASTER ADMIN
+  // MODULE: BILLING & SUBSCRIPTION
   // ==========================================
   async function loadBillingData() {
     try {
