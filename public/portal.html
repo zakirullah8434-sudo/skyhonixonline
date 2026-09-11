@@ -3742,74 +3742,7 @@
             </div>
           </div>
 
-          <!-- ==================== MASTER BILLING ADMIN PORTAL (ACCESS WITH PIN) ==================== -->
-          <div class="card" style="margin-top: 40px; border: 1px solid var(--secondary-glow);">
-            <h3>🔐 Master Billing Admin Dashboard</h3>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px;">
-              Enter the system Master Billing PIN to review and approve payment receipts submitted by registered schools.
-            </p>
-            
-            <div id="master-pin-section" style="margin-top: 15px; display: flex; gap: 15px; max-width: 400px;">
-              <input type="password" class="form-control" id="master-pin-input" placeholder="Enter PIN (e.g. goldensunbk)">
-              <button class="btn btn-secondary btn-sm" id="btn-verify-master-pin">Verify Access</button>
-            </div>
 
-            <!-- Master Admin Content (Initially Hidden) -->
-            <div id="master-admin-content" style="display: none; margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 25px;">
-              
-              <!-- Tab Navigation -->
-              <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
-                <button class="btn btn-outline btn-sm" id="tab-master-slips" style="padding: 6px 12px; border-color: var(--primary);">Payment Slips</button>
-                <button class="btn btn-outline btn-sm" id="tab-master-schools" style="padding: 6px 12px;">Manage Schools</button>
-              </div>
-
-              <!-- Payment Slips View -->
-              <div id="master-slips-view">
-                <h3 style="margin-bottom: 15px;">Pending School Payments Receipts</h3>
-                <div class="table-container">
-                  <table class="data-table" id="table-master-slips">
-                    <thead>
-                      <tr>
-                        <th>School Name</th>
-                        <th>Email</th>
-                        <th>Amount</th>
-                        <th>Date Paid</th>
-                        <th>Receipt File</th>
-                        <th>System Status</th>
-                        <th>Admin Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No logs found...</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <!-- Manage Schools View (Initially Hidden) -->
-              <div id="master-schools-view" style="display: none;">
-                <h3 style="margin-bottom: 15px;">Manage Registered Schools Access</h3>
-                <div class="table-container">
-                  <table class="data-table" id="table-master-schools">
-                    <thead>
-                      <tr>
-                        <th>School ID</th>
-                        <th>School Name</th>
-                        <th>Phone / Email</th>
-                        <th>Status</th>
-                        <th>Expiry Date</th>
-                        <th>Allow Access Duration</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading schools...</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-            </div>
-          </div>
         </article>
 
         <!-- ==================== SCREEN: POST CREATOR ==================== -->

@@ -580,6 +580,11 @@
           Statistics
         </a>
       </li>
+      <li class="admin-nav-item">
+        <a href="#" class="admin-nav-link" data-tab="billing-admin">
+          Billing Admin
+        </a>
+      </li>
     </ul>
 
     <button class="btn btn-logout" id="logout-btn">Logout</button>
@@ -649,6 +654,67 @@
         <div style="background: #ECFDF5; padding: 20px; border-radius: 12px; border-left: 4px solid #D4A017;">
           <div style="font-size: 11px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Bandwidth</div>
           <div style="font-size: 28px; color: #059669; font-weight: 700; margin-top: 8px;" id="stat-total-bandwidth">0 B</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Billing Admin Tab -->
+    <div id="billing-admin-tab" class="admin-section">
+      <h2>Billing Admin</h2>
+      <p>Review and approve payment receipts submitted by registered schools</p>
+
+      <div style="margin-top: 20px; padding: 20px; background: #fff; border-radius: 12px; border: 1px solid #E5E7EB;">
+        <h3 style="margin-bottom: 12px; font-size: 16px;">Master PIN Verification</h3>
+        <p style="color: #6B7280; font-size: 13px; margin-bottom: 14px;">Enter the system Master Billing PIN to access billing controls.</p>
+        <div style="display: flex; gap: 10px; max-width: 360px;">
+          <input type="password" id="master-pin-input" placeholder="Enter Master PIN" style="flex: 1; padding: 8px 12px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 14px;">
+          <button class="btn btn-approve" id="btn-verify-master-pin" style="padding: 8px 16px;">Verify</button>
+        </div>
+      </div>
+
+      <div id="master-admin-content" style="display: none; margin-top: 24px;">
+        <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #E5E7EB; padding-bottom: 10px;">
+          <button class="btn btn-approve" id="tab-master-slips" style="padding: 6px 14px;">Payment Slips</button>
+          <button class="btn btn-view" id="tab-master-schools" style="padding: 6px 14px;">Manage Schools</button>
+        </div>
+
+        <div id="master-slips-view">
+          <h3 style="margin-bottom: 15px; font-size: 15px;">Pending School Payment Receipts</h3>
+          <table class="schools-table">
+            <thead>
+              <tr>
+                <th>School Name</th>
+                <th>Email</th>
+                <th>Amount</th>
+                <th>Date Paid</th>
+                <th>Receipt</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="master-slips-tbody">
+              <tr><td colspan="7" style="text-align: center; color: #9CA3AF;">No billing logs uploaded yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="master-schools-view" style="display: none;">
+          <h3 style="margin-bottom: 15px; font-size: 15px;">Manage Registered Schools Access</h3>
+          <table class="schools-table">
+            <thead>
+              <tr>
+                <th>School ID</th>
+                <th>School Name</th>
+                <th>Phone / Email</th>
+                <th>Status</th>
+                <th>Expiry</th>
+                <th>Allow Access</th>
+              </tr>
+            </thead>
+            <tbody id="master-schools-tbody">
+              <tr><td colspan="6" style="text-align: center; color: #9CA3AF;">Loading schools...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1154,6 +1220,239 @@
       showLogin();
     }
   });
+
+  // --------------------------------------------------
+  // Billing Admin - Master PIN verification & controls
+  // --------------------------------------------------
+  let activeMasterPin = '';
+
+  document.getElementById('btn-verify-master-pin').addEventListener('click', async () => {
+    const pin = document.getElementById('master-pin-input').value.trim();
+    if (!pin) return;
+
+    try {
+      const res = await fetch('/api/billing/admin/slips', {
+        headers: { 'x-master-pin': pin }
+      });
+      const slips = await res.json();
+
+      if (!res.ok) throw new Error(slips.error || 'Failed master verification');
+
+      activeMasterPin = pin;
+      document.getElementById('master-pin-input').value = '';
+      document.getElementById('master-admin-content').style.display = 'block';
+      loadMasterSlipsTable(slips);
+      refreshMasterSchools();
+    } catch (err) {
+      alert(err.message);
+      document.getElementById('master-admin-content').style.display = 'none';
+      activeMasterPin = '';
+    }
+  });
+
+  document.getElementById('tab-master-slips').addEventListener('click', () => {
+    document.getElementById('tab-master-slips').className = 'btn btn-approve';
+    document.getElementById('tab-master-schools').className = 'btn btn-view';
+    document.getElementById('master-slips-view').style.display = 'block';
+    document.getElementById('master-schools-view').style.display = 'none';
+    if (activeMasterPin) refreshMasterSlips();
+  });
+
+  document.getElementById('tab-master-schools').addEventListener('click', () => {
+    document.getElementById('tab-master-schools').className = 'btn btn-approve';
+    document.getElementById('tab-master-slips').className = 'btn btn-view';
+    document.getElementById('master-slips-view').style.display = 'none';
+    document.getElementById('master-schools-view').style.display = 'block';
+    if (activeMasterPin) refreshMasterSchools();
+  });
+
+  async function refreshMasterSlips() {
+    try {
+      const res = await fetch('/api/billing/admin/slips', { headers: { 'x-master-pin': activeMasterPin } });
+      const slips = await res.json();
+      loadMasterSlipsTable(slips);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function refreshMasterSchools() {
+    try {
+      const res = await fetch('/api/billing/admin/schools', { headers: { 'x-master-pin': activeMasterPin } });
+      const schools = await res.json();
+      loadMasterSchoolsTable(schools);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function loadMasterSlipsTable(slips) {
+    const tbody = document.getElementById('master-slips-tbody');
+    tbody.innerHTML = '';
+
+    if (slips.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #9CA3AF;">No billing logs uploaded yet.</td></tr>';
+      return;
+    }
+
+    const rows = slips.map(slip => {
+      const isPending = slip.status === 'pending';
+      const actionButtons = isPending ? `
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-approve btn-master-approve" data-id="${slip.id}" style="padding: 4px 10px; font-size: 12px;">Approve</button>
+          <button class="btn btn-suspend btn-master-reject" data-id="${slip.id}" style="padding: 4px 10px; font-size: 12px;">Reject</button>
+        </div>
+      ` : `<span style="font-size:12px; color:#9CA3AF;">Resolved</span>`;
+
+      let badgeClass = 'status-pending';
+      if (slip.status === 'approved') badgeClass = 'status-active';
+      else if (slip.status === 'rejected') badgeClass = 'status-suspended';
+
+      return `
+        <tr>
+          <td>
+            <strong>${slip.school_name}</strong>
+            <div style="font-size:11px; color:#9CA3AF;">Sys: ${slip.current_status.toUpperCase()}</div>
+          </td>
+          <td>${slip.email}</td>
+          <td><strong>${slip.amount.toLocaleString()} PKR</strong></td>
+          <td>${slip.payment_date}</td>
+          <td><a href="/${slip.receipt_photo}" target="_blank" style="color:#4F46E5; font-size: 13px;">View</a></td>
+          <td><span class="status-badge ${badgeClass}">${slip.status.toUpperCase()}</span></td>
+          <td>${actionButtons}</td>
+        </tr>
+      `;
+    });
+    tbody.innerHTML = rows.join('');
+
+    tbody.onclick = (e) => {
+      const approveBtn = e.target.closest('.btn-master-approve');
+      if (approveBtn) {
+        processMasterSlipAction(approveBtn.getAttribute('data-id'), 'approve');
+        return;
+      }
+      const rejectBtn = e.target.closest('.btn-master-reject');
+      if (rejectBtn) {
+        const notes = prompt('Reason for rejection:');
+        if (notes !== null) {
+          processMasterSlipAction(rejectBtn.getAttribute('data-id'), 'reject', notes);
+        }
+        return;
+      }
+    };
+  }
+
+  function loadMasterSchoolsTable(schools) {
+    const tbody = document.getElementById('master-schools-tbody');
+    tbody.innerHTML = '';
+
+    if (schools.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #9CA3AF;">No schools registered yet.</td></tr>';
+      return;
+    }
+
+    const rows = schools.map(school => {
+      let badgeClass = 'status-suspended';
+      if (school.subscription_status === 'active') badgeClass = 'status-active';
+      else if (school.subscription_status === 'trial') badgeClass = 'status-pending';
+
+      const expiry = school.next_due_date || 'N/A';
+      const codeDisplay = school.school_code || 'Not Assigned';
+      const needsCode = !school.school_code;
+
+      return `
+        <tr>
+          <td><code style="background: #F3F4F6; padding: 4px 8px; border-radius: 6px; font-size: 12px; color: #374151;">${codeDisplay}</code></td>
+          <td><strong>${school.school_name}</strong></td>
+          <td>
+            <div style="font-size:13px;">${school.phone || 'N/A'}</div>
+            <div style="font-size:11px; color:#9CA3AF;">${school.email}</div>
+          </td>
+          <td><span class="status-badge ${badgeClass}">${school.subscription_status.toUpperCase()}</span></td>
+          <td><strong>${expiry}</strong></td>
+          <td>
+            ${needsCode ? `
+              <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 6px;">
+                <input type="text" class="form-control school-code-input-${school.id}" placeholder="School ID" value="${generateAdminSchoolId()}" style="width: 130px; display: inline-block; padding: 4px; font-size: 12px;">
+              </div>
+            ` : ''}
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <select class="form-control select-months-${school.id}" style="width: 80px; display: inline-block; padding: 4px; font-size: 12px;">
+                <option value="1">1 Month</option>
+                <option value="2">2 Months</option>
+                <option value="6">6 Months</option>
+                <option value="12">12 Months</option>
+              </select>
+              <button class="btn btn-approve btn-allow-access" style="padding: 4px 10px; font-size: 12px; cursor: pointer;" data-school-id="${school.id}">Allow</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+    tbody.innerHTML = rows.join('');
+
+    tbody.onclick = async (e) => {
+      const btn = e.target.closest('.btn-allow-access');
+      if (!btn) return;
+      const schoolId = btn.getAttribute('data-school-id');
+      const select = document.querySelector(`.select-months-${schoolId}`);
+      const months = select ? select.value : '1';
+      const codeInput = document.querySelector(`.school-code-input-${schoolId}`);
+      const schoolCode = codeInput ? codeInput.value.trim() : '';
+
+      try {
+        const body = { school_id: schoolId, months: months };
+        if (schoolCode) body.school_code = schoolCode;
+
+        const response = await fetch('/api/billing/admin/allow', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-master-pin': activeMasterPin
+          },
+          body: JSON.stringify(body)
+        });
+
+        const res = await response.json();
+        if (!response.ok) throw new Error(res.error);
+
+        alert(res.message);
+        refreshMasterSchools();
+      } catch (err) {
+        alert(err.message);
+      }
+    };
+  }
+
+  async function processMasterSlipAction(slip_id, action, notes = '') {
+    try {
+      const response = await fetch('/api/billing/admin/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-master-pin': activeMasterPin
+        },
+        body: JSON.stringify({ slip_id, action, notes })
+      });
+
+      const res = await response.json();
+      if (!response.ok) throw new Error(res.error);
+
+      alert(res.message);
+      refreshMasterSlips();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  function generateAdminSchoolId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = 'SKH-';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
 </script>
 
 </body>
