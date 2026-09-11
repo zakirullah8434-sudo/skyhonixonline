@@ -1952,7 +1952,7 @@ document.addEventListener('DOMContentLoaded', () => {
       selects.forEach(sel => {
         if (!sel) return;
         const currentVal = sel.value;
-        const isAllClasses = ['student-filter-class', 'history-filter-class', 'student-fee-class', 'datesheet-class-select', 'rollno-class-select', 'rollno-gen-class'].includes(sel.id);
+        const isAllClasses = ['student-filter-class', 'history-filter-class', 'student-fee-class', 'datesheet-class-select', 'rollno-class-select', 'rollno-gen-class', 'att-total-class'].includes(sel.id);
         const isSelectPlaceholder = ['reminder-filter-class', 'slip-class'].includes(sel.id);
         
         if (isAllClasses) {
@@ -6548,15 +6548,27 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
-        const trimmedClass = (class_name || '').trim();
+        btnGenerateRollno.disabled = true;
+        btnGenerateRollno.textContent = 'Loading...';
+
+        const class_name_raw = (class_name || '').trim();
         let students = [];
-        if (!trimmedClass || trimmedClass === 'All Classes') {
+        if (!class_name_raw || class_name_raw === 'All Classes') {
           students = await apiCall('/students');
         } else {
-          students = await apiCall(`/students?class_name=${encodeURIComponent(trimmedClass)}`);
+          students = await apiCall(`/students?class_name=${encodeURIComponent(class_name_raw)}`);
         }
         if (students && !Array.isArray(students)) students = students.data || [];
-        console.log('[ROLLNO_DEBUG] class_name:', trimmedClass, 'students count:', Array.isArray(students) ? students.length : 0, students);
+        console.log('[ROLLNO_DEBUG] class_name:', class_name_raw, 'students count:', Array.isArray(students) ? students.length : 0, students);
+
+        if (!Array.isArray(students) || students.length === 0) {
+          if (class_name_raw && class_name_raw !== 'All Classes') {
+            console.log('[ROLLNO_DEBUG] Retrying without class filter...');
+            students = await apiCall('/students');
+            if (students && !Array.isArray(students)) students = students.data || [];
+            console.log('[ROLLNO_DEBUG] All students count:', Array.isArray(students) ? students.length : 0);
+          }
+        }
 
         let settings = {}, activeDatesheet = null, principal_sign = null, templateInstructions = null, templateTerm = '';
         const [examsRaw, settingsRaw, activeDatesheetRaw, rollnoTemplatesRaw] = await Promise.all([
@@ -6578,7 +6590,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const logoUrl = imgSrc(settings.logo_path, 'school_assets/school_logo.png');
 
         if (!Array.isArray(students) || students.length === 0) {
-          showToast('No students found', true);
+          showToast('No students found in this school. Please add students first.', true);
           return;
         }
 
