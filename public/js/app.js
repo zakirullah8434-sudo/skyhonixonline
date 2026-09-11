@@ -444,7 +444,6 @@ document.addEventListener('DOMContentLoaded', () => {
       loadDashboardStats();
     } else if (screenName === 'students') {
       loadClassesList();
-      loadStudentsList();
     } else if (screenName === 'attendance') {
       loadAttendanceFilters();
     } else if (screenName === 'fees') {
@@ -1956,7 +1955,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentVal) sel.value = currentVal;
       });
 
-    } catch (e) {}
+    } catch (e) { console.error('[CLASSES_LIST]', e.message); }
   }
 
   async function loadStudentsList() {
@@ -2021,10 +2020,11 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   }
 
-  // Filter Listeners
+  // Filter Listeners — Search button triggers the query
+  document.getElementById('btn-student-search').addEventListener('click', loadStudentsList);
   document.getElementById('student-filter-class').addEventListener('change', loadStudentsList);
   document.getElementById('student-filter-section').addEventListener('change', loadStudentsList);
-  document.getElementById('student-search').addEventListener('input', debounce(loadStudentsList, 300));
+  document.getElementById('student-search').addEventListener('keydown', function(e) { if (e.key === 'Enter') loadStudentsList(); });
 
   // Student Modals and forms setup
   const modalStudent = document.getElementById('modal-student');
@@ -5191,7 +5191,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('exam-class-all').addEventListener('change', (e) => {
         document.querySelectorAll('.exam-class-check').forEach(cb => cb.checked = e.target.checked);
       });
-    } catch (e) {}
+    } catch (e) { console.error('[EXAM_CLASSES]', e.message); }
   }
 
   function loadExamsData() {
@@ -5231,7 +5231,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentVal) sel.value = currentVal;
       });
 
-    } catch (e) {}
+    } catch (e) { console.error('[EXAMS_DROPDOWN]', e.message); }
   }
 
   // Create exam registry
