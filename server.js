@@ -4,6 +4,7 @@ const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
+const session = require('express-session');
 const config = require('./config');
 const { initMainDb } = require('./main_db_init');
 const { resetMainDb } = require('./database_manager');
@@ -24,6 +25,14 @@ app.use(compression({
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Session middleware for OAuth
+app.use(session({
+  secret: config.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 600000 } // 10 minutes
+}));
 
 // Bandwidth tracking — lightweight, no JWT verify (uses req.user after auth)
 const bandwidthTracker = new Map();
@@ -154,6 +163,7 @@ const parentRoutes = require('./routes/parents');
 const promotionsRoutes = require('./routes/promotions');
 const transportRoutes = require('./routes/transport');
 const salaryRoutes = require('./routes/salary');
+const socialAuthRoutes = require('./routes/social-auth');
 
 // ─── Ping endpoint (for offline connectivity detection) ───
 app.get('/api/auth/ping', (req, res) => {
@@ -256,6 +266,8 @@ app.get('/api/dashboard/stats', async (req, res) => {
     const currentYear = new Date().getFullYear();
     const today = new Date().toISOString().split('T')[0];
 
+    const { queryMainOne: queryMainOneDb } = require('./database_manager');
+
     const results = await Promise.allSettled([
       querySchoolOneDb(schoolId, "SELECT COUNT(*) as cnt FROM students WHERE status IS NULL OR status != 'Left'"),
       querySchoolDb(schoolId,
@@ -264,13 +276,15 @@ app.get('/api/dashboard/stats', async (req, res) => {
         `SELECT SUM(total_payable - paid_amount) as pending_dues,
                 SUM(CASE WHEN month = ? AND year = ? THEN paid_amount ELSE 0 END) as month_collected
          FROM fee_ledger`, [currentMonth, currentYear]),
-      querySchoolOneDb(schoolId, 'SELECT school_name, logo_path, phone, registration_number FROM fee_settings LIMIT 1')
+      querySchoolOneDb(schoolId, 'SELECT school_name, logo_path, phone, registration_number FROM fee_settings LIMIT 1'),
+      queryMainOneDb('SELECT school_code FROM schools WHERE id = ?', [schoolId])
     ]);
 
     const studentCount = results[0].status === 'fulfilled' ? results[0].value : null;
     const attStats = results[1].status === 'fulfilled' ? results[1].value : null;
     const feeAgg = results[2].status === 'fulfilled' ? results[2].value : null;
     const settings = results[3].status === 'fulfilled' ? results[3].value : null;
+    const schoolRow = results[4].status === 'fulfilled' ? results[4].value : null;
 
     results.forEach((r, i) => {
       if (r.status === 'rejected') console.error(`[DASHBOARD] Query ${i} failed:`, r.reason.message);
@@ -281,7 +295,8 @@ app.get('/api/dashboard/stats', async (req, res) => {
       attendanceStats: attStats || [],
       pendingDues: feeAgg ? (feeAgg.pending_dues || 0) : 0,
       monthCollected: feeAgg ? (feeAgg.month_collected || 0) : 0,
-      settings: settings || {}
+      settings: settings || {},
+      schoolCode: schoolRow ? schoolRow.school_code : null
     };
 
     dashboardCache.set(cacheKey, { data: result, time: Date.now() });
@@ -307,6 +322,7 @@ app.use('/api/parents', parentRoutes);
 app.use('/api/promotions', promotionsRoutes);
 app.use('/api/transport', transportRoutes);
 app.use('/api/salary', salaryRoutes);
+app.use('/api/auth', socialAuthRoutes);
 
 // Serve static frontend files with optimized caching
 app.use(express.static(path.join(__dirname, 'public'), {

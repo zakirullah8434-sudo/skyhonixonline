@@ -527,7 +527,12 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('dash-school-title').innerText = (stats.settings && stats.settings.school_name) || '';
       document.getElementById('dash-school-phone').innerText = (stats.settings && stats.settings.phone) || 'N/A';
       document.getElementById('dash-school-reg').innerText = (stats.settings && stats.settings.registration_number) || 'N/A';
-      document.getElementById('dash-school-id').innerText = currentUser.schoolCode || currentUser.schoolId || 'N/A';
+      const displayCode = stats.schoolCode || currentUser.schoolCode || currentUser.schoolId || 'N/A';
+      document.getElementById('dash-school-id').innerText = displayCode;
+      if (stats.schoolCode && stats.schoolCode !== currentUser.schoolCode) {
+        currentUser.schoolCode = stats.schoolCode;
+        localStorage.setItem('skyhonix_user', JSON.stringify(currentUser));
+      }
       if (stats.settings && stats.settings.logo_path) {
         document.getElementById('dash-school-logo').src = imgSrc(stats.settings.logo_path);
       }
