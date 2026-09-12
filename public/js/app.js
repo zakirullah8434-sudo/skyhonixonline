@@ -6704,24 +6704,20 @@ document.addEventListener('DOMContentLoaded', () => {
             : (exam ? exam.exam_name + ' Exam ' + exam.year : '');
 
           slipsHtml +=
-            '<div class="rollno-slip" style="width:100%; display:flex; flex-direction:column; padding:4% 10px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
+            '<div class="rollno-slip" style="width:100%; display:flex; flex-direction:column; padding:4% 12px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
 
-              // === HEADER: School name ===
-              '<div style="text-align:center;">' +
-                '<div style="font-size:17px; font-weight:900; color:#000; text-transform:uppercase; letter-spacing:1.5px; line-height:1.2;">' + currentUser.schoolName + '</div>' +
-              '</div>' +
-
-              // === Logo + ROLL NO SLIP title ===
-              '<div style="display:flex; align-items:center; gap:12px; margin-top:4px;">' +
-                '<img src="' + logoUrl + '" alt="Logo" style="width:55px; height:55px; border-radius:50%; flex-shrink:0; border:2px solid #ddd;" onerror="this.style.display=\'none\'">' +
+              // === HEADER: School name + Logo + ROLL NO SLIP title ===
+              '<div style="display:flex; align-items:center; gap:10px; margin-bottom:2px;">' +
+                '<img src="' + logoUrl + '" alt="Logo" style="width:60px; height:60px; border-radius:50%; flex-shrink:0; border:2px solid #ddd;" onerror="this.style.display=\'none\'">' +
                 '<div style="text-align:center; flex:1;">' +
-                  '<div style="font-size:15px; font-weight:900; letter-spacing:2px; color:#000;">ROLL NO SLIP</div>' +
+                  '<div style="font-size:17px; font-weight:900; color:#000; text-transform:uppercase; letter-spacing:1.5px; line-height:1.2;">' + currentUser.schoolName + '</div>' +
+                  '<div style="font-size:16px; font-weight:900; letter-spacing:2px; color:#000; margin-top:4px;">ROLL NO SLIP</div>' +
                   '<div style="font-size:11px; color:#333; margin-top:2px; font-weight:600;">' + examName + '</div>' +
                 '</div>' +
               '</div>' +
 
               // === Student info ===
-              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 20px; font-size:13px; padding:6px 0; font-weight:600;">' +
+              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 24px; font-size:13px; padding:8px 0 6px 0; font-weight:600;">' +
                 '<div><strong>Name:</strong>&nbsp;&nbsp;' + (s.name || '-') + '</div>' +
                 '<div><strong>Class:</strong>&nbsp;&nbsp;' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
                 '<div><strong>Father Name:</strong>&nbsp;&nbsp;' + (s.father_name || '-') + '</div>' +
@@ -6733,18 +6729,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 '<table style="width:100%; border-collapse:collapse; font-size:11px; table-layout:fixed;">' +
                   '<colgroup>' +
                     '<col style="width:6%;">' +
-                    '<col style="width:22%;">' +
-                    '<col style="width:20%;">' +
-                    '<col style="width:30%;">' +
-                    '<col style="width:22%;">' +
+                    '<col style="width:18%;">' +
+                    '<col style="width:16%;">' +
+                    '<col style="width:34%;">' +
+                    '<col style="width:26%;">' +
                   '</colgroup>' +
                   '<thead>' +
                     '<tr>' +
-                      '<th style="border:1.5px solid #000; padding:5px 5px; text-align:center; font-weight:700; background:#f0f0f0;">#</th>' +
-                      '<th style="border:1.5px solid #000; padding:5px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Date</th>' +
-                      '<th style="border:1.5px solid #000; padding:5px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Day</th>' +
-                      '<th style="border:1.5px solid #000; padding:5px 5px; text-align:left; font-weight:700; background:#f0f0f0;">Subject</th>' +
-                      '<th style="border:1.5px solid #000; padding:5px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Time</th>' +
+                      '<th style="border:1.5px solid #000; padding:6px 5px; text-align:center; font-weight:700; background:#f0f0f0;">#</th>' +
+                      '<th style="border:1.5px solid #000; padding:6px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Date</th>' +
+                      '<th style="border:1.5px solid #000; padding:6px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Day</th>' +
+                      '<th style="border:1.5px solid #000; padding:6px 5px; text-align:left; font-weight:700; background:#f0f0f0;">Subject</th>' +
+                      '<th style="border:1.5px solid #000; padding:6px 5px; text-align:center; font-weight:700; background:#f0f0f0;">Time</th>' +
                     '</tr>' +
                   '</thead>' +
                   '<tbody>' + tableRows + '</tbody>' +
@@ -6752,17 +6748,17 @@ document.addEventListener('DOMContentLoaded', () => {
               '</div>' +
 
               // === Footer: Instructions + Signature (pinned to bottom) ===
-              '<div class="rollno-footer" style="display:flex; justify-content:space-between; align-items:flex-end; font-size:12px; margin-top:auto; padding-top:8px;">' +
-                '<div style="max-width:55%;">' +
-                  '<div style="font-weight:700; margin-bottom:2px; font-size:12px;">Instructions:</div>' +
-                  '<ul style="margin:0; padding-left:14px; list-style:disc; line-height:1.5;">' + instHtml + '</ul>' +
+              '<div class="rollno-footer" style="display:flex; justify-content:space-between; align-items:flex-end; font-size:12px; margin-top:auto; padding-top:10px;">' +
+                '<div style="max-width:50%;">' +
+                  '<div style="font-weight:700; margin-bottom:3px; font-size:12px;">Instructions:</div>' +
+                  '<ul style="margin:0; padding-left:14px; list-style:disc; line-height:1.6;">' + instHtml + '</ul>' +
                 '</div>' +
                 '<div style="text-align:center;">' +
                   (principal_sign ?
-                    '<img src="' + principal_sign + '" alt="Sign" style="max-height:35px; max-width:80px; opacity:0.85;" onerror="this.style.display=\'none\'">' :
-                    '<div style="height:35px;"></div>'
+                    '<img src="' + principal_sign + '" alt="Sign" style="max-height:40px; max-width:90px; opacity:0.85;" onerror="this.style.display=\'none\'">' :
+                    '<div style="height:40px;"></div>'
                   ) +
-                  '<div style="border-top:1px solid #000; width:120px; margin:0 auto; padding-top:4px; font-size:11px; font-weight:600;">Principal Signature</div>' +
+                  '<div style="border-top:1px solid #000; width:130px; margin:0 auto; padding-top:4px; font-size:11px; font-weight:600;">Principal Signature</div>' +
                 '</div>' +
               '</div>' +
 
@@ -6857,10 +6853,10 @@ document.addEventListener('DOMContentLoaded', () => {
           '}' +
           /* ========== COLUMN WIDTHS ========== */
           '.rollno-slip table th:nth-child(1),.rollno-slip table td:nth-child(1){width:6%!important;}' +
-          '.rollno-slip table th:nth-child(2),.rollno-slip table td:nth-child(2){width:22%!important;}' +
-          '.rollno-slip table th:nth-child(3),.rollno-slip table td:nth-child(3){width:20%!important;}' +
-          '.rollno-slip table th:nth-child(4),.rollno-slip table td:nth-child(4){width:30%!important;}' +
-          '.rollno-slip table th:nth-child(5),.rollno-slip table td:nth-child(5){width:22%!important;}' +
+          '.rollno-slip table th:nth-child(2),.rollno-slip table td:nth-child(2){width:18%!important;}' +
+          '.rollno-slip table th:nth-child(3),.rollno-slip table td:nth-child(3){width:16%!important;}' +
+          '.rollno-slip table th:nth-child(4),.rollno-slip table td:nth-child(4){width:34%!important;}' +
+          '.rollno-slip table th:nth-child(5),.rollno-slip table td:nth-child(5){width:26%!important;}' +
           /* ========== FOOTER: pinned to bottom ========== */
           '.rollno-slip .rollno-footer {' +
             'width:100% !important;' +

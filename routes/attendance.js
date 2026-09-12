@@ -1,32 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('./auth');
-const { querySchool, querySchoolOne, runSchool, runSchoolTransaction, getSchoolDb } = require('../database_manager');
+const { querySchool, querySchoolOne, runSchool, runSchoolTransaction } = require('../database_manager');
 
 // Ensure holidays table exists (defensive migration for existing databases)
 async function ensureHolidaysTable(schoolId) {
-  try {
-    const db = await getSchoolDb(schoolId);
-    await new Promise((resolve, reject) => {
-      db.run(`
-        CREATE TABLE IF NOT EXISTS holidays (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          date TEXT NOT NULL,
-          name TEXT NOT NULL,
-          type TEXT DEFAULT 'Holiday',
-          school_id INTEGER
-        )
-      `, (err) => {
-        if (err) return reject(err);
-        db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_date ON holidays (date)`, (err2) => {
-          if (err2) return reject(err2);
-          resolve();
-        });
-      });
-    });
-  } catch (e) {
-    console.error('[ATTENDANCE] ensureHolidaysTable error:', e.message);
-  }
+  await runSchool(schoolId, `
+    CREATE TABLE IF NOT EXISTS holidays (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      name TEXT NOT NULL,
+      type TEXT DEFAULT 'Holiday',
+      school_id INTEGER
+    )
+  `);
+  await runSchool(schoolId, `CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_date ON holidays (date)`);
 }
 
 // GET /attendance/students - Get attendance grid for a class/section on a specific date

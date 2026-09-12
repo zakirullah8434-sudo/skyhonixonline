@@ -121,6 +121,52 @@ async function initMainDbTurso() {
     console.log('Default admin user created (Turso): skyhonix56@gmail.com / skyhonixthegreat');
   }
 
+  // Social Auth Tables
+  await client.execute(`CREATE TABLE IF NOT EXISTS social_auth (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL,
+    provider_id TEXT NOT NULL,
+    user_type TEXT NOT NULL,
+    user_id INTEGER,
+    email TEXT,
+    name TEXT,
+    phone TEXT,
+    created_at TEXT,
+    UNIQUE(provider, provider_id, user_type)
+  )`);
+
+  await client.execute(`CREATE TABLE IF NOT EXISTS pending_registrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL,
+    provider_id TEXT NOT NULL,
+    user_type TEXT NOT NULL,
+    email TEXT NOT NULL,
+    name TEXT,
+    phone TEXT,
+    school_id INTEGER,
+    subject TEXT,
+    qualification TEXT,
+    cnic TEXT,
+    address TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at TEXT,
+    UNIQUE(email, user_type, school_id)
+  )`);
+
+  await client.execute(`CREATE TABLE IF NOT EXISTS admin_social_auth (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL,
+    provider_id TEXT NOT NULL,
+    admin_id INTEGER,
+    email TEXT,
+    name TEXT,
+    created_at TEXT,
+    UNIQUE(provider, provider_id)
+  )`);
+
+  // Add auth_provider column to schools table
+  try { await client.execute(`ALTER TABLE schools ADD COLUMN auth_provider TEXT DEFAULT 'local'`); } catch (e) { /* column already exists */ }
+
   await initSchoolTablesTurso(client);
 
   console.log('main.db initialized successfully via Turso.');
@@ -559,6 +605,58 @@ async function initMainDb() {
       );
       console.log('Default admin user created: skyhonix56@gmail.com / skyhonixthegreat');
     }
+
+    // Social Auth Tables
+    await runDb(db, `
+      CREATE TABLE IF NOT EXISTS social_auth (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider TEXT NOT NULL,
+        provider_id TEXT NOT NULL,
+        user_type TEXT NOT NULL,
+        user_id INTEGER,
+        email TEXT,
+        name TEXT,
+        phone TEXT,
+        created_at TEXT,
+        UNIQUE(provider, provider_id, user_type)
+      )
+    `);
+
+    await runDb(db, `
+      CREATE TABLE IF NOT EXISTS pending_registrations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider TEXT NOT NULL,
+        provider_id TEXT NOT NULL,
+        user_type TEXT NOT NULL,
+        email TEXT NOT NULL,
+        name TEXT,
+        phone TEXT,
+        school_id INTEGER,
+        subject TEXT,
+        qualification TEXT,
+        cnic TEXT,
+        address TEXT,
+        status TEXT DEFAULT 'pending',
+        created_at TEXT,
+        UNIQUE(email, user_type, school_id)
+      )
+    `);
+
+    await runDb(db, `
+      CREATE TABLE IF NOT EXISTS admin_social_auth (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider TEXT NOT NULL,
+        provider_id TEXT NOT NULL,
+        admin_id INTEGER,
+        email TEXT,
+        name TEXT,
+        created_at TEXT,
+        UNIQUE(provider, provider_id)
+      )
+    `);
+
+    // Add auth_provider column to schools table
+    await runDb(db, `ALTER TABLE schools ADD COLUMN auth_provider TEXT DEFAULT 'local'`);
 
     console.log('main.db initialized successfully.');
   } finally {

@@ -307,4 +307,174 @@ document.addEventListener('DOMContentLoaded', () => {
       errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   });
+
+  // Social Login Handler
+  window.socialLogin = function(provider, userType) {
+    const schoolId = userType === 'teacher' || userType === 'parent' 
+      ? document.getElementById(`login-${userType}-school-id`)?.value || ''
+      : '';
+    
+    const params = new URLSearchParams({
+      type: userType,
+      school_id: schoolId
+    });
+    
+    window.location.href = `/api/auth/${provider}?${params.toString()}`;
+  };
+
+  // Handle OAuth callback
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  if (urlParams.get('social_login') === 'success') {
+    const token = urlParams.get('token');
+    const user = JSON.parse(decodeURIComponent(urlParams.get('user') || '{}'));
+    const type = urlParams.get('type');
+    
+    if (token) {
+      localStorage.setItem('skyhonix_token', token);
+      localStorage.setItem('skyhonix_user', JSON.stringify(user));
+      
+      showToast('Login successful! Redirecting...');
+      
+      setTimeout(() => {
+        if (type === 'school') {
+          window.location.href = 'portal.html';
+        } else if (type === 'teacher') {
+          window.location.href = 'teacher-portal.html';
+        } else if (type === 'parent') {
+          window.location.href = 'parent-portal.html';
+        } else if (type === 'admin') {
+          window.location.href = 'admin.html';
+        } else {
+          window.location.href = 'portal.html';
+        }
+      }, 1000);
+    }
+  }
+  
+  if (urlParams.get('social_register') === 'true') {
+    // Show social registration modal
+    const modal = document.getElementById('social-register-modal');
+    modal.style.display = 'flex';
+    
+    document.getElementById('social-temp-id').value = urlParams.get('temp_id') || '';
+    document.getElementById('social-provider').value = urlParams.get('provider') || '';
+    document.getElementById('social-user-type').value = urlParams.get('type') || 'school';
+    document.getElementById('social-email').value = urlParams.get('email') || '';
+    document.getElementById('social-email-hidden').value = urlParams.get('email') || '';
+    document.getElementById('social-name').value = urlParams.get('name') || '';
+    document.getElementById('social-name-hidden').value = urlParams.get('name') || '';
+    
+    const userType = urlParams.get('type');
+    const schoolIdGroup = document.getElementById('social-school-id-group');
+    const teacherFields = document.getElementById('social-teacher-fields');
+    const parentFields = document.getElementById('social-parent-fields');
+    
+    if (userType === 'teacher' || userType === 'parent') {
+      schoolIdGroup.style.display = 'block';
+      document.getElementById('social-school-id').value = urlParams.get('school_id') || '';
+      
+      if (userType === 'teacher') {
+        teacherFields.style.display = 'block';
+      } else if (userType === 'parent') {
+        parentFields.style.display = 'block';
+      }
+    }
+  }
+
+  // Social Registration Form Handler
+  const socialRegisterForm = document.getElementById('social-register-form');
+  if (socialRegisterForm) {
+    socialRegisterForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const errorMsg = document.getElementById('social-register-error');
+      errorMsg.style.display = 'none';
+      
+      const tempId = document.getElementById('social-temp-id').value;
+      const phone = document.getElementById('social-phone').value.trim();
+      const name = document.getElementById('social-name').value.trim();
+      const schoolId = document.getElementById('social-school-id')?.value || null;
+      const subject = document.getElementById('social-subject')?.value || null;
+      const qualification = document.getElementById('social-qualification')?.value || null;
+      const cnic = document.getElementById('social-cnic')?.value || null;
+      const address = document.getElementById('social-address')?.value || null;
+      
+      if (!phone) {
+        errorMsg.innerText = 'Mobile number is required';
+        errorMsg.style.display = 'block';
+        return;
+      }
+      
+      if (phone.length < 11) {
+        errorMsg.innerText = 'Please enter a valid 11-digit mobile number';
+        errorMsg.style.display = 'block';
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/auth/complete-registration', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            temp_id: tempId,
+            phone,
+            name,
+            school_id: schoolId,
+            subject,
+            qualification,
+            cnic,
+            address
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to complete registration');
+        }
+        
+        showToast(result.message);
+        
+        // Close modal and show success
+        document.getElementById('social-register-modal').style.display = 'none';
+        
+        // Show pending approval message
+        const modal = document.getElementById('social-register-modal');
+        modal.innerHTML = `
+          <div style="background: white; border-radius: 16px; padding: 32px; max-width: 450px; width: 90%; text-align: center;">
+            <div style="width: 60px; height: 60px; background: #ECFDF5; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            <h3 style="margin: 0 0 8px; color: #111827;">Registration Submitted!</h3>
+            <p style="color: #6B7280; font-size: 14px; margin: 0 0 16px;">${result.message}</p>
+            <button onclick="document.getElementById('social-register-modal').style.display='none'" class="btn btn-primary" style="width: 100%;">Close</button>
+          </div>
+        `;
+        
+      } catch (err) {
+        errorMsg.innerText = err.message;
+        errorMsg.style.display = 'block';
+      }
+    });
+  }
+
+  // Close social register modal
+  window.closeSocialRegisterModal = function() {
+    document.getElementById('social-register-modal').style.display = 'none';
+  };
+
+  // Handle error from OAuth
+  if (urlParams.get('error')) {
+    const error = urlParams.get('error');
+    let message = 'Authentication failed. Please try again.';
+    
+    if (error === 'google_auth_failed') {
+      message = 'Google authentication failed. Please try again.';
+    } else if (error === 'apple_auth_failed') {
+      message = 'Apple authentication failed. Please try again.';
+    }
+    
+    showToast(message, true);
+  }
 });

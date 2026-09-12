@@ -585,6 +585,11 @@
           Billing Admin
         </a>
       </li>
+      <li class="admin-nav-item">
+        <a href="#" class="admin-nav-link" data-tab="pending-registrations">
+          Pending Registrations
+        </a>
+      </li>
     </ul>
 
     <button class="btn btn-logout" id="logout-btn">Logout</button>
@@ -717,6 +722,18 @@
           </table>
         </div>
       </div>
+    </div>
+
+    <!-- Pending Registrations Tab -->
+    <div id="pending-registrations-tab" class="admin-section">
+      <h2>Pending Social Registrations</h2>
+      <p>Approve or reject teacher and parent registrations from social login</p>
+      
+      <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <button class="btn btn-approve" onclick="loadPendingRegistrations()" style="padding: 8px 16px;">Refresh</button>
+      </div>
+      
+      <div id="pending-registrations-list"></div>
     </div>
   </div>
 </div>
