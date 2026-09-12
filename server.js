@@ -4,7 +4,6 @@ const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
-const session = require('express-session');
 const config = require('./config');
 const { initMainDb } = require('./main_db_init');
 const { resetMainDb } = require('./database_manager');
@@ -25,14 +24,6 @@ app.use(compression({
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-// Session middleware for OAuth
-app.use(session({
-  secret: config.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false, maxAge: 600000 } // 10 minutes
-}));
 
 // Bandwidth tracking — lightweight, no JWT verify (uses req.user after auth)
 const bandwidthTracker = new Map();
@@ -163,13 +154,6 @@ const parentRoutes = require('./routes/parents');
 const promotionsRoutes = require('./routes/promotions');
 const transportRoutes = require('./routes/transport');
 const salaryRoutes = require('./routes/salary');
-let socialAuthRoutes;
-try {
-  socialAuthRoutes = require('./routes/social-auth');
-} catch (e) {
-  console.warn('[WARN] Social auth routes failed to load:', e.message);
-  socialAuthRoutes = express.Router();
-}
 
 // ─── Ping endpoint (for offline connectivity detection) ───
 app.get('/api/auth/ping', (req, res) => {
@@ -323,7 +307,6 @@ app.use('/api/parents', parentRoutes);
 app.use('/api/promotions', promotionsRoutes);
 app.use('/api/transport', transportRoutes);
 app.use('/api/salary', salaryRoutes);
-app.use('/api/auth', socialAuthRoutes);
 
 // Serve static frontend files with optimized caching
 app.use(express.static(path.join(__dirname, 'public'), {
