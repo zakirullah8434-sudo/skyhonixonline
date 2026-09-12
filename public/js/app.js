@@ -285,10 +285,6 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(result.error || 'API Request failed');
       }
 
-      if (result.syncEvent) {
-        await handleSyncEvent(result.syncEvent, result);
-      }
-
       return result;
     } catch (err) {
       // Network failure on mutation: queue via offline engine ONLY if not bypassing offline
@@ -3513,9 +3509,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
       try {
         const res = await apiCall('/fees/pay', 'POST', { ledger_id, amount_paid, payment_date }, false, true);
-        showToast(res.message);
+        showToast(res.message || 'Fee payment recorded successfully!');
         modalTx.classList.remove('open');
-        await refreshAllFeeViews();
+
+        // Optimistic UI update: immediately reflect payment in the table row
+        if (res.ledger) {
+          const row = document.querySelector(`#table-unpaid-ledgers tbody tr button[data-id="${ledger_id}"]`)?.closest('tr');
+          if (row) {
+            const ledger = res.ledger;
+            const remaining = ledger.total_payable - ledger.paid_amount;
+            if (remaining <= 0 || ledger.status === 'Paid') {
+              row.remove();
+            } else {
+              const cells = row.querySelectorAll('td');
+              if (cells[4]) cells[4].innerHTML = `<strong>${ledger.paid_amount.toLocaleString()} Rs</strong>`;
+              if (cells[5]) cells[5].innerHTML = `<strong style="color:var(--secondary);">${remaining.toLocaleString()} Rs</strong>`;
+              if (cells[6]) {
+                const badgeClass = ledger.status === 'Partial' ? 'status-partial' : 'status-unpaid';
+                cells[6].innerHTML = `<span class="status-badge ${badgeClass}">${ledger.status}</span>`;
+              }
+              const btn = row.querySelector('.btn-record-tx');
+              if (btn) btn.setAttribute('data-due', remaining);
+            }
+          }
+        }
+
+        // Fire-and-forget background refresh — don't block the UI
+        refreshAllFeeViews().catch(() => {});
       } catch (err) { console.error('[APP_ERROR]', err.message); showToast('Payment failed: ' + err.message, true); }
       finally { if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = 'Record Payment'; } }
     });
@@ -3523,14 +3543,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Helper: Refresh all fee-related views after any change
   async function refreshAllFeeViews() {
-    try { await loadDashboardStats(); } catch(e) {}
-    try { await searchPayLedger(); } catch(e) {}
-    const histYear = document.getElementById('history-filter-year');
-    const histMonth = document.getElementById('history-filter-month');
-    if (histYear && histYear.value && histMonth && histMonth.value) {
-      try { await loadHistoryLedger(); } catch(e) {}
+    // Small delay to allow server-side writes to propagate across Vercel instances
+    await new Promise(r => setTimeout(r, 500));
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await loadDashboardStats();
+        await searchPayLedger();
+        const histYear = document.getElementById('history-filter-year');
+        const histMonth = document.getElementById('history-filter-month');
+        if (histYear && histYear.value && histMonth && histMonth.value) {
+          await loadHistoryLedger();
+        }
+        await refreshFeeAnalytics();
+        console.log('[FEE_REFRESH] All views refreshed successfully');
+        return;
+      } catch(e) {
+        console.warn(`[FEE_REFRESH] Attempt ${attempt + 1} failed:`, e.message);
+        if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
+      }
     }
-    try { await refreshFeeAnalytics(); } catch(e) {}
   }
 
   // ==========================================
@@ -8265,7 +8296,6 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = 'index.html';
           }
         }
-        if (result.syncEvent) await handleSyncEvent(result.syncEvent, result);
         return result;
       });
     } catch (e) {

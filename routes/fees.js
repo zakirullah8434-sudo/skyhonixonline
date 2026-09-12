@@ -409,6 +409,18 @@ router.post('/pay', authenticateToken, async (req, res) => {
 
     await runSchoolTransaction(schoolId, statements);
 
+    // Verify the write actually persisted by re-reading the ledger row
+    const verifyLedger = await querySchoolOne(
+      schoolId,
+      'SELECT id, paid_amount, status FROM fee_ledger WHERE id = ?',
+      [parsedLedgerId]
+    );
+    if (!verifyLedger || verifyLedger.paid_amount !== newPaidAmount || verifyLedger.status !== newStatus) {
+      console.error(`[FEE_PAY] WRITE VERIFICATION FAILED for ledger ${parsedLedgerId}. Expected paid=${newPaidAmount} status=${newStatus}, got`, verifyLedger);
+      return res.status(500).json({ error: 'Payment write verification failed. The database did not persist the change.' });
+    }
+    console.log(`[FEE_PAY] Verified: ledger ${parsedLedgerId} paid_amount=${verifyLedger.paid_amount} status=${verifyLedger.status}`);
+
     // SYNC: Emit fee payment event to cascade updates to analytics, dashboard, and related views
     await syncManager.onFeePaymentRecorded(schoolId, parsedLedgerId, parsedAmount, ledger.student_id);
 
