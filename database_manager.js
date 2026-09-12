@@ -536,6 +536,22 @@ function closeSchoolDb(schoolId) {
   });
 }
 
+// Run raw SQL bypassing proxy rewrite (for backfill / school_id patching)
+async function runSchoolRaw(schoolId, sql, params = []) {
+  const db = await getSchoolDb(schoolId);
+  const isProxy = typeof db.client !== 'undefined' && typeof db._rewrite === 'function';
+  if (isProxy) {
+    const r = await db.client.execute({ sql, args: params });
+    return { id: Number(r.lastInsertRowid), changes: r.rowsAffected };
+  }
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) reject(err);
+      else resolve({ id: this.lastID, changes: this.changes });
+    });
+  });
+}
+
 async function migrateSchoolTable(schoolId, tableName) {
   const db = await getSchoolDb(schoolId);
   return new Promise((resolve) => {
@@ -554,6 +570,7 @@ module.exports = {
   querySchoolOne,
   runSchool,
   runSchoolTransaction,
+  runSchoolRaw,
   closeSchoolDb,
   resetMainDb,
   migrateSchoolTable

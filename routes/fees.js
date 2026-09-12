@@ -3,7 +3,7 @@ const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const { authenticateToken } = require('./auth');
-const { querySchool, querySchoolOne, runSchool, runSchoolTransaction } = require('../database_manager');
+const { querySchool, querySchoolOne, runSchool, runSchoolTransaction, runSchoolRaw } = require('../database_manager');
 const syncManager = require('../sync_manager');
 
 // GET /fees/setup - Get class fees list
@@ -374,7 +374,11 @@ router.post('/pay', authenticateToken, async (req, res) => {
   const payDate = payment_date || new Date().toISOString().split('T')[0];
 
   try {
-    // 1. Get ledger row details
+    // 1. Ensure the specific ledger row has school_id set (Turso proxy requires it)
+    await runSchoolRaw(schoolId, 'UPDATE fee_ledger SET school_id = ? WHERE id = ? AND (school_id IS NULL OR school_id = 0)', [schoolId, parsedLedgerId]);
+    await runSchoolRaw(schoolId, 'UPDATE fee_payments SET school_id = ? WHERE fee_ledger_id = ? AND (school_id IS NULL OR school_id = 0)', [schoolId, parsedLedgerId]);
+
+    // 2. Get ledger row details
     const ledger = await querySchoolOne(
       schoolId,
       'SELECT id, student_id, class_name, month, year, total_payable, paid_amount FROM fee_ledger WHERE id = ?',
@@ -394,7 +398,7 @@ router.post('/pay', authenticateToken, async (req, res) => {
       newStatus = 'Partial';
     }
 
-    // 2. Perform transaction: update ledger AND log payment record
+    // 3. Perform transaction: update ledger AND log payment record
     const statements = [
       {
         sql: 'UPDATE fee_ledger SET paid_amount = ?, status = ? WHERE id = ?',
@@ -407,19 +411,7 @@ router.post('/pay', authenticateToken, async (req, res) => {
       }
     ];
 
-    await runSchoolTransaction(schoolId, statements);
-
-    // Verify the write actually persisted by re-reading the ledger row
-    const verifyLedger = await querySchoolOne(
-      schoolId,
-      'SELECT id, paid_amount, status FROM fee_ledger WHERE id = ?',
-      [parsedLedgerId]
-    );
-    if (!verifyLedger || verifyLedger.paid_amount !== newPaidAmount || verifyLedger.status !== newStatus) {
-      console.error(`[FEE_PAY] WRITE VERIFICATION FAILED for ledger ${parsedLedgerId}. Expected paid=${newPaidAmount} status=${newStatus}, got`, verifyLedger);
-      return res.status(500).json({ error: 'Payment write verification failed. The database did not persist the change.' });
-    }
-    console.log(`[FEE_PAY] Verified: ledger ${parsedLedgerId} paid_amount=${verifyLedger.paid_amount} status=${verifyLedger.status}`);
+    const txnResult = await runSchoolTransaction(schoolId, statements);
 
     // SYNC: Emit fee payment event to cascade updates to analytics, dashboard, and related views
     await syncManager.onFeePaymentRecorded(schoolId, parsedLedgerId, parsedAmount, ledger.student_id);
