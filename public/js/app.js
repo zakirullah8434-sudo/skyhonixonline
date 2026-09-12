@@ -6672,15 +6672,15 @@ document.addEventListener('DOMContentLoaded', () => {
               const dayName = dateObj ? dateObj.toLocaleDateString('en-US', { weekday: 'long' }) : '-';
               const dateFormatted = dateObj ? dateObj.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
               tableRows += '<tr>' +
-                '<td style="border:1.5px solid #000; padding:10px 6px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + (i + 1) + '</td>' +
-                '<td style="border:1.5px solid #000; padding:10px 6px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + dateFormatted + '</td>' +
-                '<td style="border:1.5px solid #000; padding:10px 6px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + dayName + '</td>' +
-                '<td style="border:1.5px solid #000; padding:10px 6px; text-align:left; word-wrap:break-word; overflow-wrap:break-word;">' + sub.subject + '</td>' +
-                '<td style="border:1.5px solid #000; padding:10px 6px; text-align:center; word-wrap:break-word; overflow-wrap:break-word;">' + (sub.time || '-') + '</td>' +
+                '<td style="border:1.5px solid #000; padding:10px 6px; text-align:center; vertical-align:middle; white-space:nowrap;">' + (i + 1) + '</td>' +
+                '<td style="border:1.5px solid #000; padding:10px 6px; text-align:center; vertical-align:middle; white-space:nowrap;">' + dateFormatted + '</td>' +
+                '<td style="border:1.5px solid #000; padding:10px 6px; text-align:center; vertical-align:middle; white-space:nowrap;">' + dayName + '</td>' +
+                '<td style="border:1.5px solid #000; padding:10px 6px; text-align:center; vertical-align:middle; white-space:nowrap;">' + sub.subject + '</td>' +
+                '<td style="border:1.5px solid #000; padding:10px 6px; text-align:center; vertical-align:middle; white-space:nowrap;">' + (sub.time || '-') + '</td>' +
                 '</tr>';
             });
           } else {
-            tableRows = '<tr><td colspan="5" style="border:1.5px solid #000; padding:10px; text-align:center; color:#888;">No datesheet available</td></tr>';
+            tableRows = '<tr><td colspan="5" style="border:1.5px solid #000; padding:10px; text-align:center; vertical-align:middle; color:#888;">No datesheet available</td></tr>';
           }
 
           const instructions = templateInstructions
@@ -6730,21 +6730,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
               // === Exam table (fills remaining space) ===
               '<div class="rollno-exam-table-wrap" style="flex:1; display:flex; flex-direction:column;">' +
-                '<table style="width:100%; border-collapse:collapse; font-size:14px; table-layout:fixed; flex:1;">' +
+                '<table style="width:100%; border-collapse:collapse; font-size:14px; table-layout:auto; flex:1;">' +
                   '<colgroup>' +
-                    '<col style="width:6%;">' +
+                    '<col style="width:5%;">' +
                     '<col style="width:18%;">' +
                     '<col style="width:16%;">' +
-                    '<col style="width:34%;">' +
+                    '<col style="width:35%;">' +
                     '<col style="width:26%;">' +
                   '</colgroup>' +
                   '<thead>' +
                     '<tr>' +
-                      '<th style="border:1.5px solid #000; padding:10px 6px; text-align:center; font-weight:700; background:#f0f0f0;">#</th>' +
-                      '<th style="border:1.5px solid #000; padding:10px 6px; text-align:center; font-weight:700; background:#f0f0f0;">Date</th>' +
-                      '<th style="border:1.5px solid #000; padding:10px 6px; text-align:center; font-weight:700; background:#f0f0f0;">Day</th>' +
-                      '<th style="border:1.5px solid #000; padding:10px 6px; text-align:left; font-weight:700; background:#f0f0f0;">Subject</th>' +
-                      '<th style="border:1.5px solid #000; padding:10px 6px; text-align:center; font-weight:700; background:#f0f0f0;">Time</th>' +
+                      '<th style="border:1.5px solid #000; padding:10px 6px; text-align:center; font-weight:700; background:#f0f0f0; vertical-align:middle; white-space:nowrap;">#</th>' +
+                      '<th style="border:1.5px solid #000; padding:10px 6px; text-align:center; font-weight:700; background:#f0f0f0; vertical-align:middle; white-space:nowrap;">Date</th>' +
+                      '<th style="border:1.5px solid #000; padding:10px 6px; text-align:center; font-weight:700; background:#f0f0f0; vertical-align:middle; white-space:nowrap;">Day</th>' +
+                      '<th style="border:1.5px solid #000; padding:10px 6px; text-align:center; font-weight:700; background:#f0f0f0; vertical-align:middle; white-space:nowrap;">Subject</th>' +
+                      '<th style="border:1.5px solid #000; padding:10px 6px; text-align:center; font-weight:700; background:#f0f0f0; vertical-align:middle; white-space:nowrap;">Time</th>' +
                     '</tr>' +
                   '</thead>' +
                   '<tbody>' + tableRows + '</tbody>' +
@@ -6845,20 +6845,20 @@ document.addEventListener('DOMContentLoaded', () => {
             'display:flex !important;' +
             'flex-direction:column !important;' +
           '}' +
-          /* ========== TABLE: fixed layout ========== */
+          /* ========== TABLE: auto layout ========== */
           '.rollno-slip table {' +
             'width:100% !important;' +
-            'table-layout:fixed !important;' +
+            'table-layout:auto !important;' +
             'border-collapse:collapse !important;' +
             'font-size:14px !important;' +
             'flex:1 !important;' +
           '}' +
           '.rollno-slip table th,' +
           '.rollno-slip table td {' +
-            'word-wrap:break-word !important;' +
-            'overflow-wrap:break-word !important;' +
             'padding:10px 6px !important;' +
             'font-size:14px !important;' +
+            'vertical-align:middle !important;' +
+            'white-space:nowrap !important;' +
           '}' +
           /* ========== COLUMN WIDTHS ========== */
           '.rollno-slip table th:nth-child(1),.rollno-slip table td:nth-child(1){width:6%!important;}' +
@@ -6879,8 +6879,8 @@ document.addEventListener('DOMContentLoaded', () => {
             '.rollno-page:last-child{page-break-after:auto!important;}' +
             '.rollno-slip{width:100%!important;height:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important;break-inside:avoid!important;page-break-inside:avoid!important;border:none!important;border-radius:0!important;display:flex!important;flex-direction:column!important;align-self:stretch!important;}' +
             '.rollno-slip .rollno-exam-table-wrap{width:100%!important;flex:1!important;display:flex!important;flex-direction:column!important;}' +
-            '.rollno-slip table{width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;font-size:14px!important;flex:1!important;}' +
-            '.rollno-slip table th,.rollno-slip table td{word-wrap:break-word!important;overflow-wrap:break-word!important;padding:10px 6px!important;font-size:14px!important;}' +
+            '.rollno-slip table{width:100%!important;table-layout:auto!important;border-collapse:collapse!important;font-size:14px!important;flex:1!important;}' +
+            '.rollno-slip table th,.rollno-slip table td{padding:10px 6px!important;font-size:14px!important;vertical-align:middle!important;white-space:nowrap!important;}' +
             '.rollno-slip .rollno-footer{width:100%!important;margin-top:auto!important;}' +
           '}' +
         '</style>' +

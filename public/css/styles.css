@@ -2092,8 +2092,8 @@ textarea.form-control {
 @media (max-width: 768px) {
   .rollno-page { grid-template-columns: 1fr !important; gap: 16px !important; padding: 8px !important; }
   .rollno-slip { border: 1px solid #ccc; border-radius: 4px; min-height: auto; padding: 2% 10px !important; }
-  .rollno-slip table { font-size: 12px !important; }
-  .rollno-slip table th, .rollno-slip table td { padding: 8px 4px !important; font-size: 12px !important; }
+  .rollno-slip table { font-size: 12px !important; table-layout: auto !important; }
+  .rollno-slip table th, .rollno-slip table td { padding: 8px 4px !important; font-size: 12px !important; vertical-align: middle !important; white-space: nowrap !important; }
 }
 
 /* Print styles */
@@ -2116,8 +2116,8 @@ textarea.form-control {
   .rollno-slip { width: 100% !important; height: 100% !important; max-width: none !important; min-width: 0 !important; box-sizing: border-box !important; break-inside: avoid !important; page-break-inside: avoid !important; border: none !important; border-radius: 0 !important; padding: 2% 15px !important; display: flex !important; flex-direction: column !important; align-self: stretch !important; }
   .rollno-slip .rollno-exam-table-wrap { width: 100% !important; flex: 1 !important; display: flex !important; flex-direction: column !important; }
   .rollno-slip .rollno-footer { width: 100% !important; margin-top: auto !important; padding-top: 8px !important; }
-  .rollno-slip table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; font-size: 14px !important; flex: 1 !important; }
-  .rollno-slip table th, .rollno-slip table td { word-wrap: break-word !important; overflow-wrap: break-word !important; padding: 10px 6px !important; font-size: 14px !important; }
+  .rollno-slip table { width: 100% !important; table-layout: auto !important; border-collapse: collapse !important; font-size: 14px !important; flex: 1 !important; }
+  .rollno-slip table th, .rollno-slip table td { padding: 10px 6px !important; font-size: 14px !important; vertical-align: middle !important; white-space: nowrap !important; }
   .rollno-slip table th:nth-child(1), .rollno-slip table td:nth-child(1) { width: 6% !important; }
   .rollno-slip table th:nth-child(2), .rollno-slip table td:nth-child(2) { width: 18% !important; }
   .rollno-slip table th:nth-child(3), .rollno-slip table td:nth-child(3) { width: 16% !important; }
@@ -2132,8 +2132,8 @@ textarea.form-control {
   .rollno-slip { width: 100% !important; height: 100% !important; padding: 2% 10px !important; font-size: 12px !important; display: flex !important; flex-direction: column !important; align-self: stretch !important; }
   .rollno-slip .rollno-exam-table-wrap { width: 100% !important; flex: 1 !important; display: flex !important; flex-direction: column !important; }
   .rollno-slip .rollno-footer { margin-top: auto !important; }
-  .rollno-slip table { font-size: 12px !important; flex: 1 !important; }
-  .rollno-slip table th, .rollno-slip table td { padding: 8px 4px !important; font-size: 12px !important; }
+  .rollno-slip table { font-size: 12px !important; flex: 1 !important; table-layout: auto !important; }
+  .rollno-slip table th, .rollno-slip table td { padding: 8px 4px !important; font-size: 12px !important; vertical-align: middle !important; white-space: nowrap !important; }
 }
 
 /* ==========================================================================
