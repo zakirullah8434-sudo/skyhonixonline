@@ -163,7 +163,13 @@ const parentRoutes = require('./routes/parents');
 const promotionsRoutes = require('./routes/promotions');
 const transportRoutes = require('./routes/transport');
 const salaryRoutes = require('./routes/salary');
-const socialAuthRoutes = require('./routes/social-auth');
+let socialAuthRoutes;
+try {
+  socialAuthRoutes = require('./routes/social-auth');
+} catch (e) {
+  console.warn('[WARN] Social auth routes failed to load:', e.message);
+  socialAuthRoutes = express.Router();
+}
 
 // ─── Ping endpoint (for offline connectivity detection) ───
 app.get('/api/auth/ping', (req, res) => {
