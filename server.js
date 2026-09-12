@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 const session = require('express-session');
 const config = require('./config');
 const { initMainDb } = require('./main_db_init');
-const { resetMainDb, queryMainOne: queryMainOneGlobal } = require('./database_manager');
+const { resetMainDb } = require('./database_manager');
 
 const app = express();
 
@@ -274,15 +274,13 @@ app.get('/api/dashboard/stats', async (req, res) => {
         `SELECT SUM(total_payable - paid_amount) as pending_dues,
                 SUM(CASE WHEN month = ? AND year = ? THEN paid_amount ELSE 0 END) as month_collected
          FROM fee_ledger`, [currentMonth, currentYear]),
-      querySchoolOneDb(schoolId, 'SELECT school_name, logo_path, phone, registration_number FROM fee_settings LIMIT 1'),
-      queryMainOneGlobal('SELECT school_code FROM schools WHERE id = ?', [schoolId])
+      querySchoolOneDb(schoolId, 'SELECT school_name, logo_path, phone, registration_number FROM fee_settings LIMIT 1')
     ]);
 
     const studentCount = results[0].status === 'fulfilled' ? results[0].value : null;
     const attStats = results[1].status === 'fulfilled' ? results[1].value : null;
     const feeAgg = results[2].status === 'fulfilled' ? results[2].value : null;
     const settings = results[3].status === 'fulfilled' ? results[3].value : null;
-    const schoolRow = results[4].status === 'fulfilled' ? results[4].value : null;
 
     results.forEach((r, i) => {
       if (r.status === 'rejected') console.error(`[DASHBOARD] Query ${i} failed:`, r.reason.message);
@@ -293,8 +291,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
       attendanceStats: attStats || [],
       pendingDues: feeAgg ? (feeAgg.pending_dues || 0) : 0,
       monthCollected: feeAgg ? (feeAgg.month_collected || 0) : 0,
-      settings: settings || {},
-      schoolCode: schoolRow ? schoolRow.school_code : null
+      settings: settings || {}
     };
 
     dashboardCache.set(cacheKey, { data: result, time: Date.now() });

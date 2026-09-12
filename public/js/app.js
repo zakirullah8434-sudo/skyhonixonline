@@ -330,11 +330,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Check Billing / Lock status
   function checkBillingStatus() {
-    apiCall('/billing/status')
+    return apiCall('/billing/status')
       .then(data => {
         const sub = data.school.subscription_status;
         sidebarSubBadge.innerText = sub.toUpperCase();
         sidebarSubBadge.className = 'status-badge';
+
+        if (data.school.school_code && data.school.school_code !== currentUser.schoolCode) {
+          currentUser.schoolCode = data.school.school_code;
+          localStorage.setItem('skyhonix_user', JSON.stringify(currentUser));
+        }
         
         if (sub === 'active') {
           sidebarSubBadge.classList.add('status-present');
@@ -527,12 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('dash-school-title').innerText = (stats.settings && stats.settings.school_name) || '';
       document.getElementById('dash-school-phone').innerText = (stats.settings && stats.settings.phone) || 'N/A';
       document.getElementById('dash-school-reg').innerText = (stats.settings && stats.settings.registration_number) || 'N/A';
-      const displayCode = stats.schoolCode || currentUser.schoolCode || currentUser.schoolId || 'N/A';
-      document.getElementById('dash-school-id').innerText = displayCode;
-      if (stats.schoolCode && stats.schoolCode !== currentUser.schoolCode) {
-        currentUser.schoolCode = stats.schoolCode;
-        localStorage.setItem('skyhonix_user', JSON.stringify(currentUser));
-      }
+      document.getElementById('dash-school-id').innerText = currentUser.schoolCode || currentUser.schoolId || 'N/A';
       if (stats.settings && stats.settings.logo_path) {
         document.getElementById('dash-school-logo').src = imgSrc(stats.settings.logo_path);
       }
@@ -8249,8 +8249,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   })();
 
-  checkBillingStatus();
-  loadDashboardStats();
+  checkBillingStatus().then(() => loadDashboardStats());
   loadDashboardExamDropdown();
 
 });
