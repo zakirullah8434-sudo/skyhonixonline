@@ -1944,12 +1944,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const datesheetClassSelect = document.getElementById('datesheet-class-select');
       const rollnoClassSelect = document.getElementById('rollno-class-select');
       const rollnoGenClass = document.getElementById('rollno-gen-class');
+      const feePayClass = document.getElementById('fee-pay-class');
 
       const selects = [
         filterClass, attClassSelect, attHistoryClass, attTotalClass, ledgerFilterClass,
         marksSelectClass, calcClassSelect,
         historyFilterClass, studentFeeClass, reminderFilterClass,
-        slipClassSelect, datesheetClassSelect, rollnoClassSelect, rollnoGenClass
+        slipClassSelect, datesheetClassSelect, rollnoClassSelect, rollnoGenClass, feePayClass
       ];
 
       const optsHtml = classes.map(cls => `<option value="${cls}">${cls}</option>`).join('');
@@ -1957,7 +1958,7 @@ document.addEventListener('DOMContentLoaded', () => {
       selects.forEach(sel => {
         if (!sel) return;
         const currentVal = sel.value;
-        const isAllClasses = ['student-filter-class', 'history-filter-class', 'student-fee-class', 'datesheet-class-select', 'rollno-class-select', 'rollno-gen-class', 'att-total-class'].includes(sel.id);
+        const isAllClasses = ['student-filter-class', 'history-filter-class', 'student-fee-class', 'datesheet-class-select', 'rollno-class-select', 'rollno-gen-class', 'att-total-class', 'fee-pay-class'].includes(sel.id);
         const isSelectPlaceholder = ['reminder-filter-class', 'slip-class'].includes(sel.id);
         
         if (isAllClasses) {

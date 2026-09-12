@@ -100,6 +100,8 @@ router.post('/dues', authenticateToken, async (req, res) => {
       `INSERT INTO fee_dues (student_id, due_amount) VALUES (?, ?)`,
       [parseInt(student_id), parseFloat(due_amount)]
     );
+    const dashCache = req.app.locals.dashboardCache;
+    if (dashCache) dashCache.delete(String(schoolId));
     res.json({ message: 'Opening due saved successfully!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -109,7 +111,7 @@ router.post('/dues', authenticateToken, async (req, res) => {
 // GET /fees/ledger - List ledger entries with search and filter
 router.get('/ledger', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
-  const { class_name, month, year, status } = req.query;
+  const { class_name, section_name, month, year, status } = req.query;
 
   let query = `
     SELECT fl.*, s.name as student_name, s.roll_no, s.father_name
@@ -122,6 +124,14 @@ router.get('/ledger', authenticateToken, async (req, res) => {
   if (class_name) {
     query += ' AND fl.class_name = ?';
     params.push(class_name);
+  }
+  if (section_name) {
+    if (section_name === 'No Section') {
+      query += " AND (fl.section_name IS NULL OR fl.section_name = '')";
+    } else {
+      query += ' AND fl.section_name = ?';
+      params.push(section_name);
+    }
   }
   if (month) {
     query += ' AND fl.month = ?';
@@ -395,6 +405,10 @@ router.post('/pay', authenticateToken, async (req, res) => {
     ];
 
     await runSchoolTransaction(schoolId, statements);
+
+    // Invalidate dashboard cache so fresh stats are returned
+    const dashCache = req.app.locals.dashboardCache;
+    if (dashCache) dashCache.delete(String(schoolId));
 
     // SYNC: Emit fee payment event to cascade updates to analytics, dashboard, and related views
     await syncManager.onFeePaymentRecorded(schoolId, parsedLedgerId, parsedAmount, ledger.student_id);
@@ -777,6 +791,8 @@ router.post('/generate-single', authenticateToken, async (req, res) => {
       ]
     );
 
+    const dashCache = req.app.locals.dashboardCache;
+    if (dashCache) dashCache.delete(String(schoolId));
     res.json({ message: 'Ledger entry generated successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -790,6 +806,8 @@ router.delete('/ledger/:id', authenticateToken, async (req, res) => {
 
   try {
     await runSchool(schoolId, 'DELETE FROM fee_ledger WHERE id = ?', [parseInt(id)]);
+    const dashCache = req.app.locals.dashboardCache;
+    if (dashCache) dashCache.delete(String(schoolId));
     res.json({ message: 'Ledger entry deleted successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -819,6 +837,8 @@ router.delete('/ledger-bulk', authenticateToken, async (req, res) => {
     }
 
     await runSchool(schoolId, query, params);
+    const dashCache = req.app.locals.dashboardCache;
+    if (dashCache) dashCache.delete(String(schoolId));
     res.json({ message: 'Selected monthly ledgers deleted successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });

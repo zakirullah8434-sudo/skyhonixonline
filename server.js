@@ -234,6 +234,7 @@ app.use('/api', rateLimit);
 
 // ─── Dashboard aggregate stats (lightweight, cached 30s per school) ───
 const dashboardCache = new Map();
+app.locals.dashboardCache = dashboardCache;
 const DASHBOARD_CACHE_TTL = 30000;
 const { querySchool: querySchoolDb, querySchoolOne: querySchoolOneDb } = require('./database_manager');
 
