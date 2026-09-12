@@ -155,6 +155,12 @@ const promotionsRoutes = require('./routes/promotions');
 const transportRoutes = require('./routes/transport');
 const salaryRoutes = require('./routes/salary');
 
+// Prevent caching of API responses (critical for Vercel serverless)
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  next();
+});
+
 // ─── Ping endpoint (for offline connectivity detection) ───
 app.get('/api/auth/ping', (req, res) => {
   res.status(200).json({ ok: true, timestamp: Date.now() });
@@ -232,10 +238,7 @@ setInterval(() => {
 
 app.use('/api', rateLimit);
 
-// ─── Dashboard aggregate stats (lightweight, cached 30s per school) ───
-const dashboardCache = new Map();
-app.locals.dashboardCache = dashboardCache;
-const DASHBOARD_CACHE_TTL = 30000;
+// ─── Dashboard aggregate stats ───
 const { querySchool: querySchoolDb, querySchoolOne: querySchoolOneDb } = require('./database_manager');
 
 app.get('/api/dashboard/stats', async (req, res) => {
@@ -246,12 +249,6 @@ app.get('/api/dashboard/stats', async (req, res) => {
     const decoded = jwt.verify(token, config.JWT_SECRET);
     const schoolId = decoded.schoolId;
     if (!schoolId) return res.status(401).json({ error: 'Invalid token' });
-
-    const cacheKey = String(schoolId);
-    const cached = dashboardCache.get(cacheKey);
-    if (cached && Date.now() - cached.time < DASHBOARD_CACHE_TTL) {
-      return res.json(cached.data);
-    }
 
     const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
     const currentYear = new Date().getFullYear();
@@ -277,16 +274,13 @@ app.get('/api/dashboard/stats', async (req, res) => {
       if (r.status === 'rejected') console.error(`[DASHBOARD] Query ${i} failed:`, r.reason.message);
     });
 
-    const result = {
+    res.json({
       totalStudents: studentCount ? studentCount.cnt : 0,
       attendanceStats: attStats || [],
       pendingDues: feeAgg ? (feeAgg.pending_dues || 0) : 0,
       monthCollected: feeAgg ? (feeAgg.month_collected || 0) : 0,
       settings: settings || {}
-    };
-
-    dashboardCache.set(cacheKey, { data: result, time: Date.now() });
-    res.json(result);
+    });
   } catch (err) {
     console.error('Dashboard stats error:', err.message);
     res.status(500).json({ error: 'Failed to load dashboard stats' });

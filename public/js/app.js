@@ -182,13 +182,22 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
       const currentYear = new Date().getFullYear();
-      await apiCall(`/fees/analytics?month=${currentMonth}&year=${currentYear}`);
+      const data = await apiCall(`/fees/analytics?month=${currentMonth}&year=${currentYear}`);
 
-      // Update dashboard if visible
-      const dashElement = document.getElementById('stat-pending-dues');
-      if (dashElement) {
-        await loadDashboardStats();
+      // Update analytics DOM if visible
+      if (data && data.classWise) {
+        const tbody = document.querySelector('#table-analytics-class-summary tbody');
+        if (tbody) {
+          tbody.innerHTML = data.classWise.map(c => `<tr><td>${c.class_name}</td><td>${c.total_students}</td><td>${c.total_expected.toLocaleString()}</td><td>${c.total_collected.toLocaleString()}</td><td>${c.total_pending.toLocaleString()}</td></tr>`).join('');
+        }
+        const summaryEl = document.getElementById('analytics-collection-summary');
+        if (summaryEl && data.schoolWise) {
+          summaryEl.innerHTML = `<strong>Expected:</strong> ${(data.schoolWise.total_expected || 0).toLocaleString()} PKR | <strong>Collected:</strong> ${(data.schoolWise.total_collected || 0).toLocaleString()} PKR | <strong>Pending:</strong> ${(data.schoolWise.total_pending || 0).toLocaleString()} PKR`;
+        }
       }
+
+      // Update dashboard stats
+      await loadDashboardStats();
     } catch (err) {
       console.warn('[SYNC] Failed to refresh fees analytics:', err);
     }
@@ -244,7 +253,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const options = {
       method,
-      headers
+      headers,
+      cache: 'no-store'
     };
 
     if (body) {
@@ -3115,9 +3125,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   let collectionChartInstance = null;
 
-  function loadFeesData() {
+  async function loadFeesData() {
     resetFeePanels();
-    loadClassesList();
+    await loadClassesList();
     loadClassFeeRules();
   }
 
@@ -3211,14 +3221,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Load configuration details for a specific option panel
-  function loadFeePanelData(opt) {
+  async function loadFeePanelData(opt) {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
 
     if (opt === 'pay-fee') {
       // Initialize pay-fee filters
       invalidateClassCache();
-      loadClassesList();
+      await loadClassesList();
       const payYearSelect = document.getElementById('fee-pay-year');
       if (payYearSelect) {
         payYearSelect.innerHTML = '';
@@ -3230,7 +3240,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const payMonthSelect = document.getElementById('fee-pay-month');
       if (payMonthSelect) payMonthSelect.value = currentMonth;
       const payClassSelect = document.getElementById('fee-pay-class');
-      if (payClassSelect) payClassSelect.value = 'All Classes';
+      if (payClassSelect) payClassSelect.value = '';
       updateSectionDropdown('fee-pay-class', 'fee-pay-section', true);
       // Auto-load unpaid ledgers when pay-fee panel opens
       const paySearchBtn = document.getElementById('btn-search-pay-ledger');
@@ -3239,7 +3249,7 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (opt === 'fee-history') {
       // Refresh class dropdown to ensure it's always populated
       invalidateClassCache();
-      loadClassesList();
+      await loadClassesList();
       // Setup history filters
       const yearSelect = document.getElementById('history-filter-year');
       if (yearSelect) {
@@ -4193,9 +4203,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // FEE ANALYTICS LOGIC (Option 6)
   // ==========================================
   async function refreshFeeAnalytics() {
-    const month = document.getElementById('analytics-filter-month').value;
-    const year = document.getElementById('analytics-filter-year').value;
-    if (!month || !year) return;
+    const monthEl = document.getElementById('analytics-filter-month');
+    const yearEl = document.getElementById('analytics-filter-year');
+    const month = (monthEl && monthEl.value) || new Date().toLocaleString('en-US', { month: 'long' });
+    const year = (yearEl && yearEl.value) || new Date().getFullYear();
 
     try {
       const data = await apiCall(`/fees/analytics?month=${month}&year=${year}`);
