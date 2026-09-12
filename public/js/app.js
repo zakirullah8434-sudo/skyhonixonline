@@ -6704,20 +6704,24 @@ document.addEventListener('DOMContentLoaded', () => {
             : (exam ? exam.exam_name + ' Exam ' + exam.year : '');
 
           slipsHtml +=
-            '<div class="rollno-slip" style="width:100%; display:flex; flex-direction:column; padding:4% 12px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
+            '<div class="rollno-slip" style="width:100%; display:flex; flex-direction:column; padding:4% 10px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
 
-              // === HEADER: School name + Logo + ROLL NO SLIP title ===
-              '<div style="display:flex; align-items:center; gap:10px; margin-bottom:2px;">' +
-                '<img src="' + logoUrl + '" alt="Logo" style="width:60px; height:60px; border-radius:50%; flex-shrink:0; border:2px solid #ddd;" onerror="this.style.display=\'none\'">' +
+              // === HEADER: School name ===
+              '<div style="text-align:center;">' +
+                '<div style="font-size:17px; font-weight:900; color:#000; text-transform:uppercase; letter-spacing:1.5px; line-height:1.2;">' + currentUser.schoolName + '</div>' +
+              '</div>' +
+
+              // === Logo + ROLL NO SLIP title ===
+              '<div style="display:flex; align-items:center; gap:12px; margin-top:4px;">' +
+                '<img src="' + logoUrl + '" alt="Logo" style="width:55px; height:55px; border-radius:50%; flex-shrink:0; border:2px solid #ddd;" onerror="this.style.display=\'none\'">' +
                 '<div style="text-align:center; flex:1;">' +
-                  '<div style="font-size:17px; font-weight:900; color:#000; text-transform:uppercase; letter-spacing:1.5px; line-height:1.2;">' + currentUser.schoolName + '</div>' +
-                  '<div style="font-size:16px; font-weight:900; letter-spacing:2px; color:#000; margin-top:4px;">ROLL NO SLIP</div>' +
+                  '<div style="font-size:15px; font-weight:900; letter-spacing:2px; color:#000;">ROLL NO SLIP</div>' +
                   '<div style="font-size:11px; color:#333; margin-top:2px; font-weight:600;">' + examName + '</div>' +
                 '</div>' +
               '</div>' +
 
               // === Student info ===
-              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 24px; font-size:13px; padding:8px 0 6px 0; font-weight:600;">' +
+              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:3px 20px; font-size:13px; padding:6px 0; font-weight:600;">' +
                 '<div><strong>Name:</strong>&nbsp;&nbsp;' + (s.name || '-') + '</div>' +
                 '<div><strong>Class:</strong>&nbsp;&nbsp;' + (s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : '') + '</div>' +
                 '<div><strong>Father Name:</strong>&nbsp;&nbsp;' + (s.father_name || '-') + '</div>' +
@@ -6748,10 +6752,10 @@ document.addEventListener('DOMContentLoaded', () => {
               '</div>' +
 
               // === Footer: Instructions + Signature (pinned to bottom) ===
-              '<div class="rollno-footer" style="display:flex; justify-content:space-between; align-items:flex-end; font-size:12px; margin-top:auto; padding-top:10px;">' +
-                '<div style="max-width:50%;">' +
-                  '<div style="font-weight:700; margin-bottom:3px; font-size:12px;">Instructions:</div>' +
-                  '<ul style="margin:0; padding-left:14px; list-style:disc; line-height:1.6;">' + instHtml + '</ul>' +
+              '<div class="rollno-footer" style="display:flex; justify-content:space-between; align-items:flex-end; font-size:12px; margin-top:auto; padding-top:8px;">' +
+                '<div style="max-width:55%;">' +
+                  '<div style="font-weight:700; margin-bottom:2px; font-size:12px;">Instructions:</div>' +
+                  '<ul style="margin:0; padding-left:14px; list-style:disc; line-height:1.5;">' + instHtml + '</ul>' +
                 '</div>' +
                 '<div style="text-align:center;">' +
                   (principal_sign ?
