@@ -4239,7 +4239,7 @@
           const newWorker = reg.installing;
           if (newWorker) {
             newWorker.onstatechange = () => {
-              if (newWorker.state === 'activated') {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 newWorker.postMessage({ type: 'SKIP_WAITING' });
               }
             };
@@ -4267,6 +4267,6 @@
   </script>
 
   <!-- Application logic -->
-  <script src="js/app.js?v=9"></script>
+  <script src="js/app.js?v=10"></script>
 </body>
 </html>

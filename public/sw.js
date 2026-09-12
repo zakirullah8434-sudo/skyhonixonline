@@ -3,9 +3,9 @@
  * Provides offline caching for the application shell and static assets.
  * Strategy: Cache-first for static assets, Network-first for API, Stale-while-revalidate for pages.
  */
-const CACHE_NAME = 'skyhonix-v3';
-const STATIC_CACHE = 'skyhonix-static-v3';
-const PAGE_CACHE = 'skyhonix-pages-v3';
+const CACHE_NAME = 'skyhonix-v4';
+const STATIC_CACHE = 'skyhonix-static-v4';
+const PAGE_CACHE = 'skyhonix-pages-v4';
 
 const STATIC_ASSETS = [
   '/',
