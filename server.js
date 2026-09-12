@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 const session = require('express-session');
 const config = require('./config');
 const { initMainDb } = require('./main_db_init');
-const { resetMainDb } = require('./database_manager');
+const { resetMainDb, queryMainOne: queryMainOneGlobal } = require('./database_manager');
 
 const app = express();
 
@@ -266,8 +266,6 @@ app.get('/api/dashboard/stats', async (req, res) => {
     const currentYear = new Date().getFullYear();
     const today = new Date().toISOString().split('T')[0];
 
-    const { queryMainOne: queryMainOneDb } = require('./database_manager');
-
     const results = await Promise.allSettled([
       querySchoolOneDb(schoolId, "SELECT COUNT(*) as cnt FROM students WHERE status IS NULL OR status != 'Left'"),
       querySchoolDb(schoolId,
@@ -277,7 +275,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
                 SUM(CASE WHEN month = ? AND year = ? THEN paid_amount ELSE 0 END) as month_collected
          FROM fee_ledger`, [currentMonth, currentYear]),
       querySchoolOneDb(schoolId, 'SELECT school_name, logo_path, phone, registration_number FROM fee_settings LIMIT 1'),
-      queryMainOneDb('SELECT school_code FROM schools WHERE id = ?', [schoolId])
+      queryMainOneGlobal('SELECT school_code FROM schools WHERE id = ?', [schoolId])
     ]);
 
     const studentCount = results[0].status === 'fulfilled' ? results[0].value : null;
