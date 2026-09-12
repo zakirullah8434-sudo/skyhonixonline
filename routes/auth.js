@@ -151,7 +151,7 @@ router.post('/login', async (req, res) => {
   try {
     // 1. Find school tenant in main registry by email AND verify password
     const school = await queryMainOne(
-      'SELECT id, school_name, db_file, password, subscription_status, next_due_date FROM schools WHERE email = ?',
+      'SELECT id, school_name, db_file, password, subscription_status, next_due_date, school_code FROM schools WHERE email = ?',
       [schoolEmail]
     );
 
@@ -214,6 +214,7 @@ router.post('/login', async (req, res) => {
         role: user.role,
         schoolName: school.school_name,
         schoolId: schoolId,
+        schoolCode: school.school_code || null,
         subscriptionStatus: school.subscription_status,
         nextDueDate: school.next_due_date
       }
