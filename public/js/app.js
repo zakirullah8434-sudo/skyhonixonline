@@ -452,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (screenName === 'dashboard') {
       loadDashboardStats();
     } else if (screenName === 'students') {
-      loadClassesList();
+      loadClassesList().then(() => loadStudentsList());
     } else if (screenName === 'attendance') {
       loadAttendanceFilters();
     } else if (screenName === 'fees') {

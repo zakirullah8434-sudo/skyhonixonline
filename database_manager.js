@@ -149,7 +149,10 @@ class SchoolDbTursoProxy {
       const cond = after.slice(0, endIdx).trim();
       const rest = after.slice(endIdx);
       const paddedRest = rest.startsWith(' ') ? rest : ' ' + rest;
-      return { sql: before + ' (' + cond + ') AND ' + qualified + ' = ?' + paddedRest, params: [...params, sid] };
+      const condParamCount = (cond.match(/\?/g) || []).length;
+      const condParams = params.slice(0, condParamCount);
+      const restParams = params.slice(condParamCount);
+      return { sql: before + ' (' + cond + ') AND ' + qualified + ' = ?' + paddedRest, params: [...condParams, sid, ...restParams] };
     }
 
     if (/^\s*UPDATE\s+/i.test(sql)) {
