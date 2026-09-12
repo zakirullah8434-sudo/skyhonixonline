@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const config = require('../config');
 const { authenticateToken } = require('./auth');
-const { querySchool, querySchoolOne, runSchool } = require('../database_manager');
+const { querySchool, querySchoolOne, runSchool, querySchoolRaw } = require('../database_manager');
 const syncManager = require('../sync_manager');
 
 // Setup multer memory storage for student photos (base64 in DB, not file on disk)
@@ -125,22 +125,22 @@ router.get('/classes', authenticateToken, async (req, res) => {
 
     // 1. Get classes from students
     try {
-      const rows = await querySchool(schoolId,
-        `SELECT DISTINCT class_name FROM students WHERE (status != 'Left' OR status IS NULL) AND class_name IS NOT NULL AND class_name != ''`);
+      const rows = await querySchoolRaw(schoolId,
+        `SELECT DISTINCT class_name FROM students WHERE (school_id = ? OR school_id IS NULL) AND (status != 'Left' OR status IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]);
       rows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
     } catch (e) {}
 
     // 2. Get classes from sections
     try {
-      const secRows = await querySchool(schoolId,
-        `SELECT DISTINCT class_name FROM sections WHERE class_name IS NOT NULL AND class_name != ''`);
+      const secRows = await querySchoolRaw(schoolId,
+        `SELECT DISTINCT class_name FROM sections WHERE (school_id = ? OR school_id IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]);
       secRows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
     } catch (e) {}
 
     // 3. Get classes from class_fees
     try {
-      const feeRows = await querySchool(schoolId,
-        `SELECT DISTINCT class_name FROM class_fees WHERE class_name IS NOT NULL AND class_name != ''`);
+      const feeRows = await querySchoolRaw(schoolId,
+        `SELECT DISTINCT class_name FROM class_fees WHERE (school_id = ? OR school_id IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]);
       feeRows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
     } catch (e) {}
 

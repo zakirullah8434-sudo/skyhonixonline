@@ -552,6 +552,38 @@ async function runSchoolRaw(schoolId, sql, params = []) {
   });
 }
 
+// Raw SELECT (single row) bypassing proxy rewrite
+async function querySchoolRawOne(schoolId, sql, params = []) {
+  const db = await getSchoolDb(schoolId);
+  const isProxy = typeof db.client !== 'undefined' && typeof db._rewrite === 'function';
+  if (isProxy) {
+    const r = await db.client.execute({ sql, args: params });
+    return r.rows[0] || null;
+  }
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row || null);
+    });
+  });
+}
+
+// Raw SELECT (multiple rows) bypassing proxy rewrite
+async function querySchoolRaw(schoolId, sql, params = []) {
+  const db = await getSchoolDb(schoolId);
+  const isProxy = typeof db.client !== 'undefined' && typeof db._rewrite === 'function';
+  if (isProxy) {
+    const r = await db.client.execute({ sql, args: params });
+    return r.rows || [];
+  }
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows || []);
+    });
+  });
+}
+
 async function migrateSchoolTable(schoolId, tableName) {
   const db = await getSchoolDb(schoolId);
   return new Promise((resolve) => {
@@ -568,6 +600,8 @@ module.exports = {
   getSchoolDb,
   querySchool,
   querySchoolOne,
+  querySchoolRawOne,
+  querySchoolRaw,
   runSchool,
   runSchoolTransaction,
   runSchoolRaw,

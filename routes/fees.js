@@ -3,14 +3,14 @@ const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const { authenticateToken } = require('./auth');
-const { querySchool, querySchoolOne, runSchool, runSchoolTransaction, runSchoolRaw } = require('../database_manager');
+const { querySchool, querySchoolOne, runSchool, runSchoolTransaction, runSchoolRaw, querySchoolRawOne, querySchoolRaw } = require('../database_manager');
 const syncManager = require('../sync_manager');
 
 // GET /fees/setup - Get class fees list
 router.get('/setup', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
-    const fees = await querySchool(schoolId, 'SELECT * FROM class_fees ORDER BY class_name');
+    const fees = await querySchoolRaw(schoolId, 'SELECT * FROM class_fees WHERE (school_id = ? OR school_id IS NULL) ORDER BY class_name', [schoolId]);
     res.json(fees);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -67,12 +67,13 @@ router.post('/setup', authenticateToken, async (req, res) => {
 router.get('/dues', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
-    const dues = await querySchool(
+    const dues = await querySchoolRaw(
       schoolId,
       `SELECT fd.student_id, s.name, s.roll_no, s.class_name, s.section_name, fd.due_amount
        FROM fee_dues fd
        JOIN students s ON s.id = fd.student_id
-       WHERE s.status != 'Left' OR s.status IS NULL`
+       WHERE (fd.school_id = ? OR fd.school_id IS NULL) AND (s.status != 'Left' OR s.status IS NULL)`,
+      [schoolId]
     );
     res.json(dues);
   } catch (err) {
@@ -115,9 +116,9 @@ router.get('/ledger', authenticateToken, async (req, res) => {
     SELECT fl.*, s.name as student_name, s.roll_no, s.father_name
     FROM fee_ledger fl
     JOIN students s ON s.id = fl.student_id
-    WHERE 1=1
+    WHERE (fl.school_id = ? OR fl.school_id IS NULL)
   `;
-  const params = [];
+  const params = [schoolId];
 
   if (class_name) {
     query += ' AND fl.class_name = ?';
@@ -152,7 +153,7 @@ router.get('/ledger', authenticateToken, async (req, res) => {
   query += ' ORDER BY fl.year DESC, fl.month DESC, fl.class_name, CAST(s.roll_no AS INTEGER)';
 
   try {
-    const ledger = await querySchool(schoolId, query, params);
+    const ledger = await querySchoolRaw(schoolId, query, params);
     res.json(ledger);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -170,13 +171,14 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
   try {
     // 1. Get all active students (excluding those who left)
-    const students = await querySchool(
+    const students = await querySchoolRaw(
       schoolId,
-      "SELECT id, name, roll_no, class_name, section_name, is_free, discount_amount, discount_percent, transport_fee, family_head_id FROM students WHERE status IS NULL OR status != 'Left'"
+      "SELECT id, name, roll_no, class_name, section_name, is_free, discount_amount, discount_percent, transport_fee, family_head_id FROM students WHERE (school_id = ? OR school_id IS NULL) AND (status IS NULL OR status != 'Left')",
+      [schoolId]
     );
 
     // 2. Get class fees lookup mapping
-    const classFeesRows = await querySchool(schoolId, "SELECT class_name, monthly_fee FROM class_fees");
+    const classFeesRows = await querySchoolRaw(schoolId, "SELECT class_name, monthly_fee FROM class_fees WHERE (school_id = ? OR school_id IS NULL)", [schoolId]);
     const classFeesMap = {};
     classFeesRows.forEach(cf => {
       classFeesMap[cf.class_name] = cf.monthly_fee;
@@ -188,19 +190,20 @@ router.post('/generate', authenticateToken, async (req, res) => {
     };
 
     // 3. Bulk pre-fetch: all existing ledgers for this month/year
-    const existingRows = await querySchool(
+    const existingRows = await querySchoolRaw(
       schoolId,
-      'SELECT student_id FROM fee_ledger WHERE month = ? AND year = ?',
-      [month, parseInt(year)]
+      'SELECT student_id FROM fee_ledger WHERE (school_id = ? OR school_id IS NULL) AND month = ? AND year = ?',
+      [schoolId, month, parseInt(year)]
     );
     const existingSet = new Set(existingRows.map(r => r.student_id));
 
     // 4. Bulk pre-fetch: all siblings (students with a family_head_id)
-    const allSiblings = await querySchool(
+    const allSiblings = await querySchoolRaw(
       schoolId,
       `SELECT id, family_head_id, class_name, is_free, discount_amount, discount_percent, transport_fee
        FROM students
-       WHERE family_head_id IS NOT NULL AND family_head_id != '' AND (status IS NULL OR status != 'Left')`
+       WHERE (school_id = ? OR school_id IS NULL) AND family_head_id IS NOT NULL AND family_head_id != '' AND (status IS NULL OR status != 'Left')`,
+      [schoolId]
     );
     const siblingsByHead = {};
     allSiblings.forEach(sib => {
@@ -209,9 +212,10 @@ router.post('/generate', authenticateToken, async (req, res) => {
     });
 
     // 5. Bulk pre-fetch: all previous ledger entries
-    const allPrevLedgers = await querySchool(
+    const allPrevLedgers = await querySchoolRaw(
       schoolId,
-      'SELECT student_id, total_payable, paid_amount, month, year FROM fee_ledger'
+      'SELECT student_id, total_payable, paid_amount, month, year FROM fee_ledger WHERE (school_id = ? OR school_id IS NULL)',
+      [schoolId]
     );
     const prevLedgersByStudent = {};
     allPrevLedgers.forEach(l => {
@@ -227,9 +231,10 @@ router.post('/generate', authenticateToken, async (req, res) => {
     }
 
     // 6. Bulk pre-fetch: all opening dues
-    const allOpeningDues = await querySchool(
+    const allOpeningDues = await querySchoolRaw(
       schoolId,
-      'SELECT student_id, due_amount FROM fee_dues'
+      'SELECT student_id, due_amount FROM fee_dues WHERE (school_id = ? OR school_id IS NULL)',
+      [schoolId]
     );
     const openingDuesMap = {};
     allOpeningDues.forEach(d => { openingDuesMap[d.student_id] = d.due_amount; });
@@ -325,10 +330,10 @@ router.post('/generate', authenticateToken, async (req, res) => {
       const totalPayable = finalMonthlyFee + totalTransport + previousDue;
 
       // Create ledger entry
-      await runSchool(
+      await runSchoolRaw(
         schoolId,
-        `INSERT INTO fee_ledger (student_id, class_name, section_name, month, year, base_fee, discount, monthly_fee, previous_due, total_payable, paid_amount, status, transport_fee, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO fee_ledger (student_id, class_name, section_name, month, year, base_fee, discount, monthly_fee, previous_due, total_payable, paid_amount, status, transport_fee, created_at, school_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           studentId,
           student.class_name,
@@ -343,7 +348,8 @@ router.post('/generate', authenticateToken, async (req, res) => {
           0,
           totalPayable === 0 ? 'Paid' : 'Unpaid',
           totalTransport,
-          new Date().toISOString()
+          new Date().toISOString(),
+          schoolId
         ]
       );
       generatedCount++;
@@ -374,12 +380,8 @@ router.post('/pay', authenticateToken, async (req, res) => {
   const payDate = payment_date || new Date().toISOString().split('T')[0];
 
   try {
-    // 1. Ensure the specific ledger row has school_id set (Turso proxy requires it)
-    await runSchoolRaw(schoolId, 'UPDATE fee_ledger SET school_id = ? WHERE id = ? AND (school_id IS NULL OR school_id = 0)', [schoolId, parsedLedgerId]);
-    await runSchoolRaw(schoolId, 'UPDATE fee_payments SET school_id = ? WHERE fee_ledger_id = ? AND (school_id IS NULL OR school_id = 0)', [schoolId, parsedLedgerId]);
-
-    // 2. Get ledger row details
-    const ledger = await querySchoolOne(
+    // Step 1: Read ledger row using RAW query (bypasses Turso proxy school_id filter)
+    const ledger = await querySchoolRawOne(
       schoolId,
       'SELECT id, student_id, class_name, month, year, total_payable, paid_amount FROM fee_ledger WHERE id = ?',
       [parsedLedgerId]
@@ -389,32 +391,59 @@ router.post('/pay', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Ledger record not found' });
     }
 
-    let newPaidAmount = ledger.paid_amount + parsedAmount;
+    let newPaidAmount = (ledger.paid_amount || 0) + parsedAmount;
     let newStatus = 'Unpaid';
     if (newPaidAmount >= ledger.total_payable) {
       newStatus = 'Paid';
-      newPaidAmount = ledger.total_payable; // Cap at total
+      newPaidAmount = ledger.total_payable;
     } else if (newPaidAmount > 0) {
       newStatus = 'Partial';
     }
 
-    // 3. Perform transaction: update ledger AND log payment record
-    const statements = [
-      {
-        sql: 'UPDATE fee_ledger SET paid_amount = ?, status = ? WHERE id = ?',
-        params: [newPaidAmount, newStatus, parsedLedgerId]
-      },
-      {
-        sql: `INSERT INTO fee_payments (student_id, class_name, month, year, amount_paid, payment_date, fee_ledger_id)
-              VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        params: [ledger.student_id, ledger.class_name, ledger.month, ledger.year, parsedAmount, payDate, parsedLedgerId]
+    // Step 2: Update ledger using RAW query (bypasses proxy)
+    const updateResult = await runSchoolRaw(
+      schoolId,
+      'UPDATE fee_ledger SET paid_amount = ?, status = ?, school_id = ? WHERE id = ?',
+      [newPaidAmount, newStatus, schoolId, parsedLedgerId]
+    );
+
+    if (updateResult.changes === 0) {
+      console.error(`[FEE_PAY] UPDATE fee_ledger affected 0 rows for ledger ${parsedLedgerId}. Retrying with school_id backfill...`);
+      await runSchoolRaw(schoolId, 'UPDATE fee_ledger SET school_id = ? WHERE id = ?', [schoolId, parsedLedgerId]);
+      const retry = await runSchoolRaw(schoolId, 'UPDATE fee_ledger SET paid_amount = ?, status = ? WHERE id = ?', [newPaidAmount, newStatus, parsedLedgerId]);
+      if (retry.changes === 0) {
+        return res.status(500).json({ error: 'Fee ledger update failed — could not find ledger record' });
       }
-    ];
+    }
 
-    const txnResult = await runSchoolTransaction(schoolId, statements);
+    // Step 3: Insert payment record using RAW query (bypasses proxy, includes school_id)
+    await runSchoolRaw(
+      schoolId,
+      `INSERT INTO fee_payments (student_id, class_name, month, year, amount_paid, payment_date, fee_ledger_id, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [ledger.student_id, ledger.class_name, ledger.month, ledger.year, parsedAmount, payDate, parsedLedgerId, schoolId]
+    );
 
-    // SYNC: Emit fee payment event to cascade updates to analytics, dashboard, and related views
-    await syncManager.onFeePaymentRecorded(schoolId, parsedLedgerId, parsedAmount, ledger.student_id);
+    // Step 4: Verify the write persisted
+    const verify = await querySchoolRawOne(
+      schoolId,
+      'SELECT id, paid_amount, status FROM fee_ledger WHERE id = ?',
+      [parsedLedgerId]
+    );
+
+    if (!verify || verify.paid_amount !== newPaidAmount || verify.status !== newStatus) {
+      console.error(`[FEE_PAY] WRITE VERIFICATION FAILED for ledger ${parsedLedgerId}. Expected paid=${newPaidAmount} status=${newStatus}, got`, verify);
+      return res.status(500).json({ error: 'Payment could not be verified. The database did not persist the change.' });
+    }
+
+    console.log(`[FEE_PAY] Success: ledger ${parsedLedgerId} paid_amount=${verify.paid_amount} status=${verify.status}`);
+
+    // SYNC: Emit fee payment event
+    try {
+      await syncManager.onFeePaymentRecorded(schoolId, parsedLedgerId, parsedAmount, ledger.student_id);
+    } catch (syncErr) {
+      console.error('[FEE_PAY] Sync event failed (non-blocking):', syncErr.message);
+    }
 
     res.json({
       message: 'Payment recorded successfully!',
@@ -442,18 +471,19 @@ router.get('/history', authenticateToken, async (req, res) => {
     SELECT fp.*, s.name as student_name, s.roll_no, s.class_name, fp.payment_date, fp.amount_paid
     FROM fee_payments fp
     JOIN students s ON s.id = fp.student_id
+    WHERE (fp.school_id = ? OR fp.school_id IS NULL)
   `;
-  const params = [];
+  const params = [schoolId];
 
   if (student_id) {
-    query += ' WHERE fp.student_id = ?';
+    query += ' AND fp.student_id = ?';
     params.push(parseInt(student_id));
   }
 
   query += ' ORDER BY fp.payment_date DESC, fp.id DESC';
 
   try {
-    const history = await querySchool(schoolId, query, params);
+    const history = await querySchoolRaw(schoolId, query, params);
     res.json(history);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -479,9 +509,9 @@ router.get('/history-management', authenticateToken, async (req, res) => {
     let studentQuery = `
       SELECT id, name, roll_no, class_name, section_name, father_name, transport_fee, is_free, discount_amount, discount_percent, family_head_id 
       FROM students 
-      WHERE status IS NULL OR status != 'Left'
+      WHERE (school_id = ? OR school_id IS NULL) AND (status IS NULL OR status != 'Left')
     `;
-    const studentParams = [];
+    const studentParams = [schoolId];
     if (class_name && class_name !== 'All Classes') {
       studentQuery += ' AND class_name = ?';
       studentParams.push(class_name);
@@ -492,13 +522,13 @@ router.get('/history-management', authenticateToken, async (req, res) => {
     }
     studentQuery += ' ORDER BY class_name, CAST(roll_no AS INTEGER)';
 
-    const students = await querySchool(schoolId, studentQuery, studentParams);
+    const students = await querySchoolRaw(schoolId, studentQuery, studentParams);
 
     // 2. Get ledger entries for this month/year
-    const ledgerRows = await querySchool(
+    const ledgerRows = await querySchoolRaw(
       schoolId,
-      'SELECT * FROM fee_ledger WHERE month = ? AND year = ?',
-      [month, parseInt(year)]
+      'SELECT * FROM fee_ledger WHERE (school_id = ? OR school_id IS NULL) AND month = ? AND year = ?',
+      [schoolId, month, parseInt(year)]
     );
     const ledgerMap = {};
     ledgerRows.forEach(l => {
@@ -507,9 +537,10 @@ router.get('/history-management', authenticateToken, async (req, res) => {
 
     // 3. Bulk pre-fetch: all previous ledger entries for students not in current month
     const studentsWithoutLedger = students.filter(s => !ledgerMap[s.id]);
-    const allPrevLedgers = studentsWithoutLedger.length > 0 ? await querySchool(
+    const allPrevLedgers = studentsWithoutLedger.length > 0 ? await querySchoolRaw(
       schoolId,
-      'SELECT student_id, total_payable, paid_amount, month, year FROM fee_ledger'
+      'SELECT student_id, total_payable, paid_amount, month, year FROM fee_ledger WHERE (school_id = ? OR school_id IS NULL)',
+      [schoolId]
     ) : [];
     const prevLedgersByStudent = {};
     allPrevLedgers.forEach(l => {
@@ -524,9 +555,10 @@ router.get('/history-management', authenticateToken, async (req, res) => {
     }
 
     // 4. Bulk pre-fetch: opening dues
-    const allOpeningDues = studentsWithoutLedger.length > 0 ? await querySchool(
+    const allOpeningDues = studentsWithoutLedger.length > 0 ? await querySchoolRaw(
       schoolId,
-      'SELECT student_id, due_amount FROM fee_dues'
+      'SELECT student_id, due_amount FROM fee_dues WHERE (school_id = ? OR school_id IS NULL)',
+      [schoolId]
     ) : [];
     const openingDuesMap = {};
     allOpeningDues.forEach(d => { openingDuesMap[d.student_id] = d.due_amount; });
@@ -858,16 +890,16 @@ router.get('/analytics', authenticateToken, async (req, res) => {
     const reqMonth = month || currentMonthName;
     const reqYear = parseInt(year) || currentYear;
 
-    const classStats = await querySchool(
+    const classStats = await querySchoolRaw(
       schoolId,
       `SELECT class_name, 
               COUNT(student_id) as total_students,
               SUM(total_payable) as total_due,
               SUM(paid_amount) as total_collected
        FROM fee_ledger
-       WHERE month = ? AND year = ?
+       WHERE (school_id = ? OR school_id IS NULL) AND month = ? AND year = ?
        GROUP BY class_name`,
-      [reqMonth, reqYear]
+      [schoolId, reqMonth, reqYear]
     );
 
     const statsMap = {};
@@ -875,9 +907,10 @@ router.get('/analytics', authenticateToken, async (req, res) => {
       statsMap[cs.class_name] = cs;
     });
 
-    const activeStudentCounts = await querySchool(
+    const activeStudentCounts = await querySchoolRaw(
       schoolId,
-      `SELECT class_name, COUNT(id) as cnt FROM students WHERE status IS NULL OR status != 'Left' GROUP BY class_name`
+      `SELECT class_name, COUNT(id) as cnt FROM students WHERE (school_id = ? OR school_id IS NULL) AND (status IS NULL OR status != 'Left') GROUP BY class_name`,
+      [schoolId]
     );
     const studentCountMap = {};
     activeStudentCounts.forEach(r => {
@@ -893,12 +926,12 @@ router.get('/analytics', authenticateToken, async (req, res) => {
     const prevMonthName = Object.keys(monthOrder).find(k => monthOrder[k] === prevMonthIndex) || Object.keys(monthOrder).find(k => monthOrder[k] === 12);
     const prevYear = prevMonthIndex === 0 ? reqYear - 1 : reqYear;
 
-    const prevMonthStats = await querySchool(
+    const prevMonthStats = await querySchoolRaw(
       schoolId,
       `SELECT class_name, SUM(paid_amount) as prev_collected
-       FROM fee_ledger WHERE month = ? AND year = ?
+       FROM fee_ledger WHERE (school_id = ? OR school_id IS NULL) AND month = ? AND year = ?
        GROUP BY class_name`,
-      [prevMonthName, prevYear]
+      [schoolId, prevMonthName, prevYear]
     );
     const prevCollectedMap = {};
     prevMonthStats.forEach(p => {
@@ -953,17 +986,19 @@ router.get('/analytics', authenticateToken, async (req, res) => {
     };
 
     // Compute total outstanding across ALL months (matches dashboard logic)
-    const allLedger = await querySchool(
+    const allLedger = await querySchoolRaw(
       schoolId,
       `SELECT SUM(COALESCE(total_payable,0) - COALESCE(paid_amount,0)) AS total_outstanding
-       FROM fee_ledger`
+       FROM fee_ledger WHERE (school_id = ? OR school_id IS NULL)`,
+      [schoolId]
     );
     const totalOutstanding = allLedger[0] ? (allLedger[0].total_outstanding || 0) : 0;
 
     // Also include opening dues from fee_dues table
-    const openingDuesRow = await querySchool(
+    const openingDuesRow = await querySchoolRaw(
       schoolId,
-      `SELECT COALESCE(SUM(due_amount), 0) AS total_opening_dues FROM fee_dues`
+      `SELECT COALESCE(SUM(due_amount), 0) AS total_opening_dues FROM fee_dues WHERE (school_id = ? OR school_id IS NULL)`,
+      [schoolId]
     );
     const totalOpeningDues = openingDuesRow[0] ? (openingDuesRow[0].total_opening_dues || 0) : 0;
 

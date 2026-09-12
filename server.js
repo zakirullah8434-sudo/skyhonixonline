@@ -239,7 +239,7 @@ setInterval(() => {
 app.use('/api', rateLimit);
 
 // ─── Dashboard aggregate stats ───
-const { querySchool: querySchoolDb, querySchoolOne: querySchoolOneDb } = require('./database_manager');
+const { querySchool: querySchoolDb, querySchoolOne: querySchoolOneDb, querySchoolRaw: querySchoolRawDb, querySchoolRawOne: querySchoolRawOneDb } = require('./database_manager');
 
 app.get('/api/dashboard/stats', async (req, res) => {
   try {
@@ -255,14 +255,14 @@ app.get('/api/dashboard/stats', async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
 
     const results = await Promise.allSettled([
-      querySchoolOneDb(schoolId, "SELECT COUNT(*) as cnt FROM students WHERE status IS NULL OR status != 'Left'"),
-      querySchoolDb(schoolId,
-        `SELECT status, COUNT(*) as count FROM attendance WHERE date = ? GROUP BY status`, [today]),
-      querySchoolOneDb(schoolId,
+      querySchoolRawOneDb(schoolId, "SELECT COUNT(*) as cnt FROM students WHERE (school_id = ? OR school_id IS NULL) AND (status IS NULL OR status != 'Left')", [schoolId]),
+      querySchoolRawDb(schoolId,
+        `SELECT status, COUNT(*) as count FROM attendance WHERE (school_id = ? OR school_id IS NULL) AND date = ? GROUP BY status`, [schoolId, today]),
+      querySchoolRawOneDb(schoolId,
         `SELECT SUM(total_payable - paid_amount) as pending_dues,
                 SUM(CASE WHEN month = ? AND year = ? THEN paid_amount ELSE 0 END) as month_collected
-         FROM fee_ledger`, [currentMonth, currentYear]),
-      querySchoolOneDb(schoolId, 'SELECT school_name, logo_path, phone, registration_number FROM fee_settings LIMIT 1')
+         FROM fee_ledger WHERE (school_id = ? OR school_id IS NULL)`, [currentMonth, currentYear, schoolId]),
+      querySchoolRawOneDb(schoolId, 'SELECT school_name, logo_path, phone, registration_number FROM fee_settings WHERE (school_id = ? OR school_id IS NULL) LIMIT 1', [schoolId])
     ]);
 
     const studentCount = results[0].status === 'fulfilled' ? results[0].value : null;
