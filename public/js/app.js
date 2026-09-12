@@ -222,12 +222,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // REST API Client helper (Enhanced with offline-first sync)
-  async function apiCall(endpoint, method = 'GET', body = null, isFormData = false) {
+  async function apiCall(endpoint, method = 'GET', body = null, isFormData = false, bypassOffline = false) {
     const isMutation = method !== 'GET' && method !== 'HEAD';
 
     // Use offline engine only for mutations (POST/PUT/DELETE), not for GET requests
+    // bypassOffline forces direct server call (used for critical payments)
     const resolvedEntity = resolveEntity(endpoint);
-    if (window.SkyHonixOffline && window.SkyHonixOffline._initialized && resolvedEntity !== 'unknown' && isMutation) {
+    if (!bypassOffline && window.SkyHonixOffline && window.SkyHonixOffline._initialized && resolvedEntity !== 'unknown' && isMutation) {
       try {
         return await window.SkyHonixOffline.offlineAPI.call(endpoint, method, body, {
           entity: resolvedEntity,
@@ -290,15 +291,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       return result;
     } catch (err) {
-      // Network failure on mutation: queue via offline engine
-      if (isMutation && window.SkyHonixOffline && window.SkyHonixOffline._initialized && err.message.includes('Failed to fetch')) {
+      // Network failure on mutation: queue via offline engine ONLY if not bypassing offline
+      if (!bypassOffline && isMutation && window.SkyHonixOffline && window.SkyHonixOffline._initialized && err.message.includes('Failed to fetch')) {
         return await window.SkyHonixOffline.offlineAPI._queueMutation(
           endpoint, method, body, resolveEntity(endpoint), extractEntityId(endpoint, body)
         );
       }
 
       console.error(`API Call failed (${endpoint}):`, err);
-      showToast(err.message, true);
       throw err;
     }
   }
@@ -3240,11 +3240,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const payMonthSelect = document.getElementById('fee-pay-month');
       if (payMonthSelect) payMonthSelect.value = currentMonth;
       const payClassSelect = document.getElementById('fee-pay-class');
-      if (payClassSelect) payClassSelect.value = '';
+      if (payClassSelect) {
+        payClassSelect.value = '';
+        if (payClassSelect.options.length <= 1) {
+          const classes = await getCachedClasses(apiCall);
+          if (classes && classes.length > 0) {
+            payClassSelect.innerHTML = '<option value="">All Classes</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
+          }
+        }
+      }
       updateSectionDropdown('fee-pay-class', 'fee-pay-section', true);
       // Auto-load unpaid ledgers when pay-fee panel opens
-      const paySearchBtn = document.getElementById('btn-search-pay-ledger');
-      if (paySearchBtn) paySearchBtn.click();
+      try { await searchPayLedger(); } catch(e) {}
     }
     else if (opt === 'fee-history') {
       // Refresh class dropdown to ensure it's always populated
@@ -3386,46 +3393,44 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Search Pending Invoices (Pay Fee)
-  const btnSearchPayLedger = document.getElementById('btn-search-pay-ledger');
-  if (btnSearchPayLedger) {
-    btnSearchPayLedger.addEventListener('click', async () => {
-      const search = document.getElementById('fee-pay-search').value.trim();
-      const status = document.getElementById('fee-pay-filter-status').value;
-      const cls = document.getElementById('fee-pay-class').value;
-      const sec = document.getElementById('fee-pay-section').value;
-      const month = document.getElementById('fee-pay-month').value;
-      const year = document.getElementById('fee-pay-year').value;
+  async function searchPayLedger() {
+    const search = document.getElementById('fee-pay-search').value.trim();
+    const status = document.getElementById('fee-pay-filter-status').value;
+    const cls = document.getElementById('fee-pay-class').value;
+    const sec = document.getElementById('fee-pay-section').value;
+    const month = document.getElementById('fee-pay-month').value;
+    const year = document.getElementById('fee-pay-year').value;
 
-      let endpoint = '/fees/ledger?';
-      if (status) endpoint += `status=${status}&`;
-      if (cls && cls !== 'All Classes') endpoint += `class_name=${encodeURIComponent(cls)}&`;
-      if (sec && sec !== 'All Sections') endpoint += `section_name=${encodeURIComponent(sec)}&`;
-      if (month) endpoint += `month=${encodeURIComponent(month)}&`;
-      if (year) endpoint += `year=${year}&`;
+    let endpoint = '/fees/ledger?';
+    if (status) endpoint += `status=${status}&`;
+    if (cls && cls !== 'All Classes') endpoint += `class_name=${encodeURIComponent(cls)}&`;
+    if (sec && sec !== 'All Sections') endpoint += `section_name=${encodeURIComponent(sec)}&`;
+    if (month) endpoint += `month=${encodeURIComponent(month)}&`;
+    if (year) endpoint += `year=${year}&`;
 
-      try {
-        const ledgers = await apiCall(endpoint);
-        const tbody = document.querySelector('#table-unpaid-ledgers tbody');
-        if (!tbody) return;
-        tbody.innerHTML = '';
+    try {
+      const ledgers = await apiCall(endpoint);
+      const tbody = document.querySelector('#table-unpaid-ledgers tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
 
-        const filtered = ledgers.filter(l => {
-          if (!search) return true;
-          const s = search.toLowerCase();
-          return l.student_name.toLowerCase().includes(s) || l.roll_no.toLowerCase().includes(s) || l.class_name.toLowerCase().includes(s);
-        });
+      const filtered = ledgers.filter(l => {
+        if (!search) return true;
+        const s = search.toLowerCase();
+        return l.student_name.toLowerCase().includes(s) || l.roll_no.toLowerCase().includes(s) || l.class_name.toLowerCase().includes(s);
+      });
 
-        if (filtered.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color:var(--text-muted);">No unpaid ledger records matches search.</td></tr>';
-          return;
-        }
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color:var(--text-muted);">No unpaid ledger records matches search.</td></tr>';
+        return;
+      }
 
-        const rows = filtered.map(l => {
-          const remaining = l.total_payable - l.paid_amount;
-          let badgeClass = 'status-unpaid';
-          if (l.status === 'Partial') badgeClass = 'status-partial';
+      const rows = filtered.map(l => {
+        const remaining = l.total_payable - l.paid_amount;
+        let badgeClass = 'status-unpaid';
+        if (l.status === 'Partial') badgeClass = 'status-partial';
 
-          return `
+        return `
             <tr>
               <td>
                 <div style="font-weight:700;">${l.student_name}</div>
@@ -3446,12 +3451,16 @@ document.addEventListener('DOMContentLoaded', () => {
               </td>
             </tr>
           `;
-        });
-        tbody.innerHTML = rows.join('');
+      });
+      tbody.innerHTML = rows.join('');
 
-        attachFeePaymentFormEvents();
-      } catch (e) { console.error('[APP_ERROR]', e.message); }
-    });
+      attachFeePaymentFormEvents();
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
+  }
+
+  const btnSearchPayLedger = document.getElementById('btn-search-pay-ledger');
+  if (btnSearchPayLedger) {
+    btnSearchPayLedger.addEventListener('click', () => searchPayLedger());
   }
 
   // Collect modal form bindings — use event delegation
@@ -3499,26 +3508,29 @@ document.addEventListener('DOMContentLoaded', () => {
       const amount_paid = document.getElementById('tx-pay-amount').value;
       const payment_date = document.getElementById('tx-pay-date').value;
 
+      const btnSubmit = formFeePayRecord.querySelector('button[type="submit"]');
+      if (btnSubmit) { btnSubmit.disabled = true; btnSubmit.textContent = 'Processing...'; }
+
       try {
-        const res = await apiCall('/fees/pay', 'POST', { ledger_id, amount_paid, payment_date });
+        const res = await apiCall('/fees/pay', 'POST', { ledger_id, amount_paid, payment_date }, false, true);
         showToast(res.message);
         modalTx.classList.remove('open');
-        refreshAllFeeViews();
-      } catch (err) { console.error('[APP_ERROR]', err.message); }
+        await refreshAllFeeViews();
+      } catch (err) { console.error('[APP_ERROR]', err.message); showToast('Payment failed: ' + err.message, true); }
+      finally { if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = 'Record Payment'; } }
     });
   }
 
   // Helper: Refresh all fee-related views after any change
-  function refreshAllFeeViews() {
-    loadDashboardStats();
-    const paySearchBtn = document.getElementById('btn-search-pay-ledger');
-    if (paySearchBtn) paySearchBtn.click();
+  async function refreshAllFeeViews() {
+    try { await loadDashboardStats(); } catch(e) {}
+    try { await searchPayLedger(); } catch(e) {}
     const histYear = document.getElementById('history-filter-year');
     const histMonth = document.getElementById('history-filter-month');
     if (histYear && histYear.value && histMonth && histMonth.value) {
-      loadHistoryLedger();
+      try { await loadHistoryLedger(); } catch(e) {}
     }
-    refreshFeeAnalytics();
+    try { await refreshFeeAnalytics(); } catch(e) {}
   }
 
   // ==========================================

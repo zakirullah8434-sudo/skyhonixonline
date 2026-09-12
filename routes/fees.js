@@ -140,8 +140,13 @@ router.get('/ledger', authenticateToken, async (req, res) => {
     params.push(parseInt(year));
   }
   if (status) {
-    query += ' AND fl.status = ?';
-    params.push(status);
+    if (status === 'Unpaid') {
+      query += ' AND fl.status IN (?, ?)';
+      params.push('Unpaid', 'Partial');
+    } else {
+      query += ' AND fl.status = ?';
+      params.push(status);
+    }
   }
 
   query += ' ORDER BY fl.year DESC, fl.month DESC, fl.class_name, CAST(s.roll_no AS INTEGER)';

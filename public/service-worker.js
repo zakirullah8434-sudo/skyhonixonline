@@ -2,7 +2,7 @@
  * SkyHonix Service Worker - PWA Shell Caching
  * Cache-first for static assets, network-first for API
  */
-const CACHE_NAME = 'skyhonix-v4';
+const CACHE_NAME = 'skyhonix-v5';
 const SHELL = [
   '/',
   '/index.html',
@@ -37,6 +37,17 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       fetch(e.request).then(r => {
         if (r.ok) { const c = r.clone(); caches.open(CACHE_NAME).then(ca => ca.put(e.request, c)); }
+        return r;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // JS/CSS: network-first to ensure latest code always loads
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+    e.respondWith(
+      fetch(e.request).then(r => {
+        if (r.ok) { const cl = r.clone(); caches.open(CACHE_NAME).then(ca => ca.put(e.request, cl)); }
         return r;
       }).catch(() => caches.match(e.request))
     );
