@@ -1338,7 +1338,10 @@ textarea.form-control {
   padding: 15px;
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
   gap: 12px;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .fee-slip {
@@ -2104,7 +2107,7 @@ textarea.form-control {
   #fee-panel-fee-slip .card, #slip-student-list-container { display: none !important; }
   .fee-slip-wrapper { padding: 0 !important; margin: 0 !important; }
   .fee-slip { box-shadow: none !important; border: none !important; max-width: 100% !important; }
-  .a4-page { grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; }
+  .a4-page { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; padding: 10px; height: 100%; }
   .fee-slip { border: 2px solid #000; font-size: 0.65rem; }
 }
 

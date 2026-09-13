@@ -4062,14 +4062,17 @@ document.addEventListener('DOMContentLoaded', () => {
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: Arial, sans-serif; }
         @page { size: A4; margin: 10mm; }
+        html, body { height: 100%; }
         .a4-page {
           display: grid;
           grid-template-columns: 1fr 1fr;
+          grid-template-rows: 1fr 1fr;
           gap: 8px;
           padding: 5mm;
+          height: 100%;
           page-break-after: always;
         }
-        .fee-slip { border: 2px solid #000; padding: 6px; color: #000; font-size: 0.65rem; break-inside: avoid; page-break-inside: avoid; }
+        .fee-slip { border: 2px solid #000; padding: 6px; color: #000; font-size: 0.65rem; break-inside: avoid; page-break-inside: avoid; display: flex; flex-direction: column; }
         .slip-header { display: flex; align-items: center; gap: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 4px; }
         .slip-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
         .slip-header-text h2 { font-size: 0.6rem; font-weight: 800; margin: 0; text-transform: uppercase; }
@@ -4082,7 +4085,7 @@ document.addEventListener('DOMContentLoaded', () => {
         th, td { padding: 2px 3px; font-size: 0.5rem; border: 1px solid #ccc; text-align: center; }
         th { background: #f5f5f5; font-weight: 700; }
         td:first-child { text-align: left; font-weight: 600; background: #f9f9f9; font-size: 0.48rem; }
-        .slip-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 2px solid #000; }
+        .slip-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 2px solid #000; margin-top: auto; }
         .slip-sign { font-size: 0.5rem; }
         .slip-net-total { background: #000; color: #fff; padding: 2px 8px; font-weight: 800; font-size: 0.55rem; }
       </style></head><body><div class="a4-page">${printHTML}</div></body></html>
@@ -4679,14 +4682,17 @@ document.addEventListener('DOMContentLoaded', () => {
           * { box-sizing: border-box; margin: 0; padding: 0; }
           body { font-family: Arial, sans-serif; }
           @page { size: A4; margin: 10mm; }
+          html, body { height: 100%; }
           .a4-page {
             display: grid;
             grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
             gap: 8px;
             padding: 5mm;
+            height: 100%;
             page-break-after: always;
           }
-          .fee-slip { border: 2px solid #000; padding: 6px; color: #000; font-size: 0.65rem; break-inside: avoid; }
+          .fee-slip { border: 2px solid #000; padding: 6px; color: #000; font-size: 0.65rem; break-inside: avoid; display: flex; flex-direction: column; }
           .slip-header { display: flex; align-items: center; gap: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 4px; }
           .slip-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
           .slip-header-text h2 { font-size: 0.6rem; font-weight: 800; margin: 0; text-transform: uppercase; }
@@ -4699,7 +4705,7 @@ document.addEventListener('DOMContentLoaded', () => {
           th, td { padding: 2px 3px; font-size: 0.5rem; border: 1px solid #ccc; text-align: center; }
           th { background: #f5f5f5; font-weight: 700; }
           td:first-child { text-align: left; font-weight: 600; background: #f9f9f9; font-size: 0.48rem; }
-          .slip-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 2px solid #000; }
+          .slip-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 2px solid #000; margin-top: auto; }
           .slip-sign { font-size: 0.5rem; }
           .slip-net-total { background: #000; color: #fff; padding: 2px 8px; font-weight: 800; font-size: 0.55rem; }
         </style></head><body><div class="a4-page">${printHTML}</div></body></html>
