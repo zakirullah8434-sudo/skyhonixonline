@@ -1352,9 +1352,6 @@ textarea.form-control {
   font-size: 0.75rem;
   break-inside: avoid;
   page-break-inside: avoid;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
 }
 
 .slip-header {
@@ -1364,7 +1361,6 @@ textarea.form-control {
   border-bottom: 2px solid #000;
   padding-bottom: 6px;
   margin-bottom: 6px;
-  flex-shrink: 0;
 }
 
 .slip-logo {
@@ -1398,19 +1394,6 @@ textarea.form-control {
   padding: 5px;
   border: 1px solid #ccc;
   border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.table-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  border: 2px solid #000;
-  background: #fff;
-}
-
-.table-container table {
-  flex: 1;
 }
 
 .slip-student-info {
@@ -1466,7 +1449,6 @@ textarea.form-control {
   margin-top: 6px;
   padding-top: 4px;
   border-top: 2px solid #000;
-  flex-shrink: 0;
 }
 
 .slip-sign {
