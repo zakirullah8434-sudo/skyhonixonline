@@ -4081,20 +4081,20 @@ document.addEventListener('DOMContentLoaded', () => {
           height: 100%;
           page-break-after: always;
         }
-        .fee-slip { border: 2px solid #000; padding: 6px; color: #000; font-size: 0.65rem; break-inside: avoid; page-break-inside: avoid; display: flex; flex-direction: column; }
-        .slip-header { display: flex; align-items: center; gap: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 4px; }
+        .fee-slip { border: 2px solid #000; padding: 6px; color: #000; font-size: 0.65rem; break-inside: avoid; page-break-inside: avoid; display: flex; flex-direction: column; flex: 1; }
+        .slip-header { display: flex; align-items: center; gap: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 4px; flex-shrink: 0; }
         .slip-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
         .slip-header-text h2 { font-size: 0.6rem; font-weight: 800; margin: 0; text-transform: uppercase; }
         .slip-header-text p { font-size: 0.5rem; margin: 1px 0 0; }
-        .slip-student-row { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 4px; padding: 4px; border: 1px solid #ccc; border-radius: 2px; }
+        .slip-student-row { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 4px; padding: 4px; border: 1px solid #ccc; border-radius: 2px; flex-shrink: 0; }
         .slip-student-info { font-size: 0.55rem; line-height: 1.4; }
         .slip-student-info strong { display: inline-block; min-width: 35px; }
         .slip-badge { background: #000; color: #fff; padding: 3px 6px; font-weight: 700; font-size: 0.5rem; white-space: nowrap; }
-        table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
+        table { width: 100%; border-collapse: collapse; border: 1px solid #000; flex: 1; }
         th, td { padding: 2px 3px; font-size: 0.5rem; border: 1px solid #ccc; text-align: center; }
         th { background: #f5f5f5; font-weight: 700; }
         td:first-child { text-align: left; font-weight: 600; background: #f9f9f9; font-size: 0.48rem; }
-        .slip-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 2px solid #000; margin-top: auto; }
+        .slip-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 2px solid #000; margin-top: auto; flex-shrink: 0; }
         .slip-sign { font-size: 0.5rem; }
         .slip-net-total { background: #000; color: #fff; padding: 2px 8px; font-weight: 800; font-size: 0.55rem; }
       </style></head><body>${printHTML}</body></html>
@@ -4637,19 +4637,19 @@ document.addEventListener('DOMContentLoaded', () => {
             <div><strong>Roll No:</strong> ${d.student.roll_no || '-'}</div>
             <div><strong>ID:</strong> ${d.student.admission_no || d.student.id}</div>
           </div>
-          <div class="slip-badge">FEE SLIP ${year}-${parseInt(year)+1}</div>
-        </div>
-        <div class="table-container" style="border: 2px solid #000; background: #fff;">
-          <table class="data-table" style="color: #000;">
-            <thead>
-              <tr style="background: #f0f0f0;">
-                <th></th>
-                ${activeMonths.map(m => `<th>${m}</th>`).join('')}
-              </tr>
-            </thead>
-            <tbody style="color: #000;">${tableRows}</tbody>
-          </table>
-        </div>
+            <div class="slip-badge">FEE SLIP ${year}-${parseInt(year)+1}</div>
+          </div>
+          <div class="table-container" style="border: 2px solid #000; background: #fff; flex: 1; display: flex; flex-direction: column;">
+            <table class="data-table" style="color: #000; flex: 1;">
+              <thead>
+                <tr style="background: #f0f0f0;">
+                  <th></th>
+                  ${activeMonths.map(m => `<th>${m}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody style="color: #000;">${tableRows}</tbody>
+            </table>
+          </div>
         <div class="slip-footer">
           <div class="slip-sign">Principal Sign: _______________</div>
           <div class="slip-net-total">NET TOTAL: ${d.netTotal.toLocaleString()}</div>
@@ -4710,16 +4710,19 @@ document.addEventListener('DOMContentLoaded', () => {
             height: 100%;
             page-break-after: always;
           }
-          .fee-slip { border: 2px solid #000; padding: 6px; color: #000; font-size: 0.65rem; break-inside: avoid; display: flex; flex-direction: column; }
-          .slip-header { display: flex; align-items: center; gap: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 4px; }
+          .fee-slip { border: 2px solid #000; padding: 6px; color: #000; font-size: 0.65rem; break-inside: avoid; display: flex; flex-direction: column; flex: 1; }
+          .slip-header { display: flex; align-items: center; gap: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 4px; flex-shrink: 0; }
           .slip-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
           .slip-header-text h2 { font-size: 0.6rem; font-weight: 800; margin: 0; text-transform: uppercase; }
           .slip-header-text p { font-size: 0.5rem; margin: 1px 0 0; }
-          .slip-student-row { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 4px; padding: 4px; border: 1px solid #ccc; border-radius: 2px; }
+          .slip-student-row { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 4px; padding: 4px; border: 1px solid #ccc; border-radius: 2px; flex-shrink: 0; }
           .slip-student-info { font-size: 0.55rem; line-height: 1.4; }
           .slip-student-info strong { display: inline-block; min-width: 35px; }
           .slip-badge { background: #000; color: #fff; padding: 3px 6px; font-weight: 700; font-size: 0.5rem; white-space: nowrap; }
-          table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
+          .table-container { flex: 1; display: flex; flex-direction: column; border: 2px solid #000; background: #fff; }
+          table { width: 100%; border-collapse: collapse; border: 1px solid #000; flex: 1; }
+          tbody { flex: 1; }
+          tbody tr { height: 100%; }
           th, td { padding: 2px 3px; font-size: 0.5rem; border: 1px solid #ccc; text-align: center; }
           th { background: #f5f5f5; font-weight: 700; }
           td:first-child { text-align: left; font-weight: 600; background: #f9f9f9; font-size: 0.48rem; }
