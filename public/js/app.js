@@ -4035,9 +4035,18 @@ document.addEventListener('DOMContentLoaded', () => {
           selectedIds.map(id => apiCall(`/fees/slip/${id}?year=${year}`))
         );
 
-        allData.forEach(data => {
-          a4Page.innerHTML += buildReminderHTML(data, data.school, year);
-        });
+        const SLIPS_PER_PAGE = 6;
+        for (let i = 0; i < allData.length; i += SLIPS_PER_PAGE) {
+          const pageData = allData.slice(i, i + SLIPS_PER_PAGE);
+          let slipsHtml = '';
+          pageData.forEach(data => {
+            slipsHtml += buildReminderHTML(data, data.school, year);
+          });
+          const pageDiv = document.createElement('div');
+          pageDiv.className = 'a4-page';
+          pageDiv.innerHTML = slipsHtml;
+          a4Page.appendChild(pageDiv);
+        }
 
         document.querySelector('#tab-reminder-form .card').style.display = 'none';
         document.getElementById('reminder-preview-container').style.display = 'block';
@@ -4088,7 +4097,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .slip-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 2px solid #000; margin-top: auto; }
         .slip-sign { font-size: 0.5rem; }
         .slip-net-total { background: #000; color: #fff; padding: 2px 8px; font-weight: 800; font-size: 0.55rem; }
-      </style></head><body><div class="a4-page">${printHTML}</div></body></html>
+      </style></head><body>${printHTML}</body></html>
     `);
     printWindow.document.close();
     printWindow.print();
@@ -4659,9 +4668,18 @@ document.addEventListener('DOMContentLoaded', () => {
         students.map(s => apiCall(`/fees/slip/${s.id}?year=${year}`))
       );
 
-      allData.forEach(data => {
-        a4Page.innerHTML += buildSlipHTML(data, data.school, year);
-      });
+      const SLIPS_PER_PAGE = 6;
+      for (let i = 0; i < allData.length; i += SLIPS_PER_PAGE) {
+        const pageStudents = allData.slice(i, i + SLIPS_PER_PAGE);
+        let slipsHtml = '';
+        pageStudents.forEach(data => {
+          slipsHtml += buildSlipHTML(data, data.school, year);
+        });
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'a4-page';
+        pageDiv.innerHTML = slipsHtml;
+        a4Page.appendChild(pageDiv);
+      }
 
       document.getElementById('slip-student-list-container').style.display = 'none';
       document.getElementById('slip-preview-container').style.display = 'block';
@@ -4708,7 +4726,7 @@ document.addEventListener('DOMContentLoaded', () => {
           .slip-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 2px solid #000; margin-top: auto; }
           .slip-sign { font-size: 0.5rem; }
           .slip-net-total { background: #000; color: #fff; padding: 2px 8px; font-weight: 800; font-size: 0.55rem; }
-        </style></head><body><div class="a4-page">${printHTML}</div></body></html>
+        </style></head><body>${printHTML}</body></html>
       `);
       printWindow.document.close();
       const images = printWindow.document.querySelectorAll('img');
@@ -4717,18 +4735,10 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         let loaded = 0;
         images.forEach(img => {
-          if (img.complete) {
-            loaded++;
-            if (loaded === images.length) printWindow.print();
-          } else {
-            img.onload = () => {
-              loaded++;
-              if (loaded === images.length) printWindow.print();
-            };
-            img.onerror = () => {
-              loaded++;
-              if (loaded === images.length) printWindow.print();
-            };
+          if (img.complete) { loaded++; if (loaded === images.length) printWindow.print(); }
+          else {
+            img.onload = () => { loaded++; if (loaded === images.length) printWindow.print(); };
+            img.onerror = () => { loaded++; if (loaded === images.length) printWindow.print(); };
           }
         });
       }
