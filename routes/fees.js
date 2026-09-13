@@ -1396,9 +1396,9 @@ router.post('/reminders/generate-pdf', authenticateToken, async (req, res) => {
     doc.pipe(stream);
 
     const SLIP_W = 267;
-    const SLIP_H = 380;
+    const SLIP_H = 260;
     const MARGIN = 15;
-    const GAP = 13;
+    const GAP = 10;
 
     function drawSlip(slipData, x, y) {
       const { student, ledgerMap, netTotal } = slipData;
@@ -1407,35 +1407,35 @@ router.post('/reminders/generate-pdf', authenticateToken, async (req, res) => {
       doc.rect(x, y, SLIP_W, SLIP_H).stroke();
 
       // School header
-      doc.font('Helvetica-Bold').fontSize(8);
-      doc.text(schoolName.toUpperCase(), x + 5, y + 6, { width: SLIP_W - 10, align: 'center' });
-      doc.font('Helvetica').fontSize(5);
-      doc.text(`Contact: ${schoolPhone} | Reg No: ${schoolReg}`, x + 5, y + 17, { width: SLIP_W - 10, align: 'center' });
+      doc.font('Helvetica-Bold').fontSize(7);
+      doc.text(schoolName.toUpperCase(), x + 5, y + 5, { width: SLIP_W - 10, align: 'center' });
+      doc.font('Helvetica').fontSize(4.5);
+      doc.text(`Contact: ${schoolPhone} | Reg No: ${schoolReg}`, x + 5, y + 15, { width: SLIP_W - 10, align: 'center' });
 
       // Separator line
-      const sepY = y + 25;
+      const sepY = y + 22;
       doc.moveTo(x + 5, sepY).lineTo(x + SLIP_W - 5, sepY).lineWidth(0.5).stroke().lineWidth(1);
 
       // Student info
-      let iy = y + 28;
-      doc.font('Helvetica-Bold').fontSize(5.5);
+      let iy = y + 25;
+      doc.font('Helvetica-Bold').fontSize(5);
       doc.text('Name:', x + 7, iy, { continued: true }).font('Helvetica').text(` ${student.name}`, { width: SLIP_W / 2 - 10 });
       doc.font('Helvetica-Bold').text('Roll No:', x + SLIP_W / 2, iy, { continued: true }).font('Helvetica').text(` ${student.roll_no || '-'}`, { width: SLIP_W / 2 - 10 });
 
-      iy += 10;
+      iy += 8;
       doc.font('Helvetica-Bold').text('F-Name:', x + 7, iy, { continued: true }).font('Helvetica').text(` ${student.father_name || '-'}`, { width: SLIP_W / 2 - 10 });
       doc.font('Helvetica-Bold').text('ID:', x + SLIP_W / 2, iy, { continued: true }).font('Helvetica').text(` ${student.admission_no || student.id}`, { width: SLIP_W / 2 - 10 });
 
-      iy += 10;
+      iy += 8;
       doc.font('Helvetica-Bold').text('Class:', x + 7, iy, { continued: true }).font('Helvetica').text(` ${student.class_name}${student.section_name ? ' (' + student.section_name + ')' : ''}`, { width: SLIP_W / 2 - 10 });
       doc.font('Helvetica-Bold').text('FEE REMINDER', x + SLIP_W / 2, iy, { width: SLIP_W / 2 - 7, align: 'center' });
 
       // Fee table
       const tableX = x + 5;
-      const tableTopY = iy + 14;
-      const labelW = 35;
+      const tableTopY = iy + 10;
+      const labelW = 32;
       const dataW = (SLIP_W - 10 - labelW) / 12;
-      const rowH = 9;
+      const rowH = 7;
 
       // Header row background
       doc.rect(tableX, tableTopY, SLIP_W - 10, rowH).fill('#f0f0f0').stroke();
@@ -1443,9 +1443,9 @@ router.post('/reminders/generate-pdf', authenticateToken, async (req, res) => {
 
       // Month headers
       let hx = tableX + labelW;
-      doc.font('Helvetica-Bold').fontSize(3.8);
+      doc.font('Helvetica-Bold').fontSize(3.5);
       months.forEach((m) => {
-        doc.text(m, hx, tableTopY + 2, { width: dataW, align: 'center' });
+        doc.text(m, hx, tableTopY + 1.5, { width: dataW, align: 'center' });
         hx += dataW;
       });
 
@@ -1466,12 +1466,12 @@ router.post('/reminders/generate-pdf', authenticateToken, async (req, res) => {
         doc.moveTo(tableX, ry).lineTo(tableX + SLIP_W - 10, ry).lineWidth(0.3).stroke().lineWidth(1);
 
         // Label
-        doc.font('Helvetica-Bold').fontSize(3.8);
-        doc.text(rd.label, tableX + 2, ry + 2, { width: labelW - 2 });
+        doc.font('Helvetica-Bold').fontSize(3.5);
+        doc.text(rd.label, tableX + 2, ry + 1.5, { width: labelW - 2 });
 
         // Data cells
         let cx = tableX + labelW;
-        doc.font('Helvetica').fontSize(3.8);
+        doc.font('Helvetica').fontSize(3.5);
         months.forEach((m) => {
           let val = '';
           if (ledgerMap[m]) {
@@ -1481,7 +1481,7 @@ router.post('/reminders/generate-pdf', authenticateToken, async (req, res) => {
               val = (ledgerMap[m][rd.key] || 0).toLocaleString();
             }
           }
-          doc.text(val, cx, ry + 2, { width: dataW, align: 'center' });
+          doc.text(val, cx, ry + 1.5, { width: dataW, align: 'center' });
           cx += dataW;
         });
       });
@@ -1491,19 +1491,19 @@ router.post('/reminders/generate-pdf', authenticateToken, async (req, res) => {
       doc.moveTo(tableX, tableBottomY).lineTo(tableX + SLIP_W - 10, tableBottomY).lineWidth(0.5).stroke().lineWidth(1);
 
       // Footer
-      const footY = tableBottomY + 6;
+      const footY = tableBottomY + 4;
       doc.moveTo(x + 5, footY).lineTo(x + SLIP_W - 5, footY).lineWidth(0.5).stroke().lineWidth(1);
 
-      doc.font('Helvetica').fontSize(5);
-      doc.text('Principal Sign: _______________', x + 7, footY + 3, { width: SLIP_W / 2 });
+      doc.font('Helvetica').fontSize(4.5);
+      doc.text('Principal Sign: _______________', x + 7, footY + 2, { width: SLIP_W / 2 });
 
-      doc.font('Helvetica-Bold').fontSize(6);
-      doc.text(`NET TOTAL: ${netTotal.toLocaleString()}`, x + SLIP_W / 2, footY + 3, { width: SLIP_W / 2 - 7, align: 'right' });
+      doc.font('Helvetica-Bold').fontSize(5);
+      doc.text(`NET TOTAL: ${netTotal.toLocaleString()}`, x + SLIP_W / 2, footY + 2, { width: SLIP_W / 2 - 7, align: 'right' });
     }
 
-    // Layout: 2 columns x 2 rows per page
+    // Layout: 2 columns x 3 rows per page (6 slips per page)
     for (let i = 0; i < studentDataList.length; i++) {
-      const posOnPage = i % 4;
+      const posOnPage = i % 6;
       const col = posOnPage % 2;
       const row = Math.floor(posOnPage / 2);
 
