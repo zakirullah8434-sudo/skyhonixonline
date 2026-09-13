@@ -4066,7 +4066,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .a4-page {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          grid-template-rows: 1fr 1fr;
+          grid-auto-rows: 1fr;
           gap: 8px;
           padding: 5mm;
           height: 100%;
@@ -4686,7 +4686,7 @@ document.addEventListener('DOMContentLoaded', () => {
           .a4-page {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            grid-template-rows: 1fr 1fr;
+            grid-auto-rows: 1fr;
             gap: 8px;
             padding: 5mm;
             height: 100%;
