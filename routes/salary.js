@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('./auth');
-const { querySchool, querySchoolOne, runSchool } = require('../database_manager');
+const { querySchool, querySchoolOne, runSchool, querySchoolRaw, querySchoolRawOne } = require('../database_manager');
 
 async function ensureSalaryTables(schoolId) {
   try {
@@ -33,14 +33,14 @@ router.get('/teachers', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
     await ensureSalaryTables(schoolId);
-    const teachers = await querySchool(schoolId,
+    const teachers = await querySchoolRaw(schoolId,
       `SELECT t.id, t.name, t.phone, t.subject, t.qualification, t.status,
               ts.id as salary_id, ts.basic_salary, ts.house_allowance, ts.medical_allowance,
               ts.transport_allowance, ts.other_allowances, ts.deductions, ts.tax, ts.effective_date
        FROM teachers t
        LEFT JOIN teacher_salaries ts ON ts.teacher_id = t.id
-       WHERE t.status = 'Active'
-       ORDER BY t.name`)
+       WHERE (t.school_id = ? OR t.school_id IS NULL) AND t.status = 'Active'
+       ORDER BY t.name`, [schoolId])
     res.json(teachers);
   } catch (err) {
     console.error('Error fetching teachers for salary:', err);
@@ -54,7 +54,7 @@ router.post('/setup', authenticateToken, async (req, res) => {
   const { teacher_id, basic_salary, house_allowance, medical_allowance, transport_allowance, other_allowances, deductions, tax } = req.body;
   try {
     await ensureSalaryTables(schoolId);
-    const existing = await querySchoolOne(schoolId, 'SELECT id FROM teacher_salaries WHERE teacher_id = ?', [teacher_id]);
+    const existing = await querySchoolRawOne(schoolId, 'SELECT id FROM teacher_salaries WHERE teacher_id = ?', [teacher_id]);
     const totalAllow = (house_allowance || 0) + (medical_allowance || 0) + (transport_allowance || 0) + (other_allowances || 0);
     if (existing) {
       await runSchool(schoolId,
@@ -65,9 +65,9 @@ router.post('/setup', authenticateToken, async (req, res) => {
     } else {
       await runSchool(schoolId,
         `INSERT INTO teacher_salaries (teacher_id, basic_salary, house_allowance, medical_allowance,
-         transport_allowance, other_allowances, deductions, tax, effective_date)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-        [teacher_id, basic_salary || 0, house_allowance || 0, medical_allowance || 0, transport_allowance || 0, other_allowances || 0, deductions || 0, tax || 0]);
+         transport_allowance, other_allowances, deductions, tax, effective_date, school_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)`,
+        [teacher_id, basic_salary || 0, house_allowance || 0, medical_allowance || 0, transport_allowance || 0, other_allowances || 0, deductions || 0, tax || 0, schoolId]);
     }
     res.json({ message: 'Salary structure saved successfully' });
   } catch (err) {
@@ -81,7 +81,7 @@ router.get('/payments/:teacherId', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
     await ensureSalaryTables(schoolId);
-    const payments = await querySchool(schoolId,
+    const payments = await querySchoolRaw(schoolId,
       'SELECT * FROM salary_payments WHERE teacher_id = ? ORDER BY year DESC, month DESC', [req.params.teacherId]);
     res.json(payments);
   } catch (err) {
@@ -95,11 +95,11 @@ router.post('/pay', authenticateToken, async (req, res) => {
   const { teacher_id, month, year, payment_method, reference_no, remarks } = req.body;
   try {
     await ensureSalaryTables(schoolId);
-    const salary = await querySchoolOne(schoolId,
+    const salary = await querySchoolRawOne(schoolId,
       'SELECT * FROM teacher_salaries WHERE teacher_id = ?', [teacher_id]);
     if (!salary) return res.status(400).json({ error: 'No salary structure found for this teacher' });
 
-    const existing = await querySchoolOne(schoolId,
+    const existing = await querySchoolRawOne(schoolId,
       'SELECT id FROM salary_payments WHERE teacher_id = ? AND month = ? AND year = ?', [teacher_id, month, year]);
     if (existing) return res.status(400).json({ error: `Salary already paid for ${month} ${year}` });
 
@@ -110,10 +110,10 @@ router.post('/pay', authenticateToken, async (req, res) => {
     const paidByName = req.user.adminName || req.user.teacherName || 'Admin';
     await runSchool(schoolId,
       `INSERT INTO salary_payments (teacher_id, month, year, basic_salary, allowances, deductions, tax,
-       net_salary, payment_date, payment_method, reference_no, remarks, paid_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?)`,
+       net_salary, payment_date, payment_method, reference_no, remarks, paid_by, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?)`,
       [teacher_id, month, year, salary.basic_salary || 0, totalAllow, salary.deductions || 0, salary.tax || 0,
-       netSalary, payment_method || 'Cash', reference_no || '', remarks || '', paidByName]);
+       netSalary, payment_method || 'Cash', reference_no || '', remarks || '', paidByName, schoolId]);
 
     res.json({ message: `Rs. ${netSalary} paid to teacher for ${month} ${year}`, net_salary: netSalary });
   } catch (err) {
@@ -128,15 +128,15 @@ router.get('/summary', authenticateToken, async (req, res) => {
   const { month, year } = req.query;
   try {
     await ensureSalaryTables(schoolId);
-    const summary = await querySchool(schoolId,
+    const summary = await querySchoolRaw(schoolId,
       `SELECT sp.*, t.name as teacher_name, t.subject, t.phone
        FROM salary_payments sp
        JOIN teachers t ON t.id = sp.teacher_id
-       WHERE sp.month = ? AND sp.year = ?
-       ORDER BY t.name`, [month, year]);
-    const totals = await querySchoolOne(schoolId,
+       WHERE (sp.school_id = ? OR sp.school_id IS NULL) AND sp.month = ? AND sp.year = ?
+       ORDER BY t.name`, [schoolId, month, year]);
+    const totals = await querySchoolRawOne(schoolId,
       `SELECT COUNT(*) as count, SUM(net_salary) as total_paid
-       FROM salary_payments WHERE month = ? AND year = ?`, [month, year]);
+       FROM salary_payments WHERE (school_id = ? OR school_id IS NULL) AND month = ? AND year = ?`, [schoolId, month, year]);
     res.json({ payments: summary, totals });
   } catch (err) {
     res.status(500).json({ error: err.message });
