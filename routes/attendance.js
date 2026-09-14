@@ -17,6 +17,25 @@ async function ensureHolidaysTable(schoolId) {
   await runSchool(schoolId, `CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_date ON holidays (date)`);
 }
 
+// Ensure attendance_reports table exists (defensive migration for existing databases)
+async function ensureAttendanceReportsTable(schoolId) {
+  await runSchool(schoolId, `
+    CREATE TABLE IF NOT EXISTS attendance_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      class_name TEXT NOT NULL,
+      section_name TEXT,
+      month TEXT NOT NULL,
+      total_school_days INTEGER,
+      prev_school_days INTEGER,
+      holidays_count INTEGER,
+      report_data TEXT,
+      school_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(class_name, section_name, month, school_id)
+    )
+  `);
+}
+
 // GET /attendance/students - Get attendance grid for a class/section on a specific date
 router.get('/students', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
@@ -489,6 +508,7 @@ router.post('/save-report', authenticateToken, async (req, res) => {
   }
 
   try {
+    await ensureAttendanceReportsTable(schoolId);
     await runSchool(schoolId, "DELETE FROM attendance_reports WHERE class_name = ? AND section_name = ? AND month = ? AND school_id = ?",
       [class_name, section_name || '', month, schoolId]);
     await runSchool(schoolId,
@@ -508,6 +528,7 @@ router.get('/saved-reports', authenticateToken, async (req, res) => {
   const { class_name, section_name, month } = req.query;
 
   try {
+    await ensureAttendanceReportsTable(schoolId);
     let query = "SELECT * FROM attendance_reports WHERE school_id = ?";
     const params = [schoolId];
 
@@ -541,6 +562,7 @@ router.delete('/saved-reports/:id', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { id } = req.params;
   try {
+    await ensureAttendanceReportsTable(schoolId);
     await runSchool(schoolId, "DELETE FROM attendance_reports WHERE id = ? AND school_id = ?", [id, schoolId]);
     res.json({ message: 'Report removed!' });
   } catch (err) {
