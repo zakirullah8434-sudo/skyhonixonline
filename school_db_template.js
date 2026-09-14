@@ -312,6 +312,23 @@ function createSchoolDatabaseSchema(db) {
         ON holidays (date)
       `);
 
+      // 22b. Attendance Reports (saved monthly attendance snapshots)
+      db.run(`
+        CREATE TABLE IF NOT EXISTS attendance_reports (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          class_name TEXT NOT NULL,
+          section_name TEXT,
+          month TEXT NOT NULL,
+          total_school_days INTEGER,
+          prev_school_days INTEGER,
+          holidays_count INTEGER,
+          report_data TEXT,
+          school_id INTEGER,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(class_name, section_name, month, school_id)
+        )
+      `);
+
       // 23. Result sections (Virtual roll range splitting)
       db.run(`
         CREATE TABLE IF NOT EXISTS result_sections (

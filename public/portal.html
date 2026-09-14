@@ -216,7 +216,7 @@
           <!-- School Identity Card -->
           <div class="card" style="margin-bottom: 24px; padding: 28px; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: #fff; border: none;">
             <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
-              <img id="dash-school-logo" src="school_assets/school_logo.png" alt="School Logo" style="width: 80px; height: 80px; border-radius: 16px; object-fit: cover; background: #fff; padding: 4px;">
+              <img id="dash-school-logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%236366f1'/%3E%3Ctext x='50' y='62' font-size='40' font-family='Arial,sans-serif' fill='white' text-anchor='middle'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E" alt="School Logo" style="width: 80px; height: 80px; border-radius: 16px; object-fit: cover; background: #fff; padding: 4px;">
               <div style="flex: 1; min-width: 200px;">
                 <h1 id="dash-school-title" style="font-size: 1.6rem; font-weight: 700; margin-bottom: 6px;">SkyHonix Cloud</h1>
                 <div style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.9rem; opacity: 0.9;">
@@ -926,7 +926,7 @@
               </div>
               <div id="cert-student-info" style="display:none; margin-top:12px; padding:12px; background: var(--bg-secondary); border-radius:8px;">
                 <div style="display:flex; gap:12px; align-items:center;">
-                  <img id="cert-student-photo" src="school_assets/school_logo.png" style="width:50px; height:50px; border-radius:8px; object-fit:cover;">
+                  <img id="cert-student-photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%236366f1'/%3E%3Ctext x='50' y='62' font-size='40' font-family='Arial,sans-serif' fill='white' text-anchor='middle'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E" style="width:50px; height:50px; border-radius:8px; object-fit:cover;">
                   <div>
                     <div style="font-weight:700; font-size:0.9rem;" id="cert-student-name">-</div>
                     <div style="font-size:0.75rem; color:var(--text-muted);" id="cert-student-class">-</div>
@@ -2314,6 +2314,9 @@
           <!-- Tab: Mark Attendance Grid -->
           <div class="tab-content" id="tab-att-mark">
             <div class="card" style="margin-bottom: 24px;">
+              <div id="att-session-indicator" style="display: none; padding: 8px 14px; background: var(--glass-bg); border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem; color: var(--text-muted); border-left: 3px solid var(--primary);">
+                Session Start: <strong id="att-mark-session-date" style="color: var(--primary);">-</strong>
+              </div>
               <div class="grid-3">
                 <div class="form-group" style="margin-bottom: 0;">
                   <label class="form-label">Class</label>
@@ -2382,7 +2385,7 @@
                   
                   <div id="scan-feedback-container" style="display: none;">
                     <div class="scan-result-card">
-                      <img id="scan-photo" src="school_assets/school_logo.png" alt="Scanned Student Profile" style="width: 70px; height: 70px; border-radius: 8px; object-fit: cover;">
+                       <img id="scan-photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%236366f1'/%3E%3Ctext x='50' y='62' font-size='40' font-family='Arial,sans-serif' fill='white' text-anchor='middle'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E" alt="Scanned Student Profile" style="width: 70px; height: 70px; border-radius: 8px; object-fit: cover;">
                       <div>
                         <h4 id="scan-name" style="font-size: 1.15rem; color: var(--text-primary);">-</h4>
                         <p id="scan-roll-class" style="color: var(--text-secondary); font-size: 0.9rem;">Roll: -, Class: -</p>
@@ -2534,16 +2537,16 @@
                   <div id="total-att-session" style="font-size: 1.3rem; font-weight: 700; color: var(--primary); margin-top: 6px;">-</div>
                 </div>
                 <div class="card" style="text-align: center; padding: 16px;">
-                  <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Total School Days</div>
+                  <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Current Month Days</div>
                   <div id="total-att-days" style="font-size: 1.3rem; font-weight: 700; color: var(--accent); margin-top: 6px;">-</div>
+                </div>
+                <div class="card" style="text-align: center; padding: 16px;">
+                  <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Previous Month Days</div>
+                  <div id="total-att-prev-days" style="font-size: 1.3rem; font-weight: 700; color: var(--warning); margin-top: 6px;">-</div>
                 </div>
                 <div class="card" style="text-align: center; padding: 16px;">
                   <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Holidays</div>
                   <div id="total-att-holidays" style="font-size: 1.3rem; font-weight: 700; color: var(--warning); margin-top: 6px;">-</div>
-                </div>
-                <div class="card" style="text-align: center; padding: 16px;">
-                  <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Max Possible (x2)</div>
-                  <div id="total-att-max" style="font-size: 1.3rem; font-weight: 700; color: var(--success); margin-top: 6px;">-</div>
                 </div>
               </div>
             </div>
@@ -2555,17 +2558,42 @@
                   <tr>
                     <th>Roll No</th>
                     <th>Student Name</th>
-                    <th>Present Days</th>
-                    <th>Late Days</th>
-                    <th>Total Attendance (x2)</th>
-                    <th>Absent Days</th>
-                    <th>Attendance %</th>
+                    <th>Attendance in This Month</th>
+                    <th>Attendance During Last Month</th>
+                    <th>Total Attendance</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Select class and click Calculate...</td></tr>
+                  <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Select class and click Calculate...</td></tr>
                 </tbody>
               </table>
+            </div>
+
+            <!-- Saved Reports -->
+            <div class="card" style="margin-top: 24px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3>Saved Monthly Reports</h3>
+                <button class="btn btn-primary btn-sm" id="btn-save-total-report">Save Current Report</button>
+              </div>
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px;">
+                Save the calculated report to view it later without recalculating.
+              </p>
+              <div class="table-container" style="margin-top: 12px;">
+                <table class="data-table" id="table-saved-reports">
+                  <thead>
+                    <tr>
+                      <th>Month</th>
+                      <th>Class</th>
+                      <th>Section</th>
+                      <th>School Days</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No saved reports yet</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </article>

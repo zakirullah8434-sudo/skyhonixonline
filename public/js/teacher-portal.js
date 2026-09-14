@@ -732,7 +732,7 @@ async function initFeeCollection() {
       const filtered = students.filter(s => s.name.toLowerCase().includes(q.toLowerCase()) || String(s.roll_no).includes(q));
       listEl.innerHTML = filtered.slice(0, 10).map(s => `
         <div style="padding:10px; cursor:pointer; border-bottom:1px solid var(--border-color); display:flex; align-items:center; gap:10px;" class="fee-student-pick" data-id="${s.id}" data-name="${s.name}" data-class="${s.class_name}" data-section="${s.section_name || ''}" data-roll="${s.roll_no || ''}" data-father="${s.father_name || ''}" data-photo="${s.photo || ''}">
-          <img src="${s.photo ? (s.photo.startsWith('data:') ? s.photo : '/' + s.photo) : 'school_assets/school_logo.png'}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;">
+          <img src="${s.photo ? (s.photo.startsWith('data:') ? s.photo : '/' + s.photo) : 'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect width=%27100%27 height=%27100%27 rx=%2750%27 fill=%27%236366f1%27/%3E%3Ctext x=%2750%27 y=%2762%27 font-size=%2740%27 font-family=%27Arial,sans-serif%27 fill=%27white%27 text-anchor=%27middle%27%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E'}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;">
           <div><div style="font-weight:600;">${s.name}</div><div style="font-size:0.8rem; color:var(--text-muted);">Roll: ${s.roll_no || '-'} | ${s.class_name}</div></div>
         </div>
       `).join('');
@@ -743,7 +743,7 @@ async function initFeeCollection() {
           feeSelectedStudent = { id: el.dataset.id, name: el.dataset.name, class_name: el.dataset.class, section_name: el.dataset.section, roll_no: el.dataset.roll, father_name: el.dataset.father, photo: el.dataset.photo };
           document.getElementById('fee-student-name').textContent = feeSelectedStudent.name;
           document.getElementById('fee-student-class').textContent = `${feeSelectedStudent.class_name} | Roll: ${feeSelectedStudent.roll_no} | Father: ${feeSelectedStudent.father_name}`;
-          document.getElementById('fee-student-photo').src = feeSelectedStudent.photo ? (feeSelectedStudent.photo.startsWith('data:') ? feeSelectedStudent.photo : '/' + feeSelectedStudent.photo) : 'school_assets/school_logo.png';
+          document.getElementById('fee-student-photo').src = feeSelectedStudent.photo ? (feeSelectedStudent.photo.startsWith('data:') ? feeSelectedStudent.photo : '/' + feeSelectedStudent.photo) : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%236366f1'/%3E%3Ctext x='50' y='62' font-size='40' font-family='Arial,sans-serif' fill='white' text-anchor='middle'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E";
           listEl.innerHTML = '';
           document.getElementById('fee-student-search').value = feeSelectedStudent.name;
           await loadFeeLedger(feeSelectedStudent.id);

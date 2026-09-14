@@ -37,8 +37,9 @@ async function getCachedSettings(apiCall) {
 }
 
 // Helper: resolve image src for both data URIs and relative file paths
+const PLACEHOLDER_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%236366f1'/%3E%3Ctext x='50' y='62' font-size='40' font-family='Arial,sans-serif' fill='white' text-anchor='middle'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E";
 function imgSrc(val, fallback) {
-  if (!val) return '/' + (fallback || 'school_assets/school_logo.png');
+  if (!val) return fallback || PLACEHOLDER_IMG;
   if (val.startsWith('data:') || val.startsWith('http://') || val.startsWith('https://') || val.startsWith('/')) return val;
   return '/' + val;
 }
@@ -1150,8 +1151,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function generateIdCardHtml(student, design, schoolName, logoPath, includeQr, includeBarcode, principalSign) {
     const d = design || 'classic';
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(student.student_id || student.name || '')}`;
-    const photoSrc = student.photo ? imgSrc(student.photo, 'school_assets/school_logo.png') : 'school_assets/school_logo.png';
-    const logoSrc = logoPath ? imgSrc(logoPath, 'school_assets/school_logo.png') : 'school_assets/school_logo.png';
+    const photoSrc = student.photo ? imgSrc(student.photo, PLACEHOLDER_IMG) : PLACEHOLDER_IMG;
+    const logoSrc = logoPath ? imgSrc(logoPath, PLACEHOLDER_IMG) : PLACEHOLDER_IMG;
     const year = new Date().getFullYear();
     const s = student;
     const cls = s.class_name || '-';
@@ -1168,7 +1169,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div style="flex:1;display:flex;padding:10px 14px;gap:12px;">
           <div style="flex-shrink:0;text-align:center;">
-            <img src="${photoSrc}" style="width:72px;height:82px;border-radius:6px;object-fit:cover;border:2px solid #60a5fa;" onerror="this.src='school_assets/school_logo.png'">
+            <img src="${photoSrc}" style="width:72px;height:82px;border-radius:6px;object-fit:cover;border:2px solid #60a5fa;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
             ${qr}
           </div>
           <div style="flex:1;font-size:0.78rem;color:#1e293b;">
@@ -1192,7 +1193,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div style="font-size:0.75rem;font-weight:800;color:#fff;margin-top:4px;">${schoolName||'SCHOOL'}</div>
         </div>
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:12px 14px;">
-          <img src="${photoSrc}" style="width:80px;height:90px;border-radius:8px;object-fit:cover;border:3px solid #38bdf8;margin-bottom:8px;" onerror="this.src='school_assets/school_logo.png'">
+          <img src="${photoSrc}" style="width:80px;height:90px;border-radius:8px;object-fit:cover;border:3px solid #38bdf8;margin-bottom:8px;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
           <div style="text-align:center;width:100%;">
             <div style="font-size:0.9rem;font-weight:700;color:#1e293b;">${s.name||'-'}</div>
             <div style="font-size:0.65rem;color:#64748b;margin-bottom:8px;">S/O ${s.father_name||'-'}</div>
@@ -1220,7 +1221,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div style="font-size:0.8rem;font-weight:800;color:#fff;margin-top:4px;">${schoolName||'SCHOOL'}</div>
         </div>
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:12px 16px;">
-          <img src="${photoSrc}" style="width:80px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #dc2626;margin-bottom:8px;" onerror="this.src='school_assets/school_logo.png'">
+          <img src="${photoSrc}" style="width:80px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #dc2626;margin-bottom:8px;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
           <div style="text-align:center;width:100%;">
             <div style="font-size:0.88rem;font-weight:700;color:#1e293b;">${s.name||'-'}</div>
             <div style="font-size:0.65rem;color:#64748b;">S/O ${s.father_name||'-'}</div>
@@ -1245,7 +1246,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div style="font-size:0.8rem;font-weight:800;color:#fff;">${schoolName||'SCHOOL'}</div>
           </div>
           <div style="flex:1;display:flex;padding:10px;gap:10px;">
-            <img src="${photoSrc}" style="width:80px;height:90px;border-radius:8px;object-fit:cover;border:2px solid #a78bfa;flex-shrink:0;" onerror="this.src='school_assets/school_logo.png'">
+            <img src="${photoSrc}" style="width:80px;height:90px;border-radius:8px;object-fit:cover;border:2px solid #a78bfa;flex-shrink:0;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
             <div style="flex:1;color:#fff;font-size:0.78rem;">
               <div style="font-size:0.95rem;font-weight:700;">${s.name||'-'}</div>
               <div style="font-size:0.65rem;color:rgba(255,255,255,0.6);">S/O ${s.father_name||'-'}</div>
@@ -1293,7 +1294,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div style="flex:1;display:flex;padding:10px 14px;gap:12px;">
           <div style="flex-shrink:0;">
-            <img src="${photoSrc}" style="width:75px;height:85px;border-radius:6px;object-fit:cover;border:2px solid #e2e8f0;" onerror="this.src='school_assets/school_logo.png'">
+            <img src="${photoSrc}" style="width:75px;height:85px;border-radius:6px;object-fit:cover;border:2px solid #e2e8f0;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
           </div>
           <div style="flex:1;font-size:0.78rem;color:#1e293b;">
             <div style="font-size:0.95rem;font-weight:700;">${s.name||'-'}</div>
@@ -1323,7 +1324,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div style="height:3px;background:linear-gradient(90deg,#fff 33%,#006233 33%,#006233 66%,#fff 66%);"></div>
         <div style="flex:1;display:flex;padding:10px 14px;gap:12px;">
           <div style="flex-shrink:0;text-align:center;">
-            <img src="${photoSrc}" style="width:75px;height:85px;border-radius:6px;object-fit:cover;border:3px solid #006233;" onerror="this.src='school_assets/school_logo.png'">
+            <img src="${photoSrc}" style="width:75px;height:85px;border-radius:6px;object-fit:cover;border:3px solid #006233;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
             ${qr}
           </div>
           <div style="flex:1;font-size:0.78rem;color:#1e293b;">
@@ -1354,7 +1355,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div style="flex:1;display:flex;padding:12px 16px;gap:14px;">
           <div style="flex-shrink:0;">
-            <img src="${photoSrc}" style="width:78px;height:88px;border-radius:14px;object-fit:cover;border:3px solid #c084fc;background:#fff;" onerror="this.src='school_assets/school_logo.png'">
+            <img src="${photoSrc}" style="width:78px;height:88px;border-radius:14px;object-fit:cover;border:3px solid #c084fc;background:#fff;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
             ${qr}
           </div>
           <div style="flex:1;font-size:0.78rem;color:#1e293b;">
@@ -1375,7 +1376,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (d === 'corporate') {
       return `<div style="width:340px;height:215px;border-radius:4px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.1);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;display:flex;border:1px solid #e2e8f0;">
         <div style="width:95px;background:#f8fafc;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;border-right:2px solid #e2e8f0;">
-          <img src="${photoSrc}" style="width:70px;height:80px;border-radius:4px;object-fit:cover;margin-bottom:6px;" onerror="this.src='school_assets/school_logo.png'">
+          <img src="${photoSrc}" style="width:70px;height:80px;border-radius:4px;object-fit:cover;margin-bottom:6px;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
           ${qr}
         </div>
         <div style="flex:1;display:flex;flex-direction:column;">
@@ -1411,7 +1412,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return `<div style="display:flex;gap:16px;flex-shrink:0;align-items:flex-start;">
         <div style="width:${cardW};height:${cardH};border-radius:8px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.2);font-family:'Segoe UI',Arial,sans-serif;background:#fff;position:relative;display:flex;flex-direction:column;">
           <div style="background:linear-gradient(135deg,#1565c0 0%,#1976d2 50%,#1e88e5 100%);padding:6px 10px;display:flex;align-items:center;gap:6px;">
-            <img src="${logoSrc}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.4);background:#fff;" onerror="this.src='school_assets/school_logo.png'">
+            <img src="${logoSrc}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.4);background:#fff;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
             <div style="flex:1;">
               <div style="font-size:0.62rem;font-weight:800;color:#fff;letter-spacing:0.5px;text-transform:uppercase;line-height:1.1;">${schoolName||'SCHOOL NAME'}</div>
               <div style="font-size:0.4rem;color:rgba(255,255,255,0.7);margin-top:1px;">School Address Here</div>
@@ -1419,7 +1420,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div style="flex:1;display:flex;padding:5px 8px;gap:6px;">
             <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;">
-              <img src="${photoSrc}" style="width:0.85in;height:1in;border-radius:4px;object-fit:cover;border:2px solid #1565c0;background:#e3f2fd;" onerror="this.src='school_assets/school_logo.png'">
+              <img src="${photoSrc}" style="width:0.85in;height:1in;border-radius:4px;object-fit:cover;border:2px solid #1565c0;background:#e3f2fd;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
             </div>
             <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;font-size:0.55rem;color:#1e293b;">
               <div style="font-weight:700;font-size:0.68rem;color:#0d47a1;line-height:1.1;">${s.name||'-'}</div>
@@ -1695,7 +1696,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!students.length) { resultsDiv.innerHTML = '<div style="padding:8px;color:var(--text-muted);">No students found</div>'; resultsDiv.style.display='block'; return; }
       resultsDiv.innerHTML = students.slice(0,10).map(st => `
         <div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:8px;" class="cert-student-pick" data-id="${st.id}" data-name="${st.name}" data-class="${st.class_name}" data-photo="${st.photo||''}" data-father="${st.father_name||''}" data-roll="${st.roll_no||''}" data-stid="${st.student_id||''}" data-dob="${st.dob||''}" data-gender="${st.gender||''}" data-section="${st.section_name||''}">
-          <img src="${st.photo ? (st.photo.startsWith('data:') ? st.photo : '/' + st.photo) : 'school_assets/school_logo.png'}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;">
+          <img src="${st.photo ? (st.photo.startsWith('data:') ? st.photo : '/' + st.photo) : PLACEHOLDER_IMG}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;">
           <div><div style="font-weight:600;font-size:0.85rem;">${st.name}</div><div style="font-size:0.7rem;color:var(--text-muted);">${st.class_name} | Roll: ${st.roll_no||'-'} | ID: ${st.student_id||'-'}</div></div>
         </div>
       `).join('');
@@ -1711,7 +1712,7 @@ document.addEventListener('DOMContentLoaded', () => {
           document.getElementById('cert-student-name').textContent = certSelectedStudent.name;
           document.getElementById('cert-student-class').textContent = `${certSelectedStudent.class_name} | Roll: ${certSelectedStudent.roll_no} | Section: ${certSelectedStudent.section_name}`;
           document.getElementById('cert-student-id').textContent = `ID: ${certSelectedStudent.student_id}`;
-          document.getElementById('cert-student-photo').src = certSelectedStudent.photo ? (certSelectedStudent.photo.startsWith('data:') ? certSelectedStudent.photo : '/' + certSelectedStudent.photo) : 'school_assets/school_logo.png';
+          document.getElementById('cert-student-photo').src = certSelectedStudent.photo ? (certSelectedStudent.photo.startsWith('data:') ? certSelectedStudent.photo : '/' + certSelectedStudent.photo) : PLACEHOLDER_IMG;
           document.getElementById('cert-student-info').style.display='block';
           resultsDiv.style.display='none';
         });
@@ -1881,7 +1882,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const reason = document.getElementById('cert-leave-reason').value;
     if (!startDate || !endDate) { showToast('Please select start and end dates', true); return; }
     const { settings, principalSign } = await fetchCertSettings();
-    const html = generateLeaveCertificateHtml(certSelectedStudent, startDate, endDate, reason, settings.school_name, imgSrc(settings.logo_path, 'school_assets/school_logo.png'), principalSign);
+    const html = generateLeaveCertificateHtml(certSelectedStudent, startDate, endDate, reason, settings.school_name, imgSrc(settings.logo_path, PLACEHOLDER_IMG), principalSign);
     document.getElementById('cert-printable').innerHTML = html;
     document.getElementById('cert-preview-container').style.display='block';
   });
@@ -1893,7 +1894,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const conduct = document.getElementById('cert-char-conduct').value;
     if (!session) { showToast('Please enter the academic session', true); return; }
     const { settings, principalSign } = await fetchCertSettings();
-    const html = generateCharacterCertificateHtml(certSelectedStudent, session, conduct, settings.school_name, imgSrc(settings.logo_path, 'school_assets/school_logo.png'), principalSign);
+    const html = generateCharacterCertificateHtml(certSelectedStudent, session, conduct, settings.school_name, imgSrc(settings.logo_path, PLACEHOLDER_IMG), principalSign);
     document.getElementById('cert-printable').innerHTML = html;
     document.getElementById('cert-preview-container').style.display='block';
   });
@@ -1907,7 +1908,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const details = document.getElementById('cert-sports-details').value;
     if (!event || !achievement) { showToast('Please enter event name and achievement', true); return; }
     const { settings, principalSign } = await fetchCertSettings();
-    const html = generateSportsCertificateHtml(certSelectedStudent, event, achievement, eventDate, details, settings.school_name, imgSrc(settings.logo_path, 'school_assets/school_logo.png'), principalSign);
+    const html = generateSportsCertificateHtml(certSelectedStudent, event, achievement, eventDate, details, settings.school_name, imgSrc(settings.logo_path, PLACEHOLDER_IMG), principalSign);
     document.getElementById('cert-printable').innerHTML = html;
     document.getElementById('cert-preview-container').style.display='block';
   });
@@ -2015,7 +2016,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td><strong>${s.roll_no || '-'}</strong></td>
             <td>
               <div style="display:flex; align-items:center; gap: 10px;">
-                <img src="${imgSrc(s.photo, 'school_assets/school_logo.png')}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;" onerror="this.src='/school_assets/school_logo.png'">
+                <img src="${imgSrc(s.photo)}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
                 <strong>${s.name}</strong>
               </div>
             </td>
@@ -2703,6 +2704,22 @@ document.addEventListener('DOMContentLoaded', () => {
     loadClassesList();
     document.getElementById('att-date-input').value = new Date().toISOString().split('T')[0];
     document.getElementById('att-history-month').value = new Date().toISOString().slice(0, 7);
+    // Show session start date indicator
+    loadSessionInfoForIndicator();
+  }
+
+  async function loadSessionInfoForIndicator() {
+    try {
+      const data = await apiCall('/attendance/session-info');
+      const indicator = document.getElementById('att-session-indicator');
+      const dateDisplay = document.getElementById('att-mark-session-date');
+      if (data.session_start_date) {
+        indicator.style.display = 'block';
+        dateDisplay.textContent = data.session_start_date;
+      } else {
+        indicator.style.display = 'none';
+      }
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   // Load section selection dynamically
@@ -2759,7 +2776,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td><strong>${s.roll_no || '-'}</strong></td>
             <td>
               <div style="display:flex; align-items:center; gap:10px;">
-                <img src="${imgSrc(s.photo, 'school_assets/school_logo.png')}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;">
+                <img src="${imgSrc(s.photo)}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
                 <span>${s.name}</span>
               </div>
             </td>
@@ -2984,6 +3001,15 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await apiCall('/attendance/session-info', 'POST', { session_start_date: date });
       showToast(res.message);
+      // Update Mark Attendance indicator
+      const indicator = document.getElementById('att-session-indicator');
+      const dateDisplay = document.getElementById('att-mark-session-date');
+      if (date) {
+        indicator.style.display = 'block';
+        dateDisplay.textContent = date;
+      } else {
+        indicator.style.display = 'none';
+      }
     } catch (e) { showToast('Failed to save: ' + e.message, true); }
   });
 
@@ -3044,6 +3070,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadClassesList();
     loadSessionInfo();
     loadHolidaysList();
+    loadSavedReports();
     document.getElementById('att-total-month').value = new Date().toISOString().slice(0, 7);
   });
 
@@ -3082,38 +3109,181 @@ document.addEventListener('DOMContentLoaded', () => {
       // Show summary cards
       document.getElementById('att-total-summary').style.display = 'block';
       document.getElementById('total-att-session').textContent = data.session_start_date || 'Not Set';
-      document.getElementById('total-att-days').textContent = data.total_school_days;
+      document.getElementById('total-att-days').textContent = data.current_school_days;
+      document.getElementById('total-att-prev-days').textContent = data.prev_school_days;
       document.getElementById('total-att-holidays').textContent = data.holidays_count;
-      document.getElementById('total-att-max').textContent = data.total_school_days * 2;
 
       // Render table
       const tbody = document.querySelector('#table-total-attendance tbody');
       tbody.innerHTML = '';
 
       if (data.students.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No students found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No students found</td></tr>';
         return;
       }
 
-      const maxPossible = data.total_school_days * 2;
-      tbody.innerHTML = data.students.map(s => {
-        const pct = maxPossible > 0 ? ((s.total_attendance_count / maxPossible) * 100).toFixed(1) : 0;
-        const pctColor = pct >= 75 ? 'var(--success)' : (pct >= 50 ? 'var(--warning)' : 'var(--danger)');
+      // Track totals for summary row
+      let totalCurrentAll = 0;
+      let totalPrevAll = 0;
+      let totalCombinedAll = 0;
+
+      let rows = data.students.map(s => {
+        totalCurrentAll += s.current_attendance;
+        totalPrevAll += s.prev_attendance;
+        totalCombinedAll += s.total_attendance;
+
         return `
           <tr>
             <td><strong>${s.roll_no || '-'}</strong></td>
             <td>${s.name}</td>
-            <td><span class="status-badge status-present">${s.total_present}</span></td>
-            <td><span class="status-badge status-partial">${s.total_late}</span></td>
-            <td><strong style="color: var(--primary); font-size: 1.1rem;">${s.total_attendance_count}</strong></td>
-            <td><span class="status-badge status-absent">${s.total_absent}</span></td>
-            <td><strong style="color: ${pctColor};">${pct}%</strong></td>
+            <td><span class="status-badge status-present">${s.current_attendance}</span></td>
+            <td><span class="status-badge status-partial">${s.prev_attendance}</span></td>
+            <td><strong style="color: var(--primary); font-size: 1.1rem;">${s.total_attendance}</strong></td>
           </tr>
         `;
-      }).join('');
+      });
+
+      // Add summary row: current month total / total school days
+      const avgCurrent = data.current_school_days > 0 ? (totalCurrentAll / data.current_school_days).toFixed(2) : '0.00';
+      rows.push(`
+        <tr style="background: var(--glass-bg); font-weight: 700;">
+          <td colspan="2" style="text-align: right;">Class Average (Current Month):</td>
+          <td><strong style="color: var(--primary); font-size: 1.1rem;">${avgCurrent}</strong></td>
+          <td><strong style="color: var(--primary);">${totalPrevAll}</strong></td>
+          <td><strong style="color: var(--primary); font-size: 1.1rem;">${totalCombinedAll}</strong></td>
+        </tr>
+      `);
+
+      tbody.innerHTML = rows.join('');
+
+      // Store current report data for saving
+      window._currentAttendanceReport = {
+        class_name: cls,
+        section_name: sec || '',
+        month: data.current_month,
+        total_school_days: data.current_school_days,
+        prev_school_days: data.prev_school_days,
+        holidays_count: data.holidays_count,
+        students: data.students
+      };
 
     } catch (e) { showToast('Failed: ' + e.message, true); }
   });
+
+  // Save current attendance report
+  document.getElementById('btn-save-total-report').addEventListener('click', async () => {
+    const report = window._currentAttendanceReport;
+    if (!report) {
+      showToast('Calculate a report first before saving', true);
+      return;
+    }
+    try {
+      const res = await apiCall('/attendance/save-report', 'POST', report);
+      showToast(res.message);
+      loadSavedReports();
+    } catch (e) { showToast('Failed to save: ' + e.message, true); }
+  });
+
+  // Load saved reports list
+  async function loadSavedReports() {
+    try {
+      const reports = await apiCall('/attendance/saved-reports');
+      const tbody = document.querySelector('#table-saved-reports tbody');
+      tbody.innerHTML = '';
+      if (reports.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No saved reports yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = reports.map(r => `
+        <tr>
+          <td><strong>${r.month}</strong></td>
+          <td>${r.class_name}</td>
+          <td>${r.section_name || '-'}</td>
+          <td>${r.total_school_days}</td>
+          <td>
+            <button class="btn btn-primary btn-sm btn-view-report" data-id="${r.id}" title="View Report">View</button>
+            <button class="btn btn-danger btn-sm btn-delete-report" data-id="${r.id}" title="Delete Report">✕</button>
+          </td>
+        </tr>
+      `).join('');
+
+      // View report handler
+      tbody.querySelectorAll('.btn-view-report').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const report = reports.find(r => r.id == btn.dataset.id);
+          if (!report) return;
+          // Populate form and render
+          document.getElementById('att-total-class').value = report.class_name;
+          document.getElementById('att-total-month').value = report.month;
+          // Trigger section load then set section
+          const secSelect = document.getElementById('att-total-sec');
+          secSelect.innerHTML = '<option value="">All Sections</option>';
+          try {
+            const sections = await apiCall(`/students/sections/${report.class_name}`);
+            sections.forEach(s => {
+              secSelect.innerHTML += `<option value="${s.section_name}" ${s.section_name === report.section_name ? 'selected' : ''}>${s.section_name}</option>`;
+            });
+            secSelect.innerHTML += '<option value="No Section">No Section</option>';
+          } catch(e) {}
+
+          // Render saved report data
+          document.getElementById('att-total-summary').style.display = 'block';
+          document.getElementById('total-att-session').textContent = report.session_start_date || 'Not Set';
+          document.getElementById('total-att-days').textContent = report.total_school_days;
+          document.getElementById('total-att-prev-days').textContent = report.prev_school_days;
+          document.getElementById('total-att-holidays').textContent = report.holidays_count;
+
+          const students = report.report_data;
+          const tbody2 = document.querySelector('#table-total-attendance tbody');
+          tbody2.innerHTML = '';
+
+          let totalCurrentAll = 0;
+          let totalPrevAll = 0;
+          let totalCombinedAll = 0;
+
+          let rows = students.map(s => {
+            totalCurrentAll += s.current_attendance;
+            totalPrevAll += s.prev_attendance;
+            totalCombinedAll += s.total_attendance;
+            return `
+              <tr>
+                <td><strong>${s.roll_no || '-'}</strong></td>
+                <td>${s.name}</td>
+                <td><span class="status-badge status-present">${s.current_attendance}</span></td>
+                <td><span class="status-badge status-partial">${s.prev_attendance}</span></td>
+                <td><strong style="color: var(--primary); font-size: 1.1rem;">${s.total_attendance}</strong></td>
+              </tr>
+            `;
+          });
+
+          const avgCurrent = report.total_school_days > 0 ? (totalCurrentAll / report.total_school_days).toFixed(2) : '0.00';
+          rows.push(`
+            <tr style="background: var(--glass-bg); font-weight: 700;">
+              <td colspan="2" style="text-align: right;">Class Average (Current Month):</td>
+              <td><strong style="color: var(--primary); font-size: 1.1rem;">${avgCurrent}</strong></td>
+              <td><strong style="color: var(--primary);">${totalPrevAll}</strong></td>
+              <td><strong style="color: var(--primary); font-size: 1.1rem;">${totalCombinedAll}</strong></td>
+            </tr>
+          `);
+          tbody2.innerHTML = rows.join('');
+
+          showToast('Loaded saved report for ' + report.month);
+        });
+      });
+
+      // Delete report handler
+      tbody.querySelectorAll('.btn-delete-report').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this saved report?')) return;
+          try {
+            await apiCall(`/attendance/saved-reports/${btn.dataset.id}`, 'DELETE');
+            showToast('Report removed');
+            loadSavedReports();
+          } catch (e) { showToast('Failed: ' + e.message, true); }
+        });
+      });
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
+  }
 
 
   // ==========================================
@@ -3928,7 +4098,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return `
         <div class="fee-slip">
           <div class="slip-header">
-            <img src="${imgSrc(schoolData.logo, 'school_assets/school_logo.png')}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
+            <img src="${imgSrc(schoolData.logo, PLACEHOLDER_IMG)}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
             <div class="slip-header-text">
               <h2>${schoolData.name || 'School Name'}</h2>
               <p>Contact: ${schoolData.phone || '-'} | Reg No: ${schoolData.reg || '-'}</p>
@@ -3975,7 +4145,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return `
       <div class="fee-slip">
         <div class="slip-header">
-          <img src="${imgSrc(schoolData.logo, 'school_assets/school_logo.png')}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
+          <img src="${imgSrc(schoolData.logo, PLACEHOLDER_IMG)}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
           <div class="slip-header-text">
             <h2>${schoolData.name || 'School Name'}</h2>
             <p>Contact: ${schoolData.phone || '-'} | Reg No: ${schoolData.reg || '-'}</p>
@@ -5827,7 +5997,7 @@ document.addEventListener('DOMContentLoaded', () => {
     details.forEach(r => { totalMax += r.max_marks; totalObt += r.obtained_marks; });
 
     getCachedSettings(apiCall).then(set => {
-      const schoolLogo = imgSrc(set.logo_path, 'school_assets/school_logo.png');
+      const schoolLogo = imgSrc(set.logo_path, PLACEHOLDER_IMG);
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const posLabel = sum.position && sum.position !== '-' ? sum.position : '-';
       const schoolDisplayName = set.school_name || currentUser.schoolName;
@@ -5927,7 +6097,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const term = document.getElementById('dmc-select-term').value;
 
     getCachedSettings(apiCall).then(set => {
-      const schoolLogo = imgSrc(set.logo_path, 'school_assets/school_logo.png');
+      const schoolLogo = imgSrc(set.logo_path, PLACEHOLDER_IMG);
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const schoolDisplayName = set.school_name || currentUser.schoolName;
       let html = '';
@@ -6372,7 +6542,7 @@ document.addEventListener('DOMContentLoaded', () => {
           apiCall('/settings').catch(() => ({}))
         ]);
         const exam = exams.find(ex => ex.id == t.exam_id);
-        const logoUrl = imgSrc(settings.logo_path, 'school_assets/school_logo.png');
+        const logoUrl = imgSrc(settings.logo_path, PLACEHOLDER_IMG);
 
         const subjects = t.subjects || [];
 
@@ -6671,7 +6841,7 @@ document.addEventListener('DOMContentLoaded', () => {
           templateInstructions = tmpl.instructions || null;
           templateTerm = tmpl.term || '';
         }
-        const logoUrl = imgSrc(settings.logo_path, 'school_assets/school_logo.png');
+        const logoUrl = imgSrc(settings.logo_path, PLACEHOLDER_IMG);
 
         if (!Array.isArray(students) || students.length === 0) {
           showToast('No students found in this school. Please add students first.', true);
@@ -8170,10 +8340,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const schoolName = currentUser ? currentUser.schoolName : 'School Name';
 
       getCachedSettings(apiCall).then(set => {
-        const logoUrl = imgSrc(set.logo_path, 'school_assets/school_logo.png');
+        const logoUrl = imgSrc(set.logo_path, PLACEHOLDER_IMG);
         renderResultPost(schoolName, logoUrl, className, examName, students);
       }).catch(() => {
-        renderResultPost(schoolName, 'school_assets/school_logo.png', className, examName, students);
+        renderResultPost(schoolName, PLACEHOLDER_IMG, className, examName, students);
       });
     });
   }

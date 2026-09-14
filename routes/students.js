@@ -30,16 +30,15 @@ function fileToDataUri(file) {
   return `data:${mime};base64,${file.buffer.toString('base64')}`;
 }
 
-// GET /students - Search, filter, and list students (optimized: no photo, with pagination)
+// GET /students - Search, filter, and list students (with photo)
 router.get('/', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { class_name, section_name, status, search, page, limit } = req.query;
   console.log('[STUDENTS_GET] schoolId:', schoolId, 'class_name:', class_name, 'page:', page, 'limit:', limit);
 
-  // Exclude heavy photo column from list views
   let query = `SELECT id, student_id, name, roll_no, class_name, section_name, father_name, phone,
     status, is_free, discount_amount, discount_percent, transport_fee, family_head_id,
-    dob, admission_date, gender, blood_group
+    dob, admission_date, gender, blood_group, photo
     FROM students WHERE 1=1`;
   const params = [];
 
