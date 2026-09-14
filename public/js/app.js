@@ -2713,11 +2713,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await apiCall('/attendance/session-info');
       const indicator = document.getElementById('att-session-indicator');
       const dateDisplay = document.getElementById('att-mark-session-date');
-      if (data.session_start_date) {
-        indicator.style.display = 'block';
-        dateDisplay.textContent = data.session_start_date;
-      } else {
-        indicator.style.display = 'none';
+      if (indicator && dateDisplay) {
+        if (data.session_start_date) {
+          indicator.style.display = 'block';
+          dateDisplay.textContent = data.session_start_date;
+        } else {
+          indicator.style.display = 'none';
+        }
       }
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
@@ -3004,11 +3006,13 @@ document.addEventListener('DOMContentLoaded', () => {
       // Update Mark Attendance indicator
       const indicator = document.getElementById('att-session-indicator');
       const dateDisplay = document.getElementById('att-mark-session-date');
-      if (date) {
-        indicator.style.display = 'block';
-        dateDisplay.textContent = date;
-      } else {
-        indicator.style.display = 'none';
+      if (indicator && dateDisplay) {
+        if (date) {
+          indicator.style.display = 'block';
+          dateDisplay.textContent = date;
+        } else {
+          indicator.style.display = 'none';
+        }
       }
     } catch (e) { showToast('Failed to save: ' + e.message, true); }
   });
@@ -3107,11 +3111,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await apiCall(url);
 
       // Show summary cards
-      document.getElementById('att-total-summary').style.display = 'block';
-      document.getElementById('total-att-session').textContent = data.session_start_date || 'Not Set';
-      document.getElementById('total-att-days').textContent = data.current_school_days;
-      document.getElementById('total-att-prev-days').textContent = data.prev_school_days;
-      document.getElementById('total-att-holidays').textContent = data.holidays_count;
+      const summaryEl = document.getElementById('att-total-summary');
+      if (summaryEl) summaryEl.style.display = 'block';
+      const sessEl = document.getElementById('total-att-session');
+      if (sessEl) sessEl.textContent = data.session_start_date || 'Not Set';
+      const daysEl = document.getElementById('total-att-days');
+      if (daysEl) daysEl.textContent = data.current_school_days;
+      const prevDaysEl = document.getElementById('total-att-prev-days');
+      if (prevDaysEl) prevDaysEl.textContent = data.prev_school_days;
+      const holEl = document.getElementById('total-att-holidays');
+      if (holEl) holEl.textContent = data.holidays_count;
 
       // Render table
       const tbody = document.querySelector('#table-total-attendance tbody');
@@ -3227,11 +3236,16 @@ document.addEventListener('DOMContentLoaded', () => {
           } catch(e) {}
 
           // Render saved report data
-          document.getElementById('att-total-summary').style.display = 'block';
-          document.getElementById('total-att-session').textContent = report.session_start_date || 'Not Set';
-          document.getElementById('total-att-days').textContent = report.total_school_days;
-          document.getElementById('total-att-prev-days').textContent = report.prev_school_days;
-          document.getElementById('total-att-holidays').textContent = report.holidays_count;
+          const summaryEl = document.getElementById('att-total-summary');
+          if (summaryEl) summaryEl.style.display = 'block';
+          const sessEl = document.getElementById('total-att-session');
+          if (sessEl) sessEl.textContent = report.session_start_date || 'Not Set';
+          const daysEl = document.getElementById('total-att-days');
+          if (daysEl) daysEl.textContent = report.total_school_days;
+          const prevDaysEl = document.getElementById('total-att-prev-days');
+          if (prevDaysEl) prevDaysEl.textContent = report.prev_school_days;
+          const holEl = document.getElementById('total-att-holidays');
+          if (holEl) holEl.textContent = report.holidays_count;
 
           const students = report.report_data;
           const tbody2 = document.querySelector('#table-total-attendance tbody');
