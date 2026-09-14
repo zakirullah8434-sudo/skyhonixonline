@@ -3187,7 +3187,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     try {
-      const res = await apiCall('/attendance/save-report', 'POST', report);
+      const res = await apiCall('/attendance/save-report', 'POST', report, false, true);
       showToast(res.message);
       loadSavedReports();
     } catch (e) { showToast('Failed to save: ' + e.message, true); }
@@ -3290,7 +3290,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', async () => {
           if (!confirm('Delete this saved report?')) return;
           try {
-            await apiCall(`/attendance/saved-reports/${btn.dataset.id}`, 'DELETE');
+            await apiCall(`/attendance/saved-reports/${btn.dataset.id}`, 'DELETE', null, false, true);
             showToast('Report removed');
             loadSavedReports();
           } catch (e) { showToast('Failed: ' + e.message, true); }
