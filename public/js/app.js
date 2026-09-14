@@ -3173,7 +3173,7 @@ document.addEventListener('DOMContentLoaded', () => {
         total_school_days: data.current_school_days,
         prev_school_days: data.prev_school_days,
         holidays_count: data.holidays_count,
-        students: data.students
+        report_data: data.students
       };
 
     } catch (e) { showToast('Failed: ' + e.message, true); }
