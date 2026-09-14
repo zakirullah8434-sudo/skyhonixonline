@@ -3281,6 +3281,9 @@ document.addEventListener('DOMContentLoaded', () => {
           `);
           tbody2.innerHTML = rows.join('');
 
+          // Scroll to the summary cards so user can see the loaded report
+          const summaryVisible = document.getElementById('att-total-summary');
+          if (summaryVisible) summaryVisible.scrollIntoView({ behavior: 'smooth', block: 'start' });
           showToast('Loaded saved report for ' + report.month);
         });
       });
