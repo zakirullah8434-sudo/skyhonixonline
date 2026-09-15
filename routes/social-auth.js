@@ -87,9 +87,15 @@ if (config.APPLE_CLIENT_ID && config.APPLE_TEAM_ID && config.APPLE_KEY_ID) {
 router.use(passport.initialize());
 
 // Google OAuth Routes
-router.get('/google', (req, res, next) => {
+router.get('/google', async (req, res, next) => {
   const userType = req.query.type || 'school';
-  const schoolId = req.query.school_id || null;
+  let schoolId = req.query.school_id || null;
+  
+  // Resolve school_code to internal id if needed
+  if (schoolId && userType !== 'school') {
+    const resolved = await queryMainOne('SELECT id FROM schools WHERE id = ? OR school_code = ?', [schoolId, String(schoolId)]);
+    if (resolved) schoolId = resolved.id;
+  }
   
   // Store the intended user type in session
   req.session = req.session || {};
@@ -147,9 +153,15 @@ router.get('/google/callback',
 );
 
 // Apple OAuth Routes
-router.get('/apple', (req, res, next) => {
+router.get('/apple', async (req, res, next) => {
   const userType = req.query.type || 'school';
-  const schoolId = req.query.school_id || null;
+  let schoolId = req.query.school_id || null;
+  
+  // Resolve school_code to internal id if needed
+  if (schoolId && userType !== 'school') {
+    const resolved = await queryMainOne('SELECT id FROM schools WHERE id = ? OR school_code = ?', [schoolId, String(schoolId)]);
+    if (resolved) schoolId = resolved.id;
+  }
   
   req.session = req.session || {};
   req.session.oauthUserType = userType;
@@ -359,10 +371,17 @@ async function generateTokenForUser(authRecord, userType) {
 // API endpoint: Complete social registration with mobile number
 router.post('/complete-registration', async (req, res) => {
   try {
-    const { temp_id, phone, school_id, subject, qualification, cnic, address } = req.body;
+    const { temp_id, phone, school_id: rawSchoolId, subject, qualification, cnic, address } = req.body;
     
     if (!temp_id || !phone) {
       return res.status(400).json({ error: 'Temporary ID and phone number are required' });
+    }
+    
+    // Resolve school_code to internal id if needed
+    let school_id = rawSchoolId;
+    if (rawSchoolId) {
+      const resolved = await queryMainOne('SELECT id FROM schools WHERE id = ? OR school_code = ?', [rawSchoolId, String(rawSchoolId)]);
+      if (resolved) school_id = resolved.id;
     }
     
     // Get temp data from store

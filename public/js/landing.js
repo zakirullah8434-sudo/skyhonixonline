@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('/api/auth/teacher-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ school_id: parseInt(schoolId), phone, password })
+        body: JSON.stringify({ school_id: schoolId, phone, password })
       });
 
       const result = await response.json();
@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('/api/parents/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ school_id: parseInt(schoolId), phone, password })
+        body: JSON.stringify({ school_id: schoolId, phone, password })
       });
 
       const result = await response.json();

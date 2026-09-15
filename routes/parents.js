@@ -60,7 +60,12 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ error: 'School ID, phone, and password are required' });
   }
   try {
-    const schools = await queryMain('SELECT id, school_name, db_file FROM schools WHERE id = ?', [school_id]);
+    let schools = await queryMain('SELECT id, school_name, db_file FROM schools WHERE id = ?', [school_id]);
+    if (schools.length === 0 && typeof school_id === 'string') {
+      schools = await queryMain('SELECT id, school_name, db_file FROM schools WHERE school_code = ?', [school_id]);
+    } else if (schools.length === 0) {
+      schools = await queryMain('SELECT id, school_name, db_file FROM schools WHERE school_code = ?', [String(school_id)]);
+    }
     if (schools.length === 0) {
       return res.status(404).json({ error: 'School not found with this ID' });
     }
