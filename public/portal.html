@@ -4259,44 +4259,20 @@
     <p id="toast-text"></p>
   </div>
 
-  <!-- Offline-First Infrastructure -->
+  <!-- Offline-First Infrastructure (service-worker.js registered by offline-core.js) -->
   <script src="js/offline-core.js"></script>
   <script>
-    // Register Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(reg => {
-        reg.onupdatefound = () => {
-          const newWorker = reg.installing;
-          if (newWorker) {
-            newWorker.onstatechange = () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                newWorker.postMessage({ type: 'SKIP_WAITING' });
-              }
-            };
-          }
-        };
-      }).catch(() => {});
-    }
-    // Initialize offline infrastructure
-    document.addEventListener('DOMContentLoaded', async () => {
-      try {
-        await window.SkyOfflineDB.open();
-        window.SkyNetwork.start();
-        window.SkySyncEngine.startAutoSync();
-        window.SkySyncUI.create();
-      } catch (e) { console.warn('Offline init failed:', e); }
-    });
     // Listen for SW sync trigger
     if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data && event.data.type === 'TRIGGER_SYNC') {
-          window.SkySyncEngine && window.SkySyncEngine.syncNow();
+          window.SkyHonixOffline && window.SkyHonixOffline.forceSync && window.SkyHonixOffline.forceSync();
         }
       });
     }
   </script>
 
   <!-- Application logic -->
-  <script src="js/app.js?v=11"></script>
+  <script src="js/app.js?v=12"></script>
 </body>
 </html>

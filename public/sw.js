@@ -3,9 +3,9 @@
  * Provides offline caching for the application shell and static assets.
  * Strategy: Cache-first for static assets, Network-first for API, Stale-while-revalidate for pages.
  */
-const CACHE_NAME = 'skyhonix-v7';
-const STATIC_CACHE = 'skyhonix-static-v7';
-const PAGE_CACHE = 'skyhonix-pages-v7';
+const CACHE_NAME = 'skyhonix-v8';
+const STATIC_CACHE = 'skyhonix-static-v8';
+const PAGE_CACHE = 'skyhonix-pages-v8';
 
 const STATIC_ASSETS = [
   '/',
@@ -14,16 +14,6 @@ const STATIC_ASSETS = [
   '/parent-portal.html',
   '/index.html',
   '/css/styles.css',
-  '/js/app.js',
-  '/js/teacher-portal.js',
-  '/js/parent-portal.js',
-  '/js/landing.js',
-  '/js/offline-db.js',
-  '/js/network-manager.js',
-  '/js/sync-queue.js',
-  '/js/sync-engine.js',
-  '/js/cache-manager.js',
-  '/js/sync-ui.js',
   '/manifest.json'
 ];
 
@@ -87,20 +77,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // HTML pages: stale-while-revalidate
+  // HTML pages: network-first (never serve stale HTML)
   if (request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
     event.respondWith(
-      caches.match(request).then(cached => {
-        const fetchPromise = fetch(request).then(response => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(PAGE_CACHE).then(cache => cache.put(request, clone));
-          }
-          return response;
-        }).catch(() => cached);
-
-        return cached || fetchPromise;
-      })
+      fetch(request).then(response => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(PAGE_CACHE).then(cache => cache.put(request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(request))
     );
     return;
   }

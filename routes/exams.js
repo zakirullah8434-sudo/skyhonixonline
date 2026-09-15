@@ -815,7 +815,10 @@ router.put('/datesheets/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Template not found' });
     }
 
-    await runSchool(schoolId, 'UPDATE date_sheet_templates SET name = ?, template_json = ? WHERE id = ?', [name, template_json, parseInt(id)]);
+    const result = await runSchool(schoolId, 'UPDATE date_sheet_templates SET name = ?, template_json = ? WHERE id = ?', [name, template_json, parseInt(id)]);
+    if (result.changes === 0) {
+      return res.status(500).json({ error: 'Update failed — no rows were changed' });
+    }
     res.json({ message: 'Template updated successfully', id: parseInt(id) });
   } catch (err) {
     res.status(500).json({ error: err.message });
