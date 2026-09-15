@@ -104,12 +104,13 @@ router.post('/register', async (req, res) => {
 
     // Map selected package to monthly amount
     const packagePrices = {
-      'Package 1': 800,
-      'Package 2': 1200,
-      'Package 3': 1500,
-      'Package 4': 1800,
-      'Package 5': 2000,
-      'Package 6': 2400
+      'Package 1': 1200,
+      'Package 2': 2000,
+      'Package 3': 3000,
+      'Package 4': 4000,
+      'Package 5': 5200,
+      'Package 6': 6600,
+      'Package 7': 8000
     };
     const subscriptionAmount = packagePrices[selectedPackage] || 1500;
 
@@ -242,11 +243,23 @@ router.post('/teacher-login', async (req, res) => {
   }
 
   try {
-    // 1. Find the specific school
-    const school = await queryMainOne(
+    // 1. Find the specific school — try id first, then school_code
+    let school = await queryMainOne(
       'SELECT id, school_name, subscription_status FROM schools WHERE id = ?',
       [school_id]
     );
+
+    if (!school && typeof school_id === 'string') {
+      school = await queryMainOne(
+        'SELECT id, school_name, subscription_status FROM schools WHERE school_code = ?',
+        [school_id]
+      );
+    } else if (!school) {
+      school = await queryMainOne(
+        'SELECT id, school_name, subscription_status FROM schools WHERE school_code = ?',
+        [String(school_id)]
+      );
+    }
 
     if (!school) {
       return res.status(404).json({ error: 'School not found with this ID' });
