@@ -311,6 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (path.includes('/fees/ledger')) return 'fee';
     if (path.includes('/exams/marks')) return 'marks';
     if (path.includes('/exams/subjects')) return 'exam_subject';
+    if (path.includes('/exams/datesheets')) return 'datesheet';
     if (path.includes('/exams')) return 'exam';
     if (path.includes('/staff/teachers')) return 'teacher';
     if (path.includes('/staff/announcements')) return 'announcement';
@@ -6526,14 +6527,81 @@ document.addEventListener('DOMContentLoaded', () => {
           res = await apiCall('/exams/datesheets', 'POST', { name, template_json: JSON.stringify(template) });
         }
         showToast(res.message);
-        formDatesheetDesign.reset();
-        document.getElementById('datesheet-rows-container').innerHTML = '';
-        document.getElementById('datesheet-edit-id').value = '';
-        datesheetRowCount = 0;
-        const saveBtn = document.getElementById('btn-save-datesheet');
-        if (saveBtn) saveBtn.textContent = 'Save Date Sheet Template';
+        const savedId = editId || res.id;
         loadDatesheetTemplates();
         loadDatesheetDesignerDropdown();
+        if (savedId) {
+          const freshTemplates = await apiCall('/exams/datesheets');
+          const freshTpl = freshTemplates.find(t => t.id == savedId);
+          if (freshTpl) {
+            document.getElementById('datesheet-edit-id').value = freshTpl.id;
+            document.getElementById('datesheet-template-name').value = freshTpl.name;
+            const ft = freshTpl.template;
+            const examSel = document.getElementById('datesheet-exam-select');
+            if (ft.exam_id) {
+              for (let i = 0; i < examSel.options.length; i++) {
+                if (examSel.options[i].value == ft.exam_id) { examSel.selectedIndex = i; break; }
+              }
+            }
+            const termSel = document.getElementById('datesheet-term-select');
+            if (ft.term) {
+              for (let i = 0; i < termSel.options.length; i++) {
+                if (termSel.options[i].value === ft.term) { termSel.selectedIndex = i; break; }
+              }
+            }
+            const container = document.getElementById('datesheet-rows-container');
+            container.innerHTML = '';
+            datesheetRowCount = 0;
+            let dsClasses = [];
+            try { dsClasses = await getCachedClasses(apiCall); } catch (e) {}
+            const freshSubjects = ft.subjects || [];
+            freshSubjects.forEach(sub => {
+              datesheetRowCount++;
+              let classOpts = '<option value="All Classes">All Classes</option>';
+              if (dsClasses && dsClasses.length > 0) {
+                dsClasses.forEach(cls => { classOpts += `<option value="${cls}">${cls}</option>`; });
+              }
+              const rowHtml = `
+                <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: flex-end;" id="datesheet-row-${datesheetRowCount}">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Subject</label>
+                    <input type="text" class="form-control" placeholder="e.g. Mathematics" required value="${sub.subject || ''}">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Class</label>
+                    <select class="form-control ds-row-class" required>${classOpts}</select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Date</label>
+                    <input type="date" class="form-control" required value="${sub.date || ''}">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Time</label>
+                    <input type="text" class="form-control" placeholder="e.g. 9:00 AM - 12:00 PM" required value="${sub.time || ''}">
+                  </div>
+                  <button type="button" class="btn btn-danger btn-sm btn-remove-datesheet-row" style="margin-bottom: 2px;">&times;</button>
+                </div>
+              `;
+              container.insertAdjacentHTML('beforeend', rowHtml);
+              const newRow = document.getElementById('datesheet-row-' + datesheetRowCount);
+              const classSelect = newRow.querySelector('.ds-row-class');
+              if (sub.class) {
+                for (let i = 0; i < classSelect.options.length; i++) {
+                  if (classSelect.options[i].value === sub.class) { classSelect.selectedIndex = i; break; }
+                }
+              }
+            });
+            const saveBtn = document.getElementById('btn-save-datesheet');
+            if (saveBtn) saveBtn.textContent = 'Update Date Sheet Template';
+          }
+        } else {
+          formDatesheetDesign.reset();
+          document.getElementById('datesheet-rows-container').innerHTML = '';
+          document.getElementById('datesheet-edit-id').value = '';
+          datesheetRowCount = 0;
+          const saveBtn = document.getElementById('btn-save-datesheet');
+          if (saveBtn) saveBtn.textContent = 'Save Date Sheet Template';
+        }
       } catch (err) { console.error('[APP_ERROR]', err.message); }
     });
   }
