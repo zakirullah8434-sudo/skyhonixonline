@@ -419,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     try {
-      await apiCall('/api/teachers/my-marks', 'POST', {
+      const result = await apiCall('/api/teachers/my-marks', 'POST', {
         exam_id: parseInt(examId),
         subject,
         term,
@@ -427,7 +427,11 @@ document.addEventListener('DOMContentLoaded', () => {
         max_marks: maxMarks,
         marksList
       });
-      showToast('Marks saved successfully!');
+      showToast('Marks saved successfully! Redirecting to school portal...');
+
+      setTimeout(() => {
+        window.location.href = 'portal.html';
+      }, 1500);
     } catch (err) {
       showToast('Error saving marks: ' + err.message, true);
     }

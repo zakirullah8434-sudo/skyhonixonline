@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { querySchool, querySchoolOne, runSchool, queryMainOne } = require('../database_manager');
+const syncManager = require('../sync_manager');
 
 // Middleware to verify teacher JWT token
 function authenticateTeacherToken(req, res, next) {
@@ -261,10 +262,21 @@ router.post('/my-marks', authenticateTeacherToken, async (req, res) => {
         );
       }
       affectedStudents.push(entry.student_id);
+
+      // Sync: trigger cascade for results invalidation
+      await syncManager.onMarksUpdated(
+        schoolId,
+        entry.student_id,
+        parseInt(exam_id),
+        subject,
+        null,
+        marksVal
+      );
     }
 
     res.json({
       message: 'Marks saved successfully!',
+      syncEvent: 'results.marks.updated',
       affectedStudents,
       needsRecalculation: true
     });
@@ -323,6 +335,8 @@ router.get('/exams', authenticateTeacherToken, async (req, res) => {
     const filtered = exams.filter(ex => {
       try {
         const exClasses = JSON.parse(ex.classes);
+        // If exam has 'All Classes', it matches every teacher
+        if (exClasses.includes('All Classes')) return true;
         return classNames.some(cn => exClasses.includes(cn));
       } catch { return false; }
     });
@@ -357,7 +371,7 @@ router.get('/exam-subjects', authenticateTeacherToken, async (req, res) => {
     // Get all exam subjects for this class/term
     const allSubjects = await querySchool(
       schoolId,
-      'SELECT id, subject, max_marks FROM exam_subjects WHERE exam_id = ? AND class_name = ? AND term = ?',
+      'SELECT id, subject, max_marks FROM exam_subjects WHERE exam_id = ? AND class = ? AND term = ?',
       [parseInt(exam_id), class_name, term]
     );
 
