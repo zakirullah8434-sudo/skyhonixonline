@@ -3298,54 +3298,117 @@
             <div style="margin-bottom: 20px;">
               <button class="btn btn-outline btn-sm btn-back-exam-dash">&larr; Back to Exam Dashboard</button>
             </div>
-            <h2 style="margin-bottom: 24px;">Marks Entry Spreadsheet</h2>
-            <div class="card" style="margin-bottom: 24px;">
-              <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
-                <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Exam Registry</label>
-                  <select class="form-control" id="marks-select-exam"></select>
+            <h2 style="margin-bottom: 24px;">Marks Entry</h2>
+            <div class="tab-container" style="margin-bottom: 24px;">
+              <button class="tab-btn active" data-tab="marks-spreadsheet">All Subjects Spreadsheet</button>
+              <button class="tab-btn" data-tab="marks-single">Single Subject Entry</button>
+            </div>
+
+            <!-- Tab: All Subjects Spreadsheet -->
+            <div class="tab-content" id="tab-marks-spreadsheet">
+              <div class="card" style="margin-bottom: 24px;">
+                <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Exam Registry</label>
+                    <select class="form-control" id="marks-select-exam"></select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Class</label>
+                    <select class="form-control" id="marks-select-class"></select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Section</label>
+                    <select class="form-control" id="marks-select-sec"></select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Term</label>
+                    <select class="form-control" id="marks-select-term">
+                        <option>1st Term</option><option>2nd Term</option><option>Final</option>
+                      </select>
+                    </div>
                 </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Class</label>
-                  <select class="form-control" id="marks-select-class"></select>
+                <div style="margin-top: 20px; display: flex; gap: 15px;">
+                  <button class="btn btn-primary" id="btn-load-marks-grid">Load Marks Spreadsheet</button>
                 </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Section</label>
-                  <select class="form-control" id="marks-select-sec"></select>
+              </div>
+              <div id="marks-subject-info" style="display: none; margin-bottom: 12px; padding: 10px 15px; border-radius: 8px; background: var(--primary-light); border-left: 4px solid var(--primary); font-size: 0.9rem; color: var(--text-primary);">
+              </div>
+              <div class="table-container" style="overflow-x: auto;">
+                <table class="data-table" id="table-marks-grid">
+                  <thead id="marks-grid-head">
+                    <tr>
+                      <th>Roll No</th>
+                      <th>Student Name</th>
+                      <th>Class / Section</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Please configure parameters above...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div style="text-align: right; display: none;" id="marks-grid-actions">
+                <button class="btn btn-secondary" id="btn-save-marks">Save All Marks</button>
+              </div>
+            </div>
+
+            <!-- Tab: Single Subject Entry -->
+            <div class="tab-content" id="tab-marks-single" style="display: none;">
+              <div class="card" style="margin-bottom: 24px;">
+                <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Exam Registry</label>
+                    <select class="form-control" id="ss-marks-exam"></select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Class</label>
+                    <select class="form-control" id="ss-marks-class"></select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Section</label>
+                    <select class="form-control" id="ss-marks-sec"></select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Term</label>
+                    <select class="form-control" id="ss-marks-term">
+                        <option>1st Term</option><option>2nd Term</option><option>Final</option>
+                      </select>
+                  </div>
                 </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Term</label>
-                  <select class="form-control" id="marks-select-term">
-                      <option>1st Term</option><option>2nd Term</option><option>Final</option>
+                <div class="grid-3" style="grid-template-columns: 1fr 1fr; margin-top: 15px;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Subject</label>
+                    <select class="form-control" id="ss-marks-subject">
+                      <option value="">-- Select Subject --</option>
                     </select>
                   </div>
-
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Max Marks</label>
+                    <input type="number" id="ss-marks-max" class="form-control" value="100" min="1" style="width:100px;">
+                  </div>
+                </div>
+                <div style="margin-top: 20px; display: flex; gap: 15px;">
+                  <button class="btn btn-primary" id="btn-load-ss-marks">Load Students</button>
+                </div>
               </div>
-              <div style="margin-top: 20px; display: flex; gap: 15px;">
-                <button class="btn btn-primary" id="btn-load-marks-grid">Load Marks Spreadsheet</button>
+              <div id="ss-marks-title" style="display:none; margin-bottom: 12px; padding: 10px 15px; border-radius: 8px; background: var(--primary-light); border-left: 4px solid var(--primary); font-size: 0.9rem; color: var(--text-primary);"></div>
+              <div class="table-container" style="overflow-x: auto;">
+                <table class="data-table" id="table-ss-marks">
+                  <thead>
+                    <tr>
+                      <th>Roll No</th>
+                      <th>Student Name</th>
+                      <th style="width:150px;">Marks <span id="ss-marks-max-label" style="font-size:0.75rem; font-weight:400; color:var(--text-muted);">(out of 100)</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Please configure parameters above...</td></tr>
+                  </tbody>
+                </table>
               </div>
-            </div>
-
-            <div id="marks-subject-info" style="display: none; margin-bottom: 12px; padding: 10px 15px; border-radius: 8px; background: var(--primary-light); border-left: 4px solid var(--primary); font-size: 0.9rem; color: var(--text-primary);">
-            </div>
-
-            <div class="table-container" style="overflow-x: auto;">
-              <table class="data-table" id="table-marks-grid">
-                <thead id="marks-grid-head">
-                  <tr>
-                    <th>Roll No</th>
-                    <th>Student Name</th>
-                    <th>Class / Section</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Please configure parameters above...</td></tr>
-                </tbody>
-              </table>
-            </div>
-            
-            <div style="text-align: right; display: none;" id="marks-grid-actions">
-              <button class="btn btn-secondary" id="btn-save-marks">Save All Marks</button>
+              <div style="text-align: right; display: none;" id="ss-marks-grid-actions">
+                <button class="btn btn-secondary" id="btn-save-ss-marks">Save All Marks</button>
+              </div>
             </div>
           </div>
 

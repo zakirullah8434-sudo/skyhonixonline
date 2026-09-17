@@ -1944,6 +1944,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const attTotalClass = document.getElementById('att-total-class');
       const ledgerFilterClass = document.getElementById('ledger-filter-class');
       const marksSelectClass = document.getElementById('marks-select-class');
+      const ssMarksSelectClass = document.getElementById('ss-marks-class');
       const calcClassSelect = document.getElementById('calc-class-select');
       const historyFilterClass = document.getElementById('history-filter-class');
       const studentFeeClass = document.getElementById('student-fee-class');
@@ -1956,7 +1957,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const selects = [
         filterClass, attClassSelect, attHistoryClass, attTotalClass, ledgerFilterClass,
-        marksSelectClass, calcClassSelect,
+        marksSelectClass, ssMarksSelectClass, calcClassSelect,
         historyFilterClass, studentFeeClass, reminderFilterClass,
         slipClassSelect, datesheetClassSelect, rollnoClassSelect, rollnoGenClass, feePayClass
       ];
@@ -5694,13 +5695,14 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const exams = await apiCall('/exams');
       const marksSelectExam = document.getElementById('marks-select-exam');
+      const ssMarksSelectExam = document.getElementById('ss-marks-exam');
       const calcExamSelect = document.getElementById('calc-exam-select');
       const dmcSelectExam = document.getElementById('dmc-select-exam');
       const datesheetExamSelect = document.getElementById('datesheet-exam-select');
       const rollnoExamSelect = document.getElementById('rollno-exam-select');
       const rollnoGenExam = document.getElementById('rollno-gen-exam');
 
-      const selectors = [marksSelectExam, calcExamSelect, dmcSelectExam, datesheetExamSelect, rollnoExamSelect, rollnoGenExam];
+      const selectors = [marksSelectExam, ssMarksSelectExam, calcExamSelect, dmcSelectExam, datesheetExamSelect, rollnoExamSelect, rollnoGenExam];
 
       // Deduplicate exams by id
       const seen = new Set();
@@ -5863,6 +5865,166 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast(res.message);
     } catch (err) {
       showToast('Failed to save marks', true);
+    }
+  });
+
+  // ==========================================
+  // SINGLE SUBJECT MARKS ENTRY
+  // ==========================================
+
+  const ssMarksClassEl = document.getElementById('ss-marks-class');
+  if (ssMarksClassEl) {
+    ssMarksClassEl.addEventListener('change', async () => {
+      updateSectionDropdown('ss-marks-class', 'ss-marks-sec', true);
+      const subjectSelect = document.getElementById('ss-marks-subject');
+      subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+      const cls = ssMarksClassEl.value;
+      if (!cls) return;
+      const examId = document.getElementById('ss-marks-exam').value;
+      const term = document.getElementById('ss-marks-term').value;
+      if (!examId || !term) return;
+      try {
+        const subs = await apiCall(`/exams/subjects?exam_id=${examId}&term=${term}&class_name=${encodeURIComponent(cls)}`);
+        const classSubjects = subs.filter(s => s.class === cls);
+        if (classSubjects.length > 0) {
+          classSubjects.forEach(s => {
+            subjectSelect.innerHTML += `<option value="${s.subject}" data-max="${s.max_marks}">${s.subject} (Max: ${s.max_marks})</option>`;
+          });
+        } else {
+          const ttable = await apiCall(`/staff/timetable?class_name=${encodeURIComponent(cls)}`);
+          const uniqueSubjects = [...new Set(ttable.map(t => t.subject).filter(Boolean))];
+          uniqueSubjects.forEach(s => {
+            subjectSelect.innerHTML += `<option value="${s}">${s}</option>`;
+          });
+        }
+      } catch (e) { console.error('[SS_MARKS_SUBJECTS]', e.message); }
+    });
+  }
+
+  const ssMarksExamEl = document.getElementById('ss-marks-exam');
+  if (ssMarksExamEl) {
+    ssMarksExamEl.addEventListener('change', () => {
+      if (ssMarksClassEl && ssMarksClassEl.value) {
+        ssMarksClassEl.dispatchEvent(new Event('change'));
+      }
+    });
+  }
+
+  const ssMarksTermEl = document.getElementById('ss-marks-term');
+  if (ssMarksTermEl) {
+    ssMarksTermEl.addEventListener('change', () => {
+      if (ssMarksClassEl && ssMarksClassEl.value) {
+        ssMarksClassEl.dispatchEvent(new Event('change'));
+      }
+    });
+  }
+
+  const ssMarksSubjectEl = document.getElementById('ss-marks-subject');
+  if (ssMarksSubjectEl) {
+    ssMarksSubjectEl.addEventListener('change', function() {
+      const opt = this.options[this.selectedIndex];
+      const maxVal = opt && opt.dataset.max ? opt.dataset.max : document.getElementById('ss-marks-max').value;
+      document.getElementById('ss-marks-max').value = maxVal;
+      document.getElementById('ss-marks-max-label').textContent = `(out of ${maxVal})`;
+    });
+  }
+
+  document.getElementById('btn-load-ss-marks').addEventListener('click', async () => {
+    const examId = document.getElementById('ss-marks-exam').value;
+    const term = document.getElementById('ss-marks-term').value;
+    const className = document.getElementById('ss-marks-class').value;
+    const subject = document.getElementById('ss-marks-subject').value;
+    const section = document.getElementById('ss-marks-sec').value;
+
+    if (!examId || !term || !className || !subject) {
+      showToast('Please select all filters first', true);
+      return;
+    }
+
+    try {
+      let url = `/exams/marks?exam_id=${examId}&class_name=${encodeURIComponent(className)}&subject=${encodeURIComponent(subject)}&term=${encodeURIComponent(term)}`;
+      if (section && section !== 'All Sections') url += `&section_name=${encodeURIComponent(section)}`;
+      const grid = await apiCall(url);
+      const maxMarks = parseInt(document.getElementById('ss-marks-max').value) || 100;
+      document.getElementById('ss-marks-max-label').textContent = `(out of ${maxMarks})`;
+
+      document.getElementById('ss-marks-title').style.display = 'block';
+      document.getElementById('ss-marks-title').innerHTML = `<strong>${subject}</strong> &mdash; ${className}${section && section !== 'All Sections' ? ' / ' + section : ''} (${term})`;
+
+      const tbody = document.querySelector('#table-ss-marks tbody');
+      tbody.innerHTML = '';
+
+      if (grid.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No students found</td></tr>';
+        document.getElementById('ss-marks-grid-actions').style.display = 'none';
+        return;
+      }
+
+      grid.forEach((student, idx) => {
+        const tr = document.createElement('tr');
+        tr.style.background = idx % 2 === 0 ? 'transparent' : 'rgba(99,102,241,0.05)';
+        tr.innerHTML = `
+          <td style="padding:10px; border-bottom:1px solid var(--border-glow); font-weight:500;">${student.roll_no || '-'}</td>
+          <td style="padding:10px; border-bottom:1px solid var(--border-glow);">${student.name}</td>
+          <td style="padding:10px; border-bottom:1px solid var(--border-glow); text-align:center;">
+            <input type="number" min="0" max="${maxMarks}" class="form-control" style="width:100px; margin:0 auto; text-align:center;"
+              value="${student.marks !== '' ? student.marks : ''}"
+              data-student-id="${student.id}">
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('ss-marks-grid-actions').style.display = 'block';
+    } catch (err) {
+      showToast('Error: ' + err.message, true);
+    }
+  });
+
+  document.getElementById('ss-marks-max').addEventListener('input', function() {
+    const val = parseInt(this.value) || 100;
+    document.getElementById('ss-marks-max-label').textContent = `(out of ${val})`;
+    document.querySelectorAll('#table-ss-marks tbody input[type="number"]').forEach(input => {
+      input.setAttribute('max', val);
+    });
+  });
+
+  document.getElementById('btn-save-ss-marks').addEventListener('click', async () => {
+    const examId = document.getElementById('ss-marks-exam').value;
+    const term = document.getElementById('ss-marks-term').value;
+    const className = document.getElementById('ss-marks-class').value;
+    const subject = document.getElementById('ss-marks-subject').value;
+    const maxMarks = parseInt(document.getElementById('ss-marks-max').value) || 100;
+
+    if (!examId || !term || !className || !subject) {
+      showToast('Please select all filters first', true);
+      return;
+    }
+
+    const marksList = [];
+    document.querySelectorAll('#table-ss-marks tbody input[type="number"]').forEach(input => {
+      marksList.push({
+        student_id: parseInt(input.dataset.studentId),
+        marks: input.value
+      });
+    });
+
+    if (marksList.length === 0) {
+      showToast('No student rows to save', true);
+      return;
+    }
+
+    try {
+      const res = await apiCall('/exams/marks', 'POST', {
+        exam_id: parseInt(examId),
+        subject,
+        term,
+        marksList,
+        class_name: className
+      });
+      showToast(res.message);
+    } catch (err) {
+      showToast('Failed to save marks: ' + err.message, true);
     }
   });
 
