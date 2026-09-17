@@ -6607,26 +6607,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add subject row for date sheet designer (with class selector)
   const btnAddDatesheetRow = document.getElementById('btn-add-datesheet-row');
   if (btnAddDatesheetRow) {
-    btnAddDatesheetRow.addEventListener('click', async () => {
+    btnAddDatesheetRow.addEventListener('click', () => {
       datesheetRowCount++;
+      const currentRowId = datesheetRowCount;
       const container = document.getElementById('datesheet-rows-container');
-      // Build class options from cached classes
-      let classOpts = '<option value="All Classes">All Classes</option>';
-      try {
-        const classes = await getCachedClasses(apiCall);
-        if (classes && classes.length > 0) {
-          classes.forEach(cls => { classOpts += `<option value="${cls}">${cls}</option>`; });
-        }
-      } catch (e) { console.error('[DSROW]', e.message); }
       const rowHtml = `
-        <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: flex-end;" id="datesheet-row-${datesheetRowCount}">
+        <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: flex-end;" id="datesheet-row-${currentRowId}">
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label">Subject</label>
             <input type="text" class="form-control" placeholder="e.g. Mathematics" required>
           </div>
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label">Class</label>
-            <select class="form-control ds-row-class" required>${classOpts}</select>
+            <select class="form-control ds-row-class" required><option value="All Classes">All Classes</option></select>
           </div>
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label">Date</label>
@@ -6640,6 +6633,14 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
       container.insertAdjacentHTML('beforeend', rowHtml);
+      getCachedClasses(apiCall).then(classes => {
+        if (classes && classes.length > 0) {
+          const sel = document.querySelector('#datesheet-row-' + currentRowId + ' .ds-row-class');
+          if (sel) {
+            sel.innerHTML = '<option value="All Classes">All Classes</option>' + classes.map(cls => `<option value="${cls}">${cls}</option>`).join('');
+          }
+        }
+      }).catch(e => console.error('[DSROW]', e.message));
     });
 
     // Remove row handler (event delegation)
