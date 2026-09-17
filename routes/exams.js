@@ -923,17 +923,7 @@ router.get('/marks/spreadsheet', authenticateToken, async (req, res) => {
       [parseInt(exam_id), class_name, term]
     );
 
-    // If no exam_subjects found, fetch from timetable for this class
-    if (subjects.length === 0) {
-      const timetableSubjects = await querySchool(
-        schoolId,
-        `SELECT DISTINCT subject, 100 as max_marks FROM timetable WHERE class_name = ? AND subject IS NOT NULL AND subject != '' ORDER BY subject`,
-        [class_name]
-      );
-      subjects = timetableSubjects;
-    }
-
-    // If still no subjects, fetch from datesheet templates for this exam/class
+    // If no exam_subjects, fetch from datesheet templates for this exam/class
     if (subjects.length === 0) {
       try {
         const templates = await querySchool(schoolId, 'SELECT template_json FROM date_sheet_templates');
@@ -957,6 +947,16 @@ router.get('/marks/spreadsheet', authenticateToken, async (req, res) => {
           subjects = datesheetSubjects.sort((a, b) => a.subject.localeCompare(b.subject));
         }
       } catch (e) {}
+    }
+
+    // If still no subjects, fetch from timetable for this class (last fallback)
+    if (subjects.length === 0) {
+      const timetableSubjects = await querySchool(
+        schoolId,
+        `SELECT DISTINCT subject, 100 as max_marks FROM timetable WHERE class_name = ? AND subject IS NOT NULL AND subject != '' ORDER BY subject`,
+        [class_name]
+      );
+      subjects = timetableSubjects;
     }
 
     const allMarks = await querySchool(
