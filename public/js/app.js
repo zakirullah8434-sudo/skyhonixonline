@@ -2858,9 +2858,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const scanValue = (decodedText || '').trim();
         if (!scanValue) return;
 
-        // Prevent duplicate rapid scans of the same code within 3 seconds
+        // Prevent duplicate rapid scans of the same code within 2 seconds
         const now = Date.now();
-        if (window._lastScanValue === scanValue && (now - (window._lastScanTime || 0)) < 3000) return;
+        if (window._lastScanValue === scanValue && (now - (window._lastScanTime || 0)) < 2000) return;
         window._lastScanValue = scanValue;
         window._lastScanTime = now;
 
@@ -7804,7 +7804,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
-  document.getElementById('form-teacher').addEventListener('submit', async (e) => {
+  const formTeacher = document.getElementById('form-teacher');
+  if (formTeacher) formTeacher.addEventListener('submit', async (e) => {
     e.preventDefault();
     const editId = document.getElementById('teacher-edit-id').value;
     const name = document.getElementById('teacher-name').value.trim();
@@ -7827,7 +7828,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await apiCall('/staff/teachers', 'POST', { name, phone, password, qualification, assigned_class, can_collect_fees });
         showToast('Teacher added');
       }
-      document.getElementById('form-teacher').reset();
+      formTeacher.reset();
       document.getElementById('teacher-edit-id').value = '';
       document.getElementById('teacher-form-title').textContent = 'Add New Teacher';
       document.getElementById('btn-teacher-submit').textContent = 'Add Teacher';
@@ -7836,12 +7837,13 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) { showToast(err.message, true); }
   });
 
-  document.getElementById('btn-teacher-cancel').addEventListener('click', () => {
-    document.getElementById('form-teacher').reset();
+  const btnTeacherCancel = document.getElementById('btn-teacher-cancel');
+  if (btnTeacherCancel) btnTeacherCancel.addEventListener('click', () => {
+    if (formTeacher) formTeacher.reset();
     document.getElementById('teacher-edit-id').value = '';
     document.getElementById('teacher-form-title').textContent = 'Add New Teacher';
     document.getElementById('btn-teacher-submit').textContent = 'Add Teacher';
-    document.getElementById('btn-teacher-cancel').style.display = 'none';
+    btnTeacherCancel.style.display = 'none';
   });
 
   // ==========================================
@@ -7905,7 +7907,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Parent class selector -> load students for that class
-  document.getElementById('parent-class-select').addEventListener('change', async function() {
+  const parentClassSelect = document.getElementById('parent-class-select');
+  if (parentClassSelect) parentClassSelect.addEventListener('change', async function() {
     const className = this.value;
     const studentSelect = document.getElementById('parent-student-select');
     const passwordField = document.getElementById('parent-password');
@@ -7937,7 +7940,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Parent student selector -> show student info and enable password
-  document.getElementById('parent-student-select').addEventListener('change', function() {
+  const parentStudentSelect = document.getElementById('parent-student-select');
+  if (parentStudentSelect) parentStudentSelect.addEventListener('change', function() {
     const option = this.options[this.selectedIndex];
     const passwordField = document.getElementById('parent-password');
     const submitBtn = document.getElementById('btn-parent-submit');
@@ -7960,7 +7964,8 @@ document.addEventListener('DOMContentLoaded', () => {
     submitBtn.disabled = false;
   });
 
-  document.getElementById('form-parent').addEventListener('submit', async (e) => {
+  const formParent = document.getElementById('form-parent');
+  if (formParent) formParent.addEventListener('submit', async (e) => {
     e.preventDefault();
     const editId = document.getElementById('parent-edit-id').value;
     const studentId = document.getElementById('parent-student-id').value;
@@ -7991,12 +7996,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function resetParentForm() {
-    document.getElementById('form-parent').reset();
+    if (formParent) formParent.reset();
     document.getElementById('parent-edit-id').value = '';
     document.getElementById('parent-student-id').value = '';
-    document.getElementById('parent-class-select').value = '';
-    document.getElementById('parent-student-select').innerHTML = '<option value="">-- Select Student --</option>';
-    document.getElementById('parent-student-select').disabled = true;
+    if (parentClassSelect) parentClassSelect.value = '';
+    if (parentStudentSelect) {
+      parentStudentSelect.innerHTML = '<option value="">-- Select Student --</option>';
+      parentStudentSelect.disabled = true;
+    }
     document.getElementById('parent-password').disabled = true;
     document.getElementById('btn-parent-submit').disabled = true;
     document.getElementById('parent-student-info').style.display = 'none';
@@ -8005,7 +8012,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-parent-cancel').style.display = 'none';
   }
 
-  document.getElementById('btn-parent-cancel').addEventListener('click', resetParentForm);
+  const btnParentCancel = document.getElementById('btn-parent-cancel');
+  if (btnParentCancel) btnParentCancel.addEventListener('click', resetParentForm);
 
   // ==========================================
   // TIMETABLE
@@ -8032,8 +8040,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
-  document.getElementById('tt-class').addEventListener('change', async () => {
-    const class_name = document.getElementById('tt-class').value;
+  const ttClassEl = document.getElementById('tt-class');
+  if (ttClassEl) ttClassEl.addEventListener('change', async () => {
+    const class_name = ttClassEl.value;
     const ttSection = document.getElementById('tt-section');
     ttSection.innerHTML = '<option value="">-- All Sections --</option>';
     if (!class_name) return;
@@ -8043,7 +8052,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
-  document.getElementById('btn-load-timetable').addEventListener('click', loadTimetableGrid);
+  const btnLoadTimetable = document.getElementById('btn-load-timetable');
+  if (btnLoadTimetable) btnLoadTimetable.addEventListener('click', loadTimetableGrid);
 
   async function loadTimetableGrid() {
     const class_name = document.getElementById('tt-class').value;
@@ -8190,11 +8200,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Day filter quick buttons
-  document.getElementById('tt-select-all-days').addEventListener('click', () => {
+  const ttSelectAllDays = document.getElementById('tt-select-all-days');
+  if (ttSelectAllDays) ttSelectAllDays.addEventListener('click', () => {
     document.querySelectorAll('.tt-day-filter').forEach(cb => cb.checked = true);
     loadTimetableGrid();
   });
-  document.getElementById('tt-select-weekdays').addEventListener('click', () => {
+  const ttSelectWeekdays = document.getElementById('tt-select-weekdays');
+  if (ttSelectWeekdays) ttSelectWeekdays.addEventListener('click', () => {
     document.querySelectorAll('.tt-day-filter').forEach(cb => {
       cb.checked = cb.value !== 'Saturday';
     });
@@ -8238,7 +8250,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) { showToast(err.message, true); }
   };
 
-  document.getElementById('form-timetable').addEventListener('submit', async (e) => {
+  const formTimetable = document.getElementById('form-timetable');
+  if (formTimetable) formTimetable.addEventListener('submit', async (e) => {
     e.preventDefault();
     const class_name = document.getElementById('tt-class').value;
     const section_name = document.getElementById('tt-section').value;
@@ -8257,18 +8270,20 @@ document.addEventListener('DOMContentLoaded', () => {
         subject, teacher_id: teacher_id ? parseInt(teacher_id) : null
       });
       showToast('Period saved');
-      document.getElementById('form-timetable').reset();
+      if (formTimetable) formTimetable.reset();
       document.getElementById('btn-tt-cancel').style.display = 'none';
       loadTimetableGrid();
     } catch (err) { showToast(err.message, true); }
   });
 
-  document.getElementById('btn-tt-cancel').addEventListener('click', () => {
-    document.getElementById('form-timetable').reset();
-    document.getElementById('btn-tt-cancel').style.display = 'none';
+  const btnTtCancel = document.getElementById('btn-tt-cancel');
+  if (btnTtCancel) btnTtCancel.addEventListener('click', () => {
+    if (formTimetable) formTimetable.reset();
+    btnTtCancel.style.display = 'none';
   });
 
-  document.getElementById('btn-clear-timetable').addEventListener('click', async () => {
+  const btnClearTimetable = document.getElementById('btn-clear-timetable');
+  if (btnClearTimetable) btnClearTimetable.addEventListener('click', async () => {
     const class_name = document.getElementById('tt-class').value;
     const section_name = document.getElementById('tt-section').value;
     const target = class_name ? `timetable for class ${class_name}` : 'ALL timetable entries';
@@ -8347,7 +8362,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { showToast('Failed to load announcements', true); }
   }
 
-  document.getElementById('form-announcement').addEventListener('submit', async (e) => {
+  const formAnnouncement = document.getElementById('form-announcement');
+  if (formAnnouncement) formAnnouncement.addEventListener('submit', async (e) => {
     e.preventDefault();
     const editId = document.getElementById('announcement-edit-id').value;
     const title = document.getElementById('announcement-title').value.trim();
@@ -8362,7 +8378,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await apiCall('/staff/announcements', 'POST', { title, message, target_role });
         showToast('Announcement posted');
       }
-      document.getElementById('form-announcement').reset();
+      if (formAnnouncement) formAnnouncement.reset();
       document.getElementById('announcement-edit-id').value = '';
       document.getElementById('announcement-form-title').textContent = 'Post New Announcement';
       document.getElementById('btn-announcement-submit').textContent = 'Post Announcement';
@@ -8371,12 +8387,13 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) { showToast(err.message, true); }
   });
 
-  document.getElementById('btn-announcement-cancel').addEventListener('click', () => {
-    document.getElementById('form-announcement').reset();
+  const btnAnnouncementCancel = document.getElementById('btn-announcement-cancel');
+  if (btnAnnouncementCancel) btnAnnouncementCancel.addEventListener('click', () => {
+    if (formAnnouncement) formAnnouncement.reset();
     document.getElementById('announcement-edit-id').value = '';
     document.getElementById('announcement-form-title').textContent = 'Post New Announcement';
     document.getElementById('btn-announcement-submit').textContent = 'Post Announcement';
-    document.getElementById('btn-announcement-cancel').style.display = 'none';
+    btnAnnouncementCancel.style.display = 'none';
   });
 
   // ==========================================
