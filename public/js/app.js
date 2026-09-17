@@ -7695,8 +7695,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  document.getElementById('form-billing-upload').addEventListener('submit', (e) => submitPaymentSlip(e, false));
-  document.getElementById('form-lock-payment').addEventListener('submit', (e) => submitPaymentSlip(e, true));
+  const formBillingUpload = document.getElementById('form-billing-upload');
+  if (formBillingUpload) formBillingUpload.addEventListener('submit', (e) => submitPaymentSlip(e, false));
+  const formLockPayment = document.getElementById('form-lock-payment');
+  if (formLockPayment) formLockPayment.addEventListener('submit', (e) => submitPaymentSlip(e, true));
 
 
 
