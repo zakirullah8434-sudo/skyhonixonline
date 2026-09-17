@@ -632,7 +632,7 @@ router.get('/dmc/class/:className', authenticateToken, async (req, res) => {
   }
 
   try {
-    let studentsQuery = "SELECT * FROM students WHERE class_name = ? AND (status IS NULL OR status != 'Left')";
+    let studentsQuery = "SELECT id, student_id, name, roll_no, father_name, class_name, section_name, phone, dob, gender FROM students WHERE class_name = ? AND (status IS NULL OR status != 'Left')";
     const params = [className];
     if (section_name && section_name !== 'All Sections') {
       studentsQuery += " AND section_name = ?";

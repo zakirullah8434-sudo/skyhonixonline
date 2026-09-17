@@ -123,10 +123,11 @@
   async function loadChildren() {
     try {
       children = await apiCall('/api/parents/my-children');
-      childSelect.innerHTML = '<option value="">-- Select Child --</option>';
+      const childOpts = ['<option value="">-- Select Child --</option>'];
       children.forEach(c => {
-        childSelect.innerHTML += `<option value="${c.id}">${c.name} (${c.class_name}${c.section_name ? ' - ' + c.section_name : ''})</option>`;
+        childOpts.push(`<option value="${c.id}">${esc(c.name)} (${esc(c.class_name)}${c.section_name ? ' - ' + esc(c.section_name) : ''})</option>`);
       });
+      childSelect.innerHTML = childOpts.join('');
       if (children.length > 0) {
         childSelector.style.display = 'flex';
         selectedChildId = children[0].id;
@@ -172,14 +173,17 @@
 
     if (selectedChildId) {
       try {
-        // Parallel fetch for 66% faster dashboard load
         const month = String(new Date().getMonth() + 1).padStart(2, '0');
         const year = new Date().getFullYear();
-        const [att, feeData, examData] = await Promise.all([
+        const [att, feeData, examData, assignmentsData] = await Promise.all([
           apiCall(`/api/parents/my-attendance/${selectedChildId}?month=${month}&year=${year}`),
           apiCall(`/api/parents/my-fees/${selectedChildId}`),
-          apiCall(`/api/parents/my-exams/${selectedChildId}`)
+          apiCall(`/api/parents/my-exams/${selectedChildId}`),
+          cachedParentAssignments.length > 0 ? Promise.resolve(cachedParentAssignments) : apiCall('/api/parents/my-assignments')
         ]);
+        if (cachedParentAssignments.length === 0) cachedParentAssignments = assignmentsData;
+        cachedDashboardAssignments = assignmentsData;
+
         const today = new Date().toISOString().split('T')[0];
         const todayRec = att.find(a => a.date === today);
         document.getElementById('stat-attendance').textContent = todayRec ? todayRec.status : 'No record';
@@ -188,19 +192,16 @@
         let totalMarks = 0;
         examData.forEach(r => { totalMarks += r.marks.length; });
         document.getElementById('stat-exams').textContent = totalMarks;
+
+        renderDashboardAssignments(assignmentsData);
       } catch (e) { console.error('[PARENT_PORTAL_ERROR]', e.message); }
     }
-
-    // Load dashboard assignments summary
-    loadDashboardAssignments();
   }
 
-  async function loadDashboardAssignments() {
+  function renderDashboardAssignments(assignments) {
     const container = document.getElementById('dashboard-assignments-container');
     if (!container) return;
     try {
-      const assignments = cachedDashboardAssignments || await apiCall('/api/parents/my-assignments');
-      cachedDashboardAssignments = assignments;
       if (assignments.length === 0) {
         container.innerHTML = `<div class="card" style="text-align:center; padding:30px;"><div style="font-size:2rem; margin-bottom:8px;">📚</div><p style="color:var(--text-muted);">No homework or tests assigned yet.</p></div>`;
         return;
@@ -230,6 +231,7 @@
   async function loadFees() {
     const container = document.getElementById('fees-container');
     if (!selectedChildId) { container.innerHTML = '<p style="color: var(--text-muted);">Select a child first.</p>'; return; }
+    container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Loading fee records...</p>';
     try {
       const data = await apiCall(`/api/parents/my-fees/${selectedChildId}`);
       const feePerMonth = data.feeSettings ? (data.feeSettings.monthly_fee || 0) : 0;
@@ -240,13 +242,13 @@
         html += '<p style="color: var(--text-muted);">No fee records found.</p>';
       } else {
         html += '<div class="fee-grid">';
-        data.ledger.forEach(entry => {
+        const feeCards = data.ledger.map(entry => {
           const total = entry.total_payable || 0;
           const paid = entry.paid_amount || 0;
           const remaining = total - paid;
           const status = entry.status || (remaining <= 0 ? 'Paid' : paid > 0 ? 'Partial' : 'Unpaid');
           const cardClass = status === 'Paid' ? 'paid' : 'unpaid';
-          html += `<div class="month-card ${cardClass}">
+          return `<div class="month-card ${cardClass}">
             <div class="month-name">${entry.month ? entry.month.substring(0, 3) : '-'}</div>
             <div style="font-size:0.7rem; color: var(--text-muted);">${entry.year || ''}</div>
             <div class="amount">Rs. ${paid} / Rs. ${total}</div>
@@ -257,6 +259,7 @@
             ${remaining > 0 ? `<div style="color:#ef4444; font-size:0.7rem;">Due: Rs. ${remaining}</div>` : ''}
           </div>`;
         });
+        html += feeCards.join('');
         html += '</div>';
       }
       container.innerHTML = html;
@@ -269,25 +272,23 @@
   async function loadExams() {
     const container = document.getElementById('exams-container');
     if (!selectedChildId) { container.innerHTML = '<p style="color: var(--text-muted);">Select a child first.</p>'; return; }
+    container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Loading exam results...</p>';
     try {
       const results = await apiCall(`/api/parents/my-exams/${selectedChildId}`);
       if (results.length === 0) {
         container.innerHTML = '<p style="color: var(--text-muted);">No exam results found.</p>';
         return;
       }
-      let html = '';
-      results.forEach(r => {
+      const examCards = results.map(r => {
         let totalMarks = 0, obtainedMarks = 0;
-        const subjectResults = [];
-        r.marks.forEach(m => {
+        const subjectResults = r.marks.map(m => {
           totalMarks += (m.max_marks || 100);
           obtainedMarks += (m.marks || 0);
           const pct = m.max_marks ? ((m.marks || 0) / m.max_marks * 100) : 0;
-          subjectResults.push({ subject: m.subject, marks: m.marks || 0, max: m.max_marks || 100, pct });
+          return { subject: m.subject, marks: m.marks || 0, max: m.max_marks || 100, pct, term: m.term };
         });
         const pct = totalMarks > 0 ? ((obtainedMarks / totalMarks) * 100).toFixed(1) : 0;
 
-        // Overall tips
         let gradeColor = '#22c55e', grade = 'Excellent';
         if (pct < 50) { gradeColor = '#ef4444'; grade = 'Needs Serious Improvement'; }
         else if (pct < 60) { gradeColor = '#f97316'; grade = 'Below Average'; }
@@ -295,7 +296,6 @@
         else if (pct < 80) { gradeColor = '#3b82f6'; grade = 'Good'; }
         else if (pct < 90) { gradeColor = '#22c55e'; grade = 'Very Good'; }
 
-        // Weak/strong subjects
         const weak = subjectResults.filter(s => s.pct < 50).map(s => s.subject);
         const strong = subjectResults.filter(s => s.pct >= 80).map(s => s.subject);
 
@@ -306,41 +306,34 @@
         else if (pct < 80) tips = 'Good job! Keep supporting your child\'s study habits.';
         else tips = 'Excellent performance! Your child is doing great. Keep it up!';
 
-        html += `<div class="record-card">
+        const subjectRows = subjectResults.map(s => {
+          const color = s.pct >= 80 ? '#22c55e' : s.pct >= 50 ? '#f59e0b' : '#ef4444';
+          return `<tr><td>${s.subject || '-'}</td><td><strong>${s.marks}</strong></td><td>${s.max}</td><td style="color:${color}; font-weight:600;">${s.pct.toFixed(0)}%</td></tr>`;
+        }).join('');
+
+        let weakStrong = '';
+        if (weak.length || strong.length) {
+          const parts = [];
+          if (strong.length) parts.push(`<span style="color:#22c55e;">Strong: ${strong.join(', ')}</span>`);
+          if (weak.length) parts.push(`<span style="color:#ef4444;">Needs Focus: ${weak.join(', ')}</span>`);
+          weakStrong = `<div style="margin-top:8px; display:flex; gap:12px; font-size:0.8rem; flex-wrap:wrap;">${parts.join('')}</div>`;
+        }
+
+        return `<div class="record-card">
           <h4>${r.exam.exam_name} (${r.exam.year})</h4>
           <div style="font-size:0.8rem; color: var(--text-muted); margin-bottom:8px;">
-            Term: ${r.marks[0] ? r.marks[0].term : '-'} | Total: ${obtainedMarks}/${totalMarks} | <strong style="color:${gradeColor};">${pct}% - ${grade}</strong>
+            Term: ${subjectResults[0] ? subjectResults[0].term : '-'} | Total: ${obtainedMarks}/${totalMarks} | <strong style="color:${gradeColor};">${pct}% - ${grade}</strong>
           </div>
           <table class="data-table" style="margin-top:8px;">
             <thead><tr><th>Subject</th><th>Obtained</th><th>Max</th><th>%</th></tr></thead>
-            <tbody>`;
-        subjectResults.forEach(s => {
-          const color = s.pct >= 80 ? '#22c55e' : s.pct >= 50 ? '#f59e0b' : '#ef4444';
-          html += `<tr>
-            <td>${s.subject || '-'}</td>
-            <td><strong>${s.marks}</strong></td>
-            <td>${s.max}</td>
-            <td style="color:${color}; font-weight:600;">${s.pct.toFixed(0)}%</td>
-          </tr>`;
-        });
-        html += `</tbody></table>`;
-
-        // Tips box
-        html += `<div style="margin-top:12px; padding:12px; border-radius:8px; background:rgba(59,130,246,0.08); border-left:3px solid ${gradeColor}; font-size:0.82rem; color:var(--text-primary);">
-          <strong style="color:${gradeColor};">Tip:</strong> ${tips}
+            <tbody>${subjectRows}</tbody></table>
+          <div style="margin-top:12px; padding:12px; border-radius:8px; background:rgba(59,130,246,0.08); border-left:3px solid ${gradeColor}; font-size:0.82rem; color:var(--text-primary);">
+            <strong style="color:${gradeColor};">Tip:</strong> ${tips}
+          </div>
+          ${weakStrong}
         </div>`;
-
-        // Weak/strong subjects
-        if (weak.length || strong.length) {
-          html += `<div style="margin-top:8px; display:flex; gap:12px; font-size:0.8rem; flex-wrap:wrap;">`;
-          if (strong.length) html += `<span style="color:#22c55e;">Strong: ${strong.join(', ')}</span>`;
-          if (weak.length) html += `<span style="color:#ef4444;">Needs Focus: ${weak.join(', ')}</span>`;
-          html += `</div>`;
-        }
-
-        html += `</div>`;
       });
-      container.innerHTML = html;
+      container.innerHTML = examCards.join('');
     } catch (e) {
       container.innerHTML = `<p style="color: var(--danger);">${e.message}</p>`;
     }
@@ -350,17 +343,22 @@
   async function loadAttendance() {
     const container = document.getElementById('attendance-container');
     if (!selectedChildId) { container.innerHTML = '<p style="color: var(--text-muted);">Select a child first.</p>'; return; }
+    container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Loading attendance records...</p>';
 
     const monthSelect = document.getElementById('att-month');
     const yearSelect = document.getElementById('att-year');
     if (!monthSelect.options.length) {
       const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const monthOpts = [];
       months.forEach((m, i) => {
-        monthSelect.innerHTML += `<option value="${String(i + 1).padStart(2, '0')}" ${i === new Date().getMonth() ? 'selected' : ''}>${m}</option>`;
+        monthOpts.push(`<option value="${String(i + 1).padStart(2, '0')}" ${i === new Date().getMonth() ? 'selected' : ''}>${m}</option>`);
       });
+      monthSelect.innerHTML = monthOpts.join('');
+      const yearOpts = [];
       for (let y = new Date().getFullYear(); y >= new Date().getFullYear() - 2; y--) {
-        yearSelect.innerHTML += `<option value="${y}" ${y === new Date().getFullYear() ? 'selected' : ''}>${y}</option>`;
+        yearOpts.push(`<option value="${y}" ${y === new Date().getFullYear() ? 'selected' : ''}>${y}</option>`);
       }
+      yearSelect.innerHTML = yearOpts.join('');
     }
 
     const month = monthSelect.value;
@@ -382,14 +380,11 @@
       </div>`;
 
       html += `<table class="data-table"><thead><tr><th>Date</th><th>Status</th><th>Check In</th></tr></thead><tbody>`;
-      att.forEach(a => {
+      const rows = att.map(a => {
         const badge = a.status === 'Present' ? 'badge-green' : a.status === 'Absent' ? 'badge-red' : 'badge-yellow';
-        html += `<tr>
-          <td>${a.date}</td>
-          <td><span class="badge ${badge}">${a.status}</span></td>
-          <td>${a.time || '-'}</td>
-        </tr>`;
+        return `<tr><td>${a.date}</td><td><span class="badge ${badge}">${a.status}</span></td><td>${a.time || '-'}</td></tr>`;
       });
+      html += rows.join('');
       html += '</tbody></table>';
       container.innerHTML = html;
     } catch (e) {
@@ -406,9 +401,11 @@
 
   async function loadParentAssignments() {
     const container = document.getElementById('parent-assignments-list');
+    container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Loading assignments...</p>';
     try {
-      const assignments = await apiCall('/api/parents/my-assignments');
-      cachedParentAssignments = assignments;
+      const assignments = cachedParentAssignments.length > 0 ? cachedParentAssignments : await apiCall('/api/parents/my-assignments');
+      if (cachedParentAssignments.length === 0) cachedParentAssignments = assignments;
+      cachedDashboardAssignments = assignments;
 
       // Populate subject filter
       const subjects = [...new Set(assignments.map(a => a.subject))];
@@ -597,6 +594,10 @@
   // ========== INIT ==========
   loadChildren().then(() => {
     loadDashboard();
-    loadAnnouncements();
   });
+
+  // Lazy-load announcements on nav click
+  document.querySelector('[data-panel="announcements"]').addEventListener('click', () => {
+    if (cachedAnnouncements.length === 0) loadAnnouncements();
+  }, { once: true });
 })();

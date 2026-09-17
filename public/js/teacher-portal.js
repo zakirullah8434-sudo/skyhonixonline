@@ -280,31 +280,31 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = '<div class="card" style="padding:20px; text-align:center; color:var(--text-muted);">No subjects assigned yet. Contact school admin.</div>';
         return;
       }
-      let html = '';
+      const parts = [];
       data.subjects.forEach(group => {
-        html += `<div class="card" style="padding:20px; margin-bottom:15px;">`;
-        html += `<h3 style="color:var(--primary); margin-bottom:10px;">${group.subject}</h3>`;
-        html += `<div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">`;
-        html += `<table style="width:100%; border-collapse:collapse; min-width:500px;">`;
-        html += `<thead><tr>
-          <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border-glow); font-size:0.85rem;">Class</th>
-          <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border-glow); font-size:0.85rem;">Day</th>
-          <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border-glow); font-size:0.85rem;">Time</th>
-          <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border-glow); font-size:0.85rem;">Period</th>
-          <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border-glow); font-size:0.85rem;">Room</th>
-        </tr></thead><tbody>`;
+        const rows = [];
         group.entries.forEach(e => {
-          html += `<tr>
-            <td style="padding:8px; border-bottom:1px solid var(--border-glow);">${e.class_name}${e.section_name ? ' - ' + e.section_name : ''}</td>
-            <td style="padding:8px; border-bottom:1px solid var(--border-glow);">${e.day}</td>
+          rows.push(`<tr>
+            <td style="padding:8px; border-bottom:1px solid var(--border-glow);">${esc(e.class_name)}${e.section_name ? ' - ' + esc(e.section_name) : ''}</td>
+            <td style="padding:8px; border-bottom:1px solid var(--border-glow);">${esc(e.day)}</td>
             <td style="padding:8px; border-bottom:1px solid var(--border-glow);">${e.start_time || '-'} to ${e.end_time || '-'}</td>
             <td style="padding:8px; border-bottom:1px solid var(--border-glow);">${e.period}</td>
             <td style="padding:8px; border-bottom:1px solid var(--border-glow);">${e.room || '-'}</td>
-          </tr>`;
+          </tr>`);
         });
-        html += `</tbody></table></div></div>`;
+        parts.push(`<div class="card" style="padding:20px; margin-bottom:15px;">
+          <h3 style="color:var(--primary); margin-bottom:10px;">${esc(group.subject)}</h3>
+          <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+          <table style="width:100%; border-collapse:collapse; min-width:500px;">
+          <thead><tr>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border-glow); font-size:0.85rem;">Class</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border-glow); font-size:0.85rem;">Day</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border-glow); font-size:0.85rem;">Time</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border-glow); font-size:0.85rem;">Period</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border-glow); font-size:0.85rem;">Room</th>
+          </tr></thead><tbody>${rows.join('')}</tbody></table></div></div>`);
       });
-      container.innerHTML = html;
+      container.innerHTML = parts.join('');
     } catch (err) {
       container.innerHTML = `<div class="card" style="padding:20px; color:var(--danger);">Error: ${err.message}</div>`;
     }
@@ -315,22 +315,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadMarksFilters() {
     try {
-      // Load exams
-      const exams = await apiCall('/api/teachers/exams');
-      const examSelect = document.getElementById('marks-exam-select');
-      examSelect.innerHTML = '<option value="">-- Select Exam --</option>';
-      exams.forEach(ex => {
-        examSelect.innerHTML += `<option value="${ex.id}">${ex.exam_name} (${ex.year})</option>`;
-      });
+      const [exams, assignedClassesData] = await Promise.all([
+        apiCall('/api/teachers/exams'),
+        apiCall('/api/teachers/my-classes')
+      ]);
+      assignedClasses = assignedClassesData;
 
-      // Load assigned classes
-      assignedClasses = await apiCall('/api/teachers/my-classes');
-      const classSelect = document.getElementById('marks-class-select');
-      classSelect.innerHTML = '<option value="">-- Select Class --</option>';
+      const examOpts = ['<option value="">-- Select Exam --</option>'];
+      exams.forEach(ex => {
+        examOpts.push(`<option value="${ex.id}">${esc(ex.exam_name)} (${ex.year})</option>`);
+      });
+      document.getElementById('marks-exam-select').innerHTML = examOpts.join('');
+
+      const classOpts = ['<option value="">-- Select Class --</option>'];
       const uniqueClasses = [...new Set(assignedClasses.map(c => c.class_name))];
       uniqueClasses.forEach(cn => {
-        classSelect.innerHTML += `<option value="${cn}">${cn}</option>`;
+        classOpts.push(`<option value="${esc(cn)}">${esc(cn)}</option>`);
       });
+      document.getElementById('marks-class-select').innerHTML = classOpts.join('');
     } catch (err) {
       showToast('Failed to load filters: ' + err.message, true);
     }
@@ -339,12 +341,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('marks-class-select').addEventListener('change', function() {
     const selectedClass = this.value;
     const subjectSelect = document.getElementById('marks-subject-select');
-    subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
-    if (!selectedClass) return;
+    if (!selectedClass) { subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>'; return; }
     const subjects = [...new Set(assignedClasses.filter(c => c.class_name === selectedClass).map(c => c.subject))];
-    subjects.forEach(s => {
-      subjectSelect.innerHTML += `<option value="${s}">${s}</option>`;
-    });
+    const opts = ['<option value="">-- Select Subject --</option>'];
+    subjects.forEach(s => { opts.push(`<option value="${esc(s)}">${esc(s)}</option>`); });
+    subjectSelect.innerHTML = opts.join('');
   });
 
   let currentMarksData = [];
@@ -562,12 +563,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const classSel = document.getElementById('assignment-class');
       classSel.innerHTML = '<option value="">Select class...</option>' + classes.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
 
-      classSel.addEventListener('change', () => {
-        const selectedClass = classSel.value;
-        const filteredSections = [...new Set(allEntries.filter(e => e.class_name === selectedClass).map(e => e.section_name))];
-        const sectionSel = document.getElementById('assignment-section');
-        sectionSel.innerHTML = '<option value="">All Sections</option>' + filteredSections.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
-      });
+      if (!classSel._changeHandlerAdded) {
+        classSel.addEventListener('change', () => {
+          const selectedClass = classSel.value;
+          const filteredSections = [...new Set(allEntries.filter(e => e.class_name === selectedClass).map(e => e.section_name))];
+          const sectionSel = document.getElementById('assignment-section');
+          sectionSel.innerHTML = '<option value="">All Sections</option>' + filteredSections.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+        });
+        classSel._changeHandlerAdded = true;
+      }
 
       classSel.dispatchEvent(new Event('change'));
     } catch (err) {
@@ -661,7 +665,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Load assignments when nav clicked
   document.querySelector('[data-opt="assignments"]').addEventListener('click', () => {
-    loadAssignments();
+    if (cachedAssignments.length === 0) loadAssignments();
   });
 
   // Dashboard assignments summary — uses cached data from loadAssignments
@@ -692,14 +696,15 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) { console.error('[TEACHER_PORTAL_ERROR]', err.message); }
   }
 
-  // ==================== INIT (parallel for faster load) ====================
-  Promise.all([
-    loadMySubjects(),
-    loadMarksFilters(),
-    loadAnnouncements(),
-    loadDashboardAssignments(),
-    initFeeCollection()
-  ]).catch(() => {});
+  // ==================== INIT (lazy-load for fast startup) ====================
+  // Only dashboard data on init
+  loadDashboardAssignments();
+  initFeeCollection();
+
+  // Lazy-load other sections on nav click
+  document.querySelector('[data-opt="my-subjects"]').addEventListener('click', () => { loadMySubjects(); }, { once: true });
+  document.querySelector('[data-opt="marks"]').addEventListener('click', () => { loadMarksFilters(); }, { once: true });
+  document.querySelector('[data-opt="announcements"]').addEventListener('click', () => { loadAnnouncements(); }, { once: true });
 });
 
 // ==================== FEE COLLECTION ====================

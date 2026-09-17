@@ -155,7 +155,7 @@ router.get('/all', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { class_name, section_name, search } = req.query;
 
-  let query = 'SELECT * FROM students WHERE 1=1';
+  let query = 'SELECT id, student_id, name, roll_no, class_name, section_name, father_name, phone, status, is_free, discount_amount, discount_percent, family_head_id, photo FROM students WHERE 1=1';
   const params = [];
 
   if (class_name) {
@@ -176,7 +176,7 @@ router.get('/all', authenticateToken, async (req, res) => {
     params.push(searchParam, searchParam, searchParam, searchParam, searchParam, searchParam);
   }
 
-  query += ' ORDER BY class_name, CAST(roll_no AS INTEGER), name';
+  query += ' ORDER BY class_name, CAST(roll_no AS INTEGER), name LIMIT 5000';
 
   try {
     const students = await querySchool(schoolId, query, params);

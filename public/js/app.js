@@ -52,7 +52,7 @@ async function getCachedTeachers(apiCall) {
   const now = Date.now();
   if (_teachersCache && (now - _teachersCacheTime) < 300000) return _teachersCache;
   try {
-    _teachersCache = await apiCall('/staff/teachers');
+    _teachersCache = await apiCall('/staff/teachers?lite=true');
     _teachersCacheTime = Date.now();
     return _teachersCache;
   } catch (e) { return _teachersCache || []; }
@@ -1037,7 +1037,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadPMTeachers() {
     try {
-      const teachers = await apiCall('/staff/teachers');
+      const teachers = await apiCall('/staff/teachers?lite=true');
       const teachSelect = document.getElementById('idcard-teach-teacher');
       if (teachSelect) {
         const opts = ['<option value="">-- Select Teacher --</option>'];
@@ -1069,7 +1069,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadPMIdCard() {
     try {
-      const classes = await apiCall('/students/classes');
+      const classes = await getCachedClasses(apiCall);
       const classSelect = document.getElementById('idcard-stu-class');
       const cwClassSelect = document.getElementById('idcard-cw-class');
       if (classSelect) {
@@ -1095,22 +1095,21 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('idcard-stu-class').addEventListener('change', async function() {
     const className = this.value;
     const studentSelect = document.getElementById('idcard-stu-student');
-    studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
-    studentSelect.disabled = true;
-    document.getElementById('btn-idcard-stu-generate').disabled = true;
-    document.getElementById('idcard-stu-info').style.display = 'none';
-    document.getElementById('idcard-stu-preview-container').style.display = 'none';
-
-    if (!className) return;
-    try {
-      const students = await apiCall(`/students?class_name=${encodeURIComponent(className)}`);
       studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
-      const opts = [];
-      students.forEach(s => {
-        opts.push(`<option value="${s.id}">${s.roll_no || '-'} - ${s.name}</option>`);
-      });
-      studentSelect.innerHTML += opts.join('');
-      studentSelect.disabled = false;
+      studentSelect.disabled = true;
+      document.getElementById('btn-idcard-stu-generate').disabled = true;
+      document.getElementById('idcard-stu-info').style.display = 'none';
+      document.getElementById('idcard-stu-preview-container').style.display = 'none';
+
+      if (!className) return;
+      try {
+        const students = await apiCall(`/students?class_name=${encodeURIComponent(className)}`);
+        const opts = ['<option value="">-- Select Student --</option>'];
+        students.forEach(s => {
+          opts.push(`<option value="${s.id}">${s.roll_no || '-'} - ${s.name}</option>`);
+        });
+        studentSelect.innerHTML = opts.join('');
+        studentSelect.disabled = false;
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
@@ -1625,7 +1624,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadPMIdCardClasswise() {
     try {
-      const classes = await apiCall('/students/classes');
+      const classes = await getCachedClasses(apiCall);
       const classSelect = document.getElementById('idcard-cw-class');
       if (classSelect) {
         const opts = ['<option value="">-- Select Class --</option>'];
@@ -2080,16 +2079,17 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('student-filter-class').addEventListener('change', async function() {
     const className = this.value;
     const sectionSelect = document.getElementById('student-filter-section');
-    sectionSelect.innerHTML = '<option value="">All Sections</option><option value="No Section">No Section</option>';
     if (className) {
       try {
         const sections = await apiCall(`/students/sections/${encodeURIComponent(className)}`);
-        const opts = [];
+        const opts = ['<option value="">All Sections</option><option value="No Section">No Section</option>'];
         sections.forEach(s => {
           if (s.section_name) opts.push(`<option value="${s.section_name}">${s.section_name}</option>`);
         });
-        sectionSelect.innerHTML += opts.join('');
+        sectionSelect.innerHTML = opts.join('');
       } catch (e) { console.error('[APP_ERROR]', e.message); }
+    } else {
+      sectionSelect.innerHTML = '<option value="">All Sections</option><option value="No Section">No Section</option>';
     }
     loadStudentsList();
   });
@@ -2306,12 +2306,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
           const candidates = await apiCall(`/students/sibling-candidates/all?excludeId=${id}`);
-          sibHeadSelect.innerHTML = '<option value="">-- Choose Head Student --</option>';
-          const opts = [];
+          const opts = ['<option value="">-- Choose Head Student --</option>'];
           candidates.forEach(c => {
             opts.push(`<option value="${c.id}">${c.name} (Roll: ${c.roll_no}, Class: ${c.class_name}, Father: ${c.father_name})</option>`);
           });
-          sibHeadSelect.innerHTML += opts.join('');
+          sibHeadSelect.innerHTML = opts.join('');
 
           if (currentHead) sibHeadSelect.value = currentHead;
           modalSibling.classList.add('open');
@@ -2384,16 +2383,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadStudentProfileFilters() {
     try {
-      const classes = await apiCall('/students/classes');
+      const classes = await getCachedClasses(apiCall);
       const classSelect = document.getElementById('sp-class-select');
       if (classSelect) {
-        classSelect.innerHTML = '<option value="">-- All Classes --</option>';
-        const opts = [];
+        const opts = ['<option value="">-- All Classes --</option>'];
         classes.forEach(c => {
           const name = typeof c === 'object' ? c.class_name : c;
           opts.push(`<option value="${name}">${name}</option>`);
         });
-        classSelect.innerHTML += opts.join('');
+        classSelect.innerHTML = opts.join('');
       }
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
@@ -2401,15 +2399,16 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('sp-class-select').addEventListener('change', async function() {
     const className = this.value;
     const sectionSelect = document.getElementById('sp-section-select');
-    sectionSelect.innerHTML = '<option value="">-- All Sections --</option>';
     document.getElementById('sp-profile-container').style.display = 'none';
     if (className) {
       try {
         const sections = await apiCall(`/students/sections/${encodeURIComponent(className)}`);
-        const opts = [];
+        const opts = ['<option value="">-- All Sections --</option>'];
         sections.forEach(s => { opts.push(`<option value="${s.section_name}">${s.section_name}</option>`); });
-        sectionSelect.innerHTML += opts.join('');
+        sectionSelect.innerHTML = opts.join('');
       } catch (e) { console.error('[APP_ERROR]', e.message); }
+    } else {
+      sectionSelect.innerHTML = '<option value="">-- All Sections --</option>';
     }
     loadStudentProfileList();
   });
@@ -2456,16 +2455,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (sectionName) url += `section_name=${encodeURIComponent(sectionName)}&`;
       if (search) url += `search=${encodeURIComponent(search)}&`;
       const students = await apiCall(url);
-      studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
       if (students.length === 0) {
         studentSelect.innerHTML = '<option value="">-- No students found --</option>';
       } else {
-        const opts = [];
+        const opts = ['<option value="">-- Select Student --</option>'];
         students.forEach(s => {
           const statusLabel = s.status === 'Left' ? ' [LEFT]' : '';
           opts.push(`<option value="${s.id}">${s.roll_no || '-'} - ${s.name}${statusLabel}</option>`);
         });
-        studentSelect.innerHTML += opts.join('');
+        studentSelect.innerHTML = opts.join('');
       }
     } catch (e) {
       studentSelect.innerHTML = '<option value="">-- Error loading --</option>';
@@ -2770,17 +2768,19 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('att-class-select').addEventListener('change', async (e) => {
     const cls = e.target.value;
     const secSelect = document.getElementById('att-sec-select');
-    secSelect.innerHTML = '<option value="">All Sections</option>';
-    if (!cls) return;
+    if (!cls) {
+      secSelect.innerHTML = '<option value="">All Sections</option>';
+      return;
+    }
 
     try {
       const sections = await apiCall(`/students/sections/${cls}`);
-      const opts = [];
+      const opts = ['<option value="">All Sections</option>'];
       sections.forEach(s => {
         opts.push(`<option value="${s.section_name}">${s.section_name}</option>`);
       });
       opts.push('<option value="No Section">No Section</option>');
-      secSelect.innerHTML += opts.join('');
+      secSelect.innerHTML = opts.join('');
     } catch (err) { console.error('[APP_ERROR]', err.message); }
   });
 
@@ -3134,16 +3134,18 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('att-total-class').addEventListener('change', async (e) => {
     const cls = e.target.value;
     const secSelect = document.getElementById('att-total-sec');
-    secSelect.innerHTML = '<option value="">All Sections</option>';
-    if (!cls) return;
+    if (!cls) {
+      secSelect.innerHTML = '<option value="">All Sections</option>';
+      return;
+    }
     try {
       const sections = await apiCall(`/students/sections/${cls}`);
-      const opts = [];
+      const opts = ['<option value="">All Sections</option>'];
       sections.forEach(s => {
         opts.push(`<option value="${s.section_name}">${s.section_name}</option>`);
       });
       opts.push('<option value="No Section">No Section</option>');
-      secSelect.innerHTML += opts.join('');
+      secSelect.innerHTML = opts.join('');
     } catch (err) { console.error('[APP_ERROR]', err.message); }
   });
 
@@ -3280,16 +3282,15 @@ document.addEventListener('DOMContentLoaded', () => {
           document.getElementById('att-total-month').value = report.month;
           // Trigger section load then set section
           const secSelect = document.getElementById('att-total-sec');
-          secSelect.innerHTML = '<option value="">All Sections</option>';
           try {
             const sections = await apiCall(`/students/sections/${report.class_name}`);
-            const opts = [];
+            const opts = ['<option value="">All Sections</option>'];
             sections.forEach(s => {
               opts.push(`<option value="${s.section_name}" ${s.section_name === report.section_name ? 'selected' : ''}>${s.section_name}</option>`);
             });
             opts.push('<option value="No Section">No Section</option>');
-            secSelect.innerHTML += opts.join('');
-          } catch(e) {}
+            secSelect.innerHTML = opts.join('');
+          } catch(e) { secSelect.innerHTML = '<option value="">All Sections</option>'; }
 
           // Render saved report data
           const summaryEl = document.getElementById('att-total-summary');
@@ -3442,22 +3443,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!clsEl || !secSelect) return;
     const cls = clsEl.value;
     
-    secSelect.innerHTML = includeAllOption ? '<option value="All Sections">All Sections</option>' : '<option value="">-- All Sections --</option>';
-    
     if (!cls || cls === 'All Classes') {
+      secSelect.innerHTML = includeAllOption ? '<option value="All Sections">All Sections</option>' : '<option value="">-- All Sections --</option>';
       return;
     }
     
     try {
       const sections = await apiCall(`/students/sections/${cls}`);
-      const opts = [];
+      const opts = [includeAllOption ? '<option value="All Sections">All Sections</option>' : '<option value="">-- All Sections --</option>'];
       sections.forEach(s => {
         opts.push(`<option value="${s.section_name}">${s.section_name}</option>`);
       });
       if (includeAllOption) {
         opts.push('<option value="No Section">No Section</option>');
       }
-      secSelect.innerHTML += opts.join('');
+      secSelect.innerHTML = opts.join('');
     } catch (err) { console.error('[APP_ERROR]', err.message); }
   }
 
@@ -3792,18 +3792,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Helper: Refresh all fee-related views after any change
   async function refreshAllFeeViews() {
-    // Small delay to allow server-side writes to propagate across Vercel instances
     await new Promise(r => setTimeout(r, 500));
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        await loadDashboardStats();
-        await searchPayLedger();
+        const promises = [loadDashboardStats(), searchPayLedger(), refreshFeeAnalytics()];
         const histYear = document.getElementById('history-filter-year');
         const histMonth = document.getElementById('history-filter-month');
         if (histYear && histYear.value && histMonth && histMonth.value) {
-          await loadHistoryLedger();
+          promises.push(loadHistoryLedger());
         }
-        await refreshFeeAnalytics();
+        await Promise.all(promises);
         console.log('[FEE_REFRESH] All views refreshed successfully');
         return;
       } catch(e) {
@@ -4473,15 +4471,13 @@ document.addEventListener('DOMContentLoaded', () => {
           if (studentIds.length === 0) { showToast('No students in this reminder', true); return; }
 
           const a4Page = document.getElementById('reminder-a4-page');
-          a4Page.innerHTML = '';
 
           try {
             const allData = await Promise.all(
               studentIds.map(id => apiCall(`/fees/slip/${id}?year=${year}`))
             );
-            allData.forEach(data => {
-              a4Page.innerHTML += buildReminderHTML(data, data.school, year);
-            });
+            const htmlParts = allData.map(data => buildReminderHTML(data, data.school, year));
+            a4Page.innerHTML = htmlParts.join('');
 
             document.querySelector('#tab-reminder-form .card').style.display = 'none';
             document.getElementById('reminder-preview-container').style.display = 'block';
@@ -5054,26 +5050,24 @@ document.addEventListener('DOMContentLoaded', () => {
       // Populate route dropdown
       const routeSel = document.getElementById('assign-route');
       if (routeSel) {
-        routeSel.innerHTML = '<option value="">-- Select Route --</option>';
-        const opts = [];
+        const opts = ['<option value="">-- Select Route --</option>'];
         routes.filter(r => r.status === 'Active').forEach(r => {
           opts.push(`<option value="${r.id}">${r.name}</option>`);
         });
-        routeSel.innerHTML += opts.join('');
+        routeSel.innerHTML = opts.join('');
       }
 
       // Populate student dropdown for assignment
       const studentSel = document.getElementById('assign-student');
       if (studentSel) {
-        studentSel.innerHTML = '<option value="">-- Select Student --</option>';
         const students = await apiCall('/students').catch(() => []);
-        const opts = [];
+        const opts = ['<option value="">-- Select Student --</option>'];
         students.forEach(s => {
           const assigned = assignments.find(a => a.student_id == s.id && a.status === 'Active');
           const标记 = assigned ? ' [ASSIGNED]' : '';
           opts.push(`<option value="${s.id}"${assigned ? ' disabled' : ''}>${s.name} (${s.class_name})${标记}</option>`);
         });
-        studentSel.innerHTML += opts.join('');
+        studentSel.innerHTML = opts.join('');
       }
 
       renderVehiclesTable(vehicles);
@@ -5423,16 +5417,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const routes = await apiCall('/transport/routes').catch(() => []);
     const route = routes.find(r => r.id == routeId);
     if (!route) return;
-    const pickupOpts = [];
+    const pickupOpts = ['<option value="">-- Select --</option>'];
     (route.pickup_locations || []).forEach(loc => {
       pickupOpts.push(`<option value="${loc}">${loc}</option>`);
     });
-    pickupSel.innerHTML += pickupOpts.join('');
-    const dropOpts = [];
+    pickupSel.innerHTML = pickupOpts.join('');
+    const dropOpts = ['<option value="">-- Select --</option>'];
     (route.drop_locations || []).forEach(loc => {
       dropOpts.push(`<option value="${loc}">${loc}</option>`);
     });
-    dropSel.innerHTML += dropOpts.join('');
+    dropSel.innerHTML = dropOpts.join('');
     // Auto-fill fee from route
     document.getElementById('assign-fee').value = route.monthly_fee || 0;
   });
@@ -5949,29 +5943,28 @@ document.addEventListener('DOMContentLoaded', () => {
     ssMarksClassEl.addEventListener('change', async () => {
       updateSectionDropdown('ss-marks-class', 'ss-marks-sec', true);
       const subjectSelect = document.getElementById('ss-marks-subject');
-      subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
       const cls = ssMarksClassEl.value;
-      if (!cls) return;
+      if (!cls) { subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>'; return; }
       const examId = document.getElementById('ss-marks-exam').value;
       const term = document.getElementById('ss-marks-term').value;
-      if (!examId || !term) return;
+      if (!examId || !term) { subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>'; return; }
       try {
         const subs = await apiCall(`/exams/subjects?exam_id=${examId}&term=${term}&class_name=${encodeURIComponent(cls)}`);
         const classSubjects = subs.filter(s => s.class === cls);
         if (classSubjects.length > 0) {
-          const opts = [];
+          const opts = ['<option value="">-- Select Subject --</option>'];
           classSubjects.forEach(s => {
             opts.push(`<option value="${s.subject}" data-max="${s.max_marks}">${s.subject} (Max: ${s.max_marks})</option>`);
           });
-          subjectSelect.innerHTML += opts.join('');
+          subjectSelect.innerHTML = opts.join('');
         } else {
           const ttable = await apiCall(`/staff/timetable?class_name=${encodeURIComponent(cls)}`);
           const uniqueSubjects = [...new Set(ttable.map(t => t.subject).filter(Boolean))];
-          const opts = [];
+          const opts = ['<option value="">-- Select Subject --</option>'];
           uniqueSubjects.forEach(s => {
             opts.push(`<option value="${s}">${s}</option>`);
           });
-          subjectSelect.innerHTML += opts.join('');
+          subjectSelect.innerHTML = opts.join('');
         }
       } catch (e) { console.error('[SS_MARKS_SUBJECTS]', e.message); }
     });
@@ -6134,13 +6127,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Populate class filter for DMC
   async function loadDmcClassFilter() {
     try {
-      const classes = await apiCall('/students/classes');
+      const classes = await getCachedClasses(apiCall);
       const sel = document.getElementById('dmc-filter-class');
       if (!sel) return;
-      sel.innerHTML = '<option value="">-- All Classes --</option>';
-      const opts = [];
+      const opts = ['<option value="">-- All Classes --</option>'];
       classes.forEach(c => { opts.push(`<option value="${c}">${c}</option>`); });
-      sel.innerHTML += opts.join('');
+      sel.innerHTML = opts.join('');
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
@@ -6148,13 +6140,15 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('dmc-filter-class').addEventListener('change', async function() {
     const cls = this.value;
     const secSel = document.getElementById('dmc-filter-section');
-    secSel.innerHTML = '<option value="">-- All Sections --</option>';
-    if (!cls) return;
+    if (!cls) {
+      secSel.innerHTML = '<option value="">-- All Sections --</option>';
+      return;
+    }
     try {
       const sections = await apiCall(`/students/sections/${encodeURIComponent(cls)}`);
-      const opts = [];
+      const opts = ['<option value="">-- All Sections --</option>'];
       sections.forEach(s => { opts.push(`<option value="${s.section_name}">${s.section_name}</option>`); });
-      secSel.innerHTML += opts.join('');
+      secSel.innerHTML = opts.join('');
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
@@ -6514,14 +6508,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
       const unique = Object.values(uniqueMap).sort((a, b) => b.id - a.id);
-      sel.innerHTML = '<option value="">-- Create New Template --</option>';
-      const opts = [];
+      const opts = ['<option value="">-- Create New Template --</option>'];
       unique.forEach(t => {
         const activeMark = t.is_active ? ' [ACTIVE]' : '';
         const style = t.is_active ? ' style="font-weight:bold;color:#16a34a;"' : '';
         opts.push('<option value="' + t.id + '"' + style + '>' + t.name + activeMark + '</option>');
       });
-      sel.innerHTML += opts.join('');
+      sel.innerHTML = opts.join('');
     } catch (e) { console.error('[DATESHEET] loadDatesheetDesignerDropdown error:', e.message); }
   }
 
@@ -6636,14 +6629,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
       const unique = Object.values(uniqueMap).sort((a, b) => b.id - a.id);
-      sel.innerHTML = '<option value="">-- Select Template --</option>';
-      const opts = [];
+      const opts = ['<option value="">-- Select Template --</option>'];
       unique.forEach(t => {
         const activeMark = t.is_active ? ' [ACTIVE]' : '';
         const style = t.is_active ? ' style="font-weight:bold;color:#16a34a;"' : '';
         opts.push('<option value="' + t.id + '"' + style + '>' + t.name + activeMark + '</option>');
       });
-      sel.innerHTML += opts.join('');
+      sel.innerHTML = opts.join('');
       updateDatesheetActiveBadge(Array.isArray(templates) ? templates : []);
     } catch (e) { console.error('[DATESHEET] loadDatesheetTemplates error:', e.message); }
   }
@@ -7826,7 +7818,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   async function loadTeacherClassDropdown() {
     try {
-      const classes = await apiCall('/students/classes');
+      const classes = await getCachedClasses(apiCall);
       const sel = document.getElementById('teacher-assigned-class');
       if (!sel) return;
       const opts = ['<option value="">-- No Class Assigned --</option>'];
@@ -7843,6 +7835,34 @@ document.addEventListener('DOMContentLoaded', () => {
       const teachers = await apiCall('/staff/teachers');
       const tbody = document.querySelector('#table-teachers tbody');
       if (!tbody) return;
+
+      if (!tbody._delegated) {
+        tbody.addEventListener('click', (e) => {
+          const editBtn = e.target.closest('.btn-edit-teacher');
+          if (editBtn) {
+            document.getElementById('teacher-edit-id').value = editBtn.dataset.id;
+            document.getElementById('teacher-name').value = editBtn.dataset.name;
+            document.getElementById('teacher-phone').value = editBtn.dataset.phone;
+            document.getElementById('teacher-qualification').value = editBtn.dataset.qualification;
+            document.getElementById('teacher-assigned-class').value = editBtn.dataset.assignedClass;
+            document.getElementById('teacher-can-collect-fees').checked = editBtn.dataset.canCollectFees === '1';
+            document.getElementById('teacher-password').value = '';
+            document.getElementById('teacher-form-title').textContent = 'Edit Teacher';
+            document.getElementById('btn-teacher-submit').textContent = 'Update Teacher';
+            document.getElementById('btn-teacher-cancel').style.display = 'inline-block';
+          }
+          const deleteBtn = e.target.closest('.btn-delete-teacher');
+          if (deleteBtn) {
+            if (!confirm('Delete this teacher?')) return;
+            apiCall(`/staff/teachers/${deleteBtn.dataset.id}`, 'DELETE').then(() => {
+              showToast('Teacher deleted');
+              loadTeachersList();
+            }).catch(e => showToast(e.message, true));
+          }
+        });
+        tbody._delegated = true;
+      }
+
       if (teachers.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No teachers added yet.</td></tr>';
         return;
@@ -7863,32 +7883,6 @@ document.addEventListener('DOMContentLoaded', () => {
           </td>
         </tr>`;
       }).join('');
-
-      tbody.querySelectorAll('.btn-edit-teacher').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.getElementById('teacher-edit-id').value = btn.dataset.id;
-          document.getElementById('teacher-name').value = btn.dataset.name;
-          document.getElementById('teacher-phone').value = btn.dataset.phone;
-          document.getElementById('teacher-qualification').value = btn.dataset.qualification;
-          document.getElementById('teacher-assigned-class').value = btn.dataset.assignedClass;
-          document.getElementById('teacher-can-collect-fees').checked = btn.dataset.canCollectFees === '1';
-          document.getElementById('teacher-password').value = '';
-          document.getElementById('teacher-form-title').textContent = 'Edit Teacher';
-          document.getElementById('btn-teacher-submit').textContent = 'Update Teacher';
-          document.getElementById('btn-teacher-cancel').style.display = 'inline-block';
-        });
-      });
-
-      tbody.querySelectorAll('.btn-delete-teacher').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          if (!confirm('Delete this teacher?')) return;
-          try {
-            await apiCall(`/staff/teachers/${btn.dataset.id}`, 'DELETE');
-            showToast('Teacher deleted');
-            loadTeachersList();
-          } catch (e) { showToast(e.message, true); }
-        });
-      });
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
@@ -7939,8 +7933,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   async function loadParentsList() {
     try {
-      // Load classes for parent class selector
-      const classes = await apiCall('/students/classes');
+      const classes = await getCachedClasses(apiCall);
       const parentClassSelect = document.getElementById('parent-class-select');
       if (parentClassSelect) {
         const opts = ['<option value="">-- Select Class --</option>'];
@@ -7950,10 +7943,33 @@ document.addEventListener('DOMContentLoaded', () => {
         parentClassSelect.innerHTML = opts.join('');
       }
 
-      // Load existing parents list
       const parents = await apiCall('/staff/parents');
       const tbody = document.querySelector('#table-parents tbody');
       if (!tbody) return;
+
+      if (!tbody._delegated) {
+        tbody.addEventListener('click', (e) => {
+          const editBtn = e.target.closest('.btn-edit-parent');
+          if (editBtn) {
+            document.getElementById('parent-edit-id').value = editBtn.dataset.id;
+            document.getElementById('parent-phone').value = editBtn.dataset.phone;
+            document.getElementById('parent-password').value = '';
+            document.getElementById('parent-form-title').textContent = 'Edit Parent Account';
+            document.getElementById('btn-parent-submit').textContent = 'Update Account';
+            document.getElementById('btn-parent-cancel').style.display = 'inline-block';
+          }
+          const deleteBtn = e.target.closest('.btn-delete-parent');
+          if (deleteBtn) {
+            if (!confirm('Delete this parent and all their links?')) return;
+            apiCall(`/staff/parents/${deleteBtn.dataset.id}`, 'DELETE').then(() => {
+              showToast('Parent deleted');
+              loadParentsList();
+            }).catch(e => showToast(e.message, true));
+          }
+        });
+        tbody._delegated = true;
+      }
+
       if (parents.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No parent accounts created yet.</td></tr>';
         return;
@@ -7970,28 +7986,6 @@ document.addEventListener('DOMContentLoaded', () => {
           </td>
         </tr>
       `).join('');
-
-      tbody.querySelectorAll('.btn-edit-parent').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.getElementById('parent-edit-id').value = btn.dataset.id;
-          document.getElementById('parent-phone').value = btn.dataset.phone;
-          document.getElementById('parent-password').value = '';
-          document.getElementById('parent-form-title').textContent = 'Edit Parent Account';
-          document.getElementById('btn-parent-submit').textContent = 'Update Account';
-          document.getElementById('btn-parent-cancel').style.display = 'inline-block';
-        });
-      });
-
-      tbody.querySelectorAll('.btn-delete-parent').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          if (!confirm('Delete this parent and all their links?')) return;
-          try {
-            await apiCall(`/staff/parents/${btn.dataset.id}`, 'DELETE');
-            showToast('Parent deleted');
-            loadParentsList();
-          } catch (e) { showToast(e.message, true); }
-        });
-      });
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
@@ -8019,11 +8013,11 @@ document.addEventListener('DOMContentLoaded', () => {
         studentSelect.innerHTML = '<option value="">-- No students in this class --</option>';
         return;
       }
-      const opts = [];
+      const opts = ['<option value="">-- Select Student --</option>'];
       students.forEach(s => {
         opts.push(`<option value="${s.id}" data-phone="${s.phone || ''}" data-name="${s.name}" data-father="${s.father_name || '-'}">${s.name} (${s.roll_no || '-'})</option>`);
       });
-      studentSelect.innerHTML += opts.join('');
+      studentSelect.innerHTML = opts.join('');
       studentSelect.disabled = false;
     } catch (e) {
       showToast('Failed to load students', true);
@@ -8112,8 +8106,8 @@ document.addEventListener('DOMContentLoaded', () => {
   async function populateTimetableDropdowns() {
     try {
       const [classes, teachers] = await Promise.all([
-        apiCall('/students/classes'),
-        apiCall('/staff/teachers')
+        getCachedClasses(apiCall),
+        apiCall('/staff/teachers?lite=true')
       ]);
       const ttClass = document.getElementById('tt-class');
       const ttTeacher = document.getElementById('tt-teacher');
@@ -8137,13 +8131,15 @@ document.addEventListener('DOMContentLoaded', () => {
   if (ttClassEl) ttClassEl.addEventListener('change', async () => {
     const class_name = ttClassEl.value;
     const ttSection = document.getElementById('tt-section');
-    ttSection.innerHTML = '<option value="">-- All Sections --</option>';
-    if (!class_name) return;
+    if (!class_name) {
+      ttSection.innerHTML = '<option value="">-- All Sections --</option>';
+      return;
+    }
     try {
       const sections = await apiCall(`/students/sections/${encodeURIComponent(class_name)}`);
-      const opts = [];
+      const opts = ['<option value="">-- All Sections --</option>'];
       sections.forEach(s => { opts.push(`<option value="${s.section_name}">${s.section_name}</option>`); });
-      ttSection.innerHTML += opts.join('');
+      ttSection.innerHTML = opts.join('');
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
@@ -8403,6 +8399,30 @@ document.addEventListener('DOMContentLoaded', () => {
       const container = document.getElementById('announcements-admin-list');
       if (!container) return;
 
+      if (!container._delegated) {
+        container.addEventListener('click', (e) => {
+          const editBtn = e.target.closest('.btn-edit-announcement');
+          if (editBtn) {
+            document.getElementById('announcement-edit-id').value = editBtn.dataset.id;
+            document.getElementById('announcement-title').value = editBtn.dataset.title;
+            document.getElementById('announcement-message').value = editBtn.dataset.message;
+            document.getElementById('announcement-target').value = editBtn.dataset.target;
+            document.getElementById('announcement-form-title').textContent = 'Edit Announcement';
+            document.getElementById('btn-announcement-submit').textContent = 'Update Announcement';
+            document.getElementById('btn-announcement-cancel').style.display = 'inline-block';
+          }
+          const deleteBtn = e.target.closest('.btn-delete-announcement');
+          if (deleteBtn) {
+            if (!confirm('Delete this announcement?')) return;
+            apiCall(`/staff/announcements/${deleteBtn.dataset.id}`, 'DELETE').then(() => {
+              showToast('Announcement deleted');
+              loadAnnouncementsList();
+            }).catch(e => showToast(e.message, true));
+          }
+        });
+        container._delegated = true;
+      }
+
       if (announcements.length === 0) {
         container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No announcements yet.</p>';
         return;
@@ -8431,29 +8451,6 @@ document.addEventListener('DOMContentLoaded', () => {
           <p style="color: var(--text-muted); margin: 8px 0 0; font-size: 0.95rem; white-space: pre-wrap;">${a.message}</p>
         </div>`;
       }).join('');
-
-      container.querySelectorAll('.btn-edit-announcement').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.getElementById('announcement-edit-id').value = btn.dataset.id;
-          document.getElementById('announcement-title').value = btn.dataset.title;
-          document.getElementById('announcement-message').value = btn.dataset.message;
-          document.getElementById('announcement-target').value = btn.dataset.target;
-          document.getElementById('announcement-form-title').textContent = 'Edit Announcement';
-          document.getElementById('btn-announcement-submit').textContent = 'Update Announcement';
-          document.getElementById('btn-announcement-cancel').style.display = 'inline-block';
-        });
-      });
-
-      container.querySelectorAll('.btn-delete-announcement').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          if (!confirm('Delete this announcement?')) return;
-          try {
-            await apiCall(`/staff/announcements/${btn.dataset.id}`, 'DELETE');
-            showToast('Announcement deleted');
-            loadAnnouncementsList();
-          } catch (e) { showToast(e.message, true); }
-        });
-      });
     } catch (e) { showToast('Failed to load announcements', true); }
   }
 

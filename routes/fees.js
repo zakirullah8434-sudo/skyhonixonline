@@ -113,7 +113,7 @@ router.get('/ledger', authenticateToken, async (req, res) => {
   const { class_name, section_name, month, year, status } = req.query;
 
   let query = `
-    SELECT fl.*, s.name as student_name, s.roll_no, s.father_name
+    SELECT fl.id, fl.student_id, fl.class_name, fl.section_name, fl.month, fl.year, fl.total_payable, fl.paid_amount, fl.status, fl.transport_fee, s.name as student_name, s.roll_no, s.father_name
     FROM fee_ledger fl
     JOIN students s ON s.id = fl.student_id
     WHERE (fl.school_id = ? OR fl.school_id IS NULL)
@@ -150,7 +150,7 @@ router.get('/ledger', authenticateToken, async (req, res) => {
     }
   }
 
-  query += ' ORDER BY fl.year DESC, fl.month DESC, fl.class_name, CAST(s.roll_no AS INTEGER)';
+  query += ' ORDER BY fl.year DESC, fl.month DESC, fl.class_name, CAST(s.roll_no AS INTEGER) LIMIT 5000';
 
   try {
     const ledger = await querySchoolRaw(schoolId, query, params);
@@ -472,7 +472,7 @@ router.get('/history', authenticateToken, async (req, res) => {
   const { student_id } = req.query;
 
   let query = `
-    SELECT fp.*, s.name as student_name, s.roll_no, s.class_name, fp.payment_date, fp.amount_paid
+    SELECT fp.id, fp.student_id, fp.class_name, fp.month, fp.year, fp.amount_paid, fp.payment_date, fp.fee_ledger_id, s.name as student_name, s.roll_no, s.class_name
     FROM fee_payments fp
     JOIN students s ON s.id = fp.student_id
     WHERE (fp.school_id = ? OR fp.school_id IS NULL)
@@ -484,7 +484,7 @@ router.get('/history', authenticateToken, async (req, res) => {
     params.push(parseInt(student_id));
   }
 
-  query += ' ORDER BY fp.payment_date DESC, fp.id DESC';
+  query += ' ORDER BY fp.payment_date DESC, fp.id DESC LIMIT 500';
 
   try {
     const history = await querySchoolRaw(schoolId, query, params);
@@ -1226,7 +1226,7 @@ router.get('/unpaid-students', authenticateToken, async (req, res) => {
 
   try {
     let query = `
-      SELECT s.id, s.name, s.roll_no, s.father_name, s.class_name, s.section_name, s.admission_no, s.photo,
+      SELECT s.id, s.name, s.roll_no, s.father_name, s.class_name, s.section_name, s.admission_no,
              COALESCE(SUM(CASE WHEN f.total_payable IS NOT NULL THEN f.total_payable - f.paid_amount ELSE 0 END), 0) as total_unpaid,
              COUNT(f.id) as ledger_entries
       FROM students s

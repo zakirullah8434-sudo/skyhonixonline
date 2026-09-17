@@ -11,6 +11,12 @@ const { querySchool, querySchoolOne, runSchool } = require('../database_manager'
 // GET /staff/teachers - List all teachers with their timetable assignments (single query, no N+1)
 router.get('/teachers', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
+  if (req.query.lite === 'true') {
+    const teachers = await querySchool(schoolId,
+      `SELECT id, name, phone, subject, qualification, status, assigned_class, can_collect_fees FROM teachers WHERE (school_id = ? OR school_id IS NULL) AND (status = 'Active' OR status IS NULL) ORDER BY name`
+    );
+    return res.json(teachers);
+  }
   try {
     const rows = await querySchool(schoolId,
       `SELECT t.id, t.name, t.phone, t.subject, t.qualification, t.status, t.created_at, t.assigned_class, t.can_collect_fees,
