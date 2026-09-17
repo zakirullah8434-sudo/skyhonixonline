@@ -6430,7 +6430,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sel = document.getElementById('datesheet-design-template');
     if (!sel) return;
     try {
-      const templates = await apiCall('/exams/datesheets');
+      const templates = await apiCall('/exams/datesheets', 'GET', null, false, true);
       const uniqueMap = {};
       templates.forEach(t => {
         const key = t.name;
@@ -6464,7 +6464,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     try {
-      const templates = await apiCall('/exams/datesheets');
+      const templates = await apiCall('/exams/datesheets', 'GET', null, false, true);
       const tpl = templates.find(t => t.id == templateId);
       if (!tpl) { showToast('Template not found', true); return; }
       const t = tpl.template;
@@ -6547,7 +6547,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sel = document.getElementById('datesheet-gen-template');
     if (!sel) return;
     try {
-      const templates = await apiCall('/exams/datesheets');
+      const templates = await apiCall('/exams/datesheets', 'GET', null, false, true);
       // Deduplicate by name — keep latest (highest id) for each unique name
       const uniqueMap = {};
       templates.forEach(t => {
@@ -6575,7 +6575,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!templateId) { infoDiv.style.display = 'none'; previewDiv.style.display = 'none'; return; }
 
     try {
-      const templates = await apiCall('/exams/datesheets');
+      const templates = await apiCall('/exams/datesheets', 'GET', null, false, true);
       const tpl = templates.find(t => t.id == templateId);
       if (!tpl) return;
 
@@ -6693,17 +6693,16 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         let res;
         if (editId) {
-          res = await apiCall('/exams/datesheets/' + editId, 'PUT', { name, template_json: JSON.stringify(template) });
+          res = await apiCall('/exams/datesheets/' + editId, 'PUT', { name, template_json: JSON.stringify(template) }, false, true);
         } else {
-          res = await apiCall('/exams/datesheets', 'POST', { name, template_json: JSON.stringify(template) });
+          res = await apiCall('/exams/datesheets', 'POST', { name, template_json: JSON.stringify(template) }, false, true);
         }
         showToast(res.message);
         const savedId = editId || res.id;
-        loadDatesheetTemplates();
-        loadDatesheetDesignerDropdown();
+        await Promise.all([loadDatesheetTemplates(), loadDatesheetDesignerDropdown()]);
         try {
           if (savedId) {
-            const freshTemplates = await apiCall('/exams/datesheets');
+            const freshTemplates = await apiCall('/exams/datesheets', 'GET', null, false, true);
             const freshTpl = freshTemplates.find(t => t.id == savedId);
             if (freshTpl) {
               document.getElementById('datesheet-edit-id').value = freshTpl.id;
@@ -6792,7 +6791,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
-        const templates = await apiCall('/exams/datesheets');
+        const templates = await apiCall('/exams/datesheets', 'GET', null, false, true);
         const tpl = templates.find(t => t.id == templateId);
         if (!tpl) { showToast('Template not found', true); return; }
 
@@ -6905,10 +6904,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       try {
-        const res = await apiCall('/exams/datesheets/' + templateId + '/activate', 'PUT');
+        const res = await apiCall('/exams/datesheets/' + templateId + '/activate', 'PUT', null, false, true);
         showToast(res.message);
-        loadDatesheetTemplates();
-        loadDatesheetDesignerDropdown();
+        await Promise.all([loadDatesheetTemplates(), loadDatesheetDesignerDropdown()]);
       } catch (err) {
         showToast('Failed to activate datesheet', true);
       }
@@ -6923,12 +6921,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!templateId) { showToast('Select a template to delete', true); return; }
       if (!confirm('Delete this datesheet template?')) return;
       try {
-        await apiCall('/exams/datesheets/' + templateId, 'DELETE');
+        await apiCall('/exams/datesheets/' + templateId, 'DELETE', null, false, true);
         showToast('Template deleted');
         document.getElementById('datesheet-preview').style.display = 'none';
         document.getElementById('datesheet-template-info').style.display = 'none';
-        loadDatesheetTemplates();
-        loadDatesheetDesignerDropdown();
+        await Promise.all([loadDatesheetTemplates(), loadDatesheetDesignerDropdown()]);
       } catch (err) { showToast(err.message, true); }
     });
   }

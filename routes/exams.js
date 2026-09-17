@@ -746,7 +746,7 @@ router.get('/dmc/class/:className', authenticateToken, async (req, res) => {
 // DATE SHEET ENDPOINTS
 // ==========================================
 
-// POST /exams/datesheets - Create or merge date sheet template (same name = merge subjects)
+// POST /exams/datesheets - Create a new date sheet template
 router.post('/datesheets', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { name, template_json } = req.body;
@@ -764,29 +764,8 @@ router.post('/datesheets', authenticateToken, async (req, res) => {
       is_active INTEGER DEFAULT 0
     )`);
 
-    // Check if template with same name already exists
-    const existing = await querySchoolOne(schoolId, 'SELECT * FROM date_sheet_templates WHERE name = ?', [name]);
-
-    const newTemplate = JSON.parse(template_json);
-
-    if (existing) {
-      // Merge: combine existing subjects with new ones
-      const existingTemplate = JSON.parse(existing.template_json || '{}');
-      const existingSubjects = existingTemplate.subjects || [];
-      const newSubjects = newTemplate.subjects || [];
-      const mergedSubjects = [...existingSubjects, ...newSubjects];
-      const merged = {
-        exam_id: newTemplate.exam_id || existingTemplate.exam_id,
-        term: newTemplate.term || existingTemplate.term,
-        subjects: mergedSubjects
-      };
-      await runSchool(schoolId, 'UPDATE date_sheet_templates SET template_json = ? WHERE id = ?', [JSON.stringify(merged), existing.id]);
-      res.status(200).json({ message: 'Template updated — ' + mergedSubjects.length + ' total subjects', id: existing.id });
-    } else {
-      // Create new
-      const result = await runSchool(schoolId, 'INSERT INTO date_sheet_templates (name, template_json) VALUES (?, ?)', [name, template_json]);
-      res.status(201).json({ message: 'Template created!', id: result.id });
-    }
+    const result = await runSchool(schoolId, 'INSERT INTO date_sheet_templates (name, template_json) VALUES (?, ?)', [name, template_json]);
+    res.status(201).json({ message: 'Template created!', id: result.id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -815,7 +794,10 @@ router.put('/datesheets/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Template not found' });
     }
 
-    await runSchool(schoolId, 'UPDATE date_sheet_templates SET name = ?, template_json = ? WHERE id = ?', [name, template_json, parseInt(id)]);
+    const result = await runSchool(schoolId, 'UPDATE date_sheet_templates SET name = ?, template_json = ? WHERE id = ?', [name, template_json, parseInt(id)]);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Template not found or no changes made' });
+    }
     res.json({ message: 'Template updated successfully', id: parseInt(id) });
   } catch (err) {
     res.status(500).json({ error: err.message });
