@@ -150,9 +150,12 @@ class SchoolDbTursoProxy {
       const rest = after.slice(endIdx);
       const paddedRest = rest.startsWith(' ') ? rest : ' ' + rest;
       const condParamCount = (cond.match(/\?/g) || []).length;
-      const condParams = params.slice(0, condParamCount);
-      const restParams = params.slice(condParamCount);
-      return { sql: before + ' (' + cond + ') AND ' + qualified + ' = ?' + paddedRest, params: [...condParams, sid, ...restParams] };
+      const preWhereSql = sql.slice(0, whereIdx);
+      const preWhereParamCount = (preWhereSql.match(/\?/g) || []).length;
+      const preWhereParams = params.slice(0, preWhereParamCount);
+      const condParams = params.slice(preWhereParamCount, preWhereParamCount + condParamCount);
+      const restParams = params.slice(preWhereParamCount + condParamCount);
+      return { sql: before + ' (' + cond + ') AND ' + qualified + ' = ?' + paddedRest, params: [...preWhereParams, ...condParams, sid, ...restParams] };
     }
 
     if (/^\s*UPDATE\s+/i.test(sql)) {

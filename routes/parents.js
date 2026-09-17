@@ -302,17 +302,24 @@ router.get('/my-assignments', authenticateParentToken, async (req, res) => {
       return res.json([]);
     }
 
-    // Bulk fetch assignments for all children's classes in one query (no N+1)
-    const classPairs = children.map(c => `('${(c.class_name || '').replace(/'/g, "''")}','${(c.section_name || '').replace(/'/g, "''")}')`).join(',');
-    const allAssignments = classPairs
-      ? await querySchool(schoolId,
-          `SELECT DISTINCT a.id, a.title, a.subject, a.class_name, a.section_name, a.type,
-                  a.priority, a.due_date, a.description, a.created_at, a.created_by
-           FROM assignments a
-           WHERE (${children.map(c => `(a.class_name = '${(c.class_name || '').replace(/'/g, "''")}' AND (a.section_name = '' OR a.section_name = '${(c.section_name || '').replace(/'/g, "''")}'))`).join(' OR ')})
-           ORDER BY a.created_at DESC`
-        )
-      : [];
+    // Bulk fetch assignments for all children's classes using parameterized queries
+    let allAssignments = [];
+    if (children.length > 0) {
+      const whereClauses = [];
+      const queryParams = [];
+      for (const c of children) {
+        whereClauses.push('(a.class_name = ? AND (a.section_name = ? OR a.section_name = ?))');
+        queryParams.push(c.class_name || '', '', c.section_name || '');
+      }
+      allAssignments = await querySchool(schoolId,
+        `SELECT DISTINCT a.id, a.title, a.subject, a.class_name, a.section_name, a.type,
+                a.priority, a.due_date, a.description, a.created_at, a.teacher_name
+         FROM assignments a
+         WHERE ${whereClauses.join(' OR ')}
+         ORDER BY a.created_at DESC`,
+        queryParams
+      );
+    }
 
     res.json(allAssignments);
   } catch (err) {

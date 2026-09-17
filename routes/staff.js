@@ -160,9 +160,9 @@ router.post('/parents', authenticateToken, async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
     const result = await runSchool(schoolId,
-      `INSERT INTO parents (name, phone, password, cnic, address, status, created_at)
-       VALUES (?, ?, ?, '', '', 'Active', ?)`,
-      [parentName, phone, hashedPassword, now]
+      `INSERT INTO parents (name, phone, password, cnic, address, status, school_id, created_at)
+       VALUES (?, ?, ?, '', '', 'Active', ?, ?)`,
+      [parentName, phone, hashedPassword, schoolId, now]
     );
 
     // Auto-link all students with matching phone
@@ -171,8 +171,8 @@ router.post('/parents', authenticateToken, async (req, res) => {
     );
     for (const s of students) {
       await runSchool(schoolId,
-        'INSERT OR IGNORE INTO student_parents (student_id, parent_id, relation) VALUES (?, ?, ?)',
-        [s.id, result.id, 'Father']
+        'INSERT OR IGNORE INTO student_parents (student_id, parent_id, relation, school_id) VALUES (?, ?, ?, ?)',
+        [s.id, result.id, 'Father', schoolId]
       );
     }
 
@@ -207,15 +207,15 @@ router.post('/parents/create-with-student', authenticateToken, async (req, res) 
     const hashedPassword = await bcrypt.hash(password, 10);
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
     const result = await runSchool(schoolId,
-      `INSERT INTO parents (name, phone, password, cnic, address, status, created_at)
-       VALUES (?, ?, ?, '', '', 'Active', ?)`,
-      [parentName, phone, hashedPassword, now]
+      `INSERT INTO parents (name, phone, password, cnic, address, status, school_id, created_at)
+       VALUES (?, ?, ?, '', '', 'Active', ?, ?)`,
+      [parentName, phone, hashedPassword, schoolId, now]
     );
 
     // Link the specific student to this parent
     await runSchool(schoolId,
-      'INSERT OR IGNORE INTO student_parents (student_id, parent_id, relation) VALUES (?, ?, ?)',
-      [student_id, result.id, 'Father']
+      'INSERT OR IGNORE INTO student_parents (student_id, parent_id, relation, school_id) VALUES (?, ?, ?, ?)',
+      [student_id, result.id, 'Father', schoolId]
     );
 
     // Also link any other students with matching phone
@@ -224,8 +224,8 @@ router.post('/parents/create-with-student', authenticateToken, async (req, res) 
     );
     for (const s of otherStudents) {
       await runSchool(schoolId,
-        'INSERT OR IGNORE INTO student_parents (student_id, parent_id, relation) VALUES (?, ?, ?)',
-        [s.id, result.id, 'Father']
+        'INSERT OR IGNORE INTO student_parents (student_id, parent_id, relation, school_id) VALUES (?, ?, ?, ?)',
+        [s.id, result.id, 'Father', schoolId]
       );
     }
 
@@ -286,8 +286,8 @@ router.post('/parents/assign', authenticateToken, async (req, res) => {
 
   try {
     await runSchool(schoolId,
-      `INSERT OR REPLACE INTO student_parents (student_id, parent_id, relation) VALUES (?, ?, ?)`,
-      [student_id, parent_id, relation || 'Father']
+      `INSERT OR REPLACE INTO student_parents (student_id, parent_id, relation, school_id) VALUES (?, ?, ?, ?)`,
+      [student_id, parent_id, relation || 'Father', schoolId]
     );
     res.json({ message: 'Student linked to parent successfully' });
   } catch (err) {
