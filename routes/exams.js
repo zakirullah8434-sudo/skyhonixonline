@@ -815,10 +815,7 @@ router.put('/datesheets/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Template not found' });
     }
 
-    const result = await runSchool(schoolId, 'UPDATE date_sheet_templates SET name = ?, template_json = ? WHERE id = ?', [name, template_json, parseInt(id)]);
-    if (result.changes === 0) {
-      return res.status(500).json({ error: 'Update failed — no rows were changed' });
-    }
+    await runSchool(schoolId, 'UPDATE date_sheet_templates SET name = ?, template_json = ? WHERE id = ?', [name, template_json, parseInt(id)]);
     res.json({ message: 'Template updated successfully', id: parseInt(id) });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -972,6 +969,7 @@ router.post('/marks/spreadsheet', authenticateToken, async (req, res) => {
   }
 
   try {
+    const affectedStudents = [];
     for (const entry of marksData) {
       const studentId = entry.student_id;
       const subjectMarks = entry.marks;
@@ -995,9 +993,11 @@ router.post('/marks/spreadsheet', authenticateToken, async (req, res) => {
             [studentId, parseInt(exam_id), subject, marksVal, term]
           );
         }
+        await syncManager.onMarksUpdated(schoolId, studentId, parseInt(exam_id), subject, null, marksVal);
       }
+      affectedStudents.push(studentId);
     }
-    res.json({ message: 'Marks saved successfully!' });
+    res.json({ message: 'Marks saved successfully!', syncEvent: 'results.marks.updated', affectedStudents, needsRecalculation: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
