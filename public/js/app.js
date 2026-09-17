@@ -36,6 +36,28 @@ async function getCachedSettings(apiCall) {
   } catch (e) { console.error('[SETTINGS_CACHE]', e.message); return _settingsCache || {}; }
 }
 
+let _examsCache = null, _examsCacheTime = 0;
+async function getCachedExams(apiCall) {
+  const now = Date.now();
+  if (_examsCache && (now - _examsCacheTime) < 300000) return _examsCache;
+  try {
+    _examsCache = await apiCall('/exams');
+    _examsCacheTime = Date.now();
+    return _examsCache;
+  } catch (e) { return _examsCache || []; }
+}
+
+let _teachersCache = null, _teachersCacheTime = 0;
+async function getCachedTeachers(apiCall) {
+  const now = Date.now();
+  if (_teachersCache && (now - _teachersCacheTime) < 300000) return _teachersCache;
+  try {
+    _teachersCache = await apiCall('/staff/teachers');
+    _teachersCacheTime = Date.now();
+    return _teachersCache;
+  } catch (e) { return _teachersCache || []; }
+}
+
 // Helper: resolve image src for both data URIs and relative file paths
 const PLACEHOLDER_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%236366f1'/%3E%3Ctext x='50' y='62' font-size='40' font-family='Arial,sans-serif' fill='white' text-anchor='middle'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E";
 function imgSrc(val, fallback) {
@@ -571,10 +593,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const exams = await apiCall('/exams');
       const sel = document.getElementById('dash-compare-exam');
       if (!sel) return;
-      sel.innerHTML = '<option value="">-- Select Exam --</option>';
+      const opts = ['<option value="">-- Select Exam --</option>'];
       exams.forEach(ex => {
-        sel.innerHTML += `<option value="${ex.id}">${ex.exam_name} (${ex.year})</option>`;
+        opts.push(`<option value="${ex.id}">${ex.exam_name} (${ex.year})</option>`);
       });
+      sel.innerHTML = opts.join('');
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
@@ -706,10 +729,11 @@ document.addEventListener('DOMContentLoaded', () => {
       selects.forEach(id => {
         const sel = document.getElementById(id);
         if (sel) {
-          sel.innerHTML = '<option value="">-- Latest Result --</option>';
+          const opts = ['<option value="">-- Latest Result --</option>'];
           exams.forEach(e => {
-            sel.innerHTML += `<option value="${e.id}">${e.exam_name} (${e.year})</option>`;
+            opts.push(`<option value="${e.id}">${e.exam_name} (${e.year})</option>`);
           });
+          sel.innerHTML = opts.join('');
         }
       });
     } catch (e) { console.error('[APP_ERROR]', e.message); }
@@ -1016,10 +1040,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const teachers = await apiCall('/staff/teachers');
       const teachSelect = document.getElementById('idcard-teach-teacher');
       if (teachSelect) {
-        teachSelect.innerHTML = '<option value="">-- Select Teacher --</option>';
+        const opts = ['<option value="">-- Select Teacher --</option>'];
         teachers.forEach(t => {
-          teachSelect.innerHTML += `<option value="${t.id}">${t.name} (${t.subject || 'N/A'})</option>`;
+          opts.push(`<option value="${t.id}">${t.name} (${t.subject || 'N/A'})</option>`);
         });
+        teachSelect.innerHTML = opts.join('');
       }
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
@@ -1048,18 +1073,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const classSelect = document.getElementById('idcard-stu-class');
       const cwClassSelect = document.getElementById('idcard-cw-class');
       if (classSelect) {
-        classSelect.innerHTML = '<option value="">-- Select Class --</option>';
+        const opts = ['<option value="">-- Select Class --</option>'];
         classes.forEach(c => {
           const name = typeof c === 'object' ? c.class_name : c;
-          classSelect.innerHTML += `<option value="${name}">${name}</option>`;
+          opts.push(`<option value="${name}">${name}</option>`);
         });
+        classSelect.innerHTML = opts.join('');
       }
       if (cwClassSelect) {
-        cwClassSelect.innerHTML = '<option value="">-- Select Class --</option>';
+        const opts = ['<option value="">-- Select Class --</option>'];
         classes.forEach(c => {
           const name = typeof c === 'object' ? c.class_name : c;
-          cwClassSelect.innerHTML += `<option value="${name}">${name}</option>`;
+          opts.push(`<option value="${name}">${name}</option>`);
         });
+        cwClassSelect.innerHTML = opts.join('');
       }
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
@@ -1078,9 +1105,11 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const students = await apiCall(`/students?class_name=${encodeURIComponent(className)}`);
       studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
+      const opts = [];
       students.forEach(s => {
-        studentSelect.innerHTML += `<option value="${s.id}">${s.roll_no || '-'} - ${s.name}</option>`;
+        opts.push(`<option value="${s.id}">${s.roll_no || '-'} - ${s.name}</option>`);
       });
+      studentSelect.innerHTML += opts.join('');
       studentSelect.disabled = false;
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
@@ -1599,11 +1628,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const classes = await apiCall('/students/classes');
       const classSelect = document.getElementById('idcard-cw-class');
       if (classSelect) {
-        classSelect.innerHTML = '<option value="">-- Select Class --</option>';
+        const opts = ['<option value="">-- Select Class --</option>'];
         classes.forEach(c => {
           const name = typeof c === 'object' ? c.class_name : c;
-          classSelect.innerHTML += `<option value="${name}">${name}</option>`;
+          opts.push(`<option value="${name}">${name}</option>`);
         });
+        classSelect.innerHTML = opts.join('');
       }
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
@@ -2054,9 +2084,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (className) {
       try {
         const sections = await apiCall(`/students/sections/${encodeURIComponent(className)}`);
+        const opts = [];
         sections.forEach(s => {
-          if (s.section_name) sectionSelect.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`;
+          if (s.section_name) opts.push(`<option value="${s.section_name}">${s.section_name}</option>`);
         });
+        sectionSelect.innerHTML += opts.join('');
       } catch (e) { console.error('[APP_ERROR]', e.message); }
     }
     loadStudentsList();
@@ -2275,9 +2307,11 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
           const candidates = await apiCall(`/students/sibling-candidates/all?excludeId=${id}`);
           sibHeadSelect.innerHTML = '<option value="">-- Choose Head Student --</option>';
+          const opts = [];
           candidates.forEach(c => {
-            sibHeadSelect.innerHTML += `<option value="${c.id}">${c.name} (Roll: ${c.roll_no}, Class: ${c.class_name}, Father: ${c.father_name})</option>`;
+            opts.push(`<option value="${c.id}">${c.name} (Roll: ${c.roll_no}, Class: ${c.class_name}, Father: ${c.father_name})</option>`);
           });
+          sibHeadSelect.innerHTML += opts.join('');
 
           if (currentHead) sibHeadSelect.value = currentHead;
           modalSibling.classList.add('open');
@@ -2354,10 +2388,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const classSelect = document.getElementById('sp-class-select');
       if (classSelect) {
         classSelect.innerHTML = '<option value="">-- All Classes --</option>';
+        const opts = [];
         classes.forEach(c => {
           const name = typeof c === 'object' ? c.class_name : c;
-          classSelect.innerHTML += `<option value="${name}">${name}</option>`;
+          opts.push(`<option value="${name}">${name}</option>`);
         });
+        classSelect.innerHTML += opts.join('');
       }
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
@@ -2370,7 +2406,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (className) {
       try {
         const sections = await apiCall(`/students/sections/${encodeURIComponent(className)}`);
-        sections.forEach(s => { sectionSelect.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`; });
+        const opts = [];
+        sections.forEach(s => { opts.push(`<option value="${s.section_name}">${s.section_name}</option>`); });
+        sectionSelect.innerHTML += opts.join('');
       } catch (e) { console.error('[APP_ERROR]', e.message); }
     }
     loadStudentProfileList();
@@ -2422,10 +2460,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (students.length === 0) {
         studentSelect.innerHTML = '<option value="">-- No students found --</option>';
       } else {
+        const opts = [];
         students.forEach(s => {
           const statusLabel = s.status === 'Left' ? ' [LEFT]' : '';
-          studentSelect.innerHTML += `<option value="${s.id}">${s.roll_no || '-'} - ${s.name}${statusLabel}</option>`;
+          opts.push(`<option value="${s.id}">${s.roll_no || '-'} - ${s.name}${statusLabel}</option>`);
         });
+        studentSelect.innerHTML += opts.join('');
       }
     } catch (e) {
       studentSelect.innerHTML = '<option value="">-- Error loading --</option>';
@@ -2735,10 +2775,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const sections = await apiCall(`/students/sections/${cls}`);
+      const opts = [];
       sections.forEach(s => {
-        secSelect.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`;
+        opts.push(`<option value="${s.section_name}">${s.section_name}</option>`);
       });
-      secSelect.innerHTML += '<option value="No Section">No Section</option>';
+      opts.push('<option value="No Section">No Section</option>');
+      secSelect.innerHTML += opts.join('');
     } catch (err) { console.error('[APP_ERROR]', err.message); }
   });
 
@@ -3096,10 +3138,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!cls) return;
     try {
       const sections = await apiCall(`/students/sections/${cls}`);
+      const opts = [];
       sections.forEach(s => {
-        secSelect.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`;
+        opts.push(`<option value="${s.section_name}">${s.section_name}</option>`);
       });
-      secSelect.innerHTML += '<option value="No Section">No Section</option>';
+      opts.push('<option value="No Section">No Section</option>');
+      secSelect.innerHTML += opts.join('');
     } catch (err) { console.error('[APP_ERROR]', err.message); }
   });
 
@@ -3239,10 +3283,12 @@ document.addEventListener('DOMContentLoaded', () => {
           secSelect.innerHTML = '<option value="">All Sections</option>';
           try {
             const sections = await apiCall(`/students/sections/${report.class_name}`);
+            const opts = [];
             sections.forEach(s => {
-              secSelect.innerHTML += `<option value="${s.section_name}" ${s.section_name === report.section_name ? 'selected' : ''}>${s.section_name}</option>`;
+              opts.push(`<option value="${s.section_name}" ${s.section_name === report.section_name ? 'selected' : ''}>${s.section_name}</option>`);
             });
-            secSelect.innerHTML += '<option value="No Section">No Section</option>';
+            opts.push('<option value="No Section">No Section</option>');
+            secSelect.innerHTML += opts.join('');
           } catch(e) {}
 
           // Render saved report data
@@ -3404,12 +3450,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     try {
       const sections = await apiCall(`/students/sections/${cls}`);
+      const opts = [];
       sections.forEach(s => {
-        secSelect.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`;
+        opts.push(`<option value="${s.section_name}">${s.section_name}</option>`);
       });
       if (includeAllOption) {
-        secSelect.innerHTML += '<option value="No Section">No Section</option>';
+        opts.push('<option value="No Section">No Section</option>');
       }
+      secSelect.innerHTML += opts.join('');
     } catch (err) { console.error('[APP_ERROR]', err.message); }
   }
 
@@ -3424,10 +3472,11 @@ document.addEventListener('DOMContentLoaded', () => {
       await loadClassesList();
       const payYearSelect = document.getElementById('fee-pay-year');
       if (payYearSelect) {
-        payYearSelect.innerHTML = '';
+        const opts = [];
         for (let y = currentYear; y >= currentYear - 5; y--) {
-          payYearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+          opts.push(`<option value="${y}">${y}</option>`);
         }
+        payYearSelect.innerHTML = opts.join('');
         payYearSelect.value = currentYear;
       }
       const payMonthSelect = document.getElementById('fee-pay-month');
@@ -3453,10 +3502,11 @@ document.addEventListener('DOMContentLoaded', () => {
       // Setup history filters
       const yearSelect = document.getElementById('history-filter-year');
       if (yearSelect) {
-        yearSelect.innerHTML = '';
+        const opts = [];
         for (let y = currentYear; y >= currentYear - 5; y--) {
-          yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+          opts.push(`<option value="${y}">${y}</option>`);
         }
+        yearSelect.innerHTML = opts.join('');
         yearSelect.value = currentYear;
       }
       const monthSelect = document.getElementById('history-filter-month');
@@ -3485,18 +3535,20 @@ document.addEventListener('DOMContentLoaded', () => {
       // Initialize reminder year
       const reminderYearSelect = document.getElementById('reminder-filter-year');
       if (reminderYearSelect) {
-        reminderYearSelect.innerHTML = '';
+        const opts = [];
         for (let y = currentYear; y >= currentYear - 5; y--) {
-          reminderYearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+          opts.push(`<option value="${y}">${y}</option>`);
         }
+        reminderYearSelect.innerHTML = opts.join('');
       }
       // Initialize slip year (inside same panel)
       const slipYearSelect = document.getElementById('slip-year');
       if (slipYearSelect) {
-        slipYearSelect.innerHTML = '';
+        const opts = [];
         for (let y = currentYear; y >= currentYear - 5; y--) {
-          slipYearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+          opts.push(`<option value="${y}">${y}</option>`);
         }
+        slipYearSelect.innerHTML = opts.join('');
         slipYearSelect.value = currentYear;
       }
       // Initialize slip month
@@ -4992,19 +5044,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const sel = document.getElementById(id);
         if (!sel) return;
         const firstOpt = id === 'assign-vehicle' ? '<option value="">-- Select Vehicle --</option>' : '<option value="">-- No Vehicle --</option>';
-        sel.innerHTML = firstOpt;
+        const opts = [firstOpt];
         vehicles.filter(v => v.status === 'Active').forEach(v => {
-          sel.innerHTML += `<option value="${v.id}">${v.name} (${v.plate_number})</option>`;
+          opts.push(`<option value="${v.id}">${v.name} (${v.plate_number})</option>`);
         });
+        sel.innerHTML = opts.join('');
       });
 
       // Populate route dropdown
       const routeSel = document.getElementById('assign-route');
       if (routeSel) {
         routeSel.innerHTML = '<option value="">-- Select Route --</option>';
+        const opts = [];
         routes.filter(r => r.status === 'Active').forEach(r => {
-          routeSel.innerHTML += `<option value="${r.id}">${r.name}</option>`;
+          opts.push(`<option value="${r.id}">${r.name}</option>`);
         });
+        routeSel.innerHTML += opts.join('');
       }
 
       // Populate student dropdown for assignment
@@ -5012,11 +5067,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (studentSel) {
         studentSel.innerHTML = '<option value="">-- Select Student --</option>';
         const students = await apiCall('/students').catch(() => []);
+        const opts = [];
         students.forEach(s => {
           const assigned = assignments.find(a => a.student_id == s.id && a.status === 'Active');
           const标记 = assigned ? ' [ASSIGNED]' : '';
-          studentSel.innerHTML += `<option value="${s.id}"${assigned ? ' disabled' : ''}>${s.name} (${s.class_name})${标记}</option>`;
+          opts.push(`<option value="${s.id}"${assigned ? ' disabled' : ''}>${s.name} (${s.class_name})${标记}</option>`);
         });
+        studentSel.innerHTML += opts.join('');
       }
 
       renderVehiclesTable(vehicles);
@@ -5366,12 +5423,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const routes = await apiCall('/transport/routes').catch(() => []);
     const route = routes.find(r => r.id == routeId);
     if (!route) return;
+    const pickupOpts = [];
     (route.pickup_locations || []).forEach(loc => {
-      pickupSel.innerHTML += `<option value="${loc}">${loc}</option>`;
+      pickupOpts.push(`<option value="${loc}">${loc}</option>`);
     });
+    pickupSel.innerHTML += pickupOpts.join('');
+    const dropOpts = [];
     (route.drop_locations || []).forEach(loc => {
-      dropSel.innerHTML += `<option value="${loc}">${loc}</option>`;
+      dropOpts.push(`<option value="${loc}">${loc}</option>`);
     });
+    dropSel.innerHTML += dropOpts.join('');
     // Auto-fill fee from route
     document.getElementById('assign-fee').value = route.monthly_fee || 0;
   });
@@ -5656,9 +5717,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!yearSel) return;
     const currentYear = new Date().getFullYear();
     yearSel.innerHTML = '';
+    const opts = [];
     for (let y = currentYear; y <= currentYear + 5; y++) {
-      yearSel.innerHTML += `<option value="${y}">${y}</option>`;
+      opts.push(`<option value="${y}">${y}</option>`);
     }
+    yearSel.innerHTML = opts.join('');
   }
 
   // Populate class checkboxes for exam creation (All Classes + each class)
@@ -5723,10 +5786,11 @@ document.addEventListener('DOMContentLoaded', () => {
       selectors.forEach(sel => {
         if (!sel) return;
         const currentVal = sel.value;
-        sel.innerHTML = '';
+        const opts = [];
         uniqueExams.forEach(ex => {
-          sel.innerHTML += `<option value="${ex.id}">${ex.exam_name} (${ex.year})</option>`;
+          opts.push(`<option value="${ex.id}">${ex.exam_name} (${ex.year})</option>`);
         });
+        sel.innerHTML = opts.join('');
         if (currentVal) sel.value = currentVal;
       });
 
@@ -5895,15 +5959,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const subs = await apiCall(`/exams/subjects?exam_id=${examId}&term=${term}&class_name=${encodeURIComponent(cls)}`);
         const classSubjects = subs.filter(s => s.class === cls);
         if (classSubjects.length > 0) {
+          const opts = [];
           classSubjects.forEach(s => {
-            subjectSelect.innerHTML += `<option value="${s.subject}" data-max="${s.max_marks}">${s.subject} (Max: ${s.max_marks})</option>`;
+            opts.push(`<option value="${s.subject}" data-max="${s.max_marks}">${s.subject} (Max: ${s.max_marks})</option>`);
           });
+          subjectSelect.innerHTML += opts.join('');
         } else {
           const ttable = await apiCall(`/staff/timetable?class_name=${encodeURIComponent(cls)}`);
           const uniqueSubjects = [...new Set(ttable.map(t => t.subject).filter(Boolean))];
+          const opts = [];
           uniqueSubjects.forEach(s => {
-            subjectSelect.innerHTML += `<option value="${s}">${s}</option>`;
+            opts.push(`<option value="${s}">${s}</option>`);
           });
+          subjectSelect.innerHTML += opts.join('');
         }
       } catch (e) { console.error('[SS_MARKS_SUBJECTS]', e.message); }
     });
@@ -6070,10 +6138,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const sel = document.getElementById('dmc-filter-class');
       if (!sel) return;
       sel.innerHTML = '<option value="">-- All Classes --</option>';
-      classes.forEach(c => { sel.innerHTML += `<option value="${c}">${c}</option>`; });
+      const opts = [];
+      classes.forEach(c => { opts.push(`<option value="${c}">${c}</option>`); });
+      sel.innerHTML += opts.join('');
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
-  loadDmcClassFilter();
 
   // Section filter for DMC
   document.getElementById('dmc-filter-class').addEventListener('change', async function() {
@@ -6083,7 +6152,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!cls) return;
     try {
       const sections = await apiCall(`/students/sections/${encodeURIComponent(cls)}`);
-      sections.forEach(s => { secSel.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`; });
+      const opts = [];
+      sections.forEach(s => { opts.push(`<option value="${s.section_name}">${s.section_name}</option>`); });
+      secSel.innerHTML += opts.join('');
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
@@ -6428,24 +6499,30 @@ document.addEventListener('DOMContentLoaded', () => {
   // Populate the designer "Load Existing Template" dropdown
   async function loadDatesheetDesignerDropdown() {
     const sel = document.getElementById('datesheet-design-template');
+    console.log('[DSDEBUG] loadDatesheetDesignerDropdown called, sel:', sel);
     if (!sel) return;
     try {
       const templates = await apiCall('/exams/datesheets', 'GET', null, false, true);
+      console.log('[DSDEBUG] API response templates:', templates);
       const uniqueMap = {};
-      templates.forEach(t => {
+      (Array.isArray(templates) ? templates : []).forEach(t => {
         const key = t.name;
         if (!uniqueMap[key] || t.id > uniqueMap[key].id) {
           uniqueMap[key] = t;
         }
       });
       const unique = Object.values(uniqueMap).sort((a, b) => b.id - a.id);
+      console.log('[DSDEBUG] Unique templates to populate:', unique.length, unique.map(t => t.name));
       sel.innerHTML = '<option value="">-- Create New Template --</option>';
+      const opts = [];
       unique.forEach(t => {
         const activeMark = t.is_active ? ' [ACTIVE]' : '';
         const style = t.is_active ? ' style="font-weight:bold;color:#16a34a;"' : '';
-        sel.innerHTML += '<option value="' + t.id + '"' + style + '>' + t.name + activeMark + '</option>';
+        opts.push('<option value="' + t.id + '"' + style + '>' + t.name + activeMark + '</option>');
       });
-    } catch (e) { console.error('[APP_ERROR]', e.message); }
+      sel.innerHTML += opts.join('');
+      console.log('[DSDEBUG] Dropdown populated, options:', sel.options.length);
+    } catch (e) { console.error('[DSDEBUG] ERROR:', e.message); }
   }
 
   // Load selected template into the designer form for editing
@@ -6558,11 +6635,13 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const unique = Object.values(uniqueMap).sort((a, b) => b.id - a.id);
       sel.innerHTML = '<option value="">-- Select Template --</option>';
+      const opts = [];
       unique.forEach(t => {
         const activeMark = t.is_active ? ' [ACTIVE]' : '';
         const style = t.is_active ? ' style="font-weight:bold;color:#16a34a;"' : '';
-        sel.innerHTML += '<option value="' + t.id + '"' + style + '>' + t.name + activeMark + '</option>';
+        opts.push('<option value="' + t.id + '"' + style + '>' + t.name + activeMark + '</option>');
       });
+      sel.innerHTML += opts.join('');
       updateDatesheetActiveBadge(templates);
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
@@ -6614,11 +6693,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Add subject row for date sheet designer (with class selector)
   const btnAddDatesheetRow = document.getElementById('btn-add-datesheet-row');
+  console.log('[DSDEBUG] btn-add-datesheet-row element:', btnAddDatesheetRow);
   if (btnAddDatesheetRow) {
     btnAddDatesheetRow.addEventListener('click', () => {
+      console.log('[DSDEBUG] Add row clicked, datesheetRowCount:', datesheetRowCount);
       datesheetRowCount++;
       const currentRowId = datesheetRowCount;
       const container = document.getElementById('datesheet-rows-container');
+      console.log('[DSDEBUG] Container:', container, 'container innerHTML length:', container ? container.innerHTML.length : 'N/A');
       const rowHtml = `
         <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: flex-end;" id="datesheet-row-${currentRowId}">
           <div class="form-group" style="margin-bottom: 0;">
@@ -6641,6 +6723,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
       container.insertAdjacentHTML('beforeend', rowHtml);
+      console.log('[DSDEBUG] Row inserted, container children:', container.children.length);
       getCachedClasses(apiCall).then(classes => {
         if (classes && classes.length > 0) {
           const sel = document.querySelector('#datesheet-row-' + currentRowId + ' .ds-row-class');
@@ -7741,11 +7824,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const classes = await apiCall('/students/classes');
       const sel = document.getElementById('teacher-assigned-class');
       if (!sel) return;
-      sel.innerHTML = '<option value="">-- No Class Assigned --</option>';
+      const opts = ['<option value="">-- No Class Assigned --</option>'];
       classes.forEach(c => {
         const name = typeof c === 'object' ? c.class_name : c;
-        sel.innerHTML += `<option value="${name}">${name}</option>`;
+        opts.push(`<option value="${name}">${name}</option>`);
       });
+      sel.innerHTML = opts.join('');
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
@@ -7854,10 +7938,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const classes = await apiCall('/students/classes');
       const parentClassSelect = document.getElementById('parent-class-select');
       if (parentClassSelect) {
-        parentClassSelect.innerHTML = '<option value="">-- Select Class --</option>';
+        const opts = ['<option value="">-- Select Class --</option>'];
         classes.forEach(cls => {
-          parentClassSelect.innerHTML += `<option value="${cls}">${cls}</option>`;
+          opts.push(`<option value="${cls}">${cls}</option>`);
         });
+        parentClassSelect.innerHTML = opts.join('');
       }
 
       // Load existing parents list
@@ -7929,9 +8014,11 @@ document.addEventListener('DOMContentLoaded', () => {
         studentSelect.innerHTML = '<option value="">-- No students in this class --</option>';
         return;
       }
+      const opts = [];
       students.forEach(s => {
-        studentSelect.innerHTML += `<option value="${s.id}" data-phone="${s.phone || ''}" data-name="${s.name}" data-father="${s.father_name || '-'}">${s.name} (${s.roll_no || '-'})</option>`;
+        opts.push(`<option value="${s.id}" data-phone="${s.phone || ''}" data-name="${s.name}" data-father="${s.father_name || '-'}">${s.name} (${s.roll_no || '-'})</option>`);
       });
+      studentSelect.innerHTML += opts.join('');
       studentSelect.disabled = false;
     } catch (e) {
       showToast('Failed to load students', true);
@@ -8026,15 +8113,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const ttClass = document.getElementById('tt-class');
       const ttTeacher = document.getElementById('tt-teacher');
       if (ttClass) {
-        ttClass.innerHTML = '<option value="">-- All Classes --</option>';
+        const opts = ['<option value="">-- All Classes --</option>'];
         classes.forEach(c => {
           const name = typeof c === 'object' ? c.class_name : c;
-          ttClass.innerHTML += `<option value="${name}">${name}</option>`;
+          opts.push(`<option value="${name}">${name}</option>`);
         });
+        ttClass.innerHTML = opts.join('');
       }
       if (ttTeacher) {
-        ttTeacher.innerHTML = '<option value="">-- Select Teacher --</option>';
-        teachers.forEach(t => { ttTeacher.innerHTML += `<option value="${t.id}">${t.name}</option>`; });
+        const opts = ['<option value="">-- Select Teacher --</option>'];
+        teachers.forEach(t => { opts.push(`<option value="${t.id}">${t.name}</option>`); });
+        ttTeacher.innerHTML = opts.join('');
       }
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
@@ -8047,7 +8136,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!class_name) return;
     try {
       const sections = await apiCall(`/students/sections/${encodeURIComponent(class_name)}`);
-      sections.forEach(s => { ttSection.innerHTML += `<option value="${s.section_name}">${s.section_name}</option>`; });
+      const opts = [];
+      sections.forEach(s => { opts.push(`<option value="${s.section_name}">${s.section_name}</option>`); });
+      ttSection.innerHTML += opts.join('');
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
@@ -8785,7 +8876,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   })();
 
-  checkBillingStatus().then(() => loadDashboardStats());
+  Promise.all([checkBillingStatus(), loadDashboardStats()]).catch(() => {});
   loadDashboardExamDropdown();
 
 });

@@ -738,6 +738,28 @@ function createSchoolDatabaseSchema(db) {
       db.run(`CREATE INDEX IF NOT EXISTS idx_student_parents_parent ON student_parents(parent_id)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_promotion_history_student ON student_promotion_history(student_id)`);
 
+      // Additional performance indexes for portal speed
+      db.run(`CREATE INDEX IF NOT EXISTS idx_students_student_id ON students(student_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_students_roll_no ON students(roll_no)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_students_phone ON students(phone)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_marks_exam_term ON marks(exam_id, term)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_teacher_salaries_teacher ON teacher_salaries(teacher_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_salary_payments_teacher ON salary_payments(teacher_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_salary_payments_month_year ON salary_payments(month, year)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_transport_assignments_student ON transport_assignments(student_id, status)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_transport_drivers_vehicle ON transport_drivers(vehicle_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_transport_routes_vehicle ON transport_routes(vehicle_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_certificates_student ON student_certificates(student_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_documents_student ON student_documents(student_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_transfer_history_student ON student_transfer_history(student_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_timetable_teacher_class_subject ON timetable(teacher_id, class_name, subject)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_timetable_class ON timetable(class_name)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_attendance_class_date_section ON attendance(class_name, date, section_name)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_fee_ledger_student_year ON fee_ledger(student_id, year)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_announcements_target_role ON announcements(target_role)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_fee_payments_date ON fee_payments(payment_date)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_teachers_status ON teachers(status)`);
+
       db.run("PRAGMA user_version = 1", (err) => {
         if (err) reject(err);
         else resolve();

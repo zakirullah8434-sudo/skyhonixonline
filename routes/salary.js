@@ -3,7 +3,10 @@ const router = express.Router();
 const { authenticateToken } = require('./auth');
 const { querySchool, querySchoolOne, runSchool, querySchoolRaw, querySchoolRawOne } = require('../database_manager');
 
+let salaryTablesEnsured = false;
+
 async function ensureSalaryTables(schoolId) {
+  if (salaryTablesEnsured) return;
   try {
     await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS teacher_salaries (
       id INTEGER PRIMARY KEY AUTOINCREMENT, teacher_id INTEGER NOT NULL, basic_salary REAL DEFAULT 0,
@@ -26,6 +29,7 @@ async function ensureSalaryTables(schoolId) {
   for (const col of ['basic_salary', 'allowances', 'deductions', 'tax', 'net_salary', 'payment_method', 'reference_no', 'remarks', 'paid_by']) {
     try { await runSchool(schoolId, `ALTER TABLE salary_payments ADD COLUMN ${col} TEXT`); } catch (e) {}
   }
+  salaryTablesEnsured = true;
 }
 
 // GET /api/salary/teachers - List all teachers with salary info

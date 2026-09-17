@@ -3,8 +3,11 @@ const router = express.Router();
 const { authenticateToken } = require('./auth');
 const { querySchool, querySchoolOne, runSchool, runSchoolTransaction } = require('../database_manager');
 
+let holidaysTableEnsured = false;
+
 // Ensure holidays table exists (defensive migration for existing databases)
 async function ensureHolidaysTable(schoolId) {
+  if (holidaysTableEnsured) return;
   await runSchool(schoolId, `
     CREATE TABLE IF NOT EXISTS holidays (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -15,6 +18,7 @@ async function ensureHolidaysTable(schoolId) {
     )
   `);
   await runSchool(schoolId, `CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_date ON holidays (date)`);
+  holidaysTableEnsured = true;
 }
 
 // Ensure attendance_reports table exists (defensive migration for existing databases)

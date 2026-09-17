@@ -22,6 +22,7 @@
 
   let children = [];
   let selectedChildId = null;
+  let _parentSettingsCache = null;
 
   async function apiCall(endpoint, method = 'GET', body = null) {
     const opts = { method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } };
@@ -34,8 +35,24 @@
 
   // Load school settings (logo + name)
   async function loadSchoolSettings() {
+    if (_parentSettingsCache) {
+      const settings = _parentSettingsCache;
+      const schoolName = settings.school_name || currentUser.schoolName;
+      document.getElementById('sidebar-school-name').textContent = schoolName;
+      if (settings.logo_path) {
+        const logoSrc = settings.logo_path.startsWith('data:') ? settings.logo_path : '/' + settings.logo_path;
+        const headerLogo = document.getElementById('header-school-logo');
+        const sidebarLogo = document.getElementById('sidebar-school-logo');
+        headerLogo.src = logoSrc;
+        headerLogo.style.display = 'inline-block';
+        sidebarLogo.src = logoSrc;
+        sidebarLogo.style.display = 'block';
+      }
+      return;
+    }
     try {
       const settings = await apiCall('/api/parents/settings');
+      _parentSettingsCache = settings;
       const schoolName = settings.school_name || currentUser.schoolName;
       document.getElementById('sidebar-school-name').textContent = schoolName;
       if (settings.logo_path) {
@@ -182,7 +199,8 @@
     const container = document.getElementById('dashboard-assignments-container');
     if (!container) return;
     try {
-      const assignments = await apiCall('/api/parents/my-assignments');
+      const assignments = cachedDashboardAssignments || await apiCall('/api/parents/my-assignments');
+      cachedDashboardAssignments = assignments;
       if (assignments.length === 0) {
         container.innerHTML = `<div class="card" style="text-align:center; padding:30px;"><div style="font-size:2rem; margin-bottom:8px;">📚</div><p style="color:var(--text-muted);">No homework or tests assigned yet.</p></div>`;
         return;
@@ -384,6 +402,7 @@
 
   // ========== ASSIGNMENTS (Homework & Tests) ==========
   let cachedParentAssignments = [];
+  let cachedDashboardAssignments = null;
 
   async function loadParentAssignments() {
     const container = document.getElementById('parent-assignments-list');

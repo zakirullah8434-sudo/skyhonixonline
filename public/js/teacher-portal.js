@@ -438,7 +438,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('announcements-container');
     container.innerHTML = '<p style="color:var(--text-muted);">Loading...</p>';
     try {
-      const announcements = await apiCall('/api/teachers/announcements');
+      const announcements = cachedAnnouncements.length > 0 ? cachedAnnouncements : await apiCall('/api/teachers/announcements');
+      if (cachedAnnouncements.length === 0) cachedAnnouncements = announcements;
       if (announcements.length === 0) {
         container.innerHTML = `
           <div style="text-align:center; padding:60px 20px; background: rgba(255,255,255,0.02); border-radius:16px; border: 1px dashed var(--border-glow);">
@@ -548,13 +549,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadAssignmentForm() {
     try {
-      const data = await apiCall('/api/teachers/my-subjects');
-      const allEntries = data.allEntries || [];
+      const data = cachedTimetableClasses.length > 0 ? { allEntries: cachedTimetableClasses } : await apiCall('/api/teachers/my-subjects');
+      if (cachedTimetableClasses.length === 0) cachedTimetableClasses = data.allEntries || [];
+      const allEntries = cachedTimetableClasses;
       const subjects = [...new Set(allEntries.map(e => e.subject))];
       const classes = [...new Set(allEntries.map(e => e.class_name))];
       const sections = [...new Set(allEntries.map(e => e.section_name))];
-
-      cachedTimetableClasses = allEntries;
 
       const subjectSel = document.getElementById('assignment-subject');
       subjectSel.innerHTML = '<option value="">Select subject...</option>' + subjects.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');

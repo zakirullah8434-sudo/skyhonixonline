@@ -170,42 +170,29 @@ router.post('/marks', authenticateToken, async (req, res) => {
 
   try {
     const affectedStudents = [];
+    const statements = [];
 
     for (const entry of marksList) {
       const marksVal = entry.marks === '' ? null : parseInt(entry.marks);
-
-      if (marksVal === null) {
-        // Delete if cleared
-        await runSchool(
-          schoolId,
-          'DELETE FROM marks WHERE student_id = ? AND exam_id = ? AND subject = ? AND term = ?',
-          [entry.student_id, parseInt(exam_id), subject, term]
-        );
-      } else {
-        // Safe-insert: delete then insert to avoid duplicates
-        await runSchool(
-          schoolId,
-          'DELETE FROM marks WHERE student_id = ? AND exam_id = ? AND subject = ? AND term = ?',
-          [entry.student_id, parseInt(exam_id), subject, term]
-        );
-        await runSchool(
-          schoolId,
-          'INSERT INTO marks (student_id, exam_id, subject, marks, term) VALUES (?, ?, ?, ?, ?)',
-          [entry.student_id, parseInt(exam_id), subject, marksVal, term]
-        );
+      statements.push({
+        sql: 'DELETE FROM marks WHERE student_id = ? AND exam_id = ? AND subject = ? AND term = ?',
+        params: [entry.student_id, parseInt(exam_id), subject, term]
+      });
+      if (marksVal !== null) {
+        statements.push({
+          sql: 'INSERT INTO marks (student_id, exam_id, subject, marks, term) VALUES (?, ?, ?, ?, ?)',
+          params: [entry.student_id, parseInt(exam_id), subject, marksVal, term]
+        });
       }
-
       affectedStudents.push(entry.student_id);
+    }
 
-      // SYNC: Emit marks update event for each student affected
-      await syncManager.onMarksUpdated(
-        schoolId,
-        entry.student_id,
-        parseInt(exam_id),
-        subject,
-        null, // oldMarks not tracked for this version
-        marksVal
-      );
+    if (statements.length > 0) {
+      await runSchoolTransaction(schoolId, statements);
+    }
+
+    for (const studentId of affectedStudents) {
+      syncManager.onMarksUpdated(schoolId, studentId, parseInt(exam_id), subject, null, null);
     }
 
     res.json({
@@ -340,13 +327,16 @@ router.post('/calculate', authenticateToken, async (req, res) => {
         }
 
         // Batch insert results
+        const insertStmts = [];
         for (const row of resultRows) {
-          await runSchool(
-            schoolId,
-            `INSERT INTO results (student_id, exam_id, term, total, obtained, percentage, grade, position, remarks)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-            row
-          );
+          insertStmts.push({
+            sql: `INSERT INTO results (student_id, exam_id, term, total, obtained, percentage, grade, position, remarks)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+            params: row
+          });
+        }
+        if (insertStmts.length > 0) {
+          await runSchoolTransaction(schoolId, insertStmts);
         }
 
         // Apply Dense Ranking
@@ -381,12 +371,19 @@ router.post('/calculate', authenticateToken, async (req, res) => {
         let rank = 0;
         let prevPercentage = null;
 
+        const updateStmts = [];
         for (const row of rankedRows) {
           if (prevPercentage === null || row.percentage < prevPercentage) {
             rank++;
           }
-          await runSchool(schoolId, 'UPDATE results SET position = ? WHERE id = ?', [rank, row.id]);
+          updateStmts.push({
+            sql: 'UPDATE results SET position = ? WHERE id = ?',
+            params: [rank, row.id]
+          });
           prevPercentage = row.percentage;
+        }
+        if (updateStmts.length > 0) {
+          await runSchoolTransaction(schoolId, updateStmts);
         }
       }
     }

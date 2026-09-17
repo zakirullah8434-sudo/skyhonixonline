@@ -4,11 +4,59 @@ const { authenticateToken } = require('./auth');
 const { querySchool, querySchoolOne, runSchool, migrateSchoolTable } = require('../database_manager');
 
 const TRANSPORT_TABLES = ['transport_vehicles', 'transport_drivers', 'transport_routes', 'transport_assignments'];
+let transportMigrated = false;
 
 async function migrateTransportTables(schoolId) {
+  if (transportMigrated) return;
   for (const table of TRANSPORT_TABLES) {
     await migrateSchoolTable(schoolId, table).catch(() => {});
   }
+  await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_vehicles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    school_id INTEGER NOT NULL,
+    name TEXT,
+    plate_number TEXT,
+    type TEXT DEFAULT 'Bus',
+    capacity INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'Active',
+    monthly_fee REAL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`).catch(() => {});
+  await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_drivers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    school_id INTEGER NOT NULL,
+    name TEXT,
+    phone TEXT,
+    license_number TEXT,
+    address TEXT,
+    vehicle_id INTEGER,
+    status TEXT DEFAULT 'Active',
+    created_at TEXT DEFAULT (datetime('now'))
+  )`).catch(() => {});
+  await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_routes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    school_id INTEGER NOT NULL,
+    name TEXT,
+    pickup_locations TEXT DEFAULT '[]',
+    drop_locations TEXT DEFAULT '[]',
+    vehicle_id INTEGER,
+    monthly_fee REAL DEFAULT 0,
+    status TEXT DEFAULT 'Active',
+    created_at TEXT DEFAULT (datetime('now'))
+  )`).catch(() => {});
+  await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    school_id INTEGER NOT NULL,
+    student_id INTEGER NOT NULL,
+    vehicle_id INTEGER,
+    route_id INTEGER,
+    pickup_point TEXT,
+    drop_point TEXT,
+    monthly_fee REAL DEFAULT 0,
+    status TEXT DEFAULT 'Active',
+    created_at TEXT DEFAULT (datetime('now'))
+  )`).catch(() => {});
+  transportMigrated = true;
 }
 
 // ==========================================
@@ -20,17 +68,6 @@ router.get('/vehicles', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
     await migrateTransportTables(schoolId);
-    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_vehicles (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      school_id INTEGER NOT NULL,
-      name TEXT,
-      plate_number TEXT,
-      type TEXT DEFAULT 'Bus',
-      capacity INTEGER DEFAULT 0,
-      status TEXT DEFAULT 'Active',
-      monthly_fee REAL DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
-    )`);
     const vehicles = await querySchool(schoolId, 'SELECT * FROM transport_vehicles ORDER BY id DESC');
     res.json(vehicles);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -41,17 +78,6 @@ router.post('/vehicles', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { name, plate_number, type, capacity, status, monthly_fee } = req.body;
   try {
-    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_vehicles (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      school_id INTEGER NOT NULL,
-      name TEXT,
-      plate_number TEXT,
-      type TEXT DEFAULT 'Bus',
-      capacity INTEGER DEFAULT 0,
-      status TEXT DEFAULT 'Active',
-      monthly_fee REAL DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
-    )`);
     const result = await runSchool(schoolId,
       'INSERT INTO transport_vehicles (name, plate_number, type, capacity, status, monthly_fee) VALUES (?, ?, ?, ?, ?, ?)',
       [name || '', plate_number || '', type || 'Bus', capacity || 0, status || 'Active', monthly_fee || 0]
@@ -91,17 +117,6 @@ router.get('/drivers', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
     await migrateTransportTables(schoolId);
-    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_drivers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      school_id INTEGER NOT NULL,
-      name TEXT,
-      phone TEXT,
-      license_number TEXT,
-      address TEXT,
-      vehicle_id INTEGER,
-      status TEXT DEFAULT 'Active',
-      created_at TEXT DEFAULT (datetime('now'))
-    )`);
     const drivers = await querySchool(schoolId, `
       SELECT d.*, v.name as vehicle_name, v.plate_number as vehicle_plate
       FROM transport_drivers d
@@ -117,17 +132,6 @@ router.post('/drivers', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { name, phone, license_number, address, vehicle_id, status } = req.body;
   try {
-    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_drivers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      school_id INTEGER NOT NULL,
-      name TEXT,
-      phone TEXT,
-      license_number TEXT,
-      address TEXT,
-      vehicle_id INTEGER,
-      status TEXT DEFAULT 'Active',
-      created_at TEXT DEFAULT (datetime('now'))
-    )`);
     const result = await runSchool(schoolId,
       'INSERT INTO transport_drivers (name, phone, license_number, address, vehicle_id, status) VALUES (?, ?, ?, ?, ?, ?)',
       [name || '', phone || '', license_number || '', address || '', vehicle_id || null, status || 'Active']
@@ -167,17 +171,6 @@ router.get('/routes', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
     await migrateTransportTables(schoolId);
-    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_routes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      school_id INTEGER NOT NULL,
-      name TEXT,
-      pickup_locations TEXT DEFAULT '[]',
-      drop_locations TEXT DEFAULT '[]',
-      vehicle_id INTEGER,
-      monthly_fee REAL DEFAULT 0,
-      status TEXT DEFAULT 'Active',
-      created_at TEXT DEFAULT (datetime('now'))
-    )`);
     const routes = await querySchool(schoolId, `
       SELECT r.*, v.name as vehicle_name, v.plate_number as vehicle_plate
       FROM transport_routes r
@@ -197,17 +190,6 @@ router.post('/routes', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { name, pickup_locations, drop_locations, vehicle_id, monthly_fee, status } = req.body;
   try {
-    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_routes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      school_id INTEGER NOT NULL,
-      name TEXT,
-      pickup_locations TEXT DEFAULT '[]',
-      drop_locations TEXT DEFAULT '[]',
-      vehicle_id INTEGER,
-      monthly_fee REAL DEFAULT 0,
-      status TEXT DEFAULT 'Active',
-      created_at TEXT DEFAULT (datetime('now'))
-    )`);
     const result = await runSchool(schoolId,
       'INSERT INTO transport_routes (name, pickup_locations, drop_locations, vehicle_id, monthly_fee, status) VALUES (?, ?, ?, ?, ?, ?)',
       [name || '', JSON.stringify(pickup_locations || []), JSON.stringify(drop_locations || []), vehicle_id || null, monthly_fee || 0, status || 'Active']
@@ -247,18 +229,6 @@ router.get('/assignments', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
     await migrateTransportTables(schoolId);
-    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_assignments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      school_id INTEGER NOT NULL,
-      student_id INTEGER NOT NULL,
-      vehicle_id INTEGER,
-      route_id INTEGER,
-      pickup_point TEXT,
-      drop_point TEXT,
-      monthly_fee REAL DEFAULT 0,
-      status TEXT DEFAULT 'Active',
-      created_at TEXT DEFAULT (datetime('now'))
-    )`);
     const assignments = await querySchool(schoolId, `
       SELECT a.*, s.name as student_name, s.class_name, s.roll_no, s.father_name,
              v.name as vehicle_name, v.plate_number, v.type as vehicle_type,
@@ -278,18 +248,6 @@ router.post('/assignments', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { student_id, vehicle_id, route_id, pickup_point, drop_point, monthly_fee, status } = req.body;
   try {
-    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS transport_assignments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      school_id INTEGER NOT NULL,
-      student_id INTEGER NOT NULL,
-      vehicle_id INTEGER,
-      route_id INTEGER,
-      pickup_point TEXT,
-      drop_point TEXT,
-      monthly_fee REAL DEFAULT 0,
-      status TEXT DEFAULT 'Active',
-      created_at TEXT DEFAULT (datetime('now'))
-    )`);
     // Check if student already assigned
     const existing = await querySchoolOne(schoolId,
       'SELECT id FROM transport_assignments WHERE student_id = ? AND status = "Active"',

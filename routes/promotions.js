@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('./auth');
-const { querySchool, querySchoolOne, runSchool } = require('../database_manager');
+const { querySchool, querySchoolOne, runSchool, runSchoolTransaction } = require('../database_manager');
 const syncManager = require('../sync_manager');
 
 // GET /promotions/classes - Get all classes with student counts
@@ -144,31 +144,33 @@ router.post('/school-wide', authenticateToken, async (req, res) => {
         );
       }
 
+      const promoStatements = [];
+
       for (const student of studentsWithResults) {
         const percentage = student.percentage;
         const hasExamResult = percentage >= 0;
 
         if (hasExamResult && percentage >= passingMark) {
-          // Promote to next class
-          await runSchool(schoolId,
-            `UPDATE students SET class_name = ? WHERE id = ?`,
-            [nextClass, student.id]
-          );
-          promoted++;
-
-          // Record promotion history
-          await runSchool(schoolId,
-            `INSERT INTO student_promotion_history (student_id, from_class, to_class, exam_year, promotion_date, final_percentage, remarks)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [student.id, currentClass, nextClass, new Date().getFullYear(),
+          promoStatements.push({
+            sql: `UPDATE students SET class_name = ? WHERE id = ?`,
+            params: [nextClass, student.id]
+          });
+          promoStatements.push({
+            sql: `INSERT INTO student_promotion_history (student_id, from_class, to_class, exam_year, promotion_date, final_percentage, remarks)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            params: [student.id, currentClass, nextClass, new Date().getFullYear(),
              new Date().toISOString(), percentage, `School-wide promotion (pass: ${passingMark}%)`]
-          );
+          });
+          promoted++;
         } else if (hasExamResult) {
           stayed++;
         } else {
-          // No exam result, keep in current class
           stayed++;
         }
+      }
+
+      if (promoStatements.length > 0) {
+        await runSchoolTransaction(schoolId, promoStatements);
       }
 
       if (studentsWithResults.length > 0) {
@@ -230,13 +232,13 @@ router.post('/class-wise', authenticateToken, async (req, res) => {
     let renamed = 0;
     const details = [];
 
+    const allClasses = await querySchool(schoolId,
+      `SELECT DISTINCT class_name FROM students WHERE (status IS NULL OR status != 'Left') ORDER BY class_name`
+    );
+    const allClassNames = allClasses.map(c => c.class_name);
+
     for (const currentClass of sortedClasses) {
       // Find next class name (same logic as school-wide)
-      // Get all classes in the system
-      const allClasses = await querySchool(schoolId,
-        `SELECT DISTINCT class_name FROM students WHERE (status IS NULL OR status != 'Left') ORDER BY class_name`
-      );
-      const allClassNames = allClasses.map(c => c.class_name);
       
       // Find next class
       let nextClass = null;
@@ -299,26 +301,31 @@ router.post('/class-wise', authenticateToken, async (req, res) => {
       let classPromoted = 0;
       let classStayed = 0;
 
+      const classPromoStatements = [];
+
       for (const student of studentsWithResults) {
         const percentage = student.percentage;
         const hasExamResult = percentage >= 0;
 
         if (hasExamResult && percentage >= passingMark) {
-          await runSchool(schoolId,
-            `UPDATE students SET class_name = ? WHERE id = ?`,
-            [nextClass, student.id]
-          );
-          classPromoted++;
-
-          await runSchool(schoolId,
-            `INSERT INTO student_promotion_history (student_id, from_class, to_class, exam_year, promotion_date, final_percentage, remarks)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [student.id, currentClass, nextClass, new Date().getFullYear(),
+          classPromoStatements.push({
+            sql: `UPDATE students SET class_name = ? WHERE id = ?`,
+            params: [nextClass, student.id]
+          });
+          classPromoStatements.push({
+            sql: `INSERT INTO student_promotion_history (student_id, from_class, to_class, exam_year, promotion_date, final_percentage, remarks)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            params: [student.id, currentClass, nextClass, new Date().getFullYear(),
              new Date().toISOString(), percentage, `Class-wise promotion (pass: ${passingMark}%)`]
-          );
+          });
+          classPromoted++;
         } else {
           classStayed++;
         }
+      }
+
+      if (classPromoStatements.length > 0) {
+        await runSchoolTransaction(schoolId, classPromoStatements);
       }
 
       promoted += classPromoted;
@@ -358,13 +365,14 @@ router.post('/leave', authenticateToken, async (req, res) => {
   }
 
   try {
-    let count = 0;
-    for (const studentId of student_ids) {
-      await runSchool(schoolId,
-        `UPDATE students SET status = 'Left' WHERE id = ?`, [studentId]
-      );
-      count++;
+    const leaveStatements = student_ids.map(id => ({
+      sql: `UPDATE students SET status = 'Left' WHERE id = ?`,
+      params: [id]
+    }));
+    if (leaveStatements.length > 0) {
+      await runSchoolTransaction(schoolId, leaveStatements);
     }
+    const count = student_ids.length;
 
     syncManager.emit('student.updated', { schoolId });
 

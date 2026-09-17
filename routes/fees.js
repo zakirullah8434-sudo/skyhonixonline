@@ -241,6 +241,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
 
     let generatedCount = 0;
     let skippedCount = 0;
+    const insertStatements = [];
 
     for (const student of students) {
       const studentId = student.id;
@@ -330,11 +331,10 @@ router.post('/generate', authenticateToken, async (req, res) => {
       const totalPayable = finalMonthlyFee + totalTransport + previousDue;
 
       // Create ledger entry
-      await runSchoolRaw(
-        schoolId,
-        `INSERT INTO fee_ledger (student_id, class_name, section_name, month, year, base_fee, discount, monthly_fee, previous_due, total_payable, paid_amount, status, transport_fee, created_at, school_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
+      insertStatements.push({
+        sql: `INSERT INTO fee_ledger (student_id, class_name, section_name, month, year, base_fee, discount, monthly_fee, previous_due, total_payable, paid_amount, status, transport_fee, created_at, school_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        params: [
           studentId,
           student.class_name,
           student.section_name || '',
@@ -351,8 +351,12 @@ router.post('/generate', authenticateToken, async (req, res) => {
           new Date().toISOString(),
           schoolId
         ]
-      );
+      });
       generatedCount++;
+    }
+
+    if (insertStatements.length > 0) {
+      await runSchoolTransaction(schoolId, insertStatements);
     }
 
     res.json({
@@ -633,17 +637,27 @@ router.post('/save-history-dues', authenticateToken, async (req, res) => {
   }
 
   try {
+    const txStatements = [];
+
+    // Pre-fetch all ledger rows needed for updates
+    const ledgerIds = changes.filter(c => c.ledger_id).map(c => c.ledger_id);
+    const ledgerMap = {};
+    if (ledgerIds.length > 0) {
+      const placeholders = ledgerIds.map(() => '?').join(',');
+      const ledgers = await querySchoolRaw(
+        schoolId,
+        `SELECT id, monthly_fee, transport_fee, paid_amount FROM fee_ledger WHERE id IN (${placeholders})`,
+        ledgerIds
+      );
+      ledgers.forEach(l => { ledgerMap[l.id] = l; });
+    }
+
     for (const c of changes) {
       const { student_id, ledger_id, previous_due } = c;
       const prevDueVal = parseFloat(previous_due) || 0;
 
       if (ledger_id) {
-        // Update ledger row and recalculate total_payable
-        const ledger = await querySchoolOne(
-          schoolId,
-          'SELECT monthly_fee, transport_fee, paid_amount FROM fee_ledger WHERE id = ?',
-          [ledger_id]
-        );
+        const ledger = ledgerMap[ledger_id];
         if (ledger) {
           const monthly_fee = ledger.monthly_fee || 0;
           const transport_fee = ledger.transport_fee || 0;
@@ -651,26 +665,27 @@ router.post('/save-history-dues', authenticateToken, async (req, res) => {
           const total_payable = monthly_fee + transport_fee + prevDueVal;
           const status = paid_amount >= total_payable ? 'Paid' : (paid_amount > 0 ? 'Partial' : 'Unpaid');
 
-          await runSchool(
-            schoolId,
-            'UPDATE fee_ledger SET previous_due = ?, total_payable = ?, status = ? WHERE id = ?',
-            [prevDueVal, total_payable, status, ledger_id]
-          );
+          txStatements.push({
+            sql: 'UPDATE fee_ledger SET previous_due = ?, total_payable = ?, status = ? WHERE id = ?',
+            params: [prevDueVal, total_payable, status, ledger_id]
+          });
         }
       } else {
-        // Update opening dues in fee_dues table
-        await runSchool(
-          schoolId,
-          `DELETE FROM fee_dues WHERE student_id = ?`,
-          [student_id]
-        );
-        await runSchool(
-          schoolId,
-          `INSERT INTO fee_dues (student_id, due_amount) VALUES (?, ?)`,
-          [student_id, prevDueVal]
-        );
+        txStatements.push({
+          sql: `DELETE FROM fee_dues WHERE student_id = ?`,
+          params: [student_id]
+        });
+        txStatements.push({
+          sql: `INSERT INTO fee_dues (student_id, due_amount) VALUES (?, ?)`,
+          params: [student_id, prevDueVal]
+        });
       }
     }
+
+    if (txStatements.length > 0) {
+      await runSchoolTransaction(schoolId, txStatements);
+    }
+
     res.json({ message: 'Ledger and opening dues updated successfully!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
