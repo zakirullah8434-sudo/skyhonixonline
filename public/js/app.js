@@ -2866,14 +2866,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
           const dateStr = new Date().toISOString().split('T')[0];
-          const result = await apiCall('/attendance/scan', 'POST', { scanValue, date: dateStr });
-          
-          playBeep('success');
-          showToast(result.message);
+          const clientTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+          const result = await apiCall('/attendance/scan', 'POST', { scanValue, date: dateStr, time: clientTime });
+
+          if (result.alreadyMarked) {
+            playBeep('fail');
+            showToast(result.message, true);
+          } else {
+            playBeep('success');
+            showToast(result.message);
+          }
 
           document.getElementById('scan-name').innerText = result.student.name;
           document.getElementById('scan-roll-class').innerText = `Roll No: ${result.student.roll_no || '-'} | Class: ${result.student.class_name}`;
-          document.getElementById('scan-time').innerText = `Checked in: ${result.student.time}`;
+          document.getElementById('scan-time').innerText = result.alreadyMarked ? `Already marked at: ${result.student.time}` : `Checked in: ${result.student.time}`;
           document.getElementById('scan-photo').src = imgSrc(result.student.photo);
           scanFeedback.style.display = 'block';
 
@@ -2881,12 +2887,14 @@ document.addEventListener('DOMContentLoaded', () => {
           if (existingRows.includes('Awaiting QR card scan')) {
             scanHistoryTable.innerHTML = '';
           }
+          const statusColor = result.alreadyMarked ? 'var(--warning)' : 'var(--accent)';
+          const statusLabel = result.alreadyMarked ? ' (Already Marked)' : '';
           scanHistoryTable.innerHTML = `
             <tr>
               <td><strong>${result.student.roll_no || '-'}</strong></td>
               <td>${result.student.name}</td>
               <td>${result.student.class_name}</td>
-              <td><span style="color:var(--accent); font-weight:700;">${result.student.time}</span></td>
+              <td><span style="color:${statusColor}; font-weight:700;">${result.student.time}${statusLabel}</span></td>
             </tr>
           ` + scanHistoryTable.innerHTML;
 
@@ -7693,31 +7701,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ==========================================
-  // MODULE: STAFF MANAGEMENT (Teachers, Parents, Timetable)
+  // MODULE: STAFF MANAGEMENT (Teachers, Parents, Timetable, Announcements)
   // ==========================================
 
-  // -- Card click navigation for Admin Settings panels --
-  document.querySelectorAll('[data-opt="manage-teachers"], [data-opt="manage-parents"], [data-opt="manage-timetable"], [data-opt="manage-announcements"]').forEach(card => {
-    card.addEventListener('click', () => {
-      const opt = card.getAttribute('data-opt');
-      const adminScreen = document.getElementById('screen-admin-settings');
-      adminScreen.querySelectorAll(':scope > .card, :scope > .grid-3').forEach(c => c.style.display = 'none');
-      document.getElementById('panel-' + opt).style.display = 'block';
-      if (opt === 'manage-teachers') { loadTeachersList(); loadTeacherClassDropdown(); }
-      if (opt === 'manage-parents') { loadParentsList(); }
-      if (opt === 'manage-timetable') { populateTimetableDropdowns(); }
-      if (opt === 'manage-announcements') { loadAnnouncementsList(); }
-    });
-  });
+  // -- Card click navigation for Admin Settings panels (event delegation) --
+  const adminSettingsScreen = document.getElementById('screen-admin-settings');
+  if (adminSettingsScreen) {
+    adminSettingsScreen.addEventListener('click', (e) => {
+      // Handle data-opt card clicks
+      const card = e.target.closest('[data-opt="manage-teachers"], [data-opt="manage-parents"], [data-opt="manage-timetable"], [data-opt="manage-announcements"]');
+      if (card) {
+        e.stopPropagation();
+        const opt = card.getAttribute('data-opt');
+        adminSettingsScreen.querySelectorAll(':scope > .card, :scope > .grid-3').forEach(c => c.style.display = 'none');
+        adminSettingsScreen.querySelectorAll('.fee-option-panel').forEach(p => p.style.display = 'none');
+        const panel = document.getElementById('panel-' + opt);
+        if (panel) panel.style.display = 'block';
+        if (opt === 'manage-teachers') { loadTeachersList(); loadTeacherClassDropdown(); }
+        if (opt === 'manage-parents') { loadParentsList(); }
+        if (opt === 'manage-timetable') { populateTimetableDropdowns(); }
+        if (opt === 'manage-announcements') { loadAnnouncementsList(); }
+        return;
+      }
 
-  document.querySelectorAll('.btn-back-settings').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const panel = btn.closest('.fee-option-panel');
-      if (panel) panel.style.display = 'none';
-      const adminScreen = document.getElementById('screen-admin-settings');
-      if (adminScreen) adminScreen.querySelectorAll(':scope > .card, :scope > .grid-3').forEach(c => c.style.display = '');
+      // Handle back button clicks
+      const backBtn = e.target.closest('.btn-back-settings');
+      if (backBtn) {
+        e.stopPropagation();
+        adminSettingsScreen.querySelectorAll('.fee-option-panel').forEach(p => p.style.display = 'none');
+        adminSettingsScreen.querySelectorAll(':scope > .card, :scope > .grid-3').forEach(c => c.style.display = '');
+      }
     });
-  });
+  }
 
   // ==========================================
   // TEACHERS

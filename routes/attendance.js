@@ -114,7 +114,7 @@ router.post('/save', authenticateToken, async (req, res) => {
   try {
     const statements = [];
     for (const record of attendanceList) {
-      const time = record.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const time = record.time || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       statements.push({
         sql: 'DELETE FROM attendance WHERE student_id = ? AND date = ?',
         params: [record.student_id, date]
@@ -135,7 +135,7 @@ router.post('/save', authenticateToken, async (req, res) => {
 // POST /attendance/scan - Register attendance via QR Scanner (Webcam scan in browser)
 router.post('/scan', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
-  const { scanValue, date } = req.body;
+  const { scanValue, date, time } = req.body;
 
   if (!scanValue) {
     return res.status(400).json({ error: 'Scan value is required' });
@@ -147,7 +147,7 @@ router.post('/scan', authenticateToken, async (req, res) => {
   cleaned = cleaned.trim();
 
   const currentDate = date || new Date().toISOString().split('T')[0];
-  const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const currentTime = time || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
 
   try {
     // Try exact match first, then numeric id match
@@ -179,8 +179,31 @@ router.post('/scan', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: `Student with code '${cleaned}' not found. Check that the QR code contains a valid Student ID.` });
     }
 
-    // Insert or replace attendance
-    await runSchool(schoolId, `DELETE FROM attendance WHERE student_id = ? AND date = ?`, [student.id, currentDate]);
+    // Check if attendance already marked today for this student
+    const existing = await querySchoolOne(
+      schoolId,
+      "SELECT id, time, status FROM attendance WHERE student_id = ? AND date = ?",
+      [student.id, currentDate]
+    );
+
+    if (existing) {
+      return res.json({
+        alreadyMarked: true,
+        message: `${student.name} attendance already marked today at ${existing.time} (${existing.status})`,
+        student: {
+          id: student.id,
+          name: student.name,
+          roll_no: student.roll_no,
+          class_name: student.class_name,
+          section_name: student.section_name,
+          photo: student.photo,
+          time: existing.time,
+          status: existing.status
+        }
+      });
+    }
+
+    // Insert attendance
     await runSchool(
       schoolId,
       `INSERT INTO attendance (student_id, class_name, section_name, date, status, time, school_id)
