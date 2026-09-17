@@ -933,6 +933,32 @@ router.get('/marks/spreadsheet', authenticateToken, async (req, res) => {
       subjects = timetableSubjects;
     }
 
+    // If still no subjects, fetch from datesheet templates for this exam/class
+    if (subjects.length === 0) {
+      try {
+        const templates = await querySchool(schoolId, 'SELECT template_json FROM date_sheet_templates');
+        const datesheetSubjects = [];
+        const seen = new Set();
+        for (const tpl of templates) {
+          try {
+            const parsed = JSON.parse(tpl.template_json || '{}');
+            if (parsed.exam_id && parsed.exam_id != parseInt(exam_id)) continue;
+            if (parsed.term && parsed.term !== term) continue;
+            const tplSubjects = parsed.subjects || [];
+            for (const s of tplSubjects) {
+              if (s.subject && (s.class === class_name || s.class === 'All Classes') && !seen.has(s.subject.toUpperCase())) {
+                seen.add(s.subject.toUpperCase());
+                datesheetSubjects.push({ subject: s.subject, max_marks: s.max_marks || 100 });
+              }
+            }
+          } catch (e) {}
+        }
+        if (datesheetSubjects.length > 0) {
+          subjects = datesheetSubjects.sort((a, b) => a.subject.localeCompare(b.subject));
+        }
+      } catch (e) {}
+    }
+
     const allMarks = await querySchool(
       schoolId,
       'SELECT student_id, subject, marks FROM marks WHERE exam_id = ? AND term = ?',
