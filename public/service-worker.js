@@ -2,7 +2,7 @@
  * SkyHonix Service Worker - PWA Shell Caching
  * Cache-first for static assets, network-first for API
  */
-const CACHE_NAME = 'skyhonix-v8';
+const CACHE_NAME = 'skyhonix-v9';
 const SHELL = [
   '/',
   '/index.html',

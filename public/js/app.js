@@ -6480,30 +6480,32 @@ document.addEventListener('DOMContentLoaded', () => {
   let datesheetRowCount = 0;
 
   function loadDatesheetDesignData() {
-    // Reset rows
-    const container = document.getElementById('datesheet-rows-container');
-    if (container) {
-      container.innerHTML = '';
-      datesheetRowCount = 0;
-    }
-    // Reset edit mode
-    document.getElementById('datesheet-edit-id').value = '';
-    document.getElementById('datesheet-template-name').value = '';
-    const saveBtn = document.getElementById('btn-save-datesheet');
-    if (saveBtn) saveBtn.textContent = 'Save Date Sheet Template';
-    // Load saved templates into both generate tab dropdown AND designer dropdown
-    loadDatesheetTemplates();
-    loadDatesheetDesignerDropdown();
+    try {
+      // Reset rows
+      const container = document.getElementById('datesheet-rows-container');
+      if (container) {
+        container.innerHTML = '';
+        datesheetRowCount = 0;
+      }
+      // Reset edit mode
+      const editIdEl = document.getElementById('datesheet-edit-id');
+      if (editIdEl) editIdEl.value = '';
+      const tplNameEl = document.getElementById('datesheet-template-name');
+      if (tplNameEl) tplNameEl.value = '';
+      const saveBtn = document.getElementById('btn-save-datesheet');
+      if (saveBtn) saveBtn.textContent = 'Save Date Sheet Template';
+      // Load saved templates into both generate tab dropdown AND designer dropdown
+      loadDatesheetTemplates();
+      loadDatesheetDesignerDropdown();
+    } catch (e) { console.error('[DATESHEET] loadDatesheetDesignData error:', e.message); }
   }
 
   // Populate the designer "Load Existing Template" dropdown
   async function loadDatesheetDesignerDropdown() {
     const sel = document.getElementById('datesheet-design-template');
-    console.log('[DSDEBUG] loadDatesheetDesignerDropdown called, sel:', sel);
     if (!sel) return;
     try {
       const templates = await apiCall('/exams/datesheets', 'GET', null, false, true);
-      console.log('[DSDEBUG] API response templates:', templates);
       const uniqueMap = {};
       (Array.isArray(templates) ? templates : []).forEach(t => {
         const key = t.name;
@@ -6512,7 +6514,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
       const unique = Object.values(uniqueMap).sort((a, b) => b.id - a.id);
-      console.log('[DSDEBUG] Unique templates to populate:', unique.length, unique.map(t => t.name));
       sel.innerHTML = '<option value="">-- Create New Template --</option>';
       const opts = [];
       unique.forEach(t => {
@@ -6521,12 +6522,13 @@ document.addEventListener('DOMContentLoaded', () => {
         opts.push('<option value="' + t.id + '"' + style + '>' + t.name + activeMark + '</option>');
       });
       sel.innerHTML += opts.join('');
-      console.log('[DSDEBUG] Dropdown populated, options:', sel.options.length);
-    } catch (e) { console.error('[DSDEBUG] ERROR:', e.message); }
+    } catch (e) { console.error('[DATESHEET] loadDatesheetDesignerDropdown error:', e.message); }
   }
 
   // Load selected template into the designer form for editing
-  document.getElementById('btn-load-datesheet-to-design').addEventListener('click', async () => {
+  const btnLoadToDesign = document.getElementById('btn-load-datesheet-to-design');
+  if (btnLoadToDesign) {
+  btnLoadToDesign.addEventListener('click', async () => {
     const sel = document.getElementById('datesheet-design-template');
     const templateId = sel.value;
     if (!templateId) {
@@ -6618,6 +6620,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Template loaded — ' + subjects.length + ' subjects');
     } catch (err) { showToast('Failed to load template', true); }
   });
+  }
 
   // Load saved date sheet templates into the generate tab dropdown (deduplicated by name)
   async function loadDatesheetTemplates() {
@@ -6625,9 +6628,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!sel) return;
     try {
       const templates = await apiCall('/exams/datesheets', 'GET', null, false, true);
-      // Deduplicate by name — keep latest (highest id) for each unique name
       const uniqueMap = {};
-      templates.forEach(t => {
+      (Array.isArray(templates) ? templates : []).forEach(t => {
         const key = t.name;
         if (!uniqueMap[key] || t.id > uniqueMap[key].id) {
           uniqueMap[key] = t;
@@ -6642,20 +6644,23 @@ document.addEventListener('DOMContentLoaded', () => {
         opts.push('<option value="' + t.id + '"' + style + '>' + t.name + activeMark + '</option>');
       });
       sel.innerHTML += opts.join('');
-      updateDatesheetActiveBadge(templates);
-    } catch (e) { console.error('[APP_ERROR]', e.message); }
+      updateDatesheetActiveBadge(Array.isArray(templates) ? templates : []);
+    } catch (e) { console.error('[DATESHEET] loadDatesheetTemplates error:', e.message); }
   }
 
   // Show template info when selected
-  document.getElementById('datesheet-gen-template').addEventListener('change', async function() {
+  const genTemplateSel = document.getElementById('datesheet-gen-template');
+  if (genTemplateSel) {
+  genTemplateSel.addEventListener('change', async function() {
     const templateId = this.value;
     const infoDiv = document.getElementById('datesheet-template-info');
     const previewDiv = document.getElementById('datesheet-preview');
-    if (!templateId) { infoDiv.style.display = 'none'; previewDiv.style.display = 'none'; return; }
+    if (!templateId) { if (infoDiv) infoDiv.style.display = 'none'; if (previewDiv) previewDiv.style.display = 'none'; return; }
 
     try {
       const templates = await apiCall('/exams/datesheets', 'GET', null, false, true);
-      const tpl = templates.find(t => t.id == templateId);
+      const list = Array.isArray(templates) ? templates : [];
+      const tpl = list.find(t => t.id == templateId);
       if (!tpl) return;
 
       const t = tpl.template;
@@ -6670,13 +6675,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const classNames = Object.keys(classGroups);
       const subjectNames = [...new Set(subjects.map(s => s.subject))];
 
-      infoDiv.style.display = 'block';
-      infoDiv.innerHTML = '<strong>Template:</strong> ' + tpl.name +
-        ' &mdash; <strong>' + subjects.length + ' exam entries</strong> across ' +
-        '<strong>' + classNames.length + ' class(es)</strong>: ' + classNames.join(', ') +
-        '<br><strong>Subjects:</strong> ' + subjectNames.join(', ');
-    } catch (e) { console.error('[APP_ERROR]', e.message); }
+      if (infoDiv) {
+        infoDiv.style.display = 'block';
+        infoDiv.innerHTML = '<strong>Template:</strong> ' + tpl.name +
+          ' &mdash; <strong>' + subjects.length + ' exam entries</strong> across ' +
+          '<strong>' + classNames.length + ' class(es)</strong>: ' + classNames.join(', ') +
+          '<br><strong>Subjects:</strong> ' + subjectNames.join(', ');
+      }
+    } catch (e) { console.error('[DATESHEET] Template info error:', e.message); }
   });
+  }
 
   function updateDatesheetActiveBadge(templates) {
     const badge = document.getElementById('datesheet-active-badge');
@@ -6693,14 +6701,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Add subject row for date sheet designer (with class selector)
   const btnAddDatesheetRow = document.getElementById('btn-add-datesheet-row');
-  console.log('[DSDEBUG] btn-add-datesheet-row element:', btnAddDatesheetRow);
   if (btnAddDatesheetRow) {
     btnAddDatesheetRow.addEventListener('click', () => {
-      console.log('[DSDEBUG] Add row clicked, datesheetRowCount:', datesheetRowCount);
       datesheetRowCount++;
       const currentRowId = datesheetRowCount;
       const container = document.getElementById('datesheet-rows-container');
-      console.log('[DSDEBUG] Container:', container, 'container innerHTML length:', container ? container.innerHTML.length : 'N/A');
+      if (!container) return;
       const rowHtml = `
         <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: flex-end;" id="datesheet-row-${currentRowId}">
           <div class="form-group" style="margin-bottom: 0;">
@@ -6723,7 +6729,6 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
       container.insertAdjacentHTML('beforeend', rowHtml);
-      console.log('[DSDEBUG] Row inserted, container children:', container.children.length);
       getCachedClasses(apiCall).then(classes => {
         if (classes && classes.length > 0) {
           const sel = document.querySelector('#datesheet-row-' + currentRowId + ' .ds-row-class');
