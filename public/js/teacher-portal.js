@@ -427,11 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
         max_marks: maxMarks,
         marksList
       });
-      showToast('Marks saved successfully! Redirecting to school portal...');
-
-      setTimeout(() => {
-        window.location.href = 'portal.html';
-      }, 1500);
+      showToast('Marks saved successfully!');
     } catch (err) {
       showToast('Error saving marks: ' + err.message, true);
     }
