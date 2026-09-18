@@ -487,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (screenName === 'dashboard') {
       loadDashboardStats();
     } else if (screenName === 'students') {
-      loadClassesList().then(() => loadStudentsList());
+      Promise.all([loadClassesList(), loadStudentsList()]).catch(() => {});
     } else if (screenName === 'attendance') {
       loadAttendanceFilters();
     } else if (screenName === 'fees') {
@@ -2017,7 +2017,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sec = document.getElementById('student-filter-section').value;
     const search = document.getElementById('student-search').value.trim();
 
-    let endpoint = '/students?';
+    let endpoint = '/students?lite=true&';
     if (cls) endpoint += `class_name=${encodeURIComponent(cls)}&`;
     if (sec) endpoint += `section_name=${encodeURIComponent(sec)}&`;
     if (search) endpoint += `search=${encodeURIComponent(search)}&`;

@@ -33,12 +33,13 @@ function fileToDataUri(file) {
 // GET /students - Search, filter, and list students (with photo)
 router.get('/', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
-  const { class_name, section_name, status, search, page, limit } = req.query;
-  console.log('[STUDENTS_GET] schoolId:', schoolId, 'class_name:', class_name, 'page:', page, 'limit:', limit);
+  const { class_name, section_name, status, search, page, limit, lite } = req.query;
 
-  let query = `SELECT id, student_id, name, roll_no, class_name, section_name, father_name, phone,
-    status, is_free, discount_amount, discount_percent, transport_fee, family_head_id,
-    dob, admission_date, gender, blood_group, photo
+  const selectCols = lite
+    ? 'id, student_id, name, roll_no, class_name, section_name, father_name, phone, status, is_free, discount_amount, discount_percent, transport_fee, family_head_id, dob, admission_date, gender, blood_group'
+    : 'id, student_id, name, roll_no, class_name, section_name, father_name, phone, status, is_free, discount_amount, discount_percent, transport_fee, family_head_id, dob, admission_date, gender, blood_group, photo';
+
+  let query = `SELECT ${selectCols}
     FROM students WHERE 1=1`;
   const params = [];
 
@@ -68,48 +69,55 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 
   // Pagination
+  const hasPagination = !!(page || limit);
   const pageNum = Math.max(1, parseInt(page) || 1);
-  const pageSize = Math.min(500, Math.max(1, parseInt(limit) || 200));
+  const pageSize = Math.min(500, Math.max(1, parseInt(limit) || 500));
   const offset = (pageNum - 1) * pageSize;
 
-  // Get total count for pagination metadata
-  let countQuery = 'SELECT COUNT(*) as total FROM students WHERE 1=1';
-  const countParams = [];
-  if (class_name) { countQuery += ' AND class_name = ?'; countParams.push(class_name); }
-  if (section_name) {
-    if (section_name === 'No Section') { countQuery += " AND (section_name IS NULL OR section_name = '')"; }
-    else { countQuery += ' AND section_name = ?'; countParams.push(section_name); }
+  query += ' ORDER BY class_name, CAST(roll_no AS INTEGER), name';
+  if (hasPagination) {
+    query += ' LIMIT ? OFFSET ?';
+    params.push(pageSize, offset);
+  } else {
+    query += ' LIMIT 500';
   }
-  if (status) { countQuery += ' AND status = ?'; countParams.push(status); }
-  else { countQuery += " AND (status IS NULL OR status != 'Left')"; }
-  if (search) {
-    countQuery += ' AND (name LIKE ? OR roll_no LIKE ? OR student_id LIKE ? OR father_name LIKE ? OR phone LIKE ?)';
-    const sp = `%${search}%`;
-    countParams.push(sp, sp, sp, sp, sp);
-  }
-
-  query += ' ORDER BY class_name, CAST(roll_no AS INTEGER), name LIMIT ? OFFSET ?';
-  params.push(pageSize, offset);
 
   try {
-    const [students, countResult] = await Promise.all([
-      querySchool(schoolId, query, params),
-      querySchoolOne(schoolId, countQuery, countParams)
-    ]);
-    console.log('[STUDENTS_GET] schoolId:', schoolId, 'results:', students.length, 'total:', countResult ? countResult.total : 0);
-    // If no page param, return plain array for backward compatibility
-    if (!page && !limit) {
-      return res.json(students);
-    }
-    res.json({
-      data: students,
-      pagination: {
-        page: pageNum,
-        limit: pageSize,
-        total: countResult ? countResult.total : students.length,
-        pages: Math.ceil((countResult ? countResult.total : 0) / pageSize)
+    let students;
+    if (hasPagination) {
+      // Get total count for pagination metadata
+      let countQuery = 'SELECT COUNT(*) as total FROM students WHERE 1=1';
+      const countParams = [];
+      if (class_name) { countQuery += ' AND class_name = ?'; countParams.push(class_name); }
+      if (section_name) {
+        if (section_name === 'No Section') { countQuery += " AND (section_name IS NULL OR section_name = '')"; }
+        else { countQuery += ' AND section_name = ?'; countParams.push(section_name); }
       }
-    });
+      if (status) { countQuery += ' AND status = ?'; countParams.push(status); }
+      else { countQuery += " AND (status IS NULL OR status != 'Left')"; }
+      if (search) {
+        countQuery += ' AND (name LIKE ? OR roll_no LIKE ? OR student_id LIKE ? OR father_name LIKE ? OR phone LIKE ?)';
+        const sp = `%${search}%`;
+        countParams.push(sp, sp, sp, sp, sp);
+      }
+      const [studentsData, countResult] = await Promise.all([
+        querySchool(schoolId, query, params),
+        querySchoolOne(schoolId, countQuery, countParams)
+      ]);
+      students = studentsData;
+      res.json({
+        data: students,
+        pagination: {
+          page: pageNum,
+          limit: pageSize,
+          total: countResult ? countResult.total : students.length,
+          pages: Math.ceil((countResult ? countResult.total : 0) / pageSize)
+        }
+      });
+    } else {
+      students = await querySchool(schoolId, query, params);
+      res.json(students);
+    }
   } catch (err) {
     console.error('Fetch students error:', err);
     res.status(500).json({ error: 'Failed to retrieve students: ' + err.message });
@@ -120,28 +128,19 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/classes', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
+    const [rows, secRows, feeRows] = await Promise.all([
+      querySchoolRaw(schoolId,
+        `SELECT DISTINCT class_name FROM students WHERE (school_id = ? OR school_id IS NULL) AND (status != 'Left' OR status IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]).catch(() => []),
+      querySchoolRaw(schoolId,
+        `SELECT DISTINCT class_name FROM sections WHERE (school_id = ? OR school_id IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]).catch(() => []),
+      querySchoolRaw(schoolId,
+        `SELECT DISTINCT class_name FROM class_fees WHERE (school_id = ? OR school_id IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]).catch(() => [])
+    ]);
+
     const classSet = new Set();
-
-    // 1. Get classes from students
-    try {
-      const rows = await querySchoolRaw(schoolId,
-        `SELECT DISTINCT class_name FROM students WHERE (school_id = ? OR school_id IS NULL) AND (status != 'Left' OR status IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]);
-      rows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
-    } catch (e) {}
-
-    // 2. Get classes from sections
-    try {
-      const secRows = await querySchoolRaw(schoolId,
-        `SELECT DISTINCT class_name FROM sections WHERE (school_id = ? OR school_id IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]);
-      secRows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
-    } catch (e) {}
-
-    // 3. Get classes from class_fees
-    try {
-      const feeRows = await querySchoolRaw(schoolId,
-        `SELECT DISTINCT class_name FROM class_fees WHERE (school_id = ? OR school_id IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]);
-      feeRows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
-    } catch (e) {}
+    rows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
+    secRows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
+    feeRows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
 
     const classes = Array.from(classSet).sort();
     res.json(classes);
