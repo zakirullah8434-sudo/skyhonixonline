@@ -858,9 +858,6 @@ router.get('/datesheets/active/subjects', authenticateToken, async (req, res) =>
     let parsed;
     try { parsed = JSON.parse(tpl.template_json); } catch (e) { return res.json([]); }
 
-    if (exam_id && parsed.exam_id && parsed.exam_id != parseInt(exam_id)) return res.json([]);
-    if (term && parsed.term && parsed.term !== term) return res.json([]);
-
     const subjects = [];
     const seen = new Set();
     const tplSubjects = parsed.subjects || [];

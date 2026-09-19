@@ -5949,22 +5949,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const term = document.getElementById('ss-marks-term').value;
       if (!examId || !term) { subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>'; return; }
       try {
-        const subs = await apiCall(`/exams/subjects?exam_id=${examId}&term=${term}&class_name=${encodeURIComponent(cls)}`);
-        const classSubjects = subs.filter(s => s.class === cls);
-        if (classSubjects.length > 0) {
+        let dsSubjects = [];
+        try {
+          dsSubjects = await apiCall(`/exams/datesheets/active/subjects?exam_id=${examId}&term=${term}&class_name=${encodeURIComponent(cls)}`);
+        } catch (e) { console.error('[SS_MARKS_DS_SUBJECTS]', e.message); }
+        if (dsSubjects.length > 0) {
           const opts = ['<option value="">-- Select Subject --</option>'];
-          classSubjects.forEach(s => {
+          dsSubjects.forEach(s => {
             opts.push(`<option value="${s.subject}" data-max="${s.max_marks}">${s.subject} (Max: ${s.max_marks})</option>`);
           });
           subjectSelect.innerHTML = opts.join('');
         } else {
-          let dsSubjects = [];
-          try {
-            dsSubjects = await apiCall(`/exams/datesheets/active/subjects?exam_id=${examId}&term=${term}&class_name=${encodeURIComponent(cls)}`);
-          } catch (e) {}
-          if (dsSubjects.length > 0) {
+          const subs = await apiCall(`/exams/subjects?exam_id=${examId}&term=${term}&class_name=${encodeURIComponent(cls)}`);
+          const classSubjects = subs.filter(s => s.class === cls);
+          if (classSubjects.length > 0) {
             const opts = ['<option value="">-- Select Subject --</option>'];
-            dsSubjects.forEach(s => {
+            classSubjects.forEach(s => {
               opts.push(`<option value="${s.subject}" data-max="${s.max_marks}">${s.subject} (Max: ${s.max_marks})</option>`);
             });
             subjectSelect.innerHTML = opts.join('');
