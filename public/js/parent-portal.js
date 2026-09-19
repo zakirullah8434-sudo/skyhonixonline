@@ -212,13 +212,15 @@
       container.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px;">` +
         recent.map(a => {
           const due = a.due_date ? new Date(a.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-          const isOverdue = a.due_date && new Date(a.due_date) < new Date();
+          const isOverdue = a.due_date && new Date(a.due_date) < new Date() && a.status !== 'completed';
+          const isCompleted = a.status === 'completed';
           const daysLeft = a.due_date ? Math.ceil((new Date(a.due_date) - new Date()) / (1000 * 60 * 60 * 24)) : null;
           let dueInfo = '';
-          if (isOverdue) dueInfo = '<span style="color:#ef4444; font-size:0.75rem; font-weight:600;">OVERDUE</span>';
+          if (isCompleted) dueInfo = '<span style="color:#10b981; font-size:0.75rem; font-weight:600;">COMPLETED</span>';
+          else if (isOverdue) dueInfo = '<span style="color:#ef4444; font-size:0.75rem; font-weight:600;">OVERDUE</span>';
           else if (daysLeft !== null && daysLeft <= 2 && daysLeft >= 0) dueInfo = '<span style="color:#f59e0b; font-size:0.75rem; font-weight:600;">DUE SOON</span>';
 
-          return `<div class="card" style="border-left:4px solid ${typeColors[a.type] || '#6366f1'}; cursor:pointer;" onclick="showPanel('assignments')">
+          return `<div class="card" style="border-left:4px solid ${isCompleted ? '#10b981' : (typeColors[a.type] || '#6366f1')}; cursor:pointer;" onclick="showPanel('assignments')">
             <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;"><span style="background:${typeColors[a.type]}; color:#fff; padding:1px 8px; border-radius:12px; font-size:0.7rem;">${typeLabels[a.type]}</span> ${dueInfo}</div>
             <h4 style="margin:0; font-size:0.9rem;">${esc(a.title)}</h4>
             <div style="font-size:0.8rem; color:var(--text-muted);">${esc(a.subject)} · ${esc(a.teacher_name || 'Teacher')} ${due ? '· Due ' + due : ''}</div>
@@ -425,9 +427,11 @@
 
     const typeFilter = document.getElementById('assignment-filter-type').value;
     const subjectFilter = document.getElementById('assignment-filter-subject').value;
+    const statusFilter = document.getElementById('assignment-filter-status').value;
 
     if (typeFilter) filtered = filtered.filter(a => a.type === typeFilter);
     if (subjectFilter) filtered = filtered.filter(a => a.subject === subjectFilter);
+    if (statusFilter) filtered = filtered.filter(a => (a.status || 'active') === statusFilter);
 
     if (filtered.length === 0) {
       container.innerHTML = `
@@ -447,18 +451,33 @@
     container.innerHTML = filtered.map(a => {
       const due = a.due_date ? new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date';
       const created = new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      const isOverdue = a.due_date && new Date(a.due_date) < new Date();
+      const isOverdue = a.due_date && new Date(a.due_date) < new Date() && (a.status || 'active') !== 'completed';
+      const isCompleted = (a.status || 'active') === 'completed';
       const daysUntilDue = a.due_date ? Math.ceil((new Date(a.due_date) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+      const hasMarks = (a.type === 'monthly_test' || a.type === 'class_test' || a.type === 'quiz') && a.total_marks > 0;
 
       let dueBadge = '';
-      if (isOverdue) {
+      if (isCompleted) {
+        dueBadge = '<span style="background:#10b981; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">COMPLETED</span>';
+      } else if (isOverdue) {
         dueBadge = '<span style="background:#ef4444; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">OVERDUE</span>';
       } else if (daysUntilDue !== null && daysUntilDue <= 2 && daysUntilDue >= 0) {
         dueBadge = '<span style="background:#f59e0b; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">DUE SOON</span>';
       }
 
+      // Parse marks for this student
+      let studentMark = null;
+      if (a.marks_info && selectedChildId) {
+        try {
+          const marksObj = JSON.parse(a.marks_info);
+          if (marksObj[selectedChildId] !== undefined) {
+            studentMark = marksObj[selectedChildId];
+          }
+        } catch(e) {}
+      }
+
       return `
-        <div class="card" style="margin-bottom:12px; border-left: 4px solid ${typeColors[a.type] || '#6366f1'};">
+        <div class="card" style="margin-bottom:12px; border-left: 4px solid ${isCompleted ? '#10b981' : (typeColors[a.type] || '#6366f1')}; ${isCompleted ? 'opacity:0.8;' : ''}">
           <div style="display:flex; align-items:flex-start; gap:12px;">
             <div style="font-size:2rem; line-height:1;">${typeIcons[a.type] || '📌'}</div>
             <div style="flex:1;">
@@ -466,8 +485,10 @@
                 <span style="background:${typeColors[a.type] || '#6366f1'}; color:#fff; padding:2px 10px; border-radius:20px; font-size:0.75rem; font-weight:600;">${typeLabels[a.type] || a.type}</span>
                 <span style="background:${priorityColors[a.priority] || '#f59e0b'}; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">${(a.priority || 'medium').toUpperCase()}</span>
                 ${dueBadge}
+                ${hasMarks ? `<span style="background:#6366f1; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">Total: ${a.total_marks} marks</span>` : ''}
+                ${studentMark !== null ? `<span style="background:#10b981; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">Your Marks: ${studentMark} / ${a.total_marks}</span>` : ''}
               </div>
-              <h4 style="margin:0 0 4px; font-size:1.05rem;">${esc(a.title)}</h4>
+              <h4 style="margin:0 0 4px; font-size:1.05rem; ${isCompleted ? 'text-decoration:line-through; opacity:0.7;' : ''}">${esc(a.title)}</h4>
               <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:6px;">
                 📘 ${esc(a.subject)} &nbsp;|&nbsp; 👨‍🏫 ${esc(a.teacher_name || 'Teacher')} &nbsp;|&nbsp; 📋 ${esc(a.class_name)}${a.section_name ? ' - ' + esc(a.section_name) : ''}
               </div>
@@ -484,6 +505,7 @@
 
   document.getElementById('assignment-filter-type').addEventListener('change', renderParentAssignments);
   document.getElementById('assignment-filter-subject').addEventListener('change', renderParentAssignments);
+  document.getElementById('assignment-filter-status').addEventListener('change', renderParentAssignments);
 
   // ========== ANNOUNCEMENTS ==========
   let cachedAnnouncements = [];

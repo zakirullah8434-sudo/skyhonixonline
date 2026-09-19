@@ -188,9 +188,39 @@
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px;">
         <div>
           <h2 style="margin: 0;">&#128218; Assignments & Homework</h2>
-          <p class="text-muted" style="margin: 4px 0 0;">Create and manage homework, tests, and projects for your students.</p>
+          <p class="text-muted" style="margin: 4px 0 0;">Create, manage, and track homework, tests, and projects for your students.</p>
         </div>
         <button class="btn btn-primary" id="btn-new-assignment">+ New Assignment</button>
+      </div>
+
+      <!-- Filters Bar -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+          <div>
+            <label class="form-label">From Date</label>
+            <input type="date" id="assignment-filter-from" class="form-control">
+          </div>
+          <div>
+            <label class="form-label">To Date</label>
+            <input type="date" id="assignment-filter-to" class="form-control">
+          </div>
+          <div>
+            <label class="form-label">Status</label>
+            <select id="assignment-filter-status" class="form-control">
+              <option value="">All</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Class</label>
+            <select id="assignment-filter-class" class="form-control">
+              <option value="">All Classes</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="btn-apply-filters" style="height:38px;">Apply Filters</button>
+          <button class="btn btn-outline" id="btn-clear-filters" style="height:38px;">Clear</button>
+        </div>
       </div>
 
       <!-- Assignment Form (hidden by default) -->
@@ -244,6 +274,10 @@
                 <option value="high">High</option>
               </select>
             </div>
+            <div>
+              <label class="form-label">Total Marks (for tests)</label>
+              <input type="number" id="assignment-total-marks" min="0" placeholder="e.g. 50" class="form-control">
+            </div>
           </div>
           <div style="margin-top: 16px;">
             <label class="form-label">Description / Instructions</label>
@@ -254,6 +288,22 @@
             <button type="button" class="btn btn-outline" id="btn-cancel-assignment">Cancel</button>
           </div>
         </form>
+      </div>
+
+      <!-- Marks Entry Modal (hidden by default) -->
+      <div id="marks-modal" class="card" style="display:none; margin-bottom:24px; border: 2px solid var(--primary);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h3 id="marks-modal-title" style="margin:0;">Enter Marks</h3>
+          <button class="btn btn-outline" id="btn-close-marks-modal" style="padding:4px 12px;">X</button>
+        </div>
+        <div style="margin-bottom:12px; font-size:0.9rem; color:var(--text-muted);">
+          <span id="marks-info-text"></span>
+        </div>
+        <div id="marks-entry-container"></div>
+        <div style="display:flex; gap:12px; margin-top:16px;">
+          <button class="btn btn-primary" id="btn-save-marks">Save Marks</button>
+          <button class="btn btn-outline" id="btn-cancel-marks">Cancel</button>
+        </div>
       </div>
 
       <!-- Assignments List -->

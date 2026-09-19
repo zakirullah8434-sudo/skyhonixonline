@@ -313,7 +313,8 @@ router.get('/my-assignments', authenticateParentToken, async (req, res) => {
       }
       allAssignments = await querySchool(schoolId,
         `SELECT DISTINCT a.id, a.title, a.subject, a.class_name, a.section_name, a.type,
-                a.priority, a.due_date, a.description, a.created_at, a.teacher_name
+                a.priority, a.due_date, a.description, a.created_at, a.teacher_name,
+                a.status, a.total_marks, a.marks_info
          FROM assignments a
          WHERE ${whereClauses.join(' OR ')}
          ORDER BY a.created_at DESC`,

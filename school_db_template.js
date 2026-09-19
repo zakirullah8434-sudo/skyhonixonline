@@ -445,6 +445,9 @@ function createSchoolDatabaseSchema(db) {
           type TEXT DEFAULT 'homework',
           due_date TEXT,
           priority TEXT DEFAULT 'medium',
+          status TEXT DEFAULT 'active',
+          total_marks INTEGER DEFAULT 0,
+          marks_info TEXT DEFAULT '',
           school_id INTEGER,
           created_at TEXT
         )
@@ -782,6 +785,10 @@ function migrateSchoolDatabase(db) {
       if (err1) { console.error('[MIGRATE] holidays table error:', err1.message); }
       db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_date ON holidays (date)`, (err2) => {
         if (err2) { console.error('[MIGRATE] holidays index error:', err2.message); }
+        // Migrate assignments table: add status, total_marks, marks_info columns if missing
+        db.run(`ALTER TABLE assignments ADD COLUMN status TEXT DEFAULT 'active'`, () => {});
+        db.run(`ALTER TABLE assignments ADD COLUMN total_marks INTEGER DEFAULT 0`, () => {});
+        db.run(`ALTER TABLE assignments ADD COLUMN marks_info TEXT DEFAULT ''`, () => {});
         resolve();
       });
     });

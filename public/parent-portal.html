@@ -564,7 +564,7 @@
       <div id="panel-assignments" class="screen-section" style="display:none;">
         <div class="card" style="margin-bottom: 20px;">
           <h3 style="margin: 0 0 16px; color:#1E293B;">📚 Homework & Tests</h3>
-          <p style="color: #94A3B8; font-size: 0.9rem; margin: 0 0 16px;">View homework, class tests, monthly tests, and projects assigned by teachers.</p>
+          <p style="color: #94A3B8; font-size: 0.9rem; margin: 0 0 16px;">View homework, class tests, monthly tests, and projects assigned by teachers. Tests show marks when entered by teacher.</p>
           <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
             <select id="assignment-filter-type" class="form-control">
               <option value="">All Types</option>
@@ -577,6 +577,11 @@
             </select>
             <select id="assignment-filter-subject" class="form-control">
               <option value="">All Subjects</option>
+            </select>
+            <select id="assignment-filter-status" class="form-control">
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
             </select>
           </div>
         </div>

@@ -504,6 +504,9 @@ async function initSchoolTablesTurso(client) {
     type TEXT DEFAULT 'homework',
     due_date TEXT,
     priority TEXT DEFAULT 'medium',
+    status TEXT DEFAULT 'active',
+    total_marks INTEGER DEFAULT 0,
+    marks_info TEXT DEFAULT '',
     created_at TEXT
   )`);
 

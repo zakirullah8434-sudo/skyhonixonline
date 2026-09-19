@@ -493,59 +493,94 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==================== ASSIGNMENTS ====================
   let cachedAssignments = [];
   let cachedTimetableClasses = [];
+  let currentMarksAssignmentId = null;
 
-  async function loadAssignments() {
+  async function loadAssignments(filters = {}) {
     const container = document.getElementById('assignments-list');
     try {
-      const assignments = await apiCall('/api/teachers/assignments');
+      let url = '/api/teachers/assignments';
+      const params = [];
+      if (filters.from_date) params.push('from_date=' + encodeURIComponent(filters.from_date));
+      if (filters.to_date) params.push('to_date=' + encodeURIComponent(filters.to_date));
+      if (filters.status) params.push('status=' + encodeURIComponent(filters.status));
+      if (params.length) url += '?' + params.join('&');
+
+      const assignments = await apiCall(url);
       cachedAssignments = assignments;
 
-      if (assignments.length === 0) {
-        container.innerHTML = `
-          <div style="text-align:center; padding:40px; color:var(--text-muted);">
-            <div style="font-size:3rem; margin-bottom:12px;">📚</div>
-            <h3 style="font-weight:500;">No Assignments Yet</h3>
-            <p style="font-size:0.9rem;">Click "New Assignment" to create homework, tests, or projects for your students.</p>
-          </div>`;
-        return;
+      // Populate class filter dropdown
+      const classes = [...new Set(assignments.map(a => a.class_name).filter(Boolean))];
+      const classFilter = document.getElementById('assignment-filter-class');
+      const currentClassVal = classFilter.value;
+      classFilter.innerHTML = '<option value="">All Classes</option>' + classes.map(c => `<option value="${esc(c)}" ${c === currentClassVal ? 'selected' : ''}>${esc(c)}</option>`).join('');
+
+      // Apply class filter locally
+      let filtered = assignments;
+      if (filters.class_name) {
+        filtered = assignments.filter(a => a.class_name === filters.class_name);
       }
 
-      const typeLabels = { homework: 'Homework', monthly_test: 'Monthly Test', class_test: 'Class Test', quiz: 'Quiz', project: 'Project', other: 'Other' };
-      const typeColors = { homework: '#6366f1', monthly_test: '#f59e0b', class_test: '#ef4444', quiz: '#10b981', project: '#8b5cf6', other: '#64748b' };
-      const priorityColors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444' };
-
-      container.innerHTML = assignments.map(a => {
-        const due = a.due_date ? new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date';
-        const created = new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        const isOverdue = a.due_date && new Date(a.due_date) < new Date();
-        return `
-          <div class="card" style="margin-bottom:12px; border-left: 4px solid ${typeColors[a.type] || '#6366f1'};">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
-              <div style="flex:1; min-width:200px;">
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-                  <span style="background:${typeColors[a.type] || '#6366f1'}; color:#fff; padding:2px 10px; border-radius:20px; font-size:0.75rem; font-weight:600;">${typeLabels[a.type] || a.type}</span>
-                  <span style="background:${priorityColors[a.priority] || '#f59e0b'}; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">${(a.priority || 'medium').toUpperCase()}</span>
-                  ${isOverdue ? '<span style="background:#ef4444; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">OVERDUE</span>' : ''}
-                </div>
-                <h4 style="margin:0 0 4px;">${esc(a.title)}</h4>
-                <div style="font-size:0.85rem; color:var(--text-muted);">
-                  📘 ${esc(a.subject)} &nbsp;|&nbsp; 📋 ${esc(a.class_name)}${a.section_name ? ' - ' + esc(a.section_name) : ''}
-                </div>
-                ${a.description ? `<p style="margin:8px 0 0; font-size:0.85rem; color:var(--text-secondary); white-space:pre-line;">${esc(a.description)}</p>` : ''}
-                <div style="margin-top:8px; font-size:0.8rem; color:var(--text-muted);">
-                  📅 Due: <strong style="color:${isOverdue ? 'var(--danger)' : 'var(--text-primary)'}">${due}</strong> &nbsp;|&nbsp; Created: ${created}
-                </div>
-              </div>
-              <div style="display:flex; gap:6px;">
-                <button class="btn btn-sm" style="background:var(--primary); font-size:0.75rem;" onclick="editAssignment(${a.id})">Edit</button>
-                <button class="btn btn-sm" style="background:var(--danger); font-size:0.75rem;" onclick="deleteAssignment(${a.id})">Delete</button>
-              </div>
-            </div>
-          </div>`;
-      }).join('');
+      renderAssignments(filtered);
     } catch (err) {
       container.innerHTML = `<p style="color:var(--danger);">Error loading assignments: ${err.message}</p>`;
     }
+  }
+
+  function renderAssignments(assignments) {
+    const container = document.getElementById('assignments-list');
+
+    if (assignments.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:40px; color:var(--text-muted);">
+          <div style="font-size:3rem; margin-bottom:12px;">📚</div>
+          <h3 style="font-weight:500;">No Assignments Yet</h3>
+          <p style="font-size:0.9rem;">Click "New Assignment" to create homework, tests, or projects for your students.</p>
+        </div>`;
+      return;
+    }
+
+    const typeLabels = { homework: 'Homework', monthly_test: 'Monthly Test', class_test: 'Class Test', quiz: 'Quiz', project: 'Project', other: 'Other' };
+    const typeColors = { homework: '#6366f1', monthly_test: '#f59e0b', class_test: '#ef4444', quiz: '#10b981', project: '#8b5cf6', other: '#64748b' };
+    const priorityColors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444' };
+
+    container.innerHTML = assignments.map(a => {
+      const due = a.due_date ? new Date(a.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date';
+      const created = new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const isOverdue = a.due_date && new Date(a.due_date) < new Date() && a.status !== 'completed';
+      const isCompleted = a.status === 'completed';
+      const hasMarks = (a.type === 'monthly_test' || a.type === 'class_test' || a.type === 'quiz') && a.total_marks > 0;
+      const marksCount = a.marks_info ? (() => { try { return Object.keys(JSON.parse(a.marks_info)).length; } catch(e) { return 0; } })() : 0;
+
+      return `
+        <div class="card" style="margin-bottom:12px; border-left: 4px solid ${isCompleted ? '#10b981' : (typeColors[a.type] || '#6366f1')}; ${isCompleted ? 'opacity:0.75;' : ''}">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+            <div style="flex:1; min-width:200px;">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+                <span style="background:${typeColors[a.type] || '#6366f1'}; color:#fff; padding:2px 10px; border-radius:20px; font-size:0.75rem; font-weight:600;">${typeLabels[a.type] || a.type}</span>
+                <span style="background:${priorityColors[a.priority] || '#f59e0b'}; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">${(a.priority || 'medium').toUpperCase()}</span>
+                ${isCompleted ? '<span style="background:#10b981; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">COMPLETED</span>' : ''}
+                ${isOverdue ? '<span style="background:#ef4444; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">OVERDUE</span>' : ''}
+                ${hasMarks ? `<span style="background:#6366f1; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">Total: ${a.total_marks} marks</span>` : ''}
+                ${hasMarks && marksCount > 0 ? `<span style="background:#10b981; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">${marksCount} entered</span>` : ''}
+              </div>
+              <h4 style="margin:0 0 4px; ${isCompleted ? 'text-decoration:line-through; opacity:0.7;' : ''}">${esc(a.title)}</h4>
+              <div style="font-size:0.85rem; color:var(--text-muted);">
+                📘 ${esc(a.subject)} &nbsp;|&nbsp; 📋 ${esc(a.class_name)}${a.section_name ? ' - ' + esc(a.section_name) : ''}
+              </div>
+              ${a.description ? `<p style="margin:8px 0 0; font-size:0.85rem; color:var(--text-secondary); white-space:pre-line;">${esc(a.description)}</p>` : ''}
+              <div style="margin-top:8px; font-size:0.8rem; color:var(--text-muted);">
+                📅 Due: <strong style="color:${isOverdue ? 'var(--danger)' : 'var(--text-primary)'}">${due}</strong> &nbsp;|&nbsp; Created: ${created}
+              </div>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              ${hasMarks ? `<button class="btn btn-sm" style="background:#8b5cf6; font-size:0.75rem;" onclick="openMarksModal(${a.id})">Enter Marks</button>` : ''}
+              <button class="btn btn-sm" style="background:${isCompleted ? '#f59e0b' : '#10b981'}; font-size:0.75rem;" onclick="toggleAssignmentStatus(${a.id}, '${isCompleted ? 'active' : 'completed'}')">${isCompleted ? 'Reopen' : 'Complete'}</button>
+              <button class="btn btn-sm" style="background:var(--primary); font-size:0.75rem;" onclick="editAssignment(${a.id})">Edit</button>
+              <button class="btn btn-sm" style="background:var(--danger); font-size:0.75rem;" onclick="deleteAssignment(${a.id})">Delete</button>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
   }
 
   async function loadAssignmentForm() {
@@ -584,6 +619,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('assignment-form-title').textContent = 'New Assignment';
     document.getElementById('form-assignment').reset();
     document.getElementById('assignment-edit-id').value = '';
+    document.getElementById('assignment-total-marks').value = '';
     await loadAssignmentForm();
     document.getElementById('assignment-form-card').scrollIntoView({ behavior: 'smooth' });
   });
@@ -603,7 +639,8 @@ document.addEventListener('DOMContentLoaded', () => {
       section_name: document.getElementById('assignment-section').value,
       due_date: document.getElementById('assignment-due-date').value,
       priority: document.getElementById('assignment-priority').value,
-      description: document.getElementById('assignment-description').value.trim()
+      description: document.getElementById('assignment-description').value.trim(),
+      total_marks: parseInt(document.getElementById('assignment-total-marks').value) || 0
     };
 
     if (!payload.title || !payload.subject || !payload.class_name) {
@@ -642,6 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('assignment-due-date').value = a.due_date || '';
     document.getElementById('assignment-priority').value = a.priority || 'medium';
     document.getElementById('assignment-description').value = a.description || '';
+    document.getElementById('assignment-total-marks').value = a.total_marks || '';
 
     // Trigger section population
     setTimeout(() => {
@@ -662,6 +700,120 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Error: ' + err.message, true);
     }
   };
+
+  window.toggleAssignmentStatus = async function(id, newStatus) {
+    try {
+      await apiCall('/api/teachers/assignments/' + id + '/status', 'PUT', { status: newStatus });
+      showToast(newStatus === 'completed' ? 'Assignment marked as completed!' : 'Assignment reopened!');
+      loadAssignments();
+    } catch (err) {
+      showToast('Error: ' + err.message, true);
+    }
+  };
+
+  // Marks entry modal
+  window.openMarksModal = async function(assignmentId) {
+    const a = cachedAssignments.find(x => x.id === assignmentId);
+    if (!a) return;
+    currentMarksAssignmentId = assignmentId;
+
+    document.getElementById('marks-modal-title').textContent = 'Enter Marks: ' + a.title;
+    document.getElementById('marks-info-text').textContent = `Total Marks: ${a.total_marks} | Subject: ${a.subject} | Class: ${a.class_name}${a.section_name ? ' - ' + a.section_name : ''}`;
+
+    // Parse existing marks
+    let existingMarks = {};
+    if (a.marks_info) {
+      try { existingMarks = JSON.parse(a.marks_info); } catch(e) { existingMarks = {}; }
+    }
+
+    // Fetch students for this assignment's class
+    const container = document.getElementById('marks-entry-container');
+    container.innerHTML = '<p style="color:var(--text-muted);">Loading students...</p>';
+    document.getElementById('marks-modal').style.display = 'block';
+
+    try {
+      const students = await apiCall('/api/teachers/fee-students');
+      const classStudents = students.filter(s => s.class_name === a.class_name && (!a.section_name || s.section_name === a.section_name));
+
+      if (classStudents.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted);">No students found for this class/section.</p>';
+        return;
+      }
+
+      container.innerHTML = `
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px;">
+          ${classStudents.map(s => `
+            <div class="card" style="padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div>
+                  <strong>${esc(s.name)}</strong>
+                  <div style="font-size:0.8rem; color:var(--text-muted);">Roll: ${esc(s.roll_no || '-')}</div>
+                </div>
+              </div>
+              <input type="number" min="0" max="${a.total_marks}" data-student-id="${s.id}" data-student-name="${esc(s.name)}"
+                value="${existingMarks[s.id] !== undefined ? existingMarks[s.id] : ''}"
+                placeholder="Marks / ${a.total_marks}" class="form-control" style="width:100%;">
+            </div>
+          `).join('')}
+        </div>`;
+
+      document.getElementById('marks-modal').scrollIntoView({ behavior: 'smooth' });
+    } catch (err) {
+      container.innerHTML = `<p style="color:var(--danger);">Error loading students: ${err.message}</p>`;
+    }
+  };
+
+  document.getElementById('btn-close-marks-modal').addEventListener('click', () => {
+    document.getElementById('marks-modal').style.display = 'none';
+    currentMarksAssignmentId = null;
+  });
+
+  document.getElementById('btn-cancel-marks').addEventListener('click', () => {
+    document.getElementById('marks-modal').style.display = 'none';
+    currentMarksAssignmentId = null;
+  });
+
+  document.getElementById('btn-save-marks').addEventListener('click', async () => {
+    if (!currentMarksAssignmentId) return;
+    const inputs = document.querySelectorAll('#marks-entry-container input[data-student-id]');
+    const marksObj = {};
+    inputs.forEach(inp => {
+      const studentId = inp.dataset.studentId;
+      const val = inp.value.trim();
+      if (val !== '') {
+        marksObj[studentId] = parseFloat(val);
+      }
+    });
+
+    try {
+      await apiCall('/api/teachers/assignments/' + currentMarksAssignmentId + '/marks', 'PUT', { marks_info: JSON.stringify(marksObj) });
+      showToast('Marks saved successfully!');
+      document.getElementById('marks-modal').style.display = 'none';
+      currentMarksAssignmentId = null;
+      loadAssignments();
+    } catch (err) {
+      showToast('Error: ' + err.message, true);
+    }
+  });
+
+  // Filter handlers
+  document.getElementById('btn-apply-filters').addEventListener('click', () => {
+    const filters = {
+      from_date: document.getElementById('assignment-filter-from').value,
+      to_date: document.getElementById('assignment-filter-to').value,
+      status: document.getElementById('assignment-filter-status').value,
+      class_name: document.getElementById('assignment-filter-class').value
+    };
+    loadAssignments(filters);
+  });
+
+  document.getElementById('btn-clear-filters').addEventListener('click', () => {
+    document.getElementById('assignment-filter-from').value = '';
+    document.getElementById('assignment-filter-to').value = '';
+    document.getElementById('assignment-filter-status').value = '';
+    document.getElementById('assignment-filter-class').value = '';
+    loadAssignments();
+  });
 
   // Load assignments when nav clicked
   document.querySelector('[data-opt="assignments"]').addEventListener('click', () => {
@@ -686,9 +838,10 @@ document.addEventListener('DOMContentLoaded', () => {
       container.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">` +
         recent.map(a => {
           const due = a.due_date ? new Date(a.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-          const isOverdue = a.due_date && new Date(a.due_date) < new Date();
-          return `<div class="card" style="border-left:4px solid ${typeColors[a.type] || '#6366f1'}; cursor:pointer;" onclick="document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active')); document.querySelector('[data-opt=assignments]').classList.add('active'); document.querySelectorAll('.content-panel').forEach(p=>p.classList.remove('active')); document.getElementById('panel-assignments').classList.add('active'); loadAssignments();">
-            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;"><span style="background:${typeColors[a.type]}; color:#fff; padding:1px 8px; border-radius:12px; font-size:0.7rem;">${typeLabels[a.type]}</span>${isOverdue ? '<span style="color:#ef4444; font-size:0.7rem;">OVERDUE</span>' : ''}</div>
+          const isOverdue = a.due_date && new Date(a.due_date) < new Date() && a.status !== 'completed';
+          const isCompleted = a.status === 'completed';
+          return `<div class="card" style="border-left:4px solid ${isCompleted ? '#10b981' : (typeColors[a.type] || '#6366f1')}; cursor:pointer;" onclick="document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active')); document.querySelector('[data-opt=assignments]').classList.add('active'); document.querySelectorAll('.content-panel').forEach(p=>p.classList.remove('active')); document.getElementById('panel-assignments').classList.add('active'); loadAssignments();">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;"><span style="background:${typeColors[a.type]}; color:#fff; padding:1px 8px; border-radius:12px; font-size:0.7rem;">${typeLabels[a.type]}</span>${isCompleted ? '<span style="color:#10b981; font-size:0.7rem;">COMPLETED</span>' : (isOverdue ? '<span style="color:#ef4444; font-size:0.7rem;">OVERDUE</span>' : '')}</div>
             <h4 style="margin:0; font-size:0.95rem;">${esc(a.title)}</h4>
             <div style="font-size:0.8rem; color:var(--text-muted);">${esc(a.subject)} · ${esc(a.class_name)}${a.section_name ? ' - ' + esc(a.section_name) : ''} ${due ? '· Due ' + due : ''}</div>
           </div>`;

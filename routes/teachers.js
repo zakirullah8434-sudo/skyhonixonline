@@ -387,16 +387,30 @@ router.get('/exam-subjects', authenticateTeacherToken, async (req, res) => {
 
 // ============ ASSIGNMENTS (Homework, Tests, Projects) ============
 
-// GET /api/teachers/assignments - Get all assignments created by this teacher
+// GET /api/teachers/assignments - Get all assignments created by this teacher (with optional date filtering)
 router.get('/assignments', authenticateTeacherToken, async (req, res) => {
   const schoolId = req.teacher.schoolId;
   const teacherId = req.teacher.teacherId;
+  const { from_date, to_date, status } = req.query;
   try {
-    const rows = await querySchool(
-      schoolId,
-      `SELECT * FROM assignments WHERE teacher_id = ? ORDER BY created_at DESC`,
-      [teacherId]
-    );
+    let sql = `SELECT * FROM assignments WHERE teacher_id = ?`;
+    const params = [teacherId];
+
+    if (from_date) {
+      sql += ` AND created_at >= ?`;
+      params.push(from_date);
+    }
+    if (to_date) {
+      sql += ` AND created_at <= ?`;
+      params.push(to_date + 'T23:59:59.999Z');
+    }
+    if (status) {
+      sql += ` AND status = ?`;
+      params.push(status);
+    }
+
+    sql += ` ORDER BY created_at DESC`;
+    const rows = await querySchool(schoolId, sql, params);
     res.json(rows);
   } catch (err) {
     console.error('Error fetching assignments:', err);
@@ -408,7 +422,7 @@ router.get('/assignments', authenticateTeacherToken, async (req, res) => {
 router.post('/assignments', authenticateTeacherToken, async (req, res) => {
   const schoolId = req.teacher.schoolId;
   const teacherId = req.teacher.teacherId;
-  const { subject, class_name, section_name, title, description, type, due_date, priority } = req.body;
+  const { subject, class_name, section_name, title, description, type, due_date, priority, total_marks } = req.body;
 
   if (!title || !subject || !class_name) {
     return res.status(400).json({ error: 'Title, subject, and class are required' });
@@ -421,9 +435,9 @@ router.post('/assignments', authenticateTeacherToken, async (req, res) => {
     const now = new Date().toISOString();
     const result = await runSchool(
       schoolId,
-      `INSERT INTO assignments (teacher_id, teacher_name, subject, class_name, section_name, title, description, type, due_date, priority, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [teacherId, teacherName, subject, class_name, section_name || '', title, description || '', type || 'homework', due_date || '', priority || 'medium', now]
+      `INSERT INTO assignments (teacher_id, teacher_name, subject, class_name, section_name, title, description, type, due_date, priority, status, total_marks, marks_info, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, '', ?)`,
+      [teacherId, teacherName, subject, class_name, section_name || '', title, description || '', type || 'homework', due_date || '', priority || 'medium', total_marks || 0, now]
     );
     res.json({ success: true, id: result.lastID });
   } catch (err) {
@@ -437,19 +451,63 @@ router.put('/assignments/:id', authenticateTeacherToken, async (req, res) => {
   const schoolId = req.teacher.schoolId;
   const teacherId = req.teacher.teacherId;
   const assignmentId = req.params.id;
-  const { subject, class_name, section_name, title, description, type, due_date, priority } = req.body;
+  const { subject, class_name, section_name, title, description, type, due_date, priority, total_marks } = req.body;
 
   try {
     await runSchool(
       schoolId,
-      `UPDATE assignments SET subject=?, class_name=?, section_name=?, title=?, description=?, type=?, due_date=?, priority=?
+      `UPDATE assignments SET subject=?, class_name=?, section_name=?, title=?, description=?, type=?, due_date=?, priority=?, total_marks=?
        WHERE id=? AND teacher_id=?`,
-      [subject, class_name, section_name || '', title, description || '', type || 'homework', due_date || '', priority || 'medium', assignmentId, teacherId]
+      [subject, class_name, section_name || '', title, description || '', type || 'homework', due_date || '', priority || 'medium', total_marks || 0, assignmentId, teacherId]
     );
     res.json({ success: true });
   } catch (err) {
     console.error('Error updating assignment:', err);
     res.status(500).json({ error: 'Failed to update assignment' });
+  }
+});
+
+// PUT /api/teachers/assignments/:id/status - Toggle assignment completion status
+router.put('/assignments/:id/status', authenticateTeacherToken, async (req, res) => {
+  const schoolId = req.teacher.schoolId;
+  const teacherId = req.teacher.teacherId;
+  const assignmentId = req.params.id;
+  const { status } = req.body;
+
+  if (!status || !['active', 'completed'].includes(status)) {
+    return res.status(400).json({ error: 'Status must be either active or completed' });
+  }
+
+  try {
+    await runSchool(
+      schoolId,
+      `UPDATE assignments SET status=? WHERE id=? AND teacher_id=?`,
+      [status, assignmentId, teacherId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating assignment status:', err);
+    res.status(500).json({ error: 'Failed to update assignment status' });
+  }
+});
+
+// PUT /api/teachers/assignments/:id/marks - Update marks info for an assignment (for tests)
+router.put('/assignments/:id/marks', authenticateTeacherToken, async (req, res) => {
+  const schoolId = req.teacher.schoolId;
+  const teacherId = req.teacher.teacherId;
+  const assignmentId = req.params.id;
+  const { marks_info } = req.body;
+
+  try {
+    await runSchool(
+      schoolId,
+      `UPDATE assignments SET marks_info=? WHERE id=? AND teacher_id=?`,
+      [marks_info || '', assignmentId, teacherId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating assignment marks:', err);
+    res.status(500).json({ error: 'Failed to update assignment marks' });
   }
 });
 
