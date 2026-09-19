@@ -5990,6 +5990,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const ssMarksSubjectEl = document.getElementById('ss-marks-subject');
   if (ssMarksSubjectEl) {
+    ssMarksSubjectEl.addEventListener('focus', () => {
+      if (ssMarksClassEl && ssMarksClassEl.value) {
+        ssMarksClassEl.dispatchEvent(new Event('change'));
+      }
+    });
     ssMarksSubjectEl.addEventListener('change', function() {
       const opt = this.options[this.selectedIndex];
       const maxVal = opt && opt.dataset.max ? opt.dataset.max : document.getElementById('ss-marks-max').value;
