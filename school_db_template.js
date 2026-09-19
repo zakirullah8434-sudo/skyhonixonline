@@ -805,6 +805,7 @@ function migrateSchoolDatabase(db) {
 
         // Sequential migration for assignments columns
         const migrationSteps = [
+          `CREATE TABLE IF NOT EXISTS assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, teacher_id INTEGER, teacher_name TEXT, subject TEXT, class_name TEXT, section_name TEXT, title TEXT NOT NULL, description TEXT, type TEXT DEFAULT 'homework', due_date TEXT, priority TEXT DEFAULT 'medium', status TEXT DEFAULT 'active', total_marks INTEGER DEFAULT 0, marks_info TEXT DEFAULT '', school_id INTEGER, created_at TEXT)`,
           `ALTER TABLE assignments ADD COLUMN status TEXT DEFAULT 'active'`,
           `ALTER TABLE assignments ADD COLUMN total_marks INTEGER DEFAULT 0`,
           `ALTER TABLE assignments ADD COLUMN marks_info TEXT DEFAULT ''`,
@@ -832,7 +833,7 @@ function migrateSchoolDatabase(db) {
             return;
           }
           db.run(migrationSteps[idx], (e) => {
-            if (e && !e.message.includes('duplicate column')) {
+            if (e && !e.message.includes('duplicate column') && !e.message.includes('no such table') && !e.message.includes('already exists')) {
               console.error('[MIGRATE] step ' + idx + ' error:', e.message);
             }
             runStep(idx + 1);
