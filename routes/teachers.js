@@ -515,43 +515,57 @@ router.put('/assignments/:id/marks', authenticateTeacherToken, async (req, res) 
 router.get('/assignments/:id/students', authenticateTeacherToken, async (req, res) => {
   const schoolId = req.teacher.schoolId;
   const teacherId = req.teacher.teacherId;
-  const assignmentId = req.params.id;
+  const assignmentId = parseInt(req.params.id, 10);
+  if (!assignmentId) return res.status(400).json({ error: 'Invalid assignment ID' });
 
   try {
     const assignment = await querySchoolOne(schoolId,
-      `SELECT id, class_name, section_name, total_marks, type FROM assignments WHERE id=? AND teacher_id=?`,
+      'SELECT id, class_name, section_name, total_marks, type FROM assignments WHERE id=? AND teacher_id=?',
       [assignmentId, teacherId]
     );
     if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
 
-    const students = await querySchool(schoolId,
-      `SELECT s.id, s.name, s.roll_no, s.class_name, s.section_name
-       FROM students s
-       WHERE s.class_name = ? AND (s.section_name = ? OR ? = '')
-       AND (s.status IS NULL OR s.status != 'Left')
-       ORDER BY CAST(s.roll_no AS INTEGER), s.name`,
-      [assignment.class_name, assignment.section_name || '', assignment.section_name || '']
-    );
+    let students = [];
+    if (assignment.class_name) {
+      if (assignment.section_name) {
+        students = await querySchool(schoolId,
+          'SELECT s.id, s.name, s.roll_no, s.class_name, s.section_name FROM students s WHERE s.class_name = ? AND s.section_name = ? AND (s.status IS NULL OR s.status != ?) ORDER BY CAST(s.roll_no AS INTEGER), s.name',
+          [assignment.class_name, assignment.section_name, 'Left']
+        );
+      } else {
+        students = await querySchool(schoolId,
+          'SELECT s.id, s.name, s.roll_no, s.class_name, s.section_name FROM students s WHERE s.class_name = ? AND (s.status IS NULL OR s.status != ?) ORDER BY CAST(s.roll_no AS INTEGER), s.name',
+          [assignment.class_name, 'Left']
+        );
+      }
+    }
 
-    // Fetch existing tracking records
-    const tracked = await querySchool(schoolId,
-      `SELECT student_id, status, marks, feedback FROM assignment_students WHERE assignment_id=?`,
-      [assignmentId]
-    );
+    let tracked = [];
+    try {
+      tracked = await querySchool(schoolId,
+        'SELECT student_id, status, marks, feedback FROM assignment_students WHERE assignment_id=?',
+        [assignmentId]
+      );
+    } catch (e) {
+      console.warn('[ASSIGNMENTS] assignment_students table missing, creating now');
+      await runSchool(schoolId, "CREATE TABLE IF NOT EXISTS assignment_students (id INTEGER PRIMARY KEY AUTOINCREMENT, assignment_id INTEGER NOT NULL, student_id INTEGER NOT NULL, status TEXT DEFAULT 'pending', marks INTEGER DEFAULT 0, feedback TEXT DEFAULT '', completed_at TEXT, school_id INTEGER, created_at TEXT)").catch(() => {});
+    }
     const trackedMap = {};
-    tracked.forEach(t => { trackedMap[t.student_id] = t; });
+    tracked.forEach(function(t) { trackedMap[t.student_id] = t; });
 
-    const result = students.map(s => ({
-      ...s,
-      status: trackedMap[s.id] ? trackedMap[s.id].status : 'pending',
-      marks: trackedMap[s.id] ? trackedMap[s.id].marks : 0,
-      feedback: trackedMap[s.id] ? trackedMap[s.id].feedback : ''
-    }));
+    const result = students.map(function(s) {
+      return {
+        id: s.id, name: s.name, roll_no: s.roll_no, class_name: s.class_name, section_name: s.section_name,
+        status: trackedMap[s.id] ? trackedMap[s.id].status : 'pending',
+        marks: trackedMap[s.id] ? trackedMap[s.id].marks : 0,
+        feedback: trackedMap[s.id] ? trackedMap[s.id].feedback : ''
+      };
+    });
 
-    res.json({ assignment, students: result });
+    res.json({ assignment: assignment, students: result });
   } catch (err) {
-    console.error('Error fetching assignment students:', err);
-    res.status(500).json({ error: 'Failed to load students' });
+    console.error('Error fetching assignment students:', err.message || err);
+    res.status(500).json({ error: 'Failed to load students: ' + (err.message || 'unknown') });
   }
 });
 

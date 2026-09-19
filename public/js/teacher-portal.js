@@ -498,6 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadAssignments(filters = {}) {
     const container = document.getElementById('assignments-list');
+    container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Loading assignments...</p>';
     try {
       let url = '/api/teachers/assignments';
       const params = [];
@@ -847,7 +848,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAssignments();
   });
 
-  // Load assignments when nav clicked (always refresh for fresh data)
+  // Load assignments when nav clicked (refresh only if stale or empty)
   document.querySelector('[data-opt="assignments"]').addEventListener('click', () => {
     loadAssignments();
   });
@@ -882,11 +883,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==================== INIT (lazy-load for fast startup) ====================
-  // Only dashboard data on init
   loadDashboardAssignments();
   initFeeCollection();
 
-  // Lazy-load other sections on nav click
+  // Lazy-load sections on nav click
   document.querySelector('[data-opt="my-subjects"]').addEventListener('click', () => { loadMySubjects(); }, { once: true });
   document.querySelector('[data-opt="marks"]').addEventListener('click', () => { loadMarksFilters(); }, { once: true });
   document.querySelector('[data-opt="announcements"]').addEventListener('click', () => { loadAnnouncements(); }, { once: true });
