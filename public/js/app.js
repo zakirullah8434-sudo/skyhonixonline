@@ -5958,13 +5958,25 @@ document.addEventListener('DOMContentLoaded', () => {
           });
           subjectSelect.innerHTML = opts.join('');
         } else {
-          const ttable = await apiCall(`/staff/timetable?class_name=${encodeURIComponent(cls)}`);
-          const uniqueSubjects = [...new Set(ttable.map(t => t.subject).filter(Boolean))];
-          const opts = ['<option value="">-- Select Subject --</option>'];
-          uniqueSubjects.forEach(s => {
-            opts.push(`<option value="${s}">${s}</option>`);
-          });
-          subjectSelect.innerHTML = opts.join('');
+          let dsSubjects = [];
+          try {
+            dsSubjects = await apiCall(`/exams/datesheets/active/subjects?exam_id=${examId}&term=${term}&class_name=${encodeURIComponent(cls)}`);
+          } catch (e) {}
+          if (dsSubjects.length > 0) {
+            const opts = ['<option value="">-- Select Subject --</option>'];
+            dsSubjects.forEach(s => {
+              opts.push(`<option value="${s.subject}" data-max="${s.max_marks}">${s.subject} (Max: ${s.max_marks})</option>`);
+            });
+            subjectSelect.innerHTML = opts.join('');
+          } else {
+            const ttable = await apiCall(`/staff/timetable?class_name=${encodeURIComponent(cls)}`);
+            const uniqueSubjects = [...new Set(ttable.map(t => t.subject).filter(Boolean))];
+            const opts = ['<option value="">-- Select Subject --</option>'];
+            uniqueSubjects.forEach(s => {
+              opts.push(`<option value="${s}">${s}</option>`);
+            });
+            subjectSelect.innerHTML = opts.join('');
+          }
         }
       } catch (e) { console.error('[SS_MARKS_SUBJECTS]', e.message); }
     });

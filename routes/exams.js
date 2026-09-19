@@ -840,6 +840,45 @@ router.get('/datesheets/active', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /exams/datesheets/active/subjects - Get subjects from active datesheet
+router.get('/datesheets/active/subjects', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { exam_id, term, class_name } = req.query;
+
+  try {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS date_sheet_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      template_json TEXT,
+      is_active INTEGER DEFAULT 0
+    )`);
+    const tpl = await querySchoolOne(schoolId, 'SELECT * FROM date_sheet_templates WHERE is_active = 1');
+    if (!tpl || !tpl.template_json) return res.json([]);
+
+    let parsed;
+    try { parsed = JSON.parse(tpl.template_json); } catch (e) { return res.json([]); }
+
+    if (exam_id && parsed.exam_id && parsed.exam_id != parseInt(exam_id)) return res.json([]);
+    if (term && parsed.term && parsed.term !== term) return res.json([]);
+
+    const subjects = [];
+    const seen = new Set();
+    const tplSubjects = parsed.subjects || [];
+    for (const s of tplSubjects) {
+      if (!s.subject) continue;
+      if (class_name && s.class !== class_name && s.class !== 'All Classes') continue;
+      const key = s.subject.toUpperCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      subjects.push({ subject: s.subject, max_marks: s.max_marks || 100 });
+    }
+
+    res.json(subjects.sort((a, b) => a.subject.localeCompare(b.subject)));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /exams/datesheets/:id - Delete date sheet template
 router.delete('/datesheets/:id', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
