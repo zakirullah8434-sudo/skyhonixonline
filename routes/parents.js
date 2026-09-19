@@ -320,6 +320,27 @@ router.get('/my-assignments', authenticateParentToken, async (req, res) => {
          ORDER BY a.created_at DESC`,
         queryParams
       );
+
+      // Fetch per-student tracking for all children
+      const childIds = children.map(c => c.id);
+      if (childIds.length > 0) {
+        const placeholders = childIds.map(() => '?').join(',');
+        const trackingRows = await querySchool(schoolId,
+          `SELECT as2.assignment_id, as2.student_id, as2.status as student_status, as2.marks as student_marks, as2.feedback
+           FROM assignment_students as2
+           WHERE as2.student_id IN (${placeholders})`,
+          childIds
+        );
+        // Attach student tracking to each assignment
+        allAssignments.forEach(a => {
+          const studentTrackings = trackingRows.filter(t => t.assignment_id === a.id);
+          if (studentTrackings.length > 0) {
+            a.student_status = studentTrackings[0].student_status;
+            a.student_marks = studentTrackings[0].student_marks;
+            a.student_feedback = studentTrackings[0].feedback;
+          }
+        });
+      }
     }
 
     res.json(allAssignments);

@@ -453,6 +453,21 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
+      // 30b. Assignment student tracking (per-student completion and marks)
+      db.run(`
+        CREATE TABLE IF NOT EXISTS assignment_students (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          assignment_id INTEGER NOT NULL,
+          student_id INTEGER NOT NULL,
+          status TEXT DEFAULT 'pending',
+          marks INTEGER DEFAULT 0,
+          feedback TEXT DEFAULT '',
+          completed_at TEXT,
+          school_id INTEGER,
+          created_at TEXT
+        )
+      `);
+
       // 31. Student Certificates (always ensure exists for existing DBs)
       db.run(`CREATE TABLE IF NOT EXISTS student_certificates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -736,6 +751,8 @@ function createSchoolDatabaseSchema(db) {
       db.run(`CREATE INDEX IF NOT EXISTS idx_exam_subjects_exam_class ON exam_subjects(exam_id, class, term)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_assignments_teacher ON assignments(teacher_id)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_assignments_class ON assignments(class_name, section_name)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_assignment_students_assignment ON assignment_students(assignment_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_assignment_students_student ON assignment_students(student_id)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_timetable_teacher ON timetable(teacher_id)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_student_parents_student ON student_parents(student_id)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_student_parents_parent ON student_parents(parent_id)`);
@@ -785,11 +802,43 @@ function migrateSchoolDatabase(db) {
       if (err1) { console.error('[MIGRATE] holidays table error:', err1.message); }
       db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_date ON holidays (date)`, (err2) => {
         if (err2) { console.error('[MIGRATE] holidays index error:', err2.message); }
-        // Migrate assignments table: add status, total_marks, marks_info columns if missing
-        db.run(`ALTER TABLE assignments ADD COLUMN status TEXT DEFAULT 'active'`, () => {});
-        db.run(`ALTER TABLE assignments ADD COLUMN total_marks INTEGER DEFAULT 0`, () => {});
-        db.run(`ALTER TABLE assignments ADD COLUMN marks_info TEXT DEFAULT ''`, () => {});
-        resolve();
+
+        // Sequential migration for assignments columns
+        const migrationSteps = [
+          `ALTER TABLE assignments ADD COLUMN status TEXT DEFAULT 'active'`,
+          `ALTER TABLE assignments ADD COLUMN total_marks INTEGER DEFAULT 0`,
+          `ALTER TABLE assignments ADD COLUMN marks_info TEXT DEFAULT ''`,
+        ];
+
+        function runStep(idx) {
+          if (idx >= migrationSteps.length) {
+            // Create assignment_students table
+            db.run(`CREATE TABLE IF NOT EXISTS assignment_students (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              assignment_id INTEGER NOT NULL,
+              student_id INTEGER NOT NULL,
+              status TEXT DEFAULT 'pending',
+              marks INTEGER DEFAULT 0,
+              feedback TEXT DEFAULT '',
+              completed_at TEXT,
+              school_id INTEGER,
+              created_at TEXT
+            )`, (e6) => {
+              if (e6) console.error('[MIGRATE] assignment_students error:', e6.message);
+              db.run(`CREATE INDEX IF NOT EXISTS idx_assignment_students_assignment ON assignment_students(assignment_id)`, () => {});
+              db.run(`CREATE INDEX IF NOT EXISTS idx_assignment_students_student ON assignment_students(student_id)`, () => {});
+              resolve();
+            });
+            return;
+          }
+          db.run(migrationSteps[idx], (e) => {
+            if (e && !e.message.includes('duplicate column')) {
+              console.error('[MIGRATE] step ' + idx + ' error:', e.message);
+            }
+            runStep(idx + 1);
+          });
+        }
+        runStep(0);
       });
     });
   });

@@ -72,8 +72,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function resolveEntity(endpoint) {
     if (endpoint.includes('/attendance')) return 'attendance';
-    if (endpoint.includes('/marks')) return 'marks';
-    if (endpoint.includes('/assignments')) return 'assignment';
+    if (endpoint.includes('/marks') && !endpoint.includes('/assignments')) return 'marks';
+    if (endpoint.includes('/assignments') && !endpoint.includes('/status') && !endpoint.includes('/marks') && !endpoint.includes('/students')) return 'assignment';
     if (endpoint.includes('/fee-pay')) return 'fee';
     if (endpoint.includes('/fee-setup')) return 'fee_setup';
     return 'unknown';
@@ -493,7 +493,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==================== ASSIGNMENTS ====================
   let cachedAssignments = [];
   let cachedTimetableClasses = [];
-  let currentMarksAssignmentId = null;
+  let currentTrackingAssignment = null;
+  let currentTrackingStudents = [];
 
   async function loadAssignments(filters = {}) {
     const container = document.getElementById('assignments-list');
@@ -573,8 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
               </div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
-              ${hasMarks ? `<button class="btn btn-sm" style="background:#8b5cf6; font-size:0.75rem;" onclick="openMarksModal(${a.id})">Enter Marks</button>` : ''}
-              <button class="btn btn-sm" style="background:${isCompleted ? '#f59e0b' : '#10b981'}; font-size:0.75rem;" onclick="toggleAssignmentStatus(${a.id}, '${isCompleted ? 'active' : 'completed'}')">${isCompleted ? 'Reopen' : 'Complete'}</button>
+              <button class="btn btn-sm" style="background:#8b5cf6; font-size:0.75rem;" onclick="openStudentsPanel(${a.id})">Students</button>
               <button class="btn btn-sm" style="background:var(--primary); font-size:0.75rem;" onclick="editAssignment(${a.id})">Edit</button>
               <button class="btn btn-sm" style="background:var(--danger); font-size:0.75rem;" onclick="deleteAssignment(${a.id})">Delete</button>
             </div>
@@ -701,95 +701,127 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  window.toggleAssignmentStatus = async function(id, newStatus) {
-    try {
-      await apiCall('/api/teachers/assignments/' + id + '/status', 'PUT', { status: newStatus });
-      showToast(newStatus === 'completed' ? 'Assignment marked as completed!' : 'Assignment reopened!');
-      loadAssignments();
-    } catch (err) {
-      showToast('Error: ' + err.message, true);
-    }
-  };
-
-  // Marks entry modal
-  window.openMarksModal = async function(assignmentId) {
+  // Student tracking panel
+  window.openStudentsPanel = async function(assignmentId) {
     const a = cachedAssignments.find(x => x.id === assignmentId);
     if (!a) return;
-    currentMarksAssignmentId = assignmentId;
+    currentTrackingAssignment = a;
 
-    document.getElementById('marks-modal-title').textContent = 'Enter Marks: ' + a.title;
-    document.getElementById('marks-info-text').textContent = `Total Marks: ${a.total_marks} | Subject: ${a.subject} | Class: ${a.class_name}${a.section_name ? ' - ' + a.section_name : ''}`;
+    document.getElementById('students-panel-title').textContent = a.title;
+    const isTest = (a.type === 'monthly_test' || a.type === 'class_test' || a.type === 'quiz');
+    document.getElementById('students-panel-info').textContent = `${a.subject} | ${a.class_name}${a.section_name ? ' - ' + a.section_name : ''} | ${isTest ? 'Total Marks: ' + a.total_marks : 'Completion Tracking'}`;
 
-    // Parse existing marks
-    let existingMarks = {};
-    if (a.marks_info) {
-      try { existingMarks = JSON.parse(a.marks_info); } catch(e) { existingMarks = {}; }
-    }
-
-    // Fetch students for this assignment's class
-    const container = document.getElementById('marks-entry-container');
-    container.innerHTML = '<p style="color:var(--text-muted);">Loading students...</p>';
-    document.getElementById('marks-modal').style.display = 'block';
+    const container = document.getElementById('assignment-students-list');
+    container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Loading students...</p>';
+    document.getElementById('assignment-students-panel').style.display = 'block';
+    document.getElementById('assignment-students-panel').scrollIntoView({ behavior: 'smooth' });
 
     try {
-      const students = await apiCall('/api/teachers/fee-students');
-      const classStudents = students.filter(s => s.class_name === a.class_name && (!a.section_name || s.section_name === a.section_name));
+      const data = await apiCall('/api/teachers/assignments/' + assignmentId + '/students');
+      currentTrackingStudents = data.students || [];
 
-      if (classStudents.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-muted);">No students found for this class/section.</p>';
+      if (currentTrackingStudents.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">No students found for this class/section.</p>';
         return;
       }
 
-      container.innerHTML = `
-        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px;">
-          ${classStudents.map(s => `
-            <div class="card" style="padding:12px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <div>
-                  <strong>${esc(s.name)}</strong>
-                  <div style="font-size:0.8rem; color:var(--text-muted);">Roll: ${esc(s.roll_no || '-')}</div>
-                </div>
-              </div>
-              <input type="number" min="0" max="${a.total_marks}" data-student-id="${s.id}" data-student-name="${esc(s.name)}"
-                value="${existingMarks[s.id] !== undefined ? existingMarks[s.id] : ''}"
-                placeholder="Marks / ${a.total_marks}" class="form-control" style="width:100%;">
-            </div>
-          `).join('')}
-        </div>`;
-
-      document.getElementById('marks-modal').scrollIntoView({ behavior: 'smooth' });
+      renderStudentsPanel();
     } catch (err) {
       container.innerHTML = `<p style="color:var(--danger);">Error loading students: ${err.message}</p>`;
     }
   };
 
-  document.getElementById('btn-close-marks-modal').addEventListener('click', () => {
-    document.getElementById('marks-modal').style.display = 'none';
-    currentMarksAssignmentId = null;
+  function renderStudentsPanel() {
+    const container = document.getElementById('assignment-students-list');
+    const a = currentTrackingAssignment;
+    if (!a || !currentTrackingStudents.length) return;
+    const isTest = (a.type === 'monthly_test' || a.type === 'class_test' || a.type === 'quiz');
+
+    const completedCount = currentTrackingStudents.filter(s => s.status === 'completed').length;
+    const pendingCount = currentTrackingStudents.length - completedCount;
+    document.getElementById('students-summary').textContent = `${completedCount} completed, ${pendingCount} pending`;
+
+    container.innerHTML = `
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:12px;">
+        ${currentTrackingStudents.map((s, idx) => `
+          <div class="card" style="padding:14px; border-left: 4px solid ${s.status === 'completed' ? '#10b981' : '#f59e0b'};">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+              <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                  <input type="checkbox" id="stu-check-${idx}" data-idx="${idx}" ${s.status === 'completed' ? 'checked' : ''}
+                    onchange="toggleStudentStatus(${idx}, this.checked)" style="width:18px; height:18px; cursor:pointer;">
+                  <strong style="font-size:0.95rem;">${esc(s.name)}</strong>
+                </div>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-left:26px;">Roll: ${esc(s.roll_no || '-')} | ${s.status === 'completed' ? '<span style="color:#10b981;">Completed</span>' : '<span style="color:#f59e0b;">Pending</span>'}</div>
+              </div>
+              ${isTest ? `
+                <div style="display:flex; align-items:center; gap:4px;">
+                  <input type="number" min="0" max="${a.total_marks}" data-idx="${idx}" class="student-marks-input"
+                    value="${s.marks || ''}" placeholder="/ ${a.total_marks}" style="width:70px; padding:4px 8px; font-size:0.85rem; text-align:center;" onchange="updateStudentMarks(${idx}, this.value)">
+                  <span style="font-size:0.75rem; color:var(--text-muted);">/ ${a.total_marks}</span>
+                </div>
+              ` : ''}
+            </div>
+            <div style="margin-top:8px; margin-left:26px;">
+              <input type="text" data-idx="${idx}" class="student-feedback-input" placeholder="Feedback (optional)" value="${esc(s.feedback || '')}" style="width:100%; padding:4px 8px; font-size:0.8rem;" onchange="updateStudentFeedback(${idx}, this.value)">
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+  }
+
+  window.toggleStudentStatus = function(idx, checked) {
+    if (!currentTrackingStudents[idx]) return;
+    currentTrackingStudents[idx].status = checked ? 'completed' : 'pending';
+    // Update card border
+    const cards = document.querySelectorAll('#assignment-students-list .card');
+    if (cards[idx]) {
+      cards[idx].style.borderLeft = `4px solid ${checked ? '#10b981' : '#f59e0b'}`;
+    }
+    // Update summary
+    const completedCount = currentTrackingStudents.filter(s => s.status === 'completed').length;
+    const pendingCount = currentTrackingStudents.length - completedCount;
+    document.getElementById('students-summary').textContent = `${completedCount} completed, ${pendingCount} pending`;
+  };
+
+  window.updateStudentMarks = function(idx, value) {
+    if (!currentTrackingStudents[idx]) return;
+    currentTrackingStudents[idx].marks = parseFloat(value) || 0;
+  };
+
+  window.updateStudentFeedback = function(idx, value) {
+    if (!currentTrackingStudents[idx]) return;
+    currentTrackingStudents[idx].feedback = value;
+  };
+
+  document.getElementById('btn-mark-all-complete').addEventListener('click', () => {
+    currentTrackingStudents.forEach(s => { s.status = 'completed'; });
+    renderStudentsPanel();
   });
 
-  document.getElementById('btn-cancel-marks').addEventListener('click', () => {
-    document.getElementById('marks-modal').style.display = 'none';
-    currentMarksAssignmentId = null;
+  document.getElementById('btn-mark-all-pending').addEventListener('click', () => {
+    currentTrackingStudents.forEach(s => { s.status = 'pending'; });
+    renderStudentsPanel();
   });
 
-  document.getElementById('btn-save-marks').addEventListener('click', async () => {
-    if (!currentMarksAssignmentId) return;
-    const inputs = document.querySelectorAll('#marks-entry-container input[data-student-id]');
-    const marksObj = {};
-    inputs.forEach(inp => {
-      const studentId = inp.dataset.studentId;
-      const val = inp.value.trim();
-      if (val !== '') {
-        marksObj[studentId] = parseFloat(val);
-      }
-    });
+  document.getElementById('btn-close-students').addEventListener('click', () => {
+    document.getElementById('assignment-students-panel').style.display = 'none';
+    currentTrackingAssignment = null;
+    currentTrackingStudents = [];
+  });
 
+  document.getElementById('btn-save-students').addEventListener('click', async () => {
+    if (!currentTrackingAssignment) return;
     try {
-      await apiCall('/api/teachers/assignments/' + currentMarksAssignmentId + '/marks', 'PUT', { marks_info: JSON.stringify(marksObj) });
-      showToast('Marks saved successfully!');
-      document.getElementById('marks-modal').style.display = 'none';
-      currentMarksAssignmentId = null;
+      await apiCall('/api/teachers/assignments/' + currentTrackingAssignment.id + '/students', 'PUT', {
+        students: currentTrackingStudents.map(s => ({
+          student_id: s.id,
+          status: s.status,
+          marks: s.marks,
+          feedback: s.feedback
+        }))
+      });
+      showToast('Student tracking saved!');
       loadAssignments();
     } catch (err) {
       showToast('Error: ' + err.message, true);
@@ -815,9 +847,9 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAssignments();
   });
 
-  // Load assignments when nav clicked
+  // Load assignments when nav clicked (always refresh for fresh data)
   document.querySelector('[data-opt="assignments"]').addEventListener('click', () => {
-    if (cachedAssignments.length === 0) loadAssignments();
+    loadAssignments();
   });
 
   // Dashboard assignments summary — uses cached data from loadAssignments

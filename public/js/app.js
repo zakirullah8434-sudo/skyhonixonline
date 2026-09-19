@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (path.includes('/staff/teachers')) return 'teacher';
     if (path.includes('/staff/announcements')) return 'announcement';
     if (path.includes('/staff/parents')) return 'parent';
-    if (path.includes('/teachers/assignments')) return 'assignment';
+    if (path.includes('/teachers/assignments') && !path.includes('/status') && !path.includes('/marks') && !path.includes('/students')) return 'assignment';
     if (path.includes('/teachers/my-marks')) return 'marks';
     if (path.includes('/teachers/fee-pay')) return 'fee';
     if (path.includes('/settings')) return 'settings';

@@ -453,11 +453,14 @@
       const created = new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const isOverdue = a.due_date && new Date(a.due_date) < new Date() && (a.status || 'active') !== 'completed';
       const isCompleted = (a.status || 'active') === 'completed';
+      const isStudentCompleted = studentStatus === 'completed';
       const daysUntilDue = a.due_date ? Math.ceil((new Date(a.due_date) - new Date()) / (1000 * 60 * 60 * 24)) : null;
       const hasMarks = (a.type === 'monthly_test' || a.type === 'class_test' || a.type === 'quiz') && a.total_marks > 0;
 
       let dueBadge = '';
-      if (isCompleted) {
+      if (isStudentCompleted) {
+        dueBadge = '<span style="background:#10b981; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">DONE</span>';
+      } else if (isCompleted) {
         dueBadge = '<span style="background:#10b981; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">COMPLETED</span>';
       } else if (isOverdue) {
         dueBadge = '<span style="background:#ef4444; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">OVERDUE</span>';
@@ -465,15 +468,11 @@
         dueBadge = '<span style="background:#f59e0b; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">DUE SOON</span>';
       }
 
-      // Parse marks for this student
+      // Use per-student tracking data from assignment_students table
       let studentMark = null;
-      if (a.marks_info && selectedChildId) {
-        try {
-          const marksObj = JSON.parse(a.marks_info);
-          if (marksObj[selectedChildId] !== undefined) {
-            studentMark = marksObj[selectedChildId];
-          }
-        } catch(e) {}
+      let studentStatus = a.student_status || null;
+      if (a.student_marks !== undefined && a.student_marks !== null && a.student_marks !== 0) {
+        studentMark = a.student_marks;
       }
 
       return `
@@ -486,7 +485,7 @@
                 <span style="background:${priorityColors[a.priority] || '#f59e0b'}; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">${(a.priority || 'medium').toUpperCase()}</span>
                 ${dueBadge}
                 ${hasMarks ? `<span style="background:#6366f1; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">Total: ${a.total_marks} marks</span>` : ''}
-                ${studentMark !== null ? `<span style="background:#10b981; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">Your Marks: ${studentMark} / ${a.total_marks}</span>` : ''}
+                ${studentMark !== null && studentMark !== undefined ? `<span style="background:#10b981; color:#fff; padding:2px 8px; border-radius:20px; font-size:0.7rem; font-weight:600;">Your Marks: ${studentMark} / ${a.total_marks}</span>` : ''}
               </div>
               <h4 style="margin:0 0 4px; font-size:1.05rem; ${isCompleted ? 'text-decoration:line-through; opacity:0.7;' : ''}">${esc(a.title)}</h4>
               <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:6px;">

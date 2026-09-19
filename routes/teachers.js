@@ -393,7 +393,7 @@ router.get('/assignments', authenticateTeacherToken, async (req, res) => {
   const teacherId = req.teacher.teacherId;
   const { from_date, to_date, status } = req.query;
   try {
-    let sql = `SELECT * FROM assignments WHERE teacher_id = ?`;
+    let sql = `SELECT id, teacher_id, teacher_name, subject, class_name, section_name, title, description, type, due_date, priority, status, total_marks, marks_info, created_at FROM assignments WHERE teacher_id = ?`;
     const params = [teacherId];
 
     if (from_date) {
@@ -409,7 +409,7 @@ router.get('/assignments', authenticateTeacherToken, async (req, res) => {
       params.push(status);
     }
 
-    sql += ` ORDER BY created_at DESC`;
+    sql += ` ORDER BY created_at DESC LIMIT 200`;
     const rows = await querySchool(schoolId, sql, params);
     res.json(rows);
   } catch (err) {
@@ -511,6 +511,90 @@ router.put('/assignments/:id/marks', authenticateTeacherToken, async (req, res) 
   }
 });
 
+// GET /api/teachers/assignments/:id/students - Get students for an assignment with their status/marks
+router.get('/assignments/:id/students', authenticateTeacherToken, async (req, res) => {
+  const schoolId = req.teacher.schoolId;
+  const teacherId = req.teacher.teacherId;
+  const assignmentId = req.params.id;
+
+  try {
+    const assignment = await querySchoolOne(schoolId,
+      `SELECT id, class_name, section_name, total_marks, type FROM assignments WHERE id=? AND teacher_id=?`,
+      [assignmentId, teacherId]
+    );
+    if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
+
+    const students = await querySchool(schoolId,
+      `SELECT s.id, s.name, s.roll_no, s.class_name, s.section_name
+       FROM students s
+       WHERE s.class_name = ? AND (s.section_name = ? OR ? = '')
+       AND (s.status IS NULL OR s.status != 'Left')
+       ORDER BY CAST(s.roll_no AS INTEGER), s.name`,
+      [assignment.class_name, assignment.section_name || '', assignment.section_name || '']
+    );
+
+    // Fetch existing tracking records
+    const tracked = await querySchool(schoolId,
+      `SELECT student_id, status, marks, feedback FROM assignment_students WHERE assignment_id=?`,
+      [assignmentId]
+    );
+    const trackedMap = {};
+    tracked.forEach(t => { trackedMap[t.student_id] = t; });
+
+    const result = students.map(s => ({
+      ...s,
+      status: trackedMap[s.id] ? trackedMap[s.id].status : 'pending',
+      marks: trackedMap[s.id] ? trackedMap[s.id].marks : 0,
+      feedback: trackedMap[s.id] ? trackedMap[s.id].feedback : ''
+    }));
+
+    res.json({ assignment, students: result });
+  } catch (err) {
+    console.error('Error fetching assignment students:', err);
+    res.status(500).json({ error: 'Failed to load students' });
+  }
+});
+
+// PUT /api/teachers/assignments/:id/students - Bulk update student status/marks for an assignment
+router.put('/assignments/:id/students', authenticateTeacherToken, async (req, res) => {
+  const schoolId = req.teacher.schoolId;
+  const teacherId = req.teacher.teacherId;
+  const assignmentId = req.params.id;
+  const { students } = req.body; // Array of { student_id, status, marks, feedback }
+
+  try {
+    const assignment = await querySchoolOne(schoolId,
+      `SELECT id FROM assignments WHERE id=? AND teacher_id=?`,
+      [assignmentId, teacherId]
+    );
+    if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
+
+    const now = new Date().toISOString();
+    for (const s of (students || [])) {
+      if (!s.student_id) continue;
+      const existing = await querySchoolOne(schoolId,
+        `SELECT id FROM assignment_students WHERE assignment_id=? AND student_id=?`,
+        [assignmentId, s.student_id]
+      );
+      if (existing) {
+        await runSchool(schoolId,
+          `UPDATE assignment_students SET status=?, marks=?, feedback=?, completed_at=? WHERE assignment_id=? AND student_id=?`,
+          [s.status || 'pending', s.marks || 0, s.feedback || '', s.status === 'completed' ? now : null, assignmentId, s.student_id]
+        );
+      } else {
+        await runSchool(schoolId,
+          `INSERT INTO assignment_students (assignment_id, student_id, status, marks, feedback, completed_at, school_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [assignmentId, s.student_id, s.status || 'pending', s.marks || 0, s.feedback || '', s.status === 'completed' ? now : null, schoolId, now]
+        );
+      }
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating assignment students:', err);
+    res.status(500).json({ error: 'Failed to update students' });
+  }
+});
+
 // DELETE /api/teachers/assignments/:id - Delete an assignment
 router.delete('/assignments/:id', authenticateTeacherToken, async (req, res) => {
   const schoolId = req.teacher.schoolId;
@@ -518,6 +602,11 @@ router.delete('/assignments/:id', authenticateTeacherToken, async (req, res) => 
   const assignmentId = req.params.id;
 
   try {
+    await runSchool(
+      schoolId,
+      `DELETE FROM assignment_students WHERE assignment_id=? AND school_id IN (SELECT school_id FROM assignments WHERE id=? AND teacher_id=?)`,
+      [assignmentId, assignmentId, teacherId]
+    );
     await runSchool(
       schoolId,
       `DELETE FROM assignments WHERE id=? AND teacher_id=?`,

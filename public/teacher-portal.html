@@ -290,20 +290,24 @@
         </form>
       </div>
 
-      <!-- Marks Entry Modal (hidden by default) -->
-      <div id="marks-modal" class="card" style="display:none; margin-bottom:24px; border: 2px solid var(--primary);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-          <h3 id="marks-modal-title" style="margin:0;">Enter Marks</h3>
-          <button class="btn btn-outline" id="btn-close-marks-modal" style="padding:4px 12px;">X</button>
+      <!-- Assignment Student Tracking Panel (hidden by default) -->
+      <div id="assignment-students-panel" class="card" style="display:none; margin-bottom:24px; border: 2px solid var(--primary);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px;">
+          <div>
+            <h3 id="students-panel-title" style="margin:0;">Assignment Students</h3>
+            <p id="students-panel-info" style="margin:4px 0 0; font-size:0.85rem; color:var(--text-muted);"></p>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-primary" id="btn-save-students" style="padding:6px 16px;">Save All</button>
+            <button class="btn btn-outline" id="btn-close-students" style="padding:6px 16px;">Close</button>
+          </div>
         </div>
-        <div style="margin-bottom:12px; font-size:0.9rem; color:var(--text-muted);">
-          <span id="marks-info-text"></span>
+        <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+          <button class="btn btn-sm" id="btn-mark-all-complete" style="background:#10b981; font-size:0.8rem;">Mark All Complete</button>
+          <button class="btn btn-sm" id="btn-mark-all-pending" style="background:#f59e0b; font-size:0.8rem;">Mark All Pending</button>
+          <span id="students-summary" style="font-size:0.85rem; color:var(--text-muted); display:flex; align-items:center;"></span>
         </div>
-        <div id="marks-entry-container"></div>
-        <div style="display:flex; gap:12px; margin-top:16px;">
-          <button class="btn btn-primary" id="btn-save-marks">Save Marks</button>
-          <button class="btn btn-outline" id="btn-cancel-marks">Cancel</button>
-        </div>
+        <div id="assignment-students-list"></div>
       </div>
 
       <!-- Assignments List -->
