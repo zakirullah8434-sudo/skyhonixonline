@@ -8097,12 +8097,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   async function populateTimetableDropdowns() {
     try {
-      const [classes, teachers] = await Promise.all([
-        getCachedClasses(apiCall),
-        apiCall('/staff/teachers?lite=true')
-      ]);
+      const classes = await getCachedClasses(apiCall);
       const ttClass = document.getElementById('tt-class');
-      const ttTeacher = document.getElementById('tt-teacher');
       if (ttClass) {
         const opts = ['<option value="">-- All Classes --</option>'];
         classes.forEach(c => {
@@ -8111,11 +8107,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         ttClass.innerHTML = opts.join('');
       }
-      if (ttTeacher) {
-        const opts = ['<option value="">-- Select Teacher --</option>'];
-        teachers.forEach(t => { opts.push(`<option value="${t.id}">${t.name}</option>`); });
-        ttTeacher.innerHTML = opts.join('');
-      }
+      try {
+        const teachers = await apiCall('/staff/teachers?lite=true');
+        const ttTeacher = document.getElementById('tt-teacher');
+        if (ttTeacher) {
+          const opts = ['<option value="">-- Select Teacher --</option>'];
+          teachers.forEach(t => { opts.push(`<option value="${t.id}">${t.name}</option>`); });
+          ttTeacher.innerHTML = opts.join('');
+        }
+      } catch (e) { console.error('[APP_ERROR] Teachers load failed:', e.message); }
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 

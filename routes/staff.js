@@ -12,10 +12,14 @@ const { querySchool, querySchoolOne, runSchool } = require('../database_manager'
 router.get('/teachers', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   if (req.query.lite === 'true') {
-    const teachers = await querySchool(schoolId,
-      `SELECT id, name, phone, subject, qualification, status, assigned_class, can_collect_fees FROM teachers WHERE (school_id = ? OR school_id IS NULL) AND (status = 'Active' OR status IS NULL) ORDER BY name`
-    );
-    return res.json(teachers);
+    try {
+      const teachers = await querySchool(schoolId,
+        `SELECT id, name, phone, subject, qualification, status, assigned_class, can_collect_fees FROM teachers WHERE (school_id = ? OR school_id IS NULL) AND (status = 'Active' OR status IS NULL) ORDER BY name`
+      );
+      return res.json(teachers);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
   }
   try {
     const rows = await querySchool(schoolId,
