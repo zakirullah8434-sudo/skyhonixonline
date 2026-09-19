@@ -393,7 +393,7 @@ router.get('/assignments', authenticateTeacherToken, async (req, res) => {
   const teacherId = req.teacher.teacherId;
   const { from_date, to_date, status } = req.query;
   try {
-    let sql = `SELECT id, teacher_id, teacher_name, subject, class_name, section_name, title, description, type, due_date, priority, status, total_marks, marks_info, created_at FROM assignments WHERE teacher_id = ?`;
+    let sql = `SELECT * FROM assignments WHERE teacher_id = ?`;
     const params = [teacherId];
 
     if (from_date) {
@@ -520,7 +520,7 @@ router.get('/assignments/:id/students', authenticateTeacherToken, async (req, re
 
   try {
     const assignment = await querySchoolOne(schoolId,
-      'SELECT id, class_name, section_name, total_marks, type FROM assignments WHERE id=? AND teacher_id=?',
+      'SELECT * FROM assignments WHERE id=? AND teacher_id=?',
       [assignmentId, teacherId]
     );
     if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
