@@ -5938,80 +5938,55 @@ document.addEventListener('DOMContentLoaded', () => {
   // SINGLE SUBJECT MARKS ENTRY
   // ==========================================
 
+  async function loadSSSubjects() {
+    const subjectSelect = document.getElementById('ss-marks-subject');
+    const cls = document.getElementById('ss-marks-class').value;
+    if (!cls) { subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>'; return; }
+    try {
+      const dsSubjects = await apiCall('/exams/datesheets/active/subjects?class_name=' + encodeURIComponent(cls));
+      const opts = ['<option value="">-- Select Subject --</option>'];
+      dsSubjects.forEach(s => {
+        opts.push('<option value="' + s.subject + '" data-max="' + s.max_marks + '">' + s.subject + ' (Max: ' + s.max_marks + ')</option>');
+      });
+      subjectSelect.innerHTML = opts.join('');
+    } catch (e) {
+      console.error('[SS_MARKS_SUBJECTS]', e.message);
+      subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+    }
+  }
+
   const ssMarksClassEl = document.getElementById('ss-marks-class');
   if (ssMarksClassEl) {
-    ssMarksClassEl.addEventListener('change', async () => {
+    ssMarksClassEl.addEventListener('change', () => {
       updateSectionDropdown('ss-marks-class', 'ss-marks-sec', true);
-      const subjectSelect = document.getElementById('ss-marks-subject');
-      const cls = ssMarksClassEl.value;
-      if (!cls) { subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>'; return; }
-      const examId = document.getElementById('ss-marks-exam').value;
-      const term = document.getElementById('ss-marks-term').value;
-      if (!examId || !term) { subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>'; return; }
-      try {
-        let dsSubjects = [];
-        try {
-          dsSubjects = await apiCall(`/exams/datesheets/active/subjects?exam_id=${examId}&term=${term}&class_name=${encodeURIComponent(cls)}`);
-        } catch (e) { console.error('[SS_MARKS_DS_SUBJECTS]', e.message); }
-        if (dsSubjects.length > 0) {
-          const opts = ['<option value="">-- Select Subject --</option>'];
-          dsSubjects.forEach(s => {
-            opts.push(`<option value="${s.subject}" data-max="${s.max_marks}">${s.subject} (Max: ${s.max_marks})</option>`);
-          });
-          subjectSelect.innerHTML = opts.join('');
-        } else {
-          const subs = await apiCall(`/exams/subjects?exam_id=${examId}&term=${term}&class_name=${encodeURIComponent(cls)}`);
-          const classSubjects = subs.filter(s => s.class === cls);
-          if (classSubjects.length > 0) {
-            const opts = ['<option value="">-- Select Subject --</option>'];
-            classSubjects.forEach(s => {
-              opts.push(`<option value="${s.subject}" data-max="${s.max_marks}">${s.subject} (Max: ${s.max_marks})</option>`);
-            });
-            subjectSelect.innerHTML = opts.join('');
-          } else {
-            const ttable = await apiCall(`/staff/timetable?class_name=${encodeURIComponent(cls)}`);
-            const uniqueSubjects = [...new Set(ttable.map(t => t.subject).filter(Boolean))];
-            const opts = ['<option value="">-- Select Subject --</option>'];
-            uniqueSubjects.forEach(s => {
-              opts.push(`<option value="${s}">${s}</option>`);
-            });
-            subjectSelect.innerHTML = opts.join('');
-          }
-        }
-      } catch (e) { console.error('[SS_MARKS_SUBJECTS]', e.message); }
+      loadSSSubjects();
     });
   }
 
   const ssMarksExamEl = document.getElementById('ss-marks-exam');
   if (ssMarksExamEl) {
     ssMarksExamEl.addEventListener('change', () => {
-      if (ssMarksClassEl && ssMarksClassEl.value) {
-        ssMarksClassEl.dispatchEvent(new Event('change'));
-      }
+      if (ssMarksClassEl && ssMarksClassEl.value) loadSSSubjects();
     });
   }
 
   const ssMarksTermEl = document.getElementById('ss-marks-term');
   if (ssMarksTermEl) {
     ssMarksTermEl.addEventListener('change', () => {
-      if (ssMarksClassEl && ssMarksClassEl.value) {
-        ssMarksClassEl.dispatchEvent(new Event('change'));
-      }
+      if (ssMarksClassEl && ssMarksClassEl.value) loadSSSubjects();
     });
   }
 
   const ssMarksSubjectEl = document.getElementById('ss-marks-subject');
   if (ssMarksSubjectEl) {
     ssMarksSubjectEl.addEventListener('focus', () => {
-      if (ssMarksClassEl && ssMarksClassEl.value) {
-        ssMarksClassEl.dispatchEvent(new Event('change'));
-      }
+      if (ssMarksClassEl && ssMarksClassEl.value) loadSSSubjects();
     });
     ssMarksSubjectEl.addEventListener('change', function() {
       const opt = this.options[this.selectedIndex];
       const maxVal = opt && opt.dataset.max ? opt.dataset.max : document.getElementById('ss-marks-max').value;
       document.getElementById('ss-marks-max').value = maxVal;
-      document.getElementById('ss-marks-max-label').textContent = `(out of ${maxVal})`;
+      document.getElementById('ss-marks-max-label').textContent = '(out of ' + maxVal + ')';
     });
   }
 

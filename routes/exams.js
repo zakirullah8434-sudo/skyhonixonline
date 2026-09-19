@@ -840,10 +840,10 @@ router.get('/datesheets/active', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /exams/datesheets/active/subjects - Get subjects from active datesheet
+// GET /exams/datesheets/active/subjects - Get subjects from active datesheet for a given class
 router.get('/datesheets/active/subjects', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
-  const { exam_id, term, class_name } = req.query;
+  const { class_name } = req.query;
 
   try {
     await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS date_sheet_templates (
