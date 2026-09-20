@@ -19,6 +19,33 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
+  <style>
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 899;
+    }
+    .sidebar-overlay.active { display: block; }
+    @media (max-width: 900px) {
+      .sidebar-close { display: block !important; }
+      .sidebar { width: 280px; }
+      .main-content { padding: 16px 12px; }
+      .main-content h2 { font-size: 1.1rem; }
+      .grid-2 { grid-template-columns: 1fr !important; }
+      .grid-3 { grid-template-columns: 1fr !important; }
+      .stat-card { padding: 14px !important; }
+      .header-right .user-badge { display: none; }
+      table { font-size: 0.85rem; }
+      th, td { padding: 6px 8px !important; }
+      .card { padding: 16px !important; }
+    }
+  </style>
+
   <!-- Custom CSS -->
   <link rel="stylesheet" href="css/styles.css?v=3">
   <!-- HTML5 QR Code Scanner Library (CDN) -->
@@ -107,6 +134,7 @@
         <a href="#" class="logo">
           <span>SkyHonix</span> Portal
         </a>
+        <button class="sidebar-close" id="sidebar-close" style="display:none;background:none;border:none;font-size:1.4rem;cursor:pointer;color:#64748B;padding:4px 8px;border-radius:6px;position:absolute;top:12px;right:12px;">&times;</button>
       </div>
       
       <ul class="sidebar-menu">

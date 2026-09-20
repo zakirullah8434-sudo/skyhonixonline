@@ -16,7 +16,7 @@
   <style>
     /* Teacher Portal unique styles (shared styles from styles.css) */
     .sidebar { position: fixed; top: 64px; left: 0; bottom: 0; width: 240px; z-index: 900; }
-    .sidebar-brand { padding: 20px 16px 16px; text-align: center; border-bottom: 1px solid #F1F5F9; }
+    .sidebar-brand { position: relative; padding: 20px 16px 16px; text-align: center; border-bottom: 1px solid #F1F5F9; }
     .sidebar-brand span { display: block; font-size: 1.05rem; font-weight: 700; color: #1E293B; }
     .sidebar-brand small { display: block; font-size: 0.72rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
     .main-content { margin-left: 240px; margin-top: 64px; padding: 28px 32px; min-height: calc(100vh - 64px); background: #F8FAFC; }
@@ -29,6 +29,51 @@
       .sidebar { transform: translateX(-100%); }
       .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.12); }
       .main-content { margin-left: 0; padding: 20px 16px; }
+    }
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 899;
+    }
+    .sidebar.open + .sidebar-overlay,
+    .sidebar-overlay.active {
+      display: block;
+    }
+    .sidebar-close {
+      display: none;
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      cursor: pointer;
+      color: #64748B;
+      padding: 4px 8px;
+      border-radius: 6px;
+      z-index: 10;
+    }
+    .sidebar-close:hover { background: #F1F5F9; }
+    @media (max-width: 900px) {
+      .sidebar-close { display: block; }
+      .sidebar { width: 280px; }
+      .main-content { padding: 16px 12px; }
+      .main-content h2 { font-size: 1.1rem; }
+      .card { padding: 16px !important; }
+      .grid-2 { grid-template-columns: 1fr !important; }
+      .news-ticker { padding: 10px 14px; }
+      .news-ticker .ticker-badge { font-size: 0.7rem; padding: 3px 8px; }
+      #news-ticker-content { font-size: 0.8rem; }
+      .header-right .user-badge { display: none; }
+      #form-assignment > div { grid-template-columns: 1fr !important; }
+      .fee-payment-form-grid { grid-template-columns: 1fr !important; }
+      table { font-size: 0.85rem; }
+      th, td { padding: 6px 8px !important; }
     }
   </style>
 </head>
@@ -50,6 +95,7 @@
   <!-- Sidebar -->
   <aside class="sidebar" id="main-sidebar">
     <div class="sidebar-brand">
+      <button class="sidebar-close" id="sidebar-close">&times;</button>
       <img id="sidebar-school-logo" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Logo" style="width:40px; height:40px; border-radius:50%; object-fit:cover; display:none; margin-bottom:6px;">
       <span id="sidebar-school-name">SkyHonix</span>
       <small>Teacher</small>
@@ -62,6 +108,7 @@
       <button class="nav-item" data-opt="fee-collection" id="nav-fee-collection" style="display:none;">&#128176; Fee Collection</button>
     </nav>
   </aside>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
   <!-- Content Area -->
   <main class="main-content" id="main-content">

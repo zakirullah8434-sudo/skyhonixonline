@@ -469,6 +469,11 @@ document.addEventListener('DOMContentLoaded', () => {
     sidebarOverlay.addEventListener('click', closeSidebar);
   }
 
+  const sidebarCloseBtn = document.getElementById('sidebar-close');
+  if (sidebarCloseBtn) {
+    sidebarCloseBtn.addEventListener('click', closeSidebar);
+  }
+
   // Logout Trigger
   btnLogout.addEventListener('click', () => {
     localStorage.removeItem('skyhonix_token');

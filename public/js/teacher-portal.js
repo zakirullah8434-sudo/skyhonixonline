@@ -157,14 +157,22 @@ document.addEventListener('DOMContentLoaded', () => {
   // Sidebar Navigation
   const sidebarToggle = document.getElementById('sidebar-toggle');
   const sidebar = document.getElementById('main-sidebar');
+  const sidebarOverlay = document.getElementById('sidebar-overlay');
+  const sidebarClose = document.getElementById('sidebar-close');
+  
+  function openSidebar() { sidebar.classList.add('open'); sidebarOverlay.classList.add('active'); }
+  function closeSidebar() { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('active'); }
+  
   sidebarToggle.addEventListener('click', (e) => {
     e.stopPropagation();
-    sidebar.classList.toggle('open');
+    if (sidebar.classList.contains('open')) closeSidebar();
+    else openSidebar();
   });
+  if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+  if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
 
-  // Close sidebar when clicking outside on mobile
   document.getElementById('main-content').addEventListener('click', () => {
-    sidebar.classList.remove('open');
+    closeSidebar();
   });
 
   document.querySelectorAll('.nav-item').forEach(btn => {

@@ -91,26 +91,36 @@
     document.querySelector(`.portal-sidebar nav a[data-panel="${name}"]`).classList.add('active');
     const titles = { dashboard: 'Dashboard', fees: 'Fee Records', exams: 'Exam Results', attendance: 'Attendance', assignments: 'Homework & Tests', announcements: 'Announcements' };
     headerTitle.textContent = titles[name] || name;
-    // Close sidebar only on mobile
-    if (window.innerWidth <= 768) {
-      document.getElementById('sidebar').classList.remove('open');
-      document.getElementById('sidebar-overlay').style.display = 'none';
-    }
+    closeSidebar();
     loadPanelData(name);
   };
 
-  // Close sidebar when clicking outside on mobile
+  // Sidebar open/close helpers
+  function openSidebar() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sidebar-overlay').classList.add('active');
+  }
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('active');
+  }
+
+  // Hamburger toggle
   document.getElementById('btn-hamburger').addEventListener('click', (e) => {
     e.stopPropagation();
     const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-    sidebar.classList.toggle('open');
-    overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
+    if (sidebar.classList.contains('open')) {
+      closeSidebar();
+    } else {
+      openSidebar();
+    }
   });
-  document.getElementById('sidebar-overlay').addEventListener('click', () => {
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('sidebar-overlay').style.display = 'none';
-  });
+
+  // Overlay click to close sidebar
+  document.getElementById('sidebar-overlay').addEventListener('click', closeSidebar);
+
+  // Close button inside sidebar
+  document.getElementById('sidebar-close').addEventListener('click', closeSidebar);
 
   // Child selector change
   childSelect.addEventListener('change', function() {
