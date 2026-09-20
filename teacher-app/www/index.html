@@ -85,18 +85,19 @@
     </div>
   </div>
 
-  <script src="config.js"></script>
   <script>
+    var SERVER = 'https://schoolapp.skyhonixonline.vercel.app';
+
     var splash = document.getElementById('splash');
     var loginContainer = document.getElementById('login-container');
 
-    function initApp() {
+    setTimeout(function() {
       splash.classList.add('hidden');
       setTimeout(function() {
         splash.style.display = 'none';
         loginContainer.style.display = 'flex';
-      }, 1500);
-    }
+      }, 400);
+    }, 1500);
 
     document.getElementById('login-form').addEventListener('submit', async function(e) {
       e.preventDefault();
@@ -105,9 +106,8 @@
       var btn = document.getElementById('btn-login');
       btn.disabled = true;
       btn.textContent = 'Signing in...';
-
       try {
-        var res = await fetch(window.APP_CONFIG.SERVER_URL + '/api/auth/teacher-login', {
+        var res = await fetch(SERVER + '/api/auth/teacher-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -119,7 +119,7 @@
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Login failed');
         var userStr = encodeURIComponent(JSON.stringify(data.user));
-        window.location.href = window.APP_CONFIG.SERVER_URL + '/' + window.APP_CONFIG.APP_PORTAL + '#token=' + data.token + '&user=' + userStr;
+        window.location.href = SERVER + '/teacher-portal.html#token=' + data.token + '&user=' + userStr;
       } catch(err) {
         errEl.textContent = err.message;
         errEl.style.display = 'block';
@@ -127,8 +127,6 @@
         btn.textContent = 'Sign In';
       }
     });
-
-    initApp();
   </script>
 </body>
 </html>

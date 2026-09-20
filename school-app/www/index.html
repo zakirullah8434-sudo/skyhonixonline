@@ -23,32 +23,39 @@
       border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    #login-container {
-      display: none; min-height: 100vh; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
-      align-items: center; justify-content: center; padding: 20px;
-    }
-    .login-card {
+    .screen { display: none; min-height: 100vh; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+      align-items: center; justify-content: center; padding: 20px; }
+    .card {
       background: #fff; border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 420px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.15);
     }
-    .login-card .brand { text-align: center; margin-bottom: 32px; }
-    .login-card .brand h1 { color: #4F46E5; font-size: 1.4rem; margin-top: 12px; }
-    .login-card .brand p { color: #94A3B8; font-size: 0.85rem; margin-top: 4px; }
-    .form-group { margin-bottom: 18px; }
+    .card .brand { text-align: center; margin-bottom: 28px; }
+    .card .brand h1 { color: #4F46E5; font-size: 1.4rem; margin-top: 12px; }
+    .card .brand p { color: #94A3B8; font-size: 0.85rem; margin-top: 4px; }
+    .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 6px; }
-    .form-group input {
+    .form-group input, .form-group select {
       width: 100%; padding: 12px 16px; border: 1.5px solid #E5E7EB; border-radius: 10px;
       font-size: 0.95rem; transition: border-color 0.2s; background: #F9FAFB;
     }
-    .form-group input:focus { outline: none; border-color: #4F46E5; background: #fff; }
-    .btn-login {
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: #4F46E5; background: #fff; }
+    .btn {
       width: 100%; padding: 14px; background: linear-gradient(135deg, #4F46E5, #7C3AED);
       color: #fff; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600;
       cursor: pointer; transition: transform 0.2s;
     }
-    .btn-login:active { transform: scale(0.98); }
-    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-outline {
+      background: transparent; border: 2px solid #4F46E5; color: #4F46E5;
+    }
     .error-msg { color: #DC2626; font-size: 0.85rem; margin-top: 12px; text-align: center; display: none; }
+    .success-msg { color: #059669; font-size: 0.85rem; margin-top: 12px; text-align: center; display: none; }
+    .switch-link { text-align: center; margin-top: 20px; font-size: 0.85rem; color: #6B7280; }
+    .switch-link a { color: #4F46E5; font-weight: 600; text-decoration: none; cursor: pointer; }
+    .form-row { display: flex; gap: 12px; }
+    .form-row .form-group { flex: 1; }
+    .pkg-note { font-size: 0.75rem; color: #94A3B8; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -59,8 +66,9 @@
     <div class="spinner"></div>
   </div>
 
-  <div id="login-container">
-    <div class="login-card">
+  <!-- LOGIN -->
+  <div id="login-screen" class="screen">
+    <div class="card">
       <div class="brand">
         <div style="font-size:3rem;">&#x1F3EB;</div>
         <h1>SkyHonix School Portal</h1>
@@ -75,24 +83,81 @@
           <label>Password</label>
           <input type="password" id="login-password" placeholder="Enter password" required>
         </div>
-        <button type="submit" class="btn-login" id="btn-login">Sign In</button>
+        <button type="submit" class="btn" id="btn-login">Sign In</button>
         <div class="error-msg" id="login-error"></div>
       </form>
+      <div class="switch-link">
+        Don't have an account? <a onclick="showScreen('register-screen')">Register School</a>
+      </div>
     </div>
   </div>
 
-  <script src="config.js"></script>
-  <script>
-    var splash = document.getElementById('splash');
-    var loginContainer = document.getElementById('login-container');
+  <!-- REGISTER -->
+  <div id="register-screen" class="screen">
+    <div class="card">
+      <div class="brand">
+        <div style="font-size:3rem;">&#x1F3EB;</div>
+        <h1>Register Your School</h1>
+        <p>Create a new school account</p>
+      </div>
+      <form id="register-form">
+        <div class="form-group">
+          <label>School Name</label>
+          <input type="text" id="reg-school-name" placeholder="ABC School" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="reg-email" placeholder="school@email.com" required>
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="reg-phone" placeholder="03001234567" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="reg-password" placeholder="Create a password" required>
+        </div>
+        <div class="form-group">
+          <label>Package</label>
+          <select id="reg-package">
+            <option value="Package 1">Package 1 - Rs 1,200/mo</option>
+            <option value="Package 2">Package 2 - Rs 2,000/mo</option>
+            <option value="Package 3" selected>Package 3 - Rs 3,000/mo</option>
+            <option value="Package 4">Package 4 - Rs 4,000/mo</option>
+            <option value="Package 5">Package 5 - Rs 5,200/mo</option>
+            <option value="Package 6">Package 6 - Rs 6,600/mo</option>
+            <option value="Package 7">Package 7 - Rs 8,000/mo</option>
+          </select>
+        </div>
+        <button type="submit" class="btn" id="btn-register">Register School</button>
+        <div class="error-msg" id="reg-error"></div>
+        <div class="success-msg" id="reg-success"></div>
+      </form>
+      <div class="switch-link">
+        Already registered? <a onclick="showScreen('login-screen')">Sign In</a>
+      </div>
+    </div>
+  </div>
 
-    function initApp() {
+  <script>
+    var SERVER = 'https://schoolapp.skyhonixonline.vercel.app';
+
+    function showScreen(id) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('register-screen').style.display = 'none';
+      document.getElementById(id).style.display = 'flex';
+    }
+
+    var splash = document.getElementById('splash');
+    setTimeout(function() {
       splash.classList.add('hidden');
       setTimeout(function() {
         splash.style.display = 'none';
-        loginContainer.style.display = 'flex';
-      }, 1500);
-    }
+        showScreen('login-screen');
+      }, 400);
+    }, 1500);
 
     document.getElementById('login-form').addEventListener('submit', async function(e) {
       e.preventDefault();
@@ -101,9 +166,8 @@
       var btn = document.getElementById('btn-login');
       btn.disabled = true;
       btn.textContent = 'Signing in...';
-
       try {
-        var res = await fetch(window.APP_CONFIG.SERVER_URL + '/api/auth/login', {
+        var res = await fetch(SERVER + '/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -114,7 +178,7 @@
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Login failed');
         var userStr = encodeURIComponent(JSON.stringify(data.user));
-        window.location.href = window.APP_CONFIG.SERVER_URL + '/' + window.APP_CONFIG.APP_PORTAL + '#token=' + data.token + '&user=' + userStr;
+        window.location.href = SERVER + '/portal.html#token=' + data.token + '&user=' + userStr;
       } catch(err) {
         errEl.textContent = err.message;
         errEl.style.display = 'block';
@@ -123,7 +187,40 @@
       }
     });
 
-    initApp();
+    document.getElementById('register-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var errEl = document.getElementById('reg-error');
+      var successEl = document.getElementById('reg-success');
+      errEl.style.display = 'none';
+      successEl.style.display = 'none';
+      var btn = document.getElementById('btn-register');
+      btn.disabled = true;
+      btn.textContent = 'Registering...';
+      try {
+        var res = await fetch(SERVER + '/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            schoolName: document.getElementById('reg-school-name').value,
+            email: document.getElementById('reg-email').value,
+            password: document.getElementById('reg-password').value,
+            phone: document.getElementById('reg-phone').value,
+            selectedPackage: document.getElementById('reg-package').value
+          })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Registration failed');
+        successEl.textContent = data.message + ' Your School ID will be: ' + data.schoolId;
+        successEl.style.display = 'block';
+        document.getElementById('register-form').reset();
+      } catch(err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Register School';
+      }
+    });
   </script>
 </body>
 </html>
