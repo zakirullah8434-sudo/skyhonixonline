@@ -1,0 +1,8 @@
+include ':app'
+include ':capacitor-cordova-android-plugins'
+
+def capacitorAndroidPath = file('../node_modules/@capacitor/android/capacitor')
+if (capacitorAndroidPath.exists()) {
+    include ':capacitor-android'
+    project(':capacitor-android').projectDir = capacitorAndroidPath
+}

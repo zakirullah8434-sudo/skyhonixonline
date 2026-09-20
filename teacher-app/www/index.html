@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#4F46E5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>SkyHonix Teacher</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #F8FAFC; }
+    
+    #splash { 
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 99999; transition: opacity 0.4s ease;
+    }
+    #splash.hidden { opacity: 0; pointer-events: none; }
+    #splash .logo { font-size: 3rem; margin-bottom: 16px; }
+    #splash h1 { color: #fff; font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+    #splash p { color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 24px; }
+    #splash .spinner { 
+      width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    #login-container {
+      display: none; min-height: 100vh; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .login-card {
+      background: #fff; border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+    .login-card .brand { text-align: center; margin-bottom: 32px; }
+    .login-card .brand h1 { color: #4F46E5; font-size: 1.4rem; margin-top: 12px; }
+    .login-card .brand p { color: #94A3B8; font-size: 0.85rem; margin-top: 4px; }
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    .form-group input {
+      width: 100%; padding: 12px 16px; border: 1.5px solid #E5E7EB; border-radius: 10px;
+      font-size: 0.95rem; transition: border-color 0.2s; background: #F9FAFB;
+    }
+    .form-group input:focus { outline: none; border-color: #4F46E5; background: #fff; }
+    .btn-login {
+      width: 100%; padding: 14px; background: linear-gradient(135deg, #4F46E5, #7C3AED);
+      color: #fff; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600;
+      cursor: pointer; transition: transform 0.2s;
+    }
+    .btn-login:active { transform: scale(0.98); }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error-msg { color: #DC2626; font-size: 0.85rem; margin-top: 12px; text-align: center; display: none; }
+    .server-config { margin-top: 20px; padding-top: 16px; border-top: 1px solid #E5E7EB; }
+    .server-config label { font-size: 0.8rem; color: #6B7280; }
+    .server-config input { font-size: 0.8rem; padding: 8px 12px; }
+    
+    #portal-frame { display: none; width: 100%; min-height: 100vh; }
+    #portal-frame iframe { width: 100%; height: 100vh; border: none; }
+    .offline-banner {
+      position: fixed; top: 0; left: 0; right: 0; background: #DC2626; color: #fff;
+      text-align: center; padding: 8px; font-size: 0.85rem; z-index: 100000; display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="splash">
+    <div class="logo">&#x1F469;&#x200D;&#x1F3EB;</div>
+    <h1>SkyHonix Teacher</h1>
+    <p>Teacher Portal</p>
+    <div class="spinner"></div>
+  </div>
+
+  <div class="offline-banner" id="offline-banner">You are offline.</div>
+
+  <div id="login-container">
+    <div class="login-card">
+      <div class="brand">
+        <div style="font-size:3rem;">&#x1F469;&#x200D;&#x1F3EB;</div>
+        <h1>SkyHonix Teacher Portal</h1>
+        <p>Teacher Login</p>
+      </div>
+      <form id="login-form">
+        <div class="form-group">
+          <label>School ID</label>
+          <input type="text" id="login-school-id" placeholder="Enter School ID" required>
+        </div>
+        <div class="form-group">
+          <label>Phone Number</label>
+          <input type="tel" id="login-phone" placeholder="03001234567" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="login-password" placeholder="Enter password" required>
+        </div>
+        <button type="submit" class="btn-login" id="btn-login">Sign In</button>
+        <div class="error-msg" id="login-error"></div>
+      </form>
+      <div class="server-config">
+        <label>Server URL</label>
+        <input type="url" id="server-url" placeholder="http://your-server:3000" style="width:100%; padding:8px 12px; border:1px solid #E5E7EB; border-radius:8px; margin-top:4px;">
+      </div>
+    </div>
+  </div>
+
+  <div id="portal-frame">
+    <iframe id="portal-iframe" title="Teacher Portal"></iframe>
+  </div>
+
+  <script src="config.js"></script>
+  
+  <script>
+    const _originalFetch = window.fetch;
+    window.fetch = function(url, options) {
+      if (typeof url === 'string') {
+        if (url.startsWith('/api') || url.startsWith('/uploads')) {
+          url = window.APP_CONFIG.SERVER_URL + url;
+        }
+      }
+      return _originalFetch(url, options);
+    };
+
+    const _originalXHROpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url, ...args) {
+      if (typeof url === 'string' && (url.startsWith('/api') || url.startsWith('/uploads'))) {
+        url = window.APP_CONFIG.SERVER_URL + url;
+      }
+      return _originalXHROpen.call(this, method, url, ...args);
+    };
+
+    window.addEventListener('online', () => { document.getElementById('offline-banner').style.display = 'none'; });
+    window.addEventListener('offline', () => { document.getElementById('offline-banner').style.display = 'block'; });
+
+    const splash = document.getElementById('splash');
+    const loginContainer = document.getElementById('login-container');
+    const portalFrame = document.getElementById('portal-frame');
+    const loginForm = document.getElementById('login-form');
+    const loginError = document.getElementById('login-error');
+    const serverUrlInput = document.getElementById('server-url');
+
+    serverUrlInput.value = window.APP_CONFIG.SERVER_URL;
+    serverUrlInput.addEventListener('change', function() {
+      window.APP_CONFIG.SERVER_URL = this.value.replace(/\/$/, '');
+    });
+
+    function checkAuth() {
+      const token = localStorage.getItem('skyhonix_token');
+      const user = localStorage.getItem('skyhonix_user');
+      if (token && user) {
+        try {
+          const userData = JSON.parse(user);
+          if (userData.role === 'teacher') return true;
+        } catch(e) {}
+      }
+      return false;
+    }
+
+    function initApp() {
+      splash.classList.add('hidden');
+      setTimeout(() => {
+        splash.style.display = 'none';
+        if (checkAuth()) {
+          showPortal();
+        } else {
+          loginContainer.style.display = 'flex';
+        }
+      }, 400);
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginError.style.display = 'none';
+      const btn = document.getElementById('btn-login');
+      btn.disabled = true;
+      btn.textContent = 'Signing in...';
+
+      const schoolId = document.getElementById('login-school-id').value;
+      const phone = document.getElementById('login-phone').value;
+      const password = document.getElementById('login-password').value;
+      const serverUrl = window.APP_CONFIG.SERVER_URL;
+
+      try {
+        const res = await fetch(serverUrl + '/api/auth/teacher-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ school_id: schoolId, phone, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed');
+
+        localStorage.setItem('skyhonix_token', data.token);
+        localStorage.setItem('skyhonix_user', JSON.stringify(data.user));
+        showPortal();
+      } catch (err) {
+        loginError.textContent = err.message;
+        loginError.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+      }
+    });
+
+    function showPortal() {
+      loginContainer.style.display = 'none';
+      portalFrame.style.display = 'block';
+      const iframe = document.getElementById('portal-iframe');
+      iframe.src = window.APP_CONFIG.SERVER_URL + '/' + window.APP_CONFIG.APP_PORTAL;
+    }
+
+    setTimeout(initApp, 1500);
+  </script>
+</body>
+</html>

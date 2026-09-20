@@ -29,6 +29,29 @@ logs/
 # Temporary files
 .claude/
 
+# JDK (too large for git)
+jdk-17.0.13+11/
+jdk17.zip
+
+# Android build artifacts
+school-app/android/.gradle/
+school-app/android/app/build/
+teacher-app/android/.gradle/
+teacher-app/android/app/build/
+parent-app/android/.gradle/
+parent-app/android/app/build/
+school-app/node_modules/
+teacher-app/node_modules/
+parent-app/node_modules/
+
+# APK output
+dist-apks/
+
+# Build scripts/temp
+build-apks.ps1
+java_err.txt
+java_out.txt
+
 # User uploads and generated data
 uploads/
 public/uploads/student_photos/

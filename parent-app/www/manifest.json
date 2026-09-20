@@ -1,0 +1,9 @@
+{
+  "name": "SkyHonix Parent",
+  "short_name": "SkyHonix Parent",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#4F46E5",
+  "theme_color": "#4F46E5",
+  "icons": []
+}
