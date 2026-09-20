@@ -23,6 +23,15 @@ function querySchoolOne(schoolId, sql, params = []) {
   });
 }
 
+function runSchool(schoolId, sql, params = []) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const db = await getSchoolDb(schoolId);
+      db.run(sql, params, function(err) { if (err) reject(err); else resolve({ id: this.lastID, changes: this.changes }); });
+    } catch (e) { reject(e); }
+  });
+}
+
 function authenticateParentToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -284,12 +293,18 @@ router.get('/my-assignments', authenticateParentToken, async (req, res) => {
   const schoolId = req.parent.schoolId;
   const parentId = req.parent.parentId;
 
-  try {
-    // Get parent phone to find children
+  async function ensureAssignmentTables() {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, teacher_id INTEGER, teacher_name TEXT, subject TEXT, class_name TEXT, section_name TEXT, title TEXT NOT NULL, description TEXT, type TEXT DEFAULT 'homework', due_date TEXT, priority TEXT DEFAULT 'medium', status TEXT DEFAULT 'active', total_marks INTEGER DEFAULT 0, marks_info TEXT DEFAULT '', school_id INTEGER, created_at TEXT)`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN status TEXT DEFAULT 'active'`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN total_marks INTEGER DEFAULT 0`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN marks_info TEXT DEFAULT ''`).catch(() => {});
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS assignment_students (id INTEGER PRIMARY KEY AUTOINCREMENT, assignment_id INTEGER NOT NULL, student_id INTEGER NOT NULL, status TEXT DEFAULT 'pending', marks INTEGER DEFAULT 0, feedback TEXT DEFAULT '', completed_at TEXT, school_id INTEGER, created_at TEXT)`).catch(() => {});
+  }
+
+  async function fetchParentAssignments() {
     const parentInfo = await querySchoolOne(schoolId, 'SELECT phone FROM parents WHERE id = ?', [parentId]);
     const parentPhone = parentInfo ? parentInfo.phone : '';
 
-    // Find children
     const children = await querySchool(schoolId,
       `SELECT DISTINCT s.id, s.class_name, s.section_name
        FROM students s
@@ -298,50 +313,59 @@ router.get('/my-assignments', authenticateParentToken, async (req, res) => {
       [parentId, parentPhone]
     );
 
-    if (children.length === 0) {
-      return res.json([]);
+    if (children.length === 0) return [];
+
+    const whereClauses = [];
+    const queryParams = [];
+    for (const c of children) {
+      whereClauses.push('(a.class_name = ? AND (a.section_name = ? OR a.section_name = ?))');
+      queryParams.push(c.class_name || '', '', c.section_name || '');
     }
+    const allAssignments = await querySchool(schoolId,
+      `SELECT DISTINCT a.*
+       FROM assignments a
+       WHERE ${whereClauses.join(' OR ')}
+       ORDER BY a.created_at DESC`,
+      queryParams
+    );
 
-    // Bulk fetch assignments for all children's classes using parameterized queries
-    let allAssignments = [];
-    if (children.length > 0) {
-      const whereClauses = [];
-      const queryParams = [];
-      for (const c of children) {
-        whereClauses.push('(a.class_name = ? AND (a.section_name = ? OR a.section_name = ?))');
-        queryParams.push(c.class_name || '', '', c.section_name || '');
-      }
-      allAssignments = await querySchool(schoolId,
-        `SELECT DISTINCT a.*
-         FROM assignments a
-         WHERE ${whereClauses.join(' OR ')}
-         ORDER BY a.created_at DESC`,
-        queryParams
-      );
-
-      // Fetch per-student tracking for all children
-      const childIds = children.map(c => c.id);
-      if (childIds.length > 0) {
-        const placeholders = childIds.map(() => '?').join(',');
-        const trackingRows = await querySchool(schoolId,
+    const childIds = children.map(c => c.id);
+    if (childIds.length > 0) {
+      const placeholders = childIds.map(() => '?').join(',');
+      let trackingRows = [];
+      try {
+        trackingRows = await querySchool(schoolId,
           `SELECT as2.assignment_id, as2.student_id, as2.status as student_status, as2.marks as student_marks, as2.feedback
            FROM assignment_students as2
            WHERE as2.student_id IN (${placeholders})`,
           childIds
         );
-        // Attach student tracking to each assignment
-        allAssignments.forEach(a => {
-          const studentTrackings = trackingRows.filter(t => t.assignment_id === a.id);
-          if (studentTrackings.length > 0) {
-            a.student_status = studentTrackings[0].student_status;
-            a.student_marks = studentTrackings[0].student_marks;
-            a.student_feedback = studentTrackings[0].feedback;
-          }
-        });
+      } catch (e) {
+        await ensureAssignmentTables();
       }
+      allAssignments.forEach(a => {
+        const studentTrackings = trackingRows.filter(t => t.assignment_id === a.id);
+        if (studentTrackings.length > 0) {
+          a.student_status = studentTrackings[0].student_status;
+          a.student_marks = studentTrackings[0].student_marks;
+          a.student_feedback = studentTrackings[0].feedback;
+        }
+      });
     }
 
-    res.json(allAssignments);
+    return allAssignments;
+  }
+
+  try {
+    let result;
+    try {
+      result = await fetchParentAssignments();
+    } catch (firstErr) {
+      console.warn('[PARENTS] Assignments query failed, ensuring tables and retrying:', firstErr.message);
+      await ensureAssignmentTables();
+      result = await fetchParentAssignments();
+    }
+    res.json(result);
   } catch (err) {
     console.error('Error fetching parent assignments:', err);
     res.status(500).json({ error: err.message });

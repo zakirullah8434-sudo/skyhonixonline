@@ -392,25 +392,33 @@ router.get('/assignments', authenticateTeacherToken, async (req, res) => {
   const schoolId = req.teacher.schoolId;
   const teacherId = req.teacher.teacherId;
   const { from_date, to_date, status } = req.query;
-  try {
+
+  async function ensureAssignmentsTable() {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, teacher_id INTEGER, teacher_name TEXT, subject TEXT, class_name TEXT, section_name TEXT, title TEXT NOT NULL, description TEXT, type TEXT DEFAULT 'homework', due_date TEXT, priority TEXT DEFAULT 'medium', status TEXT DEFAULT 'active', total_marks INTEGER DEFAULT 0, marks_info TEXT DEFAULT '', school_id INTEGER, created_at TEXT)`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN status TEXT DEFAULT 'active'`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN total_marks INTEGER DEFAULT 0`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN marks_info TEXT DEFAULT ''`).catch(() => {});
+  }
+
+  async function fetchAssignments() {
     let sql = `SELECT * FROM assignments WHERE teacher_id = ?`;
     const params = [teacherId];
-
-    if (from_date) {
-      sql += ` AND created_at >= ?`;
-      params.push(from_date);
-    }
-    if (to_date) {
-      sql += ` AND created_at <= ?`;
-      params.push(to_date + 'T23:59:59.999Z');
-    }
-    if (status) {
-      sql += ` AND status = ?`;
-      params.push(status);
-    }
-
+    if (from_date) { sql += ` AND created_at >= ?`; params.push(from_date); }
+    if (to_date) { sql += ` AND created_at <= ?`; params.push(to_date + 'T23:59:59.999Z'); }
+    if (status) { sql += ` AND status = ?`; params.push(status); }
     sql += ` ORDER BY created_at DESC LIMIT 200`;
-    const rows = await querySchool(schoolId, sql, params);
+    return await querySchool(schoolId, sql, params);
+  }
+
+  try {
+    let rows;
+    try {
+      rows = await fetchAssignments();
+    } catch (firstErr) {
+      console.warn('[ASSIGNMENTS] List query failed, ensuring table and retrying:', firstErr.message);
+      await ensureAssignmentsTable();
+      rows = await fetchAssignments();
+    }
     res.json(rows);
   } catch (err) {
     console.error('Error fetching assignments:', err);
@@ -428,17 +436,35 @@ router.post('/assignments', authenticateTeacherToken, async (req, res) => {
     return res.status(400).json({ error: 'Title, subject, and class are required' });
   }
 
+  async function ensureAssignmentsTable() {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, teacher_id INTEGER, teacher_name TEXT, subject TEXT, class_name TEXT, section_name TEXT, title TEXT NOT NULL, description TEXT, type TEXT DEFAULT 'homework', due_date TEXT, priority TEXT DEFAULT 'medium', status TEXT DEFAULT 'active', total_marks INTEGER DEFAULT 0, marks_info TEXT DEFAULT '', school_id INTEGER, created_at TEXT)`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN total_marks INTEGER DEFAULT 0`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN marks_info TEXT DEFAULT ''`).catch(() => {});
+  }
+
   try {
     const teacherInfo = await querySchoolOne(schoolId, 'SELECT name FROM teachers WHERE id = ?', [teacherId]);
     const teacherName = teacherInfo ? teacherInfo.name : 'Teacher';
-
     const now = new Date().toISOString();
-    const result = await runSchool(
-      schoolId,
-      `INSERT INTO assignments (teacher_id, teacher_name, subject, class_name, section_name, title, description, type, due_date, priority, status, total_marks, marks_info, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, '', ?)`,
-      [teacherId, teacherName, subject, class_name, section_name || '', title, description || '', type || 'homework', due_date || '', priority || 'medium', total_marks || 0, now]
-    );
+
+    let result;
+    try {
+      result = await runSchool(
+        schoolId,
+        `INSERT INTO assignments (teacher_id, teacher_name, subject, class_name, section_name, title, description, type, due_date, priority, status, total_marks, marks_info, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, '', ?)`,
+        [teacherId, teacherName, subject, class_name, section_name || '', title, description || '', type || 'homework', due_date || '', priority || 'medium', total_marks || 0, now]
+      );
+    } catch (firstErr) {
+      console.warn('[ASSIGNMENTS] POST failed, ensuring table and retrying:', firstErr.message);
+      await ensureAssignmentsTable();
+      result = await runSchool(
+        schoolId,
+        `INSERT INTO assignments (teacher_id, teacher_name, subject, class_name, section_name, title, description, type, due_date, priority, status, total_marks, marks_info, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, '', ?)`,
+        [teacherId, teacherName, subject, class_name, section_name || '', title, description || '', type || 'homework', due_date || '', priority || 'medium', total_marks || 0, now]
+      );
+    }
     res.json({ success: true, id: result.lastID });
   } catch (err) {
     console.error('Error creating assignment:', err);
@@ -453,13 +479,30 @@ router.put('/assignments/:id', authenticateTeacherToken, async (req, res) => {
   const assignmentId = req.params.id;
   const { subject, class_name, section_name, title, description, type, due_date, priority, total_marks } = req.body;
 
+  async function ensureAssignmentsTable() {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, teacher_id INTEGER, teacher_name TEXT, subject TEXT, class_name TEXT, section_name TEXT, title TEXT NOT NULL, description TEXT, type TEXT DEFAULT 'homework', due_date TEXT, priority TEXT DEFAULT 'medium', status TEXT DEFAULT 'active', total_marks INTEGER DEFAULT 0, marks_info TEXT DEFAULT '', school_id INTEGER, created_at TEXT)`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN total_marks INTEGER DEFAULT 0`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN marks_info TEXT DEFAULT ''`).catch(() => {});
+  }
+
   try {
-    await runSchool(
-      schoolId,
-      `UPDATE assignments SET subject=?, class_name=?, section_name=?, title=?, description=?, type=?, due_date=?, priority=?, total_marks=?
-       WHERE id=? AND teacher_id=?`,
-      [subject, class_name, section_name || '', title, description || '', type || 'homework', due_date || '', priority || 'medium', total_marks || 0, assignmentId, teacherId]
-    );
+    try {
+      await runSchool(
+        schoolId,
+        `UPDATE assignments SET subject=?, class_name=?, section_name=?, title=?, description=?, type=?, due_date=?, priority=?, total_marks=?
+         WHERE id=? AND teacher_id=?`,
+        [subject, class_name, section_name || '', title, description || '', type || 'homework', due_date || '', priority || 'medium', total_marks || 0, assignmentId, teacherId]
+      );
+    } catch (firstErr) {
+      console.warn('[ASSIGNMENTS] PUT failed, ensuring table and retrying:', firstErr.message);
+      await ensureAssignmentsTable();
+      await runSchool(
+        schoolId,
+        `UPDATE assignments SET subject=?, class_name=?, section_name=?, title=?, description=?, type=?, due_date=?, priority=?, total_marks=?
+         WHERE id=? AND teacher_id=?`,
+        [subject, class_name, section_name || '', title, description || '', type || 'homework', due_date || '', priority || 'medium', total_marks || 0, assignmentId, teacherId]
+      );
+    }
     res.json({ success: true });
   } catch (err) {
     console.error('Error updating assignment:', err);
@@ -478,12 +521,18 @@ router.put('/assignments/:id/status', authenticateTeacherToken, async (req, res)
     return res.status(400).json({ error: 'Status must be either active or completed' });
   }
 
+  async function ensureStatusColumn() {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, teacher_id INTEGER, teacher_name TEXT, subject TEXT, class_name TEXT, section_name TEXT, title TEXT NOT NULL, description TEXT, type TEXT DEFAULT 'homework', due_date TEXT, priority TEXT DEFAULT 'medium', status TEXT DEFAULT 'active', total_marks INTEGER DEFAULT 0, marks_info TEXT DEFAULT '', school_id INTEGER, created_at TEXT)`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN status TEXT DEFAULT 'active'`).catch(() => {});
+  }
+
   try {
-    await runSchool(
-      schoolId,
-      `UPDATE assignments SET status=? WHERE id=? AND teacher_id=?`,
-      [status, assignmentId, teacherId]
-    );
+    try {
+      await runSchool(schoolId, `UPDATE assignments SET status=? WHERE id=? AND teacher_id=?`, [status, assignmentId, teacherId]);
+    } catch (firstErr) {
+      await ensureStatusColumn();
+      await runSchool(schoolId, `UPDATE assignments SET status=? WHERE id=? AND teacher_id=?`, [status, assignmentId, teacherId]);
+    }
     res.json({ success: true });
   } catch (err) {
     console.error('Error updating assignment status:', err);
@@ -498,12 +547,18 @@ router.put('/assignments/:id/marks', authenticateTeacherToken, async (req, res) 
   const assignmentId = req.params.id;
   const { marks_info } = req.body;
 
+  async function ensureMarksColumn() {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, teacher_id INTEGER, teacher_name TEXT, subject TEXT, class_name TEXT, section_name TEXT, title TEXT NOT NULL, description TEXT, type TEXT DEFAULT 'homework', due_date TEXT, priority TEXT DEFAULT 'medium', status TEXT DEFAULT 'active', total_marks INTEGER DEFAULT 0, marks_info TEXT DEFAULT '', school_id INTEGER, created_at TEXT)`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN marks_info TEXT DEFAULT ''`).catch(() => {});
+  }
+
   try {
-    await runSchool(
-      schoolId,
-      `UPDATE assignments SET marks_info=? WHERE id=? AND teacher_id=?`,
-      [marks_info || '', assignmentId, teacherId]
-    );
+    try {
+      await runSchool(schoolId, `UPDATE assignments SET marks_info=? WHERE id=? AND teacher_id=?`, [marks_info || '', assignmentId, teacherId]);
+    } catch (firstErr) {
+      await ensureMarksColumn();
+      await runSchool(schoolId, `UPDATE assignments SET marks_info=? WHERE id=? AND teacher_id=?`, [marks_info || '', assignmentId, teacherId]);
+    }
     res.json({ success: true });
   } catch (err) {
     console.error('Error updating assignment marks:', err);
@@ -518,12 +573,21 @@ router.get('/assignments/:id/students', authenticateTeacherToken, async (req, re
   const assignmentId = parseInt(req.params.id, 10);
   if (!assignmentId) return res.status(400).json({ error: 'Invalid assignment ID' });
 
-  try {
+  async function ensureAssignmentTables() {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, teacher_id INTEGER, teacher_name TEXT, subject TEXT, class_name TEXT, section_name TEXT, title TEXT NOT NULL, description TEXT, type TEXT DEFAULT 'homework', due_date TEXT, priority TEXT DEFAULT 'medium', status TEXT DEFAULT 'active', total_marks INTEGER DEFAULT 0, marks_info TEXT DEFAULT '', school_id INTEGER, created_at TEXT)`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN status TEXT DEFAULT 'active'`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN total_marks INTEGER DEFAULT 0`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignments ADD COLUMN marks_info TEXT DEFAULT ''`).catch(() => {});
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS assignment_students (id INTEGER PRIMARY KEY AUTOINCREMENT, assignment_id INTEGER NOT NULL, student_id INTEGER NOT NULL, status TEXT DEFAULT 'pending', marks INTEGER DEFAULT 0, feedback TEXT DEFAULT '', completed_at TEXT, school_id INTEGER, created_at TEXT)`).catch(() => {});
+    await runSchool(schoolId, `ALTER TABLE assignment_students ADD COLUMN school_id INTEGER`).catch(() => {});
+  }
+
+  async function loadStudents() {
     const assignment = await querySchoolOne(schoolId,
-      'SELECT * FROM assignments WHERE id=? AND teacher_id=?',
+      'SELECT id, teacher_id, class_name, section_name, title, subject, status, total_marks, type, due_date FROM assignments WHERE id=? AND teacher_id=?',
       [assignmentId, teacherId]
     );
-    if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
+    if (!assignment) return null;
 
     let students = [];
     if (assignment.class_name) {
@@ -547,8 +611,11 @@ router.get('/assignments/:id/students', authenticateTeacherToken, async (req, re
         [assignmentId]
       );
     } catch (e) {
-      console.warn('[ASSIGNMENTS] assignment_students table missing, creating now');
-      await runSchool(schoolId, "CREATE TABLE IF NOT EXISTS assignment_students (id INTEGER PRIMARY KEY AUTOINCREMENT, assignment_id INTEGER NOT NULL, student_id INTEGER NOT NULL, status TEXT DEFAULT 'pending', marks INTEGER DEFAULT 0, feedback TEXT DEFAULT '', completed_at TEXT, school_id INTEGER, created_at TEXT)").catch(() => {});
+      await ensureAssignmentTables();
+      tracked = await querySchool(schoolId,
+        'SELECT student_id, status, marks, feedback FROM assignment_students WHERE assignment_id=?',
+        [assignmentId]
+      ).catch(() => []);
     }
     const trackedMap = {};
     tracked.forEach(function(t) { trackedMap[t.student_id] = t; });
@@ -562,7 +629,20 @@ router.get('/assignments/:id/students', authenticateTeacherToken, async (req, re
       };
     });
 
-    res.json({ assignment: assignment, students: result });
+    return { assignment: assignment, students: result };
+  }
+
+  try {
+    let result;
+    try {
+      result = await loadStudents();
+    } catch (firstErr) {
+      console.warn('[ASSIGNMENTS] First attempt failed, ensuring tables and retrying:', firstErr.message);
+      await ensureAssignmentTables();
+      result = await loadStudents();
+    }
+    if (!result) return res.status(404).json({ error: 'Assignment not found' });
+    res.json(result);
   } catch (err) {
     console.error('Error fetching assignment students:', err.message || err);
     res.status(500).json({ error: 'Failed to load students: ' + (err.message || 'unknown') });

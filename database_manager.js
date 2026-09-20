@@ -321,6 +321,18 @@ async function ensureSchoolTables(db, schoolId) {
   await runRaw(`ALTER TABLE teachers ADD COLUMN assigned_class TEXT DEFAULT ''`).catch(() => {});
   await runRaw(`ALTER TABLE teachers ADD COLUMN can_collect_fees INTEGER DEFAULT 0`).catch(() => {});
 
+  // Ensure assignment-specific columns exist on Turso
+  await runRaw(`CREATE TABLE IF NOT EXISTS assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, teacher_id INTEGER, teacher_name TEXT, subject TEXT, class_name TEXT, section_name TEXT, title TEXT NOT NULL, description TEXT, type TEXT DEFAULT 'homework', due_date TEXT, priority TEXT DEFAULT 'medium', status TEXT DEFAULT 'active', total_marks INTEGER DEFAULT 0, marks_info TEXT DEFAULT '', school_id INTEGER, created_at TEXT)`).catch(() => {});
+  await runRaw(`ALTER TABLE assignments ADD COLUMN status TEXT DEFAULT 'active'`).catch(() => {});
+  await runRaw(`ALTER TABLE assignments ADD COLUMN total_marks INTEGER DEFAULT 0`).catch(() => {});
+  await runRaw(`ALTER TABLE assignments ADD COLUMN marks_info TEXT DEFAULT ''`).catch(() => {});
+  await runRaw(`ALTER TABLE assignments ADD COLUMN school_id INTEGER`).catch(() => {});
+
+  await runRaw(`CREATE TABLE IF NOT EXISTS assignment_students (id INTEGER PRIMARY KEY AUTOINCREMENT, assignment_id INTEGER NOT NULL, student_id INTEGER NOT NULL, status TEXT DEFAULT 'pending', marks INTEGER DEFAULT 0, feedback TEXT DEFAULT '', completed_at TEXT, school_id INTEGER, created_at TEXT)`).catch(() => {});
+  await runRaw(`CREATE INDEX IF NOT EXISTS idx_assignment_students_assignment ON assignment_students(assignment_id)`).catch(() => {});
+  await runRaw(`CREATE INDEX IF NOT EXISTS idx_assignment_students_student ON assignment_students(student_id)`).catch(() => {});
+  await runRaw(`ALTER TABLE assignment_students ADD COLUMN school_id INTEGER`).catch(() => {});
+
   if (schoolId) {
     const ver = backfillVersions.get(String(schoolId)) || 0;
     if (ver < BACKFILL_VERSION) {
