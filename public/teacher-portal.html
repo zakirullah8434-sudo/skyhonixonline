@@ -402,6 +402,23 @@
     }
   </script>
 
+  <script>
+    // APK token bridge: read token from URL hash if present (set by mobile app login)
+    (function() {
+      if (window.location.hash && window.location.hash.length > 1) {
+        try {
+          var params = new URLSearchParams(window.location.hash.substring(1));
+          var t = params.get('token');
+          var u = params.get('user');
+          if (t && u) {
+            localStorage.setItem('skyhonix_token', t);
+            localStorage.setItem('skyhonix_user', decodeURIComponent(u));
+            history.replaceState(null, '', window.location.pathname + window.location.search);
+          }
+        } catch(e) {}
+      }
+    })();
+  </script>
   <script src="js/teacher-portal.js" defer></script>
 </body>
 </html>
