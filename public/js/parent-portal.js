@@ -34,36 +34,39 @@
   }
 
   // Load school settings (logo + name)
+  const SETTINGS_CACHE_KEY = 'skyhonix_parent_settings_' + (currentUser.schoolId || 'x');
+  function applySchoolSettings(settings) {
+    if (!settings) return;
+    const schoolName = settings.school_name || currentUser.schoolName;
+    document.getElementById('sidebar-school-name').textContent = schoolName;
+    if (settings.logo_path) {
+      const logoSrc = settings.logo_path.startsWith('data:') ? settings.logo_path : '/' + settings.logo_path;
+      const headerLogo = document.getElementById('header-school-logo');
+      const sidebarLogo = document.getElementById('sidebar-school-logo');
+      headerLogo.src = logoSrc;
+      headerLogo.style.display = 'inline-block';
+      sidebarLogo.src = logoSrc;
+      sidebarLogo.style.display = 'block';
+    }
+  }
+  function paintCachedSchoolSettings() {
+    try {
+      const raw = localStorage.getItem(SETTINGS_CACHE_KEY);
+      if (raw) applySchoolSettings(JSON.parse(raw));
+    } catch (e) { /* ignore */ }
+  }
+  paintCachedSchoolSettings();
+
   async function loadSchoolSettings() {
     if (_parentSettingsCache) {
-      const settings = _parentSettingsCache;
-      const schoolName = settings.school_name || currentUser.schoolName;
-      document.getElementById('sidebar-school-name').textContent = schoolName;
-      if (settings.logo_path) {
-        const logoSrc = settings.logo_path.startsWith('data:') ? settings.logo_path : '/' + settings.logo_path;
-        const headerLogo = document.getElementById('header-school-logo');
-        const sidebarLogo = document.getElementById('sidebar-school-logo');
-        headerLogo.src = logoSrc;
-        headerLogo.style.display = 'inline-block';
-        sidebarLogo.src = logoSrc;
-        sidebarLogo.style.display = 'block';
-      }
+      applySchoolSettings(_parentSettingsCache);
       return;
     }
     try {
       const settings = await apiCall('/api/parents/settings');
       _parentSettingsCache = settings;
-      const schoolName = settings.school_name || currentUser.schoolName;
-      document.getElementById('sidebar-school-name').textContent = schoolName;
-      if (settings.logo_path) {
-        const logoSrc = settings.logo_path.startsWith('data:') ? settings.logo_path : '/' + settings.logo_path;
-        const headerLogo = document.getElementById('header-school-logo');
-        const sidebarLogo = document.getElementById('sidebar-school-logo');
-        headerLogo.src = logoSrc;
-        headerLogo.style.display = 'inline-block';
-        sidebarLogo.src = logoSrc;
-        sidebarLogo.style.display = 'block';
-      }
+      applySchoolSettings(settings);
+      try { localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(settings)); } catch (e) {}
     } catch (e) { console.error('[PARENT_PORTAL_ERROR]', e.message); }
   }
   loadSchoolSettings();

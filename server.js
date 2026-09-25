@@ -53,6 +53,111 @@ app.use((req, res, next) => {
 // Expose tracker to admin routes
 app.locals.bandwidthTracker = bandwidthTracker;
 
+// ─── Instant API cache ────────────────────────────────────────────────────────
+// Short-lived, per-session cache for GET /api responses.
+// It sits IN FRONT of the route handlers so a warm request is answered without
+// touching SQLite/Turso at all (dashboard, lists, settings, etc. return in <1ms).
+// Every successful write from the same session drops that session's cache, so
+// data is never stale right after the user changes something.
+const apiCache = new Map();          // authHeader -> Map(url -> { data, exp })
+const API_CACHE_TTL = 8000;          // ms a cached GET stays valid
+const API_CACHE_MAX_SESSIONS = 80;
+const API_CACHE_MAX_ENTRIES = 40;    // per session
+const API_CACHE_MAX_ENTRY_BYTES = 300000;
+const API_CACHE_MAX_TOTAL_BYTES = 24 * 1024 * 1024;
+let apiCacheBytes = 0;
+
+function apiCacheBucket(auth) {
+  let bucket = apiCache.get(auth);
+  if (bucket) {
+    // refresh LRU position
+    apiCache.delete(auth);
+    apiCache.set(auth, bucket);
+    return bucket;
+  }
+  if (apiCache.size >= API_CACHE_MAX_SESSIONS) {
+    const oldest = apiCache.keys().next().value;
+    const oldBucket = apiCache.get(oldest);
+    if (oldBucket) {
+      for (const v of oldBucket.values()) apiCacheBytes -= v.bytes || 0;
+    }
+    apiCache.delete(oldest);
+  }
+  bucket = new Map();
+  apiCache.set(auth, bucket);
+  return bucket;
+}
+
+function apiCacheStore(auth, url, data) {
+  let size = 0;
+  try { size = JSON.stringify(data).length; } catch (e) { return; }
+  if (size > API_CACHE_MAX_ENTRY_BYTES) return;
+  if (apiCacheBytes + size > API_CACHE_MAX_TOTAL_BYTES) {
+    apiCacheBytes = 0;
+    apiCache.clear();
+  }
+  const bucket = apiCacheBucket(auth);
+  const prev = bucket.get(url);
+  if (prev) apiCacheBytes -= prev.bytes || 0;
+  bucket.set(url, { data, exp: Date.now() + API_CACHE_TTL, bytes: size });
+  apiCacheBytes += size;
+  while (bucket.size > API_CACHE_MAX_ENTRIES) {
+    const k = bucket.keys().next().value;
+    apiCacheBytes -= bucket.get(k).bytes || 0;
+    bucket.delete(k);
+  }
+}
+
+function apiCacheRead(auth, url) {
+  const bucket = apiCache.get(auth);
+  if (!bucket) return null;
+  const hit = bucket.get(url);
+  if (!hit) return null;
+  if (hit.exp <= Date.now()) {
+    apiCacheBytes -= hit.bytes || 0;
+    bucket.delete(url);
+    return null;
+  }
+  return hit.data;
+}
+
+function apiCacheInvalidate(auth) {
+  if (!auth) return;
+  const bucket = apiCache.get(auth);
+  if (!bucket) return;
+  for (const v of bucket.values()) apiCacheBytes -= v.bytes || 0;
+  apiCache.delete(auth);
+}
+
+app.use('/api', (req, res, next) => {
+  const auth = req.headers['authorization'] || null;
+
+  if (req.method === 'GET') {
+    if (auth) {
+      const cached = apiCacheRead(auth, req.originalUrl);
+      if (cached) {
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('X-App-Cache', 'HIT');
+        return res.json(cached);
+      }
+    }
+    const sendJson = res.json.bind(res);
+    res.json = function (data) {
+      if (auth && res.statusCode >= 200 && res.statusCode < 300 && data && typeof data === 'object') {
+        try { apiCacheStore(auth, req.originalUrl, data); } catch (e) { /* never break the response */ }
+      }
+      return sendJson(data);
+    };
+    return next();
+  }
+
+  // Any write invalidates this session's cached reads immediately
+  res.on('finish', () => {
+    if (res.statusCode < 400) apiCacheInvalidate(auth);
+  });
+  next();
+});
+
 let dbInitialized = false;
 let dbInitializationPromise = null;
 
@@ -307,11 +412,13 @@ app.use('/api/salary', salaryRoutes);
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
+      // Revalidate on every navigation (cheap 304) but ALLOW storage so the
+      // browser / service worker can hand the page back instantly.
+      res.setHeader('Cache-Control', 'public, no-cache');
+      res.setHeader('Vary', 'Accept-Encoding');
     } else if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
-      res.setHeader('Cache-Control', 'public, max-age=0');
+      // Assets are versioned with ?v= query strings, so they can be reused for an hour.
+      res.setHeader('Cache-Control', 'public, max-age=3600');
     } else if (filePath.match(/\.(jpg|jpeg|png|gif|webp|svg|ico|woff2?|ttf|eot)$/)) {
       res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
     }

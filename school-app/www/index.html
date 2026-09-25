@@ -12,7 +12,7 @@
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      z-index: 99999; transition: opacity 0.4s ease;
+      z-index: 99999; transition: opacity 0.25s ease;
     }
     #splash.hidden { opacity: 0; pointer-events: none; }
     #splash .logo { font-size: 3rem; margin-bottom: 16px; }
@@ -156,8 +156,26 @@
       setTimeout(function() {
         splash.style.display = 'none';
         showScreen('login-screen');
-      }, 400);
-    }, 1500);
+      }, 250);
+    }, 450);
+
+    // Warm the portal shell into the HTTP cache while the user types their
+    // credentials, so the dashboard opens instantly after Sign In.
+    var PREFETCH_ASSETS = [
+      '/portal.html',
+      '/css/styles.css?v=3',
+      '/js/app.js?v=15',
+      '/js/offline-core.js',
+      '/manifest.json'
+    ];
+    function prefetchPortal() {
+      if (typeof fetch !== 'function') return;
+      PREFETCH_ASSETS.forEach(function (asset) {
+        fetch(SERVER + asset, { cache: 'force-cache', credentials: 'omit' }).catch(function () {});
+      });
+    }
+    setTimeout(prefetchPortal, 300);
+    document.getElementById('login-email').addEventListener('focus', prefetchPortal, { once: true });
 
     document.getElementById('login-form').addEventListener('submit', async function(e) {
       e.preventDefault();

@@ -2,9 +2,6 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="description" content="SkyHonix School Management System Dashboard. Manage students, QR attendance, carry-forward dues, exam matrixes, and settings.">
   <meta name="theme-color" content="#6366f1">
@@ -14,11 +11,23 @@
   <link rel="manifest" href="manifest.json">
   <title>SkyHonix Workspace | School Portal</title>
   
-  <!-- Preload Google Fonts for faster rendering -->
+  <!-- Preload Google Fonts for faster rendering (non-blocking) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"></noscript>
+
+  <!-- Critical assets: fetched in parallel with the HTML parse -->
+  <link rel="preload" href="css/styles.css?v=3" as="style">
+  <link rel="preload" href="js/app.js?v=15" as="script">
+
+  <!-- Register the service worker as early as possible so portal loads are served from cache -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js').catch(function () {});
+    }
+  </script>
+
   <style>
     .sidebar-overlay {
       display: none;
@@ -48,8 +57,7 @@
 
   <!-- Custom CSS -->
   <link rel="stylesheet" href="css/styles.css?v=3">
-  <!-- HTML5 QR Code Scanner Library (CDN) -->
-  <script src="https://unpkg.com/html5-qrcode" defer></script>
+  <!-- HTML5 QR Code Scanner Library is lazy-loaded on demand (see js/app.js) -->
   <!-- Chart.js CDN -->
   <script>
     // Lazy-load heavy libraries on demand
@@ -4381,6 +4389,6 @@
       }
     })();
   </script>
-  <script src="js/app.js?v=14"></script>
+  <script src="js/app.js?v=15"></script>
 </body>
 </html>

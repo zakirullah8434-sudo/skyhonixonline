@@ -9,6 +9,25 @@ const { queryMain, queryMainOne, runMain, runSchool, querySchoolOne, querySchool
 const subscriptionCache = new Map();
 const SUB_CACHE_TTL = 60000;
 
+// Login lookup cache — the school registry row is re-read on every login attempt.
+// Caching it for a few seconds removes a whole database round trip from the
+// critical sign-in path (invalidated automatically by register()).
+const SCHOOL_LOOKUP_TTL = 15000;
+const schoolLookupCache = new Map(); // key -> { row, exp }
+function schoolCacheGet(key) {
+  const hit = schoolLookupCache.get(key);
+  if (!hit) return null;
+  if (hit.exp <= Date.now()) { schoolLookupCache.delete(key); return null; }
+  return hit.row;
+}
+function schoolCacheSet(key, row) {
+  if (schoolLookupCache.size > 500) schoolLookupCache.clear();
+  schoolLookupCache.set(key, { row, exp: Date.now() + SCHOOL_LOOKUP_TTL });
+}
+function invalidateSchoolLookup(key) {
+  if (key) schoolLookupCache.delete(key);
+}
+
 function invalidateSubCache(schoolId) {
   subscriptionCache.delete(schoolId);
 }
@@ -97,6 +116,7 @@ router.post('/register', async (req, res) => {
     // Determine database file name
     const timestamp = Date.now();
     const dbFile = `school_${timestamp}.db`;
+    invalidateSchoolLookup('email:' + email);
 
     // Hash password for the initial school admin user
     const salt = await bcrypt.genSalt(10);
@@ -150,18 +170,33 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    // 1. Find school tenant in main registry by email AND verify password
-    const school = await queryMainOne(
-      'SELECT id, school_name, db_file, password, subscription_status, next_due_date, school_code FROM schools WHERE email = ?',
-      [schoolEmail]
-    );
+    // 1. Find school tenant in main registry by email (cached for a few seconds)
+    const cacheKey = 'email:' + schoolEmail;
+    let school = schoolCacheGet(cacheKey);
+    if (!school) {
+      school = await queryMainOne(
+        'SELECT id, school_name, db_file, password, subscription_status, next_due_date, school_code FROM schools WHERE email = ?',
+        [schoolEmail]
+      );
+      if (school) schoolCacheSet(cacheKey, school);
+    }
 
     if (!school) {
       return res.status(404).json({ error: 'School email is not registered' });
     }
 
-    // 2. Verify school password
-    const isMatch = await bcrypt.compare(password, school.password);
+    const schoolId = school.id;
+
+    // 2. Verify password AND fetch the admin user in parallel — one round trip saved
+    const [isMatch, user] = await Promise.all([
+      bcrypt.compare(password, school.password),
+      querySchoolOne(
+        schoolId,
+        'SELECT id, username, role FROM users WHERE role = ?',
+        ['admin']
+      ).catch(() => null)
+    ]);
+
     if (!isMatch) {
       return res.status(401).json({ error: 'Incorrect password' });
     }
@@ -171,38 +206,30 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Your school registration is pending admin approval. Please wait for activation.' });
     }
 
-    const schoolId = school.id;
-
-    // 3. Get admin user from school's tenant database for username/role info
-    let user = await querySchoolOne(
-      schoolId,
-      'SELECT id, username, role FROM users WHERE role = ?',
-      ['admin']
-    );
-
     // If admin user is missing (schema init race condition), create it now
-    if (!user) {
+    let finalUser = user;
+    if (!finalUser) {
       await runSchool(schoolId,
         'INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)',
         ['admin', school.password, 'admin']
       );
-      user = await querySchoolOne(
+      finalUser = await querySchoolOne(
         schoolId,
         'SELECT id, username, role FROM users WHERE role = ?',
         ['admin']
       );
     }
 
-    if (!user) {
+    if (!finalUser) {
       return res.status(401).json({ error: 'No admin user found for this school' });
     }
 
-    // 4. Generate JWT
+    // 3. Generate JWT
     const payload = {
       schoolId: schoolId,
       schoolName: school.school_name,
-      username: user.username,
-      role: user.role
+      username: finalUser.username,
+      role: finalUser.role
     };
 
     const token = jwt.sign(payload, config.JWT_SECRET, { expiresIn: '7d' });
@@ -211,8 +238,8 @@ router.post('/login', async (req, res) => {
       message: 'Login successful',
       token,
       user: {
-        username: user.username,
-        role: user.role,
+        username: finalUser.username,
+        role: finalUser.role,
         schoolName: school.school_name,
         schoolId: schoolId,
         schoolCode: school.school_code || null,
@@ -243,22 +270,28 @@ router.post('/teacher-login', async (req, res) => {
   }
 
   try {
-    // 1. Find the specific school — try id first, then school_code
-    let school = await queryMainOne(
-      'SELECT id, school_name, subscription_status FROM schools WHERE id = ?',
-      [school_id]
-    );
+    // 1. Find the specific school — try id first, then school_code (cached 15s)
+    const schoolCacheKey = 'id:' + school_id;
+    let school = schoolCacheGet(schoolCacheKey);
 
-    if (!school && typeof school_id === 'string') {
+    if (!school) {
       school = await queryMainOne(
-        'SELECT id, school_name, subscription_status FROM schools WHERE school_code = ?',
+        'SELECT id, school_name, subscription_status FROM schools WHERE id = ?',
         [school_id]
       );
-    } else if (!school) {
-      school = await queryMainOne(
-        'SELECT id, school_name, subscription_status FROM schools WHERE school_code = ?',
-        [String(school_id)]
-      );
+
+      if (!school && typeof school_id === 'string') {
+        school = await queryMainOne(
+          'SELECT id, school_name, subscription_status FROM schools WHERE school_code = ?',
+          [school_id]
+        );
+      } else if (!school) {
+        school = await queryMainOne(
+          'SELECT id, school_name, subscription_status FROM schools WHERE school_code = ?',
+          [String(school_id)]
+        );
+      }
+      if (school) schoolCacheSet(schoolCacheKey, school);
     }
 
     if (!school) {

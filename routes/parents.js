@@ -63,22 +63,38 @@ router.get('/settings', authenticateParentToken, async (req, res) => {
 });
 
 // POST /parents/login - Parent login (school_id + phone + password)
+const _schoolLookupCache = new Map(); // 15s registry cache — keeps sign-in to a single round trip
+function schoolLookupCached(key) {
+  const hit = _schoolLookupCache.get(key);
+  if (!hit) return null;
+  if (hit.exp <= Date.now()) { _schoolLookupCache.delete(key); return null; }
+  return hit.row;
+}
+function schoolLookupStore(key, row) {
+  if (_schoolLookupCache.size > 500) _schoolLookupCache.clear();
+  _schoolLookupCache.set(key, { row, exp: Date.now() + 15000 });
+}
+
 router.post('/login', async (req, res) => {
   const { school_id, phone, password } = req.body;
   if (!school_id || !phone || !password) {
     return res.status(400).json({ error: 'School ID, phone, and password are required' });
   }
   try {
-    let schools = await queryMain('SELECT id, school_name, db_file FROM schools WHERE id = ?', [school_id]);
-    if (schools.length === 0 && typeof school_id === 'string') {
-      schools = await queryMain('SELECT id, school_name, db_file FROM schools WHERE school_code = ?', [school_id]);
-    } else if (schools.length === 0) {
-      schools = await queryMain('SELECT id, school_name, db_file FROM schools WHERE school_code = ?', [String(school_id)]);
+    let school = schoolLookupCached('id:' + school_id);
+    if (!school) {
+      let schools = await queryMain('SELECT id, school_name, db_file FROM schools WHERE id = ?', [school_id]);
+      if (schools.length === 0 && typeof school_id === 'string') {
+        schools = await queryMain('SELECT id, school_name, db_file FROM schools WHERE school_code = ?', [school_id]);
+      } else if (schools.length === 0) {
+        schools = await queryMain('SELECT id, school_name, db_file FROM schools WHERE school_code = ?', [String(school_id)]);
+      }
+      if (schools.length === 0) {
+        return res.status(404).json({ error: 'School not found with this ID' });
+      }
+      school = schools[0];
+      schoolLookupStore('id:' + school_id, school);
     }
-    if (schools.length === 0) {
-      return res.status(404).json({ error: 'School not found with this ID' });
-    }
-    const school = schools[0];
     const parents = await querySchool(school.id,
       'SELECT id, name, phone, password, status FROM parents WHERE phone = ?',
       [phone]

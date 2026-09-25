@@ -98,6 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
   headerSchoolName.innerText = currentUser.schoolName;
   headerUserBadge.innerText = `User: ${currentUser.username} (${currentUser.role})`;
 
+  // Paint the last known dashboard instantly (school name, logo, stats) — refreshed below
+  paintCachedDashboard();
+
   // Beeper sound generator (Web Audio API)
   function playBeep(type = 'success') {
     try {
@@ -545,39 +548,72 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   // MODULE: DASHBOARD
   // ==========================================
+
+  // Instant paint: the previous dashboard payload is kept on disk so the cards,
+  // school name, phone and logo appear immediately (before the network answers).
+  const DASH_CACHE_TTL = 86400000; // 24h
+  function dashCacheKey() {
+    return 'skyhonix_dash_cache_' + (currentUser.schoolId || currentUser.schoolCode || 'x');
+  }
+  function readCachedDashboard() {
+    try {
+      const raw = localStorage.getItem(dashCacheKey());
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.data && (Date.now() - parsed.t) < DASH_CACHE_TTL) return parsed.data;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+  function writeCachedDashboard(stats) {
+    try {
+      localStorage.setItem(dashCacheKey(), JSON.stringify({ t: Date.now(), data: stats }));
+    } catch (e) { /* quota — non critical */ }
+  }
+
+  function renderDashboardStats(stats) {
+    if (!stats) return;
+    document.getElementById('stat-total-students').innerText = stats.totalStudents || 0;
+
+    let presentCount = 0;
+    let totalAttLogs = 0;
+    (stats.attendanceStats || []).forEach(s => {
+      if (s.status === 'Present') presentCount = s.count;
+      totalAttLogs += s.count;
+    });
+
+    const rate = totalAttLogs > 0 ? Math.round((presentCount / totalAttLogs) * 100) : 0;
+    document.getElementById('stat-attendance-rate').innerText = totalAttLogs > 0 ? `${rate}%` : '0%';
+
+    document.getElementById('stat-month-fees').innerText = `${(stats.monthCollected || 0).toLocaleString()} PKR`;
+    document.getElementById('stat-pending-dues').innerText = `${(stats.pendingDues || 0).toLocaleString()} PKR`;
+
+    document.getElementById('dash-school-title').innerText = (stats.settings && stats.settings.school_name) || '';
+    document.getElementById('dash-school-phone').innerText = (stats.settings && stats.settings.phone) || 'N/A';
+    document.getElementById('dash-school-reg').innerText = (stats.settings && stats.settings.registration_number) || 'N/A';
+    document.getElementById('dash-school-id').innerText = currentUser.schoolCode || currentUser.schoolId || 'N/A';
+    if (stats.settings && stats.settings.logo_path) {
+      document.getElementById('dash-school-logo').src = imgSrc(stats.settings.logo_path);
+    }
+  }
+
+  function paintCachedDashboard() {
+    const cached = readCachedDashboard();
+    if (cached) renderDashboardStats(cached);
+  }
+
   async function loadDashboardStats() {
     try {
       const stats = await apiCall('/dashboard/stats');
-
-      document.getElementById('stat-total-students').innerText = stats.totalStudents || 0;
-
-      let presentCount = 0;
-      let totalAttLogs = 0;
-      (stats.attendanceStats || []).forEach(s => {
-        if (s.status === 'Present') presentCount = s.count;
-        totalAttLogs += s.count;
-      });
-
-      const rate = totalAttLogs > 0 ? Math.round((presentCount / totalAttLogs) * 100) : 0;
-      document.getElementById('stat-attendance-rate').innerText = totalAttLogs > 0 ? `${rate}%` : '0%';
-
-      document.getElementById('stat-month-fees').innerText = `${(stats.monthCollected || 0).toLocaleString()} PKR`;
-      document.getElementById('stat-pending-dues').innerText = `${(stats.pendingDues || 0).toLocaleString()} PKR`;
-
-      document.getElementById('dash-school-title').innerText = (stats.settings && stats.settings.school_name) || '';
-      document.getElementById('dash-school-phone').innerText = (stats.settings && stats.settings.phone) || 'N/A';
-      document.getElementById('dash-school-reg').innerText = (stats.settings && stats.settings.registration_number) || 'N/A';
-      document.getElementById('dash-school-id').innerText = currentUser.schoolCode || currentUser.schoolId || 'N/A';
-      if (stats.settings && stats.settings.logo_path) {
-        document.getElementById('dash-school-logo').src = imgSrc(stats.settings.logo_path);
-      }
-
+      renderDashboardStats(stats);
+      writeCachedDashboard(stats);
     } catch (e) {
       console.error('Dashboard stats error:', e);
-      document.getElementById('stat-total-students').innerText = '0';
-      document.getElementById('stat-attendance-rate').innerText = '0%';
-      document.getElementById('stat-month-fees').innerText = '0 PKR';
-      document.getElementById('stat-pending-dues').innerText = '0 PKR';
+      if (!readCachedDashboard()) {
+        document.getElementById('stat-total-students').innerText = '0';
+        document.getElementById('stat-attendance-rate').innerText = '0%';
+        document.getElementById('stat-month-fees').innerText = '0 PKR';
+        document.getElementById('stat-pending-dues').innerText = '0 PKR';
+      }
     }
   }
 
@@ -2888,12 +2924,35 @@ document.addEventListener('DOMContentLoaded', () => {
   const scanFeedback = document.getElementById('scan-feedback-container');
   let currentFacing = 'environment'; // Default to back camera
 
-  btnStartScanner.addEventListener('click', () => {
+  // Lazy-load the QR library only when the scanner is opened (keeps page boot fast)
+  let qrLibPromise = null;
+  function loadQrLibrary() {
+    if (window.Html5Qrcode) return Promise.resolve();
+    if (qrLibPromise) return qrLibPromise;
+    qrLibPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/html5-qrcode';
+      s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => { qrLibPromise = null; reject(new Error('QR library failed to load')); };
+      document.head.appendChild(s);
+    });
+    return qrLibPromise;
+  }
+  loadQrLibrary().catch(() => {}); // warm the cache shortly after boot
+
+  btnStartScanner.addEventListener('click', async () => {
     if (html5QrcodeScanner) return;
 
     scanFeedback.style.display = 'none';
+    try {
+      await loadQrLibrary();
+    } catch (err) {
+      showToast(err.message, true);
+      return;
+    }
     html5QrcodeScanner = new Html5Qrcode('reader');
-    
+
     html5QrcodeScanner.start(
       { facingMode: currentFacing },
       {

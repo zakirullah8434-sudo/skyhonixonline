@@ -5,6 +5,8 @@ npm-debug.log
 # Database files (contain sensitive school data)
 *.db
 !public/databases/*.db
+*.db-wal
+*.db-shm
 
 # Environment variables
 .env

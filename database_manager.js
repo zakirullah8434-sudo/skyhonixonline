@@ -287,7 +287,10 @@ async function runMain(sql, params = []) {
 // Dynamic school db connection pool
 const migratedSchools = new Set();
 const migrationPromises = {};
-const BACKFILL_VERSION = 3;
+// Bump this whenever ensureSchoolTables() learns a new column/index/backfill.
+// The version is persisted inside each tenant database (app_meta.schema_version)
+// so tenants are only migrated ONCE ever instead of on every cold start.
+const BACKFILL_VERSION = 4;
 const backfillVersions = new Map();
 async function ensureSchoolTables(db, schoolId) {
   // Use raw Turso client for DDL/DML to avoid proxy rewriting
@@ -300,6 +303,30 @@ async function ensureSchoolTables(db, schoolId) {
       return new Promise((res, rej) => { db.run(sql, params, function(err) { if (err) rej(err); else res(); }); });
     }
   };
+  const queryRaw = async (sql, params = []) => {
+    if (rawClient) {
+      const r = await rawClient.execute({ sql, args: params });
+      return r.rows[0] || null;
+    }
+    return new Promise((res, rej) => { db.get(sql, params, (err, row) => { if (err) rej(err); else res(row || null); }); });
+  };
+
+  // ── FAST PATH ─────────────────────────────────────────────────────────────
+  // Already migrated in this process AND in the database itself -> zero extra work.
+  if (schoolId && (backfillVersions.get(String(schoolId)) || 0) >= BACKFILL_VERSION) return;
+
+  let storedVersion = 0;
+  try {
+    const marker = await queryRaw('SELECT v FROM app_meta WHERE k = ?', ['schema_version']);
+    storedVersion = marker && marker.v ? parseInt(marker.v, 10) || 0 : 0;
+  } catch (e) {
+    storedVersion = 0; // app_meta table missing -> needs full migration
+  }
+  if (schoolId && storedVersion >= BACKFILL_VERSION) {
+    backfillVersions.set(String(schoolId), BACKFILL_VERSION);
+    return;
+  }
+
   const tables = [
     'students', 'sections', 'class_fees', 'student_fee_exceptions',
     'fee_ledger', 'attendance', 'fee_payments', 'fee_dues', 'past_dues',
@@ -311,12 +338,36 @@ async function ensureSchoolTables(db, schoolId) {
     'student_transfer_history', 'transport_vehicles', 'transport_drivers', 'transport_routes', 'transport_assignments', 'roll_slip_templates',
     'teachers', 'teacher_salaries', 'salary_payments'
   ];
-  for (const t of tables) {
-    await runRaw(`ALTER TABLE ${t} ADD COLUMN school_id INTEGER`).catch((e) => {
-      if (!e.message.includes('duplicate column')) {
-        console.error(`[TURSO_MIGRATE] ALTER TABLE ${t} ADD COLUMN school_id failed:`, e.message);
+
+  await runRaw('CREATE TABLE IF NOT EXISTS app_meta (k TEXT PRIMARY KEY, v TEXT)').catch(() => {});
+
+  // Only ALTER the tables that are actually missing the column (usually none)
+  let tableSql = '';
+  try {
+    const rows = rawClient
+      ? (await rawClient.execute({ sql: "SELECT name, sql FROM sqlite_master WHERE type = 'table'" })).rows
+      : await new Promise((res, rej) => db.all("SELECT name, sql FROM sqlite_master WHERE type = 'table'", [], (e, r) => e ? rej(e) : res(r || [])));
+    const present = {};
+    rows.forEach(r => { if (r && r.name && r.sql) present[r.name.toLowerCase()] = String(r.sql); });
+    for (const t of tables) {
+      const sql = present[t.toLowerCase()];
+      if (!sql || !/\bschool_id\b/i.test(sql)) tableSql += `ALTER TABLE ${t} ADD COLUMN school_id INTEGER;`;
+    }
+  } catch (e) {
+    for (const t of tables) tableSql += `ALTER TABLE ${t} ADD COLUMN school_id INTEGER;`;
+  }
+  if (tableSql) {
+    if (rawClient && typeof rawClient.executeMultiple === 'function') {
+      await rawClient.executeMultiple(tableSql).catch((e) => {
+        if (!String(e.message).includes('duplicate column')) console.error('[TURSO_MIGRATE] ALTER batch failed:', e.message);
+      });
+    } else {
+      for (const stmt of tableSql.split(';').filter(s => s.trim())) {
+        await runRaw(stmt.trim()).catch((e) => {
+          if (!e.message.includes('duplicate column')) console.error(`[MIGRATE] ${stmt.trim()} failed:`, e.message);
+        });
       }
-    });
+    }
   }
   await runRaw(`ALTER TABLE teachers ADD COLUMN assigned_class TEXT DEFAULT ''`).catch(() => {});
   await runRaw(`ALTER TABLE teachers ADD COLUMN can_collect_fees INTEGER DEFAULT 0`).catch(() => {});
@@ -334,25 +385,28 @@ async function ensureSchoolTables(db, schoolId) {
   await runRaw(`ALTER TABLE assignment_students ADD COLUMN school_id INTEGER`).catch(() => {});
 
   if (schoolId) {
-    const ver = backfillVersions.get(String(schoolId)) || 0;
-    if (ver < BACKFILL_VERSION) {
-      let totalUpdated = 0;
-      let allSucceeded = true;
-      for (const t of tables) {
-        try {
-          const r = await runRaw(`UPDATE ${t} SET school_id = ? WHERE school_id IS NULL`, [schoolId]);
-          const affected = r && r.rowsAffected ? r.rowsAffected : 0;
-          if (affected > 0) totalUpdated += affected;
-        } catch (e) {
-          console.error(`[TURSO_BACKFILL] Failed on ${t}:`, e.message);
-          allSucceeded = false;
-        }
+    let totalUpdated = 0;
+    let allSucceeded = true;
+    for (const t of tables) {
+      try {
+        const r = await runRaw(`UPDATE ${t} SET school_id = ? WHERE school_id IS NULL`, [schoolId]);
+        const affected = r && r.rowsAffected ? r.rowsAffected : 0;
+        if (affected > 0) totalUpdated += affected;
+      } catch (e) {
+        console.error(`[TURSO_BACKFILL] Failed on ${t}:`, e.message);
+        allSucceeded = false;
       }
-      if (allSucceeded) {
-        backfillVersions.set(String(schoolId), BACKFILL_VERSION);
-      }
-      console.log(`[TURSO_BACKFILL] school_id=${schoolId} updated ${totalUpdated} total rows across ${tables.length} tables${allSucceeded ? '' : ' (partial failure - will retry)'}`);
     }
+    if (allSucceeded) {
+      try {
+        await runRaw('INSERT INTO app_meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v',
+          ['schema_version', String(BACKFILL_VERSION)]);
+      } catch (e) {
+        await runRaw('INSERT OR REPLACE INTO app_meta (k, v) VALUES (?, ?)', ['schema_version', String(BACKFILL_VERSION)]).catch(() => {});
+      }
+      backfillVersions.set(String(schoolId), BACKFILL_VERSION);
+    }
+    console.log(`[TURSO_BACKFILL] school_id=${schoolId} updated ${totalUpdated} total rows across ${tables.length} tables${allSucceeded ? '' : ' (partial failure - will retry)'}`);
   }
 }
 function getSchoolDb(schoolId) {
@@ -424,6 +478,9 @@ function getSchoolDb(schoolId) {
 
         await createSchoolDatabaseSchema(schoolDb);
         await migrateSchoolDatabase(schoolDb);
+        // Guarantee tenant-wide columns/indexes exist (school_id, backfill, etc.)
+        // and stamp app_meta.schema_version so this only ever runs once per tenant.
+        await ensureSchoolTables(schoolDb, schoolId);
 
         // LRU eviction if cache is full
         while (schoolDbAccessOrder.length >= SCHOOL_DB_MAX) {

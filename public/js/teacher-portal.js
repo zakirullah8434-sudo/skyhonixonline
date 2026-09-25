@@ -117,21 +117,35 @@ document.addEventListener('DOMContentLoaded', () => {
   })();
 
   // Load school settings (logo + name)
+  const SETTINGS_CACHE_KEY = 'skyhonix_teacher_settings_' + (currentUser.schoolId || 'x');
+  function applySchoolSettings(settings) {
+    if (!settings) return;
+    const schoolName = settings.school_name || currentUser.schoolName;
+    document.getElementById('header-school-title').textContent = schoolName;
+    document.getElementById('sidebar-school-name').textContent = schoolName;
+    if (settings.logo_path) {
+      const logoSrc = settings.logo_path.startsWith('data:') ? settings.logo_path : '/' + settings.logo_path;
+      const headerLogo = document.getElementById('header-school-logo');
+      const sidebarLogo = document.getElementById('sidebar-school-logo');
+      headerLogo.src = logoSrc;
+      headerLogo.style.display = 'inline-block';
+      sidebarLogo.src = logoSrc;
+      sidebarLogo.style.display = 'block';
+    }
+  }
+  function paintCachedSchoolSettings() {
+    try {
+      const raw = localStorage.getItem(SETTINGS_CACHE_KEY);
+      if (raw) applySchoolSettings(JSON.parse(raw));
+    } catch (e) { /* ignore */ }
+  }
+  paintCachedSchoolSettings();
+
   async function loadSchoolSettings() {
     try {
       const settings = await apiCall('/api/teachers/settings');
-      const schoolName = settings.school_name || currentUser.schoolName;
-      document.getElementById('header-school-title').textContent = schoolName;
-      document.getElementById('sidebar-school-name').textContent = schoolName;
-      if (settings.logo_path) {
-        const logoSrc = settings.logo_path.startsWith('data:') ? settings.logo_path : '/' + settings.logo_path;
-        const headerLogo = document.getElementById('header-school-logo');
-        const sidebarLogo = document.getElementById('sidebar-school-logo');
-        headerLogo.src = logoSrc;
-        headerLogo.style.display = 'inline-block';
-        sidebarLogo.src = logoSrc;
-        sidebarLogo.style.display = 'block';
-      }
+      applySchoolSettings(settings);
+      try { localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(settings)); } catch (e) {}
     } catch (e) { console.error('[TEACHER_PORTAL_ERROR]', e.message); }
   }
   loadSchoolSettings();
