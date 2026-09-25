@@ -54,6 +54,10 @@ build-apks.ps1
 java_err.txt
 java_out.txt
 
+# Scratch files (temp commit messages, ad-hoc test scripts)
+_commit_*.txt
+_*_test.js
+
 # User uploads and generated data
 uploads/
 public/uploads/student_photos/
