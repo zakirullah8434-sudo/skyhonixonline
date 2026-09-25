@@ -63,8 +63,65 @@ async function getTursoOne(sql, params = []) {
   return result.rows[0] || null;
 }
 
+// ─── Main schema marker ──────────────────────────────────────────────────────
+// initMainDb() runs ~30 statements. On Turso every one of those is a network
+// round trip, so a cold start paid several seconds for work that was already
+// done on the previous deploy. app_meta.schema_version records that the
+// migration has completed, letting us finish in one round trip instead.
+//
+// *** IMPORTANT ***
+// Whenever you add a table/column inside initMainDb / initMainDbTurso /
+// initSchoolTablesTurso, bump MAIN_SCHEMA_VERSION so existing deployments
+// re-run the migration on their next cold start.
+const MAIN_SCHEMA_VERSION = 1;
+
+async function mainSchemaIsCurrent() {
+  try {
+    const row = await getTursoOne('SELECT v FROM app_meta WHERE k = ?', ['schema_version']);
+    return !!row && Number(row.v) === MAIN_SCHEMA_VERSION;
+  } catch (e) {
+    // app_meta does not exist yet — first run. Create it so the marker can be
+    // written once the migration succeeds.
+    try {
+      await getTursoClient().execute('CREATE TABLE IF NOT EXISTS app_meta (k TEXT PRIMARY KEY, v TEXT)');
+    } catch (e2) {
+      console.error('[MAIN_INIT] could not create app_meta:', e2.message);
+    }
+    return false;
+  }
+}
+
+async function writeMainSchemaMarker() {
+  try {
+    await getTursoClient().execute({
+      sql: 'INSERT OR REPLACE INTO app_meta (k, v) VALUES (?, ?)',
+      args: ['schema_version', String(MAIN_SCHEMA_VERSION)]
+    });
+  } catch (e) {
+    console.error('[MAIN_INIT] could not write schema marker:', e.message);
+  }
+}
+
+function mainSchemaIsCurrentLocal(db) {
+  return getDb(db, 'SELECT v FROM app_meta WHERE k = ?', ['schema_version'])
+    .then((row) => !!row && Number(row.v) === MAIN_SCHEMA_VERSION)
+    .catch(async () => {
+      await runDb(db, 'CREATE TABLE IF NOT EXISTS app_meta (k TEXT PRIMARY KEY, v TEXT)');
+      return false;
+    });
+}
+
+function writeMainSchemaMarkerLocal(db) {
+  return runDb(db, 'INSERT OR REPLACE INTO app_meta (k, v) VALUES (?, ?)',
+    ['schema_version', String(MAIN_SCHEMA_VERSION)]);
+}
+
 async function initMainDbTurso() {
   const client = getTursoClient();
+
+  if (await mainSchemaIsCurrent()) {
+    return;
+  }
 
   await client.execute(`CREATE TABLE IF NOT EXISTS schools (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -167,7 +224,13 @@ async function initMainDbTurso() {
   // Add auth_provider column to schools table
   try { await client.execute(`ALTER TABLE schools ADD COLUMN auth_provider TEXT DEFAULT 'local'`); } catch (e) { /* column already exists */ }
 
-  await initSchoolTablesTurso(client);
+  const hadErrors = await initSchoolTablesTurso(client);
+
+  if (hadErrors) {
+    console.warn('[MAIN_INIT] schema marker not written — some tables failed to create.');
+  } else {
+    await writeMainSchemaMarker();
+  }
 
   console.log('main.db initialized successfully via Turso.');
 }
@@ -524,6 +587,7 @@ async function initSchoolTablesTurso(client) {
   } else {
     console.log('School tenant tables initialized in Turso.');
   }
+  return hasErrors;
 }
 
 async function initMainDb() {
@@ -552,6 +616,10 @@ async function initMainDb() {
   });
 
   try {
+    if (await mainSchemaIsCurrentLocal(db)) {
+      return;
+    }
+
     await runDb(db, `
       CREATE TABLE IF NOT EXISTS schools (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -660,6 +728,8 @@ async function initMainDb() {
 
     // Add auth_provider column to schools table
     await runDb(db, `ALTER TABLE schools ADD COLUMN auth_provider TEXT DEFAULT 'local'`);
+
+    await writeMainSchemaMarkerLocal(db);
 
     console.log('main.db initialized successfully.');
   } finally {
