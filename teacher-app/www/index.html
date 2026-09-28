@@ -90,21 +90,99 @@
 
     var splash = document.getElementById('splash');
     var loginContainer = document.getElementById('login-container');
+    var SESSION_TOKEN_KEY = 'skyhonix_app_token';
+    var SESSION_USER_KEY = 'skyhonix_app_user';
+    var PORTAL_PATH = '/teacher-portal.html';
+    var SPLASH_MIN_MS = 450;
+    var bootAt = Date.now();
+    var loginRevealed = false;
 
-    setTimeout(function() {
-      splash.classList.add('hidden');
+    function enterPortal(token, userStr) {
+      // location.replace() — NOT location.href — so the login screen leaves
+      // the history stack. Back button on the dashboard then closes the app
+      // instead of walking back into the login screen (which looked like a
+      // logout).
+      window.location.replace(SERVER + PORTAL_PATH + '#token=' + token + '&user=' + userStr);
+    }
+
+    function saveSession(token, userStr) {
+      try {
+        localStorage.setItem(SESSION_TOKEN_KEY, token);
+        localStorage.setItem(SESSION_USER_KEY, userStr);
+      } catch (e) {}
+    }
+
+    function clearSession() {
+      try {
+        localStorage.removeItem(SESSION_TOKEN_KEY);
+        localStorage.removeItem(SESSION_USER_KEY);
+      } catch (e) {}
+    }
+
+    function revealLogin() {
+      if (loginRevealed) return;
+      loginRevealed = true;
+      var wait = Math.max(0, SPLASH_MIN_MS - (Date.now() - bootAt));
       setTimeout(function() {
-        splash.style.display = 'none';
-        loginContainer.style.display = 'flex';
-      }, 250);
-    }, 450);
+        splash.classList.add('hidden');
+        setTimeout(function() {
+          splash.style.display = 'none';
+          loginContainer.style.display = 'flex';
+        }, 250);
+      }, wait);
+    }
+
+    // A signed-in user never sees the login screen again: the app hands its
+    // stored token straight back to the portal, which owns the real session.
+    // The server rejects it if the user logged out, so "Log out" sticks.
+    function restoreSession() {
+      var token = null, userStr = null;
+      try {
+        token = localStorage.getItem(SESSION_TOKEN_KEY);
+        userStr = localStorage.getItem(SESSION_USER_KEY);
+      } catch (e) {}
+
+      if (!token || !userStr) {
+        revealLogin();
+        return;
+      }
+
+      var settled = false;
+      var settle = function(fn) {
+        if (settled) return;
+        settled = true;
+        fn();
+      };
+
+      try {
+        fetch(SERVER + '/api/auth/session', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        }).then(function(res) {
+          if (res.status === 401 || res.status === 403) {
+            clearSession();
+            settle(revealLogin);
+          } else {
+            settle(function() { enterPortal(token, userStr); });
+          }
+        }).catch(function() {
+          // Offline — keep the session and open the portal from cache.
+          settle(function() { enterPortal(token, userStr); });
+        });
+      } catch (e) {
+        settle(revealLogin);
+      }
+
+      // Never hang on the splash if the network stalls.
+      setTimeout(function() { settle(revealLogin); }, 6000);
+    }
 
     // Warm the portal shell into the HTTP cache while the user types their
     // credentials, so the dashboard opens instantly after Sign In.
     var PREFETCH_ASSETS = [
       '/teacher-portal.html',
       '/css/styles.css?v=3',
-      '/js/teacher-portal.js?v=15',
+      '/js/teacher-portal.js?v=16',
+      '/js/section-history.js?v=1',
       '/js/offline-core.js',
       '/manifest.json'
     ];
@@ -137,7 +215,8 @@
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Login failed');
         var userStr = encodeURIComponent(JSON.stringify(data.user));
-        window.location.href = SERVER + '/teacher-portal.html#token=' + data.token + '&user=' + userStr;
+        saveSession(data.token, userStr);
+        enterPortal(data.token, userStr);
       } catch(err) {
         errEl.textContent = err.message;
         errEl.style.display = 'block';
@@ -145,6 +224,9 @@
         btn.textContent = 'Sign In';
       }
     });
+
+    // Restore an existing session instead of showing the login screen.
+    restoreSession();
   </script>
 </body>
 </html>

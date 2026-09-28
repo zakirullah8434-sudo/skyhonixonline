@@ -72,7 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const userJson = localStorage.getItem('skyhonix_user');
   
   if (!token || !userJson) {
-    window.location.href = 'index.html';
+    // replace() keeps the login page out of the history stack, so the Android
+    // back button can never land here and make it look like a logout.
+    window.location.replace('index.html');
     return;
   }
 
@@ -301,9 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (result.suspended || result.pending) {
           lockOverlay.style.display = 'flex';
         } else {
-          localStorage.removeItem('skyhonix_token');
-          localStorage.removeItem('skyhonix_user');
-          window.location.href = 'index.html';
+          endSession();
         }
       }
 
@@ -411,39 +411,66 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Sidebar navigation toggles
+  function activateScreen(targetScreen) {
+    if (!targetScreen) return;
+
+    // Stop scanner if navigating away from attendance screen
+    if (targetScreen !== 'attendance' && html5QrcodeScanner) {
+      stopQrScanner();
+    }
+
+    // Toggle active link
+    sidebarItems.forEach(i => {
+      if (i.getAttribute('data-screen') === targetScreen) i.classList.add('active');
+      else i.classList.remove('active');
+    });
+
+    // Toggle visible screen
+    screens.forEach(screen => {
+      if (screen.id === `screen-${targetScreen}`) {
+        screen.style.display = 'block';
+      } else {
+        screen.style.display = 'none';
+      }
+    });
+
+    // Load screen specific content
+    loadScreenData(targetScreen);
+
+    // Close mobile sidebar on navigation
+    if (window.innerWidth <= 992) {
+      closeSidebar();
+    }
+  }
+
   sidebarItems.forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
-      
-      const targetScreen = item.getAttribute('data-screen');
-      
-      // Stop scanner if navigating away from attendance screen
-      if (targetScreen !== 'attendance' && html5QrcodeScanner) {
-        stopQrScanner();
-      }
-
-      // Toggle active link
-      sidebarItems.forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
-
-      // Toggle visible screen
-      screens.forEach(screen => {
-        if (screen.id === `screen-${targetScreen}`) {
-          screen.style.display = 'block';
-        } else {
-          screen.style.display = 'none';
-        }
-      });
-
-      // Load screen specific content
-      loadScreenData(targetScreen);
-
-      // Close mobile sidebar on navigation
-      if (window.innerWidth <= 992) {
-        closeSidebar();
-      }
+      activateScreen(item.getAttribute('data-screen'));
     });
   });
+
+  // Section history — makes the Android back button walk through the sections
+  // the user visited instead of leaving the portal (which looked like a logout).
+  if (window.SkyHonixSectionHistory) {
+    const navKeys = new Set();
+    sidebarItems.forEach(item => {
+      const key = item.getAttribute('data-screen');
+      if (key) navKeys.add(key);
+    });
+    window.SkyHonixSectionHistory.init({
+      getActive: () => {
+        for (const screen of screens) {
+          if (screen.style.display === 'none') continue;
+          const key = screen.id.indexOf('screen-') === 0 ? screen.id.slice(7) : screen.id;
+          if (navKeys.has(key)) return key;
+        }
+        return null;
+      },
+      setActive: (key) => activateScreen(key),
+      initial: () => 'dashboard'
+    });
+  }
 
   // Mobile sidebar toggle
   const btnSidebarToggle = document.getElementById('btn-sidebar-toggle');
@@ -477,18 +504,48 @@ document.addEventListener('DOMContentLoaded', () => {
     sidebarCloseBtn.addEventListener('click', closeSidebar);
   }
 
-  // Logout Trigger
-  btnLogout.addEventListener('click', () => {
+  // Session teardown. `endSession` only drops the local copy of the token;
+  // `performLogout` also revokes it server-side, because the mobile apps keep
+  // their own copy of the JWT and would otherwise sign the user straight back
+  // in on the next launch.
+  function endSession() {
     localStorage.removeItem('skyhonix_token');
     localStorage.removeItem('skyhonix_user');
-    window.location.href = 'index.html';
-  });
+    window.location.replace('index.html');
+  }
 
-  document.getElementById('btn-lock-logout').addEventListener('click', () => {
+  function performLogout() {
+    const token = localStorage.getItem('skyhonix_token');
     localStorage.removeItem('skyhonix_token');
     localStorage.removeItem('skyhonix_user');
-    window.location.href = 'index.html';
-  });
+
+    if (!token || typeof fetch !== 'function') {
+      window.location.replace('index.html');
+      return;
+    }
+
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      window.location.replace('index.html');
+    };
+
+    try {
+      fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+      }).catch(() => {}).then(finish);
+    } catch (e) {
+      finish();
+    }
+    setTimeout(finish, 3500);
+  }
+
+  // Logout Trigger
+  btnLogout.addEventListener('click', performLogout);
+
+  document.getElementById('btn-lock-logout').addEventListener('click', performLogout);
 
   // Screen Router Initial Loaders
   function loadScreenData(screenName) {
@@ -8922,9 +8979,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (result.suspended || result.pending) {
             lockOverlay.style.display = 'flex';
           } else {
-            localStorage.removeItem('skyhonix_token');
-            localStorage.removeItem('skyhonix_user');
-            window.location.href = 'index.html';
+            endSession();
           }
         }
         return result;

@@ -4,12 +4,14 @@
   const token = localStorage.getItem('skyhonix_token');
   const userJson = localStorage.getItem('skyhonix_user');
   if (!token || !userJson) {
-    window.location.href = 'index.html';
+    // replace() keeps the login page out of the history stack, so the Android
+    // back button can never land here and make it look like a logout.
+    window.location.replace('index.html');
     return;
   }
   const currentUser = JSON.parse(userJson);
   if (currentUser.role !== 'parent') {
-    window.location.href = currentUser.role === 'teacher' ? 'teacher-portal.html' : 'portal.html';
+    window.location.replace(currentUser.role === 'teacher' ? 'teacher-portal.html' : 'portal.html');
     return;
   }
 
@@ -79,11 +81,26 @@
     setTimeout(() => { t.style.display = 'none'; }, 3000);
   }
 
-  // Logout
-  document.getElementById('btn-logout').addEventListener('click', () => {
+  // Logout — revoke the token server-side so the mobile app's stored copy
+  // cannot sign the user back in on the next launch.
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    const storedToken = localStorage.getItem('skyhonix_token');
     localStorage.removeItem('skyhonix_token');
     localStorage.removeItem('skyhonix_user');
-    window.location.href = 'index.html';
+    if (storedToken) {
+      let finished = false;
+      await new Promise(resolve => {
+        const done = () => { if (!finished) { finished = true; resolve(); } };
+        try {
+          fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + storedToken }
+          }).catch(() => {}).then(done);
+        } catch (e) { done(); }
+        setTimeout(done, 3500);
+      });
+    }
+    window.location.replace('index.html');
   });
 
   // Panel navigation
@@ -97,6 +114,28 @@
     closeSidebar();
     loadPanelData(name);
   };
+
+  // Section history — back button walks the visited panels, and leaves the
+  // portal (closing the app) only from the very first one.
+  if (window.SkyHonixSectionHistory) {
+    const navKeys = new Set();
+    document.querySelectorAll('.portal-sidebar nav a').forEach(a => {
+      if (a.dataset.panel) navKeys.add(a.dataset.panel);
+    });
+    window.SkyHonixSectionHistory.init({
+      getActive: () => {
+        const panels = document.querySelectorAll('.screen-section');
+        for (const panel of panels) {
+          if (panel.style.display === 'none') continue;
+          const key = panel.id.indexOf('panel-') === 0 ? panel.id.slice(6) : panel.id;
+          if (navKeys.has(key)) return key;
+        }
+        return null;
+      },
+      setActive: (key) => window.showPanel(key),
+      initial: () => 'dashboard'
+    });
+  }
 
   // Sidebar open/close helpers
   function openSidebar() {

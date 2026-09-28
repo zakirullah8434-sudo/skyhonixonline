@@ -254,8 +254,63 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// ─── Server-side logout ──────────────────────────────────────────────────────
+// The mobile APKs keep their own copy of the JWT (localStorage on the login
+// screen) so they can restore the session the next time the app is opened.
+// Clearing localStorage in the portal cannot reach that copy, so "Log out"
+// records a revocation timestamp here and /api/auth/session checks it before
+// the app is allowed to sign the user back in.
+function sessionSubject(user) {
+  const role = user.role || 'admin';
+  if (role === 'teacher' && user.teacherId !== undefined && user.teacherId !== null) return String(user.teacherId);
+  if (role === 'parent' && user.parentId !== undefined && user.parentId !== null) return String(user.parentId);
+  if (user.username) return String(user.username);
+  return '*';
+}
+
+async function revokeSession(user) {
+  const schoolId = user && user.schoolId;
+  if (!schoolId) return;
+  const role = user.role || 'admin';
+  await runMain(
+    'INSERT OR REPLACE INTO session_revocations (school_id, role, subject, revoked_at) VALUES (?, ?, ?, ?)',
+    [schoolId, role, sessionSubject(user), Date.now()]
+  );
+}
+
+async function isSessionRevoked(user) {
+  const schoolId = user && user.schoolId;
+  if (!schoolId) return false;
+  const role = user.role || 'admin';
+  try {
+    const row = await queryMainOne(
+      'SELECT revoked_at FROM session_revocations WHERE school_id = ? AND role = ? AND subject IN (?, ?)',
+      [schoolId, role, sessionSubject(user), '*']
+    );
+    if (!row) return false;
+    const revokedAt = Number(row.revoked_at) || 0;
+    const issuedAt = user.iat ? Number(user.iat) * 1000 : 0;
+    return revokedAt > issuedAt;
+  } catch (e) {
+    // A missing table or a transient DB error must never lock everybody out.
+    return false;
+  }
+}
+
+router.post('/logout', authenticateToken, async (req, res) => {
+  try {
+    await revokeSession(req.user);
+  } catch (e) {
+    console.error('Logout revocation failed:', e.message);
+  }
+  res.json({ message: 'Logged out' });
+});
+
 // Get current session details
-router.get('/session', authenticateToken, (req, res) => {
+router.get('/session', authenticateToken, async (req, res) => {
+  if (await isSessionRevoked(req.user)) {
+    return res.status(401).json({ error: 'Session ended. Please log in again.' });
+  }
   res.json({
     user: req.user
   });

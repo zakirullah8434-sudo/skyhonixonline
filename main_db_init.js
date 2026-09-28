@@ -73,7 +73,9 @@ async function getTursoOne(sql, params = []) {
 // Whenever you add a table/column inside initMainDb / initMainDbTurso /
 // initSchoolTablesTurso, bump MAIN_SCHEMA_VERSION so existing deployments
 // re-run the migration on their next cold start.
-const MAIN_SCHEMA_VERSION = 1;
+//   v1 -> initial marker
+//   v2 -> session_revocations (server-side logout for the mobile apps)
+const MAIN_SCHEMA_VERSION = 2;
 
 async function mainSchemaIsCurrent() {
   try {
@@ -223,6 +225,17 @@ async function initMainDbTurso() {
 
   // Add auth_provider column to schools table
   try { await client.execute(`ALTER TABLE schools ADD COLUMN auth_provider TEXT DEFAULT 'local'`); } catch (e) { /* column already exists */ }
+
+  // Server-side logout bookkeeping — the mobile apps keep their own copy of
+  // the JWT, so "Log out" has to invalidate it here or the app would sign the
+  // user straight back in on its next launch.
+  await client.execute(`CREATE TABLE IF NOT EXISTS session_revocations (
+    school_id INTEGER NOT NULL,
+    role TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    revoked_at INTEGER NOT NULL,
+    PRIMARY KEY (school_id, role, subject)
+  )`);
 
   const hadErrors = await initSchoolTablesTurso(client);
 
@@ -728,6 +741,17 @@ async function initMainDb() {
 
     // Add auth_provider column to schools table
     await runDb(db, `ALTER TABLE schools ADD COLUMN auth_provider TEXT DEFAULT 'local'`);
+
+    // Server-side logout bookkeeping (see the Turso path for why this exists)
+    await runDb(db, `
+      CREATE TABLE IF NOT EXISTS session_revocations (
+        school_id INTEGER NOT NULL,
+        role TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        revoked_at INTEGER NOT NULL,
+        PRIMARY KEY (school_id, role, subject)
+      )
+    `);
 
     await writeMainSchemaMarkerLocal(db);
 
