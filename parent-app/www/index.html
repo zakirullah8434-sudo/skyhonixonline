@@ -7,53 +7,227 @@
   <title>SkyHonix Parent</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F8FAFC; }
-    #splash { 
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      z-index: 99999; transition: opacity 0.25s ease;
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #F8FAFC;
+      color: #0F172A;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ---------- Splash ---------- */
+    #splash {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(155deg, #4F46E5 0%, #6D28D9 52%, #7C3AED 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.3s ease;
+      padding: 24px;
+      text-align: center;
     }
     #splash.hidden { opacity: 0; pointer-events: none; }
-    #splash .logo { font-size: 3rem; margin-bottom: 16px; }
-    #splash h1 { color: #fff; font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
-    #splash p { color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 24px; }
-    #splash .spinner { 
-      width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.3);
-      border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite;
+    .splash-mark {
+      width: 76px;
+      height: 76px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.1rem;
+      margin-bottom: 18px;
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.28);
+      backdrop-filter: blur(6px);
+    }
+    #splash h1 { color: #fff; font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 6px; }
+    #splash p { color: rgba(255, 255, 255, 0.72); font-size: 0.86rem; margin-bottom: 26px; letter-spacing: 0.04em; }
+    #splash .spinner {
+      width: 34px;
+      height: 34px;
+      border: 3px solid rgba(255, 255, 255, 0.28);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---------- Login ---------- */
     #login-container {
-      display: none; min-height: 100vh; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
-      align-items: center; justify-content: center; padding: 20px;
+      display: none;
+      min-height: 100vh;
+      min-height: 100dvh;
+      background: linear-gradient(155deg, #4F46E5 0%, #6D28D9 52%, #7C3AED 100%);
+      align-items: center;
+      justify-content: center;
+      padding:
+        max(20px, env(safe-area-inset-top))
+        max(16px, env(safe-area-inset-right))
+        max(20px, env(safe-area-inset-bottom))
+        max(16px, env(safe-area-inset-left));
+      position: relative;
+      overflow-x: hidden;
     }
+    #login-container::before,
+    #login-container::after {
+      content: "";
+      position: fixed;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      pointer-events: none;
+      z-index: 0;
+    }
+    #login-container::before { width: 260px; height: 260px; top: -90px; left: -80px; }
+    #login-container::after { width: 220px; height: 220px; bottom: -70px; right: -70px; }
+
     .login-card {
-      background: #fff; border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 420px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      position: relative;
+      z-index: 1;
+      background: #fff;
+      border-radius: 22px;
+      padding: 28px 22px 24px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 26px 60px rgba(15, 23, 42, 0.3);
     }
-    .login-card .brand { text-align: center; margin-bottom: 32px; }
-    .login-card .brand h1 { color: #4F46E5; font-size: 1.4rem; margin-top: 12px; }
-    .login-card .brand p { color: #94A3B8; font-size: 0.85rem; margin-top: 4px; }
-    .form-group { margin-bottom: 18px; }
-    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 6px; }
+
+    .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+    .brand-mark {
+      width: 54px;
+      height: 54px;
+      flex: 0 0 54px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #4F46E5, #7C3AED);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      box-shadow: 0 10px 22px -8px rgba(79, 70, 229, 0.75);
+    }
+    .brand-text { min-width: 0; }
+    .brand-text h1 {
+      color: #111827;
+      font-size: 1.16rem;
+      line-height: 1.25;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .brand-text p { color: #6B7280; font-size: 0.8rem; margin-top: 3px; font-weight: 500; }
+
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #E5E7EB 20%, #E5E7EB 80%, transparent);
+      margin: 0 0 18px;
+    }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 7px;
+      letter-spacing: 0.02em;
+    }
     .form-group input {
-      width: 100%; padding: 12px 16px; border: 1.5px solid #E5E7EB; border-radius: 10px;
-      font-size: 0.95rem; transition: border-color 0.2s; background: #F9FAFB;
+      width: 100%;
+      padding: 13px 14px;
+      border: 1.5px solid #E5E7EB;
+      border-radius: 12px;
+      font-size: 16px;
+      font-family: inherit;
+      color: #111827;
+      background: #F9FAFB;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+      -webkit-appearance: none;
+      appearance: none;
     }
-    .form-group input:focus { outline: none; border-color: #4F46E5; background: #fff; }
+    .form-group input::placeholder { color: #9CA3AF; }
+    .form-group input:focus {
+      outline: none;
+      border-color: #4F46E5;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.13);
+    }
+
     .btn-login {
-      width: 100%; padding: 14px; background: linear-gradient(135deg, #4F46E5, #7C3AED);
-      color: #fff; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600;
-      cursor: pointer; transition: transform 0.2s;
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #4F46E5, #7C3AED);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: inherit;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+      box-shadow: 0 12px 24px -12px rgba(79, 70, 229, 0.9);
+      margin-top: 4px;
     }
-    .btn-login:active { transform: scale(0.98); }
-    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
-    .error-msg { color: #DC2626; font-size: 0.85rem; margin-top: 12px; text-align: center; display: none; }
+    .btn-login:active { transform: scale(0.985); }
+    .btn-login:disabled { opacity: 0.65; cursor: not-allowed; }
+
+    .error-msg {
+      color: #B91C1C;
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      font-size: 0.83rem;
+      line-height: 1.45;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      text-align: center;
+      display: none;
+      overflow-wrap: anywhere;
+    }
+
+    .foot {
+      margin-top: 18px;
+      text-align: center;
+      font-size: 0.73rem;
+      color: #9CA3AF;
+      letter-spacing: 0.03em;
+    }
+
+    .hint {
+      margin-top: 14px;
+      background: #F8FAFC;
+      border: 1px dashed #E5E7EB;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 0.78rem;
+      line-height: 1.5;
+      color: #6B7280;
+    }
+    .hint strong { color: #4F46E5; font-weight: 700; }
+
+    @media (max-width: 380px) {
+      .login-card { padding: 24px 18px 20px; border-radius: 18px; }
+      .brand-mark { width: 46px; height: 46px; flex-basis: 46px; font-size: 1.3rem; border-radius: 14px; }
+      .brand-text h1 { font-size: 1.05rem; }
+    }
+    @media (min-width: 769px) {
+      .login-card { padding: 34px 32px 28px; }
+    }
   </style>
 </head>
 <body>
   <div id="splash">
-    <div class="logo">&#x1F468;&#x200D;&#x1F469;&#x200D;&#x1F467;</div>
+    <div class="splash-mark">&#x1F468;&#x200D;&#x1F469;&#x200D;&#x1F467;</div>
     <h1>SkyHonix Parent</h1>
     <p>Parent Portal</p>
     <div class="spinner"></div>
@@ -62,26 +236,31 @@
   <div id="login-container">
     <div class="login-card">
       <div class="brand">
-        <div style="font-size:3rem;">&#x1F468;&#x200D;&#x1F469;&#x200D;&#x1F467;</div>
-        <h1>SkyHonix Parent Portal</h1>
-        <p>Parent Login</p>
+        <div class="brand-mark">&#x1F468;&#x200D;&#x1F469;&#x200D;&#x1F467;</div>
+        <div class="brand-text">
+          <h1>SkyHonix Parent Portal</h1>
+          <p>Parent sign in</p>
+        </div>
       </div>
+      <div class="divider"></div>
       <form id="login-form">
         <div class="form-group">
-          <label>School ID</label>
-          <input type="text" id="login-school-id" placeholder="Enter School ID" required>
+          <label for="login-school-id">School ID</label>
+          <input type="text" id="login-school-id" placeholder="Enter School ID" autocapitalize="characters" spellcheck="false" autocomplete="off" required>
         </div>
         <div class="form-group">
-          <label>Phone Number</label>
-          <input type="tel" id="login-phone" placeholder="03001234567" required>
+          <label for="login-phone">Phone Number</label>
+          <input type="tel" id="login-phone" placeholder="03001234567" inputmode="tel" autocomplete="tel" required>
         </div>
         <div class="form-group">
-          <label>Password</label>
-          <input type="password" id="login-password" placeholder="Enter password" required>
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" placeholder="Enter password" autocomplete="current-password" required>
         </div>
         <button type="submit" class="btn-login" id="btn-login">Sign In</button>
         <div class="error-msg" id="login-error"></div>
       </form>
+      <div class="hint">Use the <strong>School ID</strong> and phone number registered with your child's school.</div>
+      <p class="foot">SkyHonix &middot; Secure parent workspace</p>
     </div>
   </div>
 
@@ -180,7 +359,7 @@
     // credentials, so the dashboard opens instantly after Sign In.
     var PREFETCH_ASSETS = [
       '/parent-portal.html',
-      '/css/styles.css?v=3',
+      '/css/styles.css?v=4',
       '/js/parent-portal.js?v=16',
       '/js/section-history.js?v=1',
       '/manifest.json'

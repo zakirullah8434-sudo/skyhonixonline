@@ -18,8 +18,8 @@
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"></noscript>
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
-  <link rel="preload" href="css/styles.css?v=3" as="style">
-  <link rel="preload" href="js/app.js?v=16" as="script">
+  <link rel="preload" href="css/styles.css?v=4" as="style">
+  <link rel="preload" href="js/app.js?v=17" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -40,6 +40,200 @@
       z-index: 899;
     }
     .sidebar-overlay.active { display: block; }
+
+    /* ============================================================
+       Header — school name wraps to two lines instead of ellipsis
+       ============================================================ */
+    .portal-header {
+      height: auto !important;
+      min-height: var(--header-height);
+      padding-top: 10px !important;
+      padding-bottom: 10px !important;
+    }
+    .portal-header > div { min-width: 0; }
+    #header-school-name {
+      margin: 0;
+      font-size: 1.05rem !important;
+      line-height: 1.25;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+      white-space: normal !important;
+      max-width: none !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden !important;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    /* ============================================================
+       Dashboard hero — school identity card
+       ============================================================ */
+    .dash-hero {
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 24px;
+      padding: 22px 20px;
+      border-radius: var(--border-radius-lg);
+      background: linear-gradient(135deg, #4F46E5 0%, #6D28D9 52%, #7C3AED 100%);
+      color: #fff;
+      box-shadow: 0 12px 28px -14px rgba(79, 70, 229, 0.65);
+    }
+    .dash-hero::after {
+      content: "";
+      position: absolute;
+      right: -60px;
+      bottom: -80px;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.09);
+      pointer-events: none;
+    }
+    .dash-hero::before {
+      content: "";
+      position: absolute;
+      left: -40px;
+      top: -70px;
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.07);
+      pointer-events: none;
+    }
+    .dash-hero-top {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .dash-logo {
+      width: 64px;
+      height: 64px;
+      flex: 0 0 64px;
+      border-radius: 16px;
+      object-fit: cover;
+      background: #fff;
+      padding: 3px;
+      border: 2px solid rgba(255, 255, 255, 0.55);
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28);
+      display: block;
+    }
+    .dash-hero-info { flex: 1; min-width: 0; }
+    .dash-eyebrow {
+      display: block;
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.72);
+      margin-bottom: 4px;
+    }
+    .dash-title {
+      margin: 0 0 10px;
+      font-size: clamp(1.02rem, 4.6vw, 1.35rem);
+      line-height: 1.28;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.01em;
+      text-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .dash-meta {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .dash-meta li {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 5px;
+      max-width: 100%;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-size: 0.76rem;
+      line-height: 1.35;
+    }
+    .dash-meta li span {
+      font-size: 0.63rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.7);
+      white-space: nowrap;
+    }
+    .dash-meta li strong {
+      font-weight: 600;
+      color: #fff;
+      overflow-wrap: anywhere;
+      min-width: 0;
+    }
+    .dash-hero-status {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .dash-status-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.75);
+    }
+    .dash-status-pill {
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.32);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+    }
+    @media (min-width: 769px) {
+      .dash-hero { padding: 26px 28px; }
+      .dash-hero-top { padding-right: 160px; }
+      .dash-hero-status {
+        position: absolute;
+        top: 26px;
+        right: 28px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+      }
+    }
+    @media (max-width: 420px) {
+      .dash-hero { padding: 18px 16px; }
+      .dash-logo { width: 54px; height: 54px; flex-basis: 54px; border-radius: 14px; }
+      .dash-hero-top { gap: 12px; }
+      .dash-meta li { font-size: 0.72rem; padding: 4px 8px; }
+    }
+
     @media (max-width: 900px) {
       .sidebar-close { display: block !important; }
       .sidebar { width: 280px; }
@@ -52,11 +246,21 @@
       table { font-size: 0.85rem; }
       th, td { padding: 6px 8px !important; }
       .card { padding: 16px !important; }
+      #header-school-name { font-size: 0.98rem !important; }
+    }
+    @media (max-width: 420px) {
+      .portal-header { padding-left: 12px !important; padding-right: 12px !important; }
+      #header-school-name { font-size: 0.92rem !important; }
+      .portal-header .btn { padding: 8px 12px !important; font-size: 0.78rem !important; }
+    }
+    @media (max-width: 576px) {
+      /* Dashboard filters flow full-width instead of forcing a horizontal scroll */
+      #screen-dashboard .form-group { min-width: 0 !important; flex: 1 1 150px; }
     }
   </style>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/styles.css?v=3">
+  <link rel="stylesheet" href="css/styles.css?v=4">
   <!-- HTML5 QR Code Scanner Library is lazy-loaded on demand (see js/app.js) -->
   <!-- Chart.js CDN -->
   <script>
@@ -250,21 +454,22 @@
         <article class="screen-section" id="screen-dashboard">
           
           <!-- School Identity Card -->
-          <div class="card" style="margin-bottom: 24px; padding: 28px; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: #fff; border: none;">
-            <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
-              <img id="dash-school-logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%236366f1'/%3E%3Ctext x='50' y='62' font-size='40' font-family='Arial,sans-serif' fill='white' text-anchor='middle'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E" alt="School Logo" style="width: 80px; height: 80px; border-radius: 16px; object-fit: cover; background: #fff; padding: 4px;">
-              <div style="flex: 1; min-width: 200px;">
-                <h1 id="dash-school-title" style="font-size: 1.6rem; font-weight: 700; margin-bottom: 6px;">SkyHonix Cloud</h1>
-                <div style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.9rem; opacity: 0.9;">
-                  <span>📋 Reg: <strong id="dash-school-reg">-</strong></span>
-                  <span>📞 <strong id="dash-school-phone">-</strong></span>
-                  <span>🏫 ID: <strong id="dash-school-id">-</strong></span>
-                </div>
+          <div class="dash-hero">
+            <div class="dash-hero-top">
+              <img id="dash-school-logo" class="dash-logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%236366f1'/%3E%3Ctext x='50' y='62' font-size='40' font-family='Arial,sans-serif' fill='white' text-anchor='middle'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E" alt="School Logo">
+              <div class="dash-hero-info">
+                <span class="dash-eyebrow">School Workspace</span>
+                <h1 id="dash-school-title" class="dash-title">SkyHonix Cloud</h1>
+                <ul class="dash-meta">
+                  <li><span>Reg</span><strong id="dash-school-reg">-</strong></li>
+                  <li><span>Phone</span><strong id="dash-school-phone">-</strong></li>
+                  <li><span>ID</span><strong id="dash-school-id">-</strong></li>
+                </ul>
               </div>
-              <div style="text-align: right;">
-                <div style="font-size: 0.8rem; opacity: 0.8;">Workspace Status</div>
-                <div id="dash-status-badge" style="margin-top: 6px; padding: 6px 16px; background: rgba(255,255,255,0.2); border-radius: 20px; font-weight: 600; font-size: 0.85rem;">Active</div>
-              </div>
+            </div>
+            <div class="dash-hero-status">
+              <span class="dash-status-label">Workspace Status</span>
+              <span id="dash-status-badge" class="dash-status-pill">Active</span>
             </div>
           </div>
 
@@ -297,15 +502,6 @@
                 <h3 id="stat-pending-dues">-</h3>
                 <p>Total Outstanding Dues</p>
               </div>
-            </div>
-          </div>
-
-          <!-- Quick Actions -->
-          <div class="card" style="margin-bottom: 24px;">
-            <h3 style="margin-bottom: 16px;">Quick Actions</h3>
-            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-              <button class="btn btn-secondary" id="dash-btn-scan">Open QR Scanner Camera</button>
-              <button class="btn btn-outline" id="dash-btn-fees">Generate Monthly Ledger</button>
             </div>
           </div>
 
@@ -4390,6 +4586,6 @@
     })();
   </script>
   <script src="js/section-history.js?v=1"></script>
-  <script src="js/app.js?v=16"></script>
+  <script src="js/app.js?v=17"></script>
 </body>
 </html>

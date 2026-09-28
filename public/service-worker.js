@@ -8,9 +8,9 @@
  *
  * Bump SHELL_VERSION whenever a cached asset is renamed/removed.
  */
-const SHELL_VERSION = 'skyhonix-shell-v11';
-const PAGE_CACHE = 'skyhonix-pages-v11';
-const ASSET_CACHE = 'skyhonix-assets-v11';
+const SHELL_VERSION = 'skyhonix-shell-v12';
+const PAGE_CACHE = 'skyhonix-pages-v12';
+const ASSET_CACHE = 'skyhonix-assets-v12';
 
 const SHELL_PAGES = [
   '/index.html',
@@ -22,8 +22,8 @@ const SHELL_PAGES = [
 ];
 
 const SHELL_ASSETS = [
-  '/css/styles.css?v=3',
-  '/js/app.js?v=16',
+  '/css/styles.css?v=4',
+  '/js/app.js?v=17',
   '/js/teacher-portal.js?v=16',
   '/js/parent-portal.js?v=16',
   '/js/section-history.js?v=1',
@@ -105,7 +105,7 @@ async function networkFirstNav(request) {
   const cached = await cache.match(request);
   if (cached) return cached;
 
-  // Nothing cached yet — keep waiting for the network instead of failing
+  // Nothing cached yet â€” keep waiting for the network instead of failing
   const waited = await network;
   if (waited) return waited;
 

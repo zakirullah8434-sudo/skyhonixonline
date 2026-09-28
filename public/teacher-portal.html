@@ -13,20 +13,32 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
-  <link rel="preload" href="css/styles.css?v=3" as="style">
+  <link rel="preload" href="css/styles.css?v=4" as="style">
   <link rel="preload" href="js/teacher-portal.js?v=16" as="script">
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/service-worker.js').catch(function () {});
     }
   </script>
-  <link rel="stylesheet" href="css/styles.css?v=3">
+  <link rel="stylesheet" href="css/styles.css?v=4">
   <style>
     /* Teacher Portal unique styles (shared styles from styles.css) */
     .sidebar { position: fixed; top: 64px; left: 0; bottom: 0; width: 240px; z-index: 900; }
     .sidebar-brand { position: relative; padding: 20px 16px 16px; text-align: center; border-bottom: 1px solid #F1F5F9; }
-    .sidebar-brand span { display: block; font-size: 1.05rem; font-weight: 700; color: #1E293B; }
-    .sidebar-brand small { display: block; font-size: 0.72rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+    .sidebar-brand span {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      font-size: 1rem;
+      line-height: 1.3;
+      font-weight: 700;
+      color: #1E293B;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      padding: 0 14px;
+    }
+    .sidebar-brand small { display: block; font-size: 0.72rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
     .main-content { margin-left: 240px; margin-top: 64px; padding: 28px 32px; min-height: calc(100vh - 64px); background: #F8FAFC; }
     .content-panel { display: none; }
     .content-panel.active { display: block; animation: panelFadeIn 0.25s ease; }

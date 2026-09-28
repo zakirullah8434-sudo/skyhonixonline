@@ -644,7 +644,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('stat-month-fees').innerText = `${(stats.monthCollected || 0).toLocaleString()} PKR`;
     document.getElementById('stat-pending-dues').innerText = `${(stats.pendingDues || 0).toLocaleString()} PKR`;
 
-    document.getElementById('dash-school-title').innerText = (stats.settings && stats.settings.school_name) || '';
+    document.getElementById('dash-school-title').innerText =
+      (stats.settings && stats.settings.school_name) || currentUser.schoolName || 'My School';
     document.getElementById('dash-school-phone').innerText = (stats.settings && stats.settings.phone) || 'N/A';
     document.getElementById('dash-school-reg').innerText = (stats.settings && stats.settings.registration_number) || 'N/A';
     document.getElementById('dash-school-id').innerText = currentUser.schoolCode || currentUser.schoolId || 'N/A';
@@ -674,13 +675,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Dashboard shortcuts
-  document.getElementById('dash-btn-scan').addEventListener('click', () => {
+  // Dashboard shortcuts (Quick Actions block was removed from the dashboard)
+  const dashBtnScan = document.getElementById('dash-btn-scan');
+  if (dashBtnScan) dashBtnScan.addEventListener('click', () => {
     document.querySelector('[data-screen="attendance"]').click();
     document.querySelector('[data-tab="att-scan"]').click();
     document.getElementById('btn-start-scanner').click();
   });
-  document.getElementById('dash-btn-fees').addEventListener('click', () => {
+  const dashBtnFees = document.getElementById('dash-btn-fees');
+  if (dashBtnFees) dashBtnFees.addEventListener('click', () => {
     document.querySelector('[data-screen="fees"]').click();
     document.querySelector('[data-tab="fee-generator"]').click();
   });

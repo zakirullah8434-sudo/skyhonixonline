@@ -2279,3 +2279,203 @@ nav {
 .btn-social svg {
   flex-shrink: 0;
 }
+
+/* ==========================================================================
+   MOBILE POLISH v2 — shared responsive refinements (School / Teacher / Parent)
+   ========================================================================== */
+
+/* Keep flex/grid children from forcing the page wider than the screen */
+.grid-2 > *,
+.grid-3 > *,
+.grid-4 > *,
+.grid-5 > *,
+.stats-grid > *,
+.dash-hero-top > * { min-width: 0; }
+
+.card,
+.content-panel,
+.screen-section { min-width: 0; }
+
+/* Tables scroll smoothly with momentum on touch screens */
+.table-container,
+.card > div[style*="overflow-x"],
+.content-panel div[style*="overflow-x"] {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+/* Any inline multi-column grid collapses to a single column on phones */
+@media (max-width: 900px) {
+  .main-content div[style*="grid-template-columns:1fr 1fr"],
+  .main-content div[style*="grid-template-columns: 1fr 1fr"],
+  .main-content div[style*="grid-template-columns:1fr 1fr 1fr"],
+  .main-content div[style*="grid-template-columns: 1fr 1fr 1fr"],
+  .main-content div[style*="grid-template-columns:1fr 2fr"],
+  .main-content div[style*="grid-template-columns: 1fr 2fr"],
+  .main-content div[style*="grid-template-columns:2fr 1fr"],
+  .main-content div[style*="grid-template-columns: 2fr 1fr"],
+  .main-content div[style*="grid-template-columns:1.5fr 1.5fr"],
+  .main-content div[style*="grid-template-columns: 1.5fr 1.5fr"],
+  .main-content div[style*="grid-template-columns:1.3fr 1fr"],
+  .main-content div[style*="grid-template-columns: 1.3fr 1fr"],
+  .portal-main div[style*="grid-template-columns:1fr 1fr"],
+  .portal-main div[style*="grid-template-columns: 1fr 1fr"],
+  .portal-main div[style*="grid-template-columns:1fr 1fr 1fr"],
+  .portal-main div[style*="grid-template-columns: 1fr 1fr 1fr"],
+  .portal-main div[style*="grid-template-columns:1fr 2fr"],
+  .portal-main div[style*="grid-template-columns: 1fr 2fr"],
+  .portal-main div[style*="grid-template-columns:2fr 1fr"],
+  .portal-main div[style*="grid-template-columns: 2fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  .main-content div[style*="grid-template-columns: repeat(auto-fit"]:not(.stats-grid),
+  .main-content div[style*="grid-template-columns:repeat(auto-fit"]:not(.stats-grid),
+  .main-content div[style*="grid-template-columns: repeat(auto-fill"]:not(.stats-grid),
+  .main-content div[style*="grid-template-columns:repeat(auto-fill"]:not(.stats-grid),
+  .portal-main div[style*="grid-template-columns: repeat(auto-fit"]:not(.stats-grid),
+  .portal-main div[style*="grid-template-columns:repeat(auto-fit"]:not(.stats-grid),
+  .portal-main div[style*="grid-template-columns: repeat(auto-fill"]:not(.stats-grid),
+  .portal-main div[style*="grid-template-columns:repeat(auto-fill"]:not(.stats-grid) {
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)) !important;
+  }
+}
+
+/* Inline flex rows wrap instead of overflowing, and their buttons fill the row */
+@media (max-width: 768px) {
+  .main-content div[style*="display: flex"],
+  .main-content div[style*="display:flex"],
+  .portal-main div[style*="display: flex"],
+  .portal-main div[style*="display:flex"] {
+    flex-wrap: wrap;
+  }
+  .main-content div[style*="display: flex"] > .btn,
+  .main-content div[style*="display:flex"] > .btn,
+  .portal-main div[style*="display: flex"] > .btn,
+  .portal-main div[style*="display:flex"] > .btn {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+
+  /* Header actions keep their natural size */
+  .portal-header > div > .btn { flex: 0 0 auto !important; }
+}
+
+/* ------------------------------------------------------------------
+   Header title — wraps to a maximum of two lines instead of ellipsis
+   ------------------------------------------------------------------ */
+.portal-header h2,
+.header-title {
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 992px) {
+  .portal-header {
+    height: auto !important;
+    min-height: var(--header-height);
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+    align-items: center;
+  }
+  .portal-header > div { min-width: 0; }
+  .portal-header h2,
+  .header-title {
+    font-size: 1rem !important;
+    max-width: none !important;
+    white-space: normal !important;
+    text-overflow: clip !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .portal-header h2,
+  .header-title { font-size: 0.93rem !important; }
+  .portal-header { padding-left: 12px !important; padding-right: 12px !important; }
+}
+
+/* Teacher portal header (fixed top bar) */
+.main-header {
+  height: auto !important;
+  min-height: var(--header-height);
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.header-left { min-width: 0; flex: 1; gap: 10px; }
+.header-right { flex-shrink: 0; gap: 8px; }
+
+/* ------------------------------------------------------------------
+   Statistics — two tidy columns on phones, one on very narrow screens
+   ------------------------------------------------------------------ */
+@media (max-width: 576px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+    margin-bottom: 20px !important;
+  }
+  .stat-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px !important;
+    padding: 14px 12px !important;
+    border-radius: var(--border-radius) !important;
+  }
+  .stat-icon { width: 36px !important; height: 36px !important; font-size: 1rem !important; }
+  .stat-info { width: 100%; }
+  .stat-info h3,
+  .stat-card h3 {
+    font-size: 1.12rem !important;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .stat-info p,
+  .stat-card p {
+    font-size: 0.7rem !important;
+    line-height: 1.35;
+    margin-top: 2px;
+  }
+}
+
+@media (max-width: 359px) {
+  .stats-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ------------------------------------------------------------------
+   Touch ergonomics + keyboard-safe inputs
+   ------------------------------------------------------------------ */
+@media (max-width: 900px) {
+  body { -webkit-tap-highlight-color: transparent; }
+  .btn { min-height: 40px; }
+  .btn-sm { min-height: 34px; }
+  .sidebar-menu-link,
+  .nav-item { min-height: 44px; }
+  .tab-btn { min-height: 40px; }
+  input, select, textarea { font-size: 16px !important; }
+  .form-control { padding: 11px 13px; }
+}
+
+/* Section headings stay proportional on phones */
+@media (max-width: 768px) {
+  .portal-body h2,
+  .main-content h2,
+  .portal-main h2 { font-size: 1.08rem !important; line-height: 1.3; }
+  .portal-body h3,
+  .main-content h3,
+  .portal-main h3 { font-size: 0.98rem !important; line-height: 1.35; }
+  .portal-body,
+  .main-content,
+  .portal-main { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important; }
+}
+
+/* Comfortable page gutters on tablets */
+@media (min-width: 769px) and (max-width: 992px) {
+  .portal-body { padding: 24px 20px !important; }
+}
