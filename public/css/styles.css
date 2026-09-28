@@ -2479,3 +2479,47 @@ nav {
 @media (min-width: 769px) and (max-width: 992px) {
   .portal-body { padding: 24px 20px !important; }
 }
+
+/* ------------------------------------------------------------------
+   Table action cells (Admissions: Edit / Card / Siblings / x)
+   Keep the buttons on ONE compact line so rows stay tight instead of
+   each button stacking on its own line and inflating row height.
+   ------------------------------------------------------------------ */
+@media (max-width: 900px) {
+  .data-table td div[style*="display: flex"],
+  .data-table td div[style*="display:flex"] {
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+  }
+
+  .data-table td .btn {
+    flex: 0 0 auto !important;
+    min-height: 30px !important;
+    padding: 4px 8px !important;
+    font-size: 0.72rem !important;
+    line-height: 1.35;
+    white-space: nowrap;
+  }
+
+  .data-table td {
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
+  }
+
+  /* Name + photo cell never wraps to two lines */
+  .data-table td div[style*="display: flex"] img { flex: 0 0 auto; }
+  .data-table td div[style*="display: flex"] strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+@media (max-width: 480px) {
+  .data-table td div[style*="display: flex"],
+  .data-table td div[style*="display:flex"] { gap: 5px !important; }
+  .data-table td .btn {
+    padding: 3px 7px !important;
+    font-size: 0.68rem !important;
+  }
+}
