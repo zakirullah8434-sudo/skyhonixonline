@@ -597,4 +597,136 @@ router.delete('/saved-reports/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// ==========================================
+// TEACHER ATTENDANCE
+// ==========================================
+
+let teacherAttendanceTableEnsured = false;
+
+async function ensureTeacherAttendanceTable(schoolId) {
+  if (teacherAttendanceTableEnsured) return;
+  await runSchool(schoolId, `
+    CREATE TABLE IF NOT EXISTS teacher_attendance (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      teacher_id INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      status TEXT NOT NULL,
+      time TEXT,
+      school_id INTEGER,
+      UNIQUE(teacher_id, date)
+    )
+  `);
+  teacherAttendanceTableEnsured = true;
+}
+
+// GET /attendance/teachers - List active teachers merged with attendance log for a date
+router.get('/teachers', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const date = req.query.date || new Date().toISOString().split('T')[0];
+
+  try {
+    await ensureTeacherAttendanceTable(schoolId);
+
+    const teachers = await querySchool(schoolId,
+      `SELECT id, name, subject, assigned_class
+       FROM teachers
+       WHERE (school_id = ? OR school_id IS NULL) AND (status = 'Active' OR status IS NULL)
+       ORDER BY name`,
+      [schoolId]
+    );
+
+    const logs = await querySchool(schoolId,
+      'SELECT teacher_id, status, time FROM teacher_attendance WHERE date = ?',
+      [date]
+    );
+    const logsMap = {};
+    logs.forEach(l => { logsMap[l.teacher_id] = { status: l.status, time: l.time }; });
+
+    const grid = teachers.map(t => {
+      const log = logsMap[t.id] || { status: 'Unmarked', time: '' };
+      return {
+        id: t.id,
+        name: t.name,
+        subject: t.subject || '',
+        assigned_class: t.assigned_class || '',
+        status: log.status,
+        time: log.time
+      };
+    });
+
+    res.json(grid);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve teacher list: ' + err.message });
+  }
+});
+
+// POST /attendance/teachers/save - Bulk save teacher attendance
+router.post('/teachers/save', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { date, attendanceList } = req.body; // attendanceList: [{teacher_id, status, time}]
+
+  if (!date || !attendanceList || !Array.isArray(attendanceList)) {
+    return res.status(400).json({ error: 'date and attendanceList are required' });
+  }
+
+  try {
+    await ensureTeacherAttendanceTable(schoolId);
+    const statements = [];
+    for (const rec of attendanceList) {
+      const time = rec.time || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      statements.push({
+        sql: 'DELETE FROM teacher_attendance WHERE teacher_id = ? AND date = ?',
+        params: [rec.teacher_id, date]
+      });
+      statements.push({
+        sql: 'INSERT INTO teacher_attendance (teacher_id, date, status, time, school_id) VALUES (?, ?, ?, ?, ?)',
+        params: [rec.teacher_id, date, rec.status, time, schoolId]
+      });
+    }
+    await runSchoolTransaction(schoolId, statements);
+    res.json({ message: 'Teacher attendance saved successfully!' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save teacher attendance: ' + err.message });
+  }
+});
+
+// GET /attendance/teachers/history - Monthly teacher attendance logs + summary
+router.get('/teachers/history', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const month = req.query.month || new Date().toISOString().slice(0, 7); // YYYY-MM
+
+  try {
+    await ensureTeacherAttendanceTable(schoolId);
+
+    const logs = await querySchool(schoolId,
+      `SELECT ta.teacher_id, t.name, t.subject, ta.date, ta.status, ta.time
+       FROM teacher_attendance ta
+       LEFT JOIN teachers t ON t.id = ta.teacher_id
+       WHERE ta.date LIKE ?
+       ORDER BY ta.date, t.name`,
+      [`${month}-%`]
+    );
+
+    // Per-teacher summary
+    const summaryMap = {};
+    logs.forEach(l => {
+      if (!summaryMap[l.teacher_id]) {
+        summaryMap[l.teacher_id] = { teacher_id: l.teacher_id, name: l.name || 'Unknown', subject: l.subject || '', present: 0, absent: 0, late: 0, leave: 0, total: 0 };
+      }
+      const s = summaryMap[l.teacher_id];
+      s.total++;
+      const st = (l.status || '').toLowerCase();
+      if (st === 'present') s.present++;
+      else if (st === 'absent') s.absent++;
+      else if (st === 'late') s.late++;
+      else if (st === 'leave') s.leave++;
+    });
+    const summary = Object.values(summaryMap).sort((a, b) => a.name.localeCompare(b.name));
+
+    res.json({ month, logs, summary });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch teacher attendance history: ' + err.message });
+  }
+});
+
 module.exports = router;

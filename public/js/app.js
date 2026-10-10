@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v20';
+    const EXPECTED_PAGE_VERSION = 'v21';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -217,6 +217,77 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       toast.style.display = 'none';
     }, 4500);
+  }
+
+  // Print helper: works inside Capacitor WebView (window.open popups are blocked there).
+  // Renders the HTML into a hidden same-origin iframe and calls print() on it once
+  // all images have loaded (or after a 4s safety timeout). print() is synchronous —
+  // it returns after the user closes the print dialog (Cancel or Save as PDF).
+  function printViaIframe(bodyHtml, title, extraCss, onDone) {
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.setAttribute('style', 'position:fixed; right:0; bottom:0; width:0; height:0; border:0; visibility:hidden;');
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><title>${title || 'Print'}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; }
+  @page { size: A4; margin: 10mm; }
+  html, body { height: 100%; }
+  .a4-page {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: 1fr;
+    gap: 8px;
+    padding: 5mm;
+    height: 100%;
+    page-break-after: always;
+  }
+  .fee-slip { border: 2px solid #000; padding: 6px; color: #000; font-size: 0.65rem; break-inside: avoid; page-break-inside: avoid; }
+  .slip-header { display: flex; align-items: center; gap: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 4px; }
+  .slip-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+  .slip-header-text h2 { font-size: 0.6rem; font-weight: 800; margin: 0; text-transform: uppercase; }
+  .slip-header-text p { font-size: 0.5rem; margin: 1px 0 0; }
+  .slip-student-row { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 4px; padding: 4px; border: 1px solid #ccc; border-radius: 2px; }
+  .slip-student-info { font-size: 0.55rem; line-height: 1.4; }
+  .slip-student-info strong { display: inline-block; min-width: 35px; }
+  .slip-badge { background: #000; color: #fff; padding: 3px 6px; font-weight: 700; font-size: 0.5rem; white-space: nowrap; }
+  table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
+  th, td { padding: 2px 3px; font-size: 0.5rem; border: 1px solid #ccc; text-align: center; }
+  th { background: #f5f5f5; font-weight: 700; }
+  td:first-child { text-align: left; font-weight: 600; background: #f9f9f9; font-size: 0.48rem; }
+  .slip-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 2px solid #000; }
+  .slip-sign { font-size: 0.5rem; }
+  .slip-net-total { background: #000; color: #fff; padding: 2px 8px; font-weight: 800; font-size: 0.55rem; }
+  ${extraCss || ''}
+</style></head><body>${bodyHtml}</body></html>`);
+    doc.close();
+
+    let printed = false;
+    const doPrint = () => {
+      if (printed) return;
+      printed = true;
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (e) { console.error('[PRINT_ERROR]', e.message); }
+      setTimeout(() => {
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        if (typeof onDone === 'function') onDone();
+      }, 300);
+    };
+
+    const images = doc.querySelectorAll('img');
+    if (images.length === 0) { doPrint(); return; }
+    let loaded = 0;
+    const onImg = () => { loaded++; if (loaded >= images.length) doPrint(); };
+    images.forEach(img => {
+      if (img.complete) onImg();
+      else { img.onload = onImg; img.onerror = onImg; }
+    });
+    setTimeout(doPrint, 4000); // safety: never leave the user hanging on a broken image
   }
 
   // ==========================================
@@ -749,6 +820,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const dashBtnScan = document.getElementById('dash-btn-scan');
   if (dashBtnScan) dashBtnScan.addEventListener('click', () => {
     document.querySelector('[data-screen="attendance"]').click();
+    // QR scanner lives in the Student Attendance module — force it visible
+    document.querySelector('.att-type-btn[data-att-type="student"]')?.click();
     document.querySelector('[data-tab="att-scan"]').click();
     document.getElementById('btn-start-scanner').click();
   });
@@ -3414,6 +3487,129 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================
+  // MODULE: TEACHER ATTENDANCE (Student / Teacher switch)
+  // ==========================================
+
+  // Attendance type switch — NOT .tab-btn so the generic tab handler ignores it
+  document.querySelectorAll('.att-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const type = btn.dataset.attType;
+      document.querySelectorAll('.att-type-btn').forEach(b => b.classList.toggle('active', b === btn));
+      const studentModule = document.getElementById('att-student-module');
+      const teacherModule = document.getElementById('att-teacher-module');
+      if (studentModule) studentModule.style.display = type === 'student' ? '' : 'none';
+      if (teacherModule) teacherModule.style.display = type === 'teacher' ? '' : 'none';
+    });
+  });
+
+  // Teacher attendance: mark grid
+  const tattDateInput = document.getElementById('tatt-date-input');
+  if (tattDateInput) tattDateInput.value = new Date().toISOString().split('T')[0];
+
+  const tableTattGrid = document.getElementById('table-tatt-grid');
+  document.getElementById('btn-load-tatt-grid')?.addEventListener('click', async () => {
+    const date = tattDateInput ? tattDateInput.value : '';
+    if (!date) { showToast('Date is required', true); return; }
+    try {
+      const teachers = await apiCall(`/attendance/teachers?date=${date}`);
+      const tbody = tableTattGrid.querySelector('tbody');
+      tbody.innerHTML = '';
+      if (teachers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No active teachers found. Add teachers in the Assign Teachers section first.</td></tr>';
+        document.getElementById('tatt-grid-actions').style.display = 'none';
+        return;
+      }
+      const statuses = ['Present', 'Absent', 'Late', 'Leave'];
+      const rows = teachers.map(t => {
+        const options = statuses.map(st => {
+          const sel = t.status === st || (!t.status && st === 'Present') ? 'selected' : '';
+          return `<option value="${st}" ${sel}>${st}</option>`;
+        }).join('');
+        return `
+          <tr data-teacher-id="${t.id}">
+            <td><strong>${t.name}</strong></td>
+            <td>${t.subject || '-'}</td>
+            <td>${t.assigned_class || '-'}</td>
+            <td>
+              <select class="form-control att-row-status" style="width:auto; padding:6px 12px;">
+                ${options}
+              </select>
+            </td>
+            <td>
+              <input type="text" class="form-control att-row-time" style="width:100px; padding:6px 12px; text-align:center;" value="${t.time || new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:true})}" placeholder="hh:mm AM">
+            </td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = rows.join('');
+      document.getElementById('tatt-grid-actions').style.display = 'block';
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
+  });
+
+  document.getElementById('btn-save-tatt')?.addEventListener('click', async () => {
+    const date = tattDateInput ? tattDateInput.value : '';
+    const rows = document.querySelectorAll('#table-tatt-grid tbody tr[data-teacher-id]');
+    const list = [];
+    rows.forEach(row => {
+      list.push({
+        teacher_id: parseInt(row.dataset.teacherId),
+        status: row.querySelector('.att-row-status').value,
+        time: row.querySelector('.att-row-time').value
+      });
+    });
+    if (list.length === 0) { showToast('Load teachers first', true); return; }
+    try {
+      const res = await apiCall('/attendance/teachers/save', 'POST', { date, attendanceList: list });
+      showToast(res.message || 'Teacher attendance saved!');
+    } catch (e) { showToast('Failed: ' + e.message, true); }
+  });
+
+  // Teacher attendance: history
+  const tattHistoryMonth = document.getElementById('tatt-history-month');
+  if (tattHistoryMonth) tattHistoryMonth.value = new Date().toISOString().slice(0, 7);
+
+  document.getElementById('btn-load-tatt-history')?.addEventListener('click', async () => {
+    const month = tattHistoryMonth ? tattHistoryMonth.value : '';
+    if (!month) { showToast('Month is required', true); return; }
+    try {
+      const data = await apiCall(`/attendance/teachers/history?month=${month}`);
+      const sumBody = document.querySelector('#table-tatt-summary tbody');
+      const logBody = document.querySelector('#table-tatt-logs tbody');
+      if (!data.summary || data.summary.length === 0) {
+        sumBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No records this month</td></tr>';
+      } else {
+        sumBody.innerHTML = data.summary.map(s => `
+          <tr>
+            <td><strong>${s.name}</strong></td>
+            <td>${s.subject || '-'}</td>
+            <td><span class="status-badge status-present">${s.present}</span></td>
+            <td><span class="status-badge status-unpaid">${s.absent}</span></td>
+            <td>${s.late}</td>
+            <td>${s.leave}</td>
+            <td>${s.total}</td>
+          </tr>
+        `).join('');
+      }
+      if (!data.logs || data.logs.length === 0) {
+        logBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No logs yet</td></tr>';
+      } else {
+        logBody.innerHTML = data.logs.map(l => {
+          const st = (l.status || '').toLowerCase();
+          const badgeClass = st === 'present' ? 'status-present' : (st === 'absent' ? 'status-unpaid' : 'status-partial');
+          return `
+            <tr>
+              <td>${l.date}</td>
+              <td><strong>${l.name || 'Unknown'}</strong></td>
+              <td><span class="status-badge ${badgeClass}">${l.status}</span></td>
+              <td>${l.time || '-'}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    } catch (e) { showToast('Failed: ' + e.message, true); }
+  });
+
+  // ==========================================
   // MODULE: TOTAL ATTENDANCE & HOLIDAYS
   // ==========================================
 
@@ -4658,7 +4854,7 @@ document.addEventListener('DOMContentLoaded', () => {
           selectedIds.map(id => apiCall(`/fees/slip/${id}?year=${year}`))
         );
 
-        const SLIPS_PER_PAGE = 6;
+        const SLIPS_PER_PAGE = 4;
         for (let i = 0; i < allData.length; i += SLIPS_PER_PAGE) {
           const pageData = allData.slice(i, i + SLIPS_PER_PAGE);
           let slipsHtml = '';
@@ -4690,44 +4886,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-print-reminders')?.addEventListener('click', async () => {
     const a4Page = document.getElementById('reminder-a4-page');
-    const printHTML = a4Page.innerHTML;
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <html><head><title>Fee Reminders</title>
-      <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, sans-serif; }
-        @page { size: A4; margin: 10mm; }
-        html, body { height: 100%; }
-        .a4-page {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          grid-auto-rows: 1fr;
-          gap: 8px;
-          padding: 5mm;
-          height: 100%;
-          page-break-after: always;
-        }
-        .fee-slip { border: 2px solid #000; padding: 6px; color: #000; font-size: 0.65rem; break-inside: avoid; page-break-inside: avoid; }
-        .slip-header { display: flex; align-items: center; gap: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 4px; }
-        .slip-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
-        .slip-header-text h2 { font-size: 0.6rem; font-weight: 800; margin: 0; text-transform: uppercase; }
-        .slip-header-text p { font-size: 0.5rem; margin: 1px 0 0; }
-        .slip-student-row { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 4px; padding: 4px; border: 1px solid #ccc; border-radius: 2px; }
-        .slip-student-info { font-size: 0.55rem; line-height: 1.4; }
-        .slip-student-info strong { display: inline-block; min-width: 35px; }
-        .slip-badge { background: #000; color: #fff; padding: 3px 6px; font-weight: 700; font-size: 0.5rem; white-space: nowrap; }
-        table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
-        th, td { padding: 2px 3px; font-size: 0.5rem; border: 1px solid #ccc; text-align: center; }
-        th { background: #f5f5f5; font-weight: 700; }
-        td:first-child { text-align: left; font-weight: 600; background: #f9f9f9; font-size: 0.48rem; }
-        .slip-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 2px solid #000; }
-        .slip-sign { font-size: 0.5rem; }
-        .slip-net-total { background: #000; color: #fff; padding: 2px 8px; font-weight: 800; font-size: 0.55rem; }
-      </style></head><body>${printHTML}</body></html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    if (!a4Page || !a4Page.innerHTML.trim()) {
+      showToast('Generate reminders first', true);
+      return;
+    }
+    showToast('Opening print dialog — choose "Save as PDF" as the destination.');
+    printViaIframe(a4Page.innerHTML, 'Fee Reminders');
   });
 
   // Save reminders
@@ -5293,7 +5457,7 @@ document.addEventListener('DOMContentLoaded', () => {
         students.map(s => apiCall(`/fees/slip/${s.id}?year=${year}`))
       );
 
-      const SLIPS_PER_PAGE = 6;
+      const SLIPS_PER_PAGE = 4;
       for (let i = 0; i < allData.length; i += SLIPS_PER_PAGE) {
         const pageStudents = allData.slice(i, i + SLIPS_PER_PAGE);
         let slipsHtml = '';
@@ -5321,56 +5485,16 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnPrintFeeSlip) {
     btnPrintFeeSlip.addEventListener('click', () => {
       const a4Page = document.getElementById('slip-a4-page');
-      const printHTML = a4Page.innerHTML;
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <html><head><title>Fee Slips</title>
-        <style>
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: Arial, sans-serif; }
-          @page { size: A4; margin: 10mm; }
-          html, body { height: 100%; }
-          .a4-page {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-auto-rows: 1fr;
-            gap: 8px;
-            padding: 5mm;
-            height: 100%;
-            page-break-after: always;
-          }
-          .fee-slip { border: 2px solid #000; padding: 6px; color: #000; font-size: 0.65rem; break-inside: avoid; }
-          .slip-header { display: flex; align-items: center; gap: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 4px; }
-          .slip-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
-          .slip-header-text h2 { font-size: 0.6rem; font-weight: 800; margin: 0; text-transform: uppercase; }
-          .slip-header-text p { font-size: 0.5rem; margin: 1px 0 0; }
-          .slip-student-row { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 4px; padding: 4px; border: 1px solid #ccc; border-radius: 2px; }
-          .slip-student-info { font-size: 0.55rem; line-height: 1.4; }
-          .slip-student-info strong { display: inline-block; min-width: 35px; }
-          .slip-badge { background: #000; color: #fff; padding: 3px 6px; font-weight: 700; font-size: 0.5rem; white-space: nowrap; }
-          table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
-          th, td { padding: 2px 3px; font-size: 0.5rem; border: 1px solid #ccc; text-align: center; }
-          th { background: #f5f5f5; font-weight: 700; }
-          td:first-child { text-align: left; font-weight: 600; background: #f9f9f9; font-size: 0.48rem; }
-          .slip-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 3px; border-top: 2px solid #000; }
-          .slip-sign { font-size: 0.5rem; }
-          .slip-net-total { background: #000; color: #fff; padding: 2px 8px; font-weight: 800; font-size: 0.55rem; }
-        </style></head><body>${printHTML}</body></html>
-      `);
-      printWindow.document.close();
-      const images = printWindow.document.querySelectorAll('img');
-      if (images.length === 0) {
-        printWindow.print();
-      } else {
-        let loaded = 0;
-        images.forEach(img => {
-          if (img.complete) { loaded++; if (loaded === images.length) printWindow.print(); }
-          else {
-            img.onload = () => { loaded++; if (loaded === images.length) printWindow.print(); };
-            img.onerror = () => { loaded++; if (loaded === images.length) printWindow.print(); };
-          }
-        });
+      if (!a4Page || !a4Page.innerHTML.trim()) {
+        showToast('Generate fee slips first', true);
+        return;
       }
+      showToast('Opening print dialog — choose "Save as PDF" as the destination.');
+      printViaIframe(a4Page.innerHTML, 'Fee Slips', '', () => {
+        // Auto-return to the student list after the print dialog closes
+        document.getElementById('slip-student-list-container').style.display = 'block';
+        document.getElementById('slip-preview-container').style.display = 'none';
+      });
     });
   }
 

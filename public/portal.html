@@ -18,8 +18,8 @@
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"></noscript>
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
-  <link rel="preload" href="css/styles.css?v=5" as="style">
-  <link rel="preload" href="js/app.js?v=20" as="script">
+  <link rel="preload" href="css/styles.css?v=6" as="style">
+  <link rel="preload" href="js/app.js?v=21" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v20';
+    window.SKYHONIX_PAGE_VERSION = 'v21';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -279,7 +279,7 @@
   </style>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/styles.css?v=5">
+  <link rel="stylesheet" href="css/styles.css?v=6">
   <!-- HTML5 QR Code Scanner Library is lazy-loaded on demand (see js/app.js) -->
   <!-- Chart.js CDN -->
   <script>
@@ -2559,6 +2559,15 @@
         <article class="screen-section" id="screen-attendance" style="display: none;">
           <h2 style="margin-bottom: 24px;">Attendance Tracking</h2>
 
+          <!-- Attendance Type Switch: Student / Teacher -->
+          <div class="att-type-switch" style="display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;">
+            <button class="att-type-btn active" data-att-type="student">👨‍🎓 Student Attendance</button>
+            <button class="att-type-btn" data-att-type="teacher">👨‍🏫 Teacher Attendance</button>
+          </div>
+
+          <!-- ===== MODULE: Student Attendance ===== -->
+          <div class="exam-option-panel" id="att-student-module">
+
           <div class="tab-container">
             <button class="tab-btn active" data-tab="att-mark">Mark Attendance</button>
             <button class="tab-btn" data-tab="att-scan">Webcam QR Scanner</button>
@@ -2851,6 +2860,112 @@
               </div>
             </div>
           </div>
+          <!-- /att-student-module -->
+
+          <!-- ===== MODULE: Teacher Attendance ===== -->
+          <div class="exam-option-panel" id="att-teacher-module" style="display: none;">
+            <div class="tab-container">
+              <button class="tab-btn active" data-tab="tatt-mark">Mark Attendance</button>
+              <button class="tab-btn" data-tab="tatt-history">History</button>
+            </div>
+
+            <!-- Tab: Mark Teacher Attendance -->
+            <div class="tab-content" id="tab-tatt-mark">
+              <div class="card" style="margin-bottom: 24px;">
+                <div class="grid-3" style="grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: flex-end;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Date</label>
+                    <input type="date" class="form-control" id="tatt-date-input">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">&nbsp;</label>
+                    <div style="color: var(--text-muted); font-size: 0.85rem; padding: 8px 0;">Teachers are synced from Assign Teachers</div>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <button class="btn btn-primary" id="btn-load-tatt-grid">Load Teachers List</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="table-container">
+                <table class="data-table" id="table-tatt-grid">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Subject</th>
+                      <th>Assigned Class</th>
+                      <th>Attendance Status</th>
+                      <th>Time In</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Please load teachers list above...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div style="text-align: right; display: none; margin-top: 16px;" id="tatt-grid-actions">
+                <button class="btn btn-secondary" id="btn-save-tatt">Save Attendance Records</button>
+              </div>
+            </div>
+
+            <!-- Tab: Teacher Attendance History -->
+            <div class="tab-content" id="tab-tatt-history" style="display: none;">
+              <div class="card" style="margin-bottom: 24px;">
+                <div class="grid-3" style="grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: flex-end;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Month</label>
+                    <input type="month" class="form-control" id="tatt-history-month">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">&nbsp;</label>
+                    <div style="color: var(--text-muted); font-size: 0.85rem; padding: 8px 0;">Monthly logs per teacher</div>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <button class="btn btn-primary" id="btn-load-tatt-history">View History</button>
+                  </div>
+                </div>
+              </div>
+
+              <h3 style="margin-bottom: 14px;">Monthly Summary</h3>
+              <div class="table-container" style="margin-bottom: 24px;">
+                <table class="data-table" id="table-tatt-summary">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Subject</th>
+                      <th>Present</th>
+                      <th>Absent</th>
+                      <th>Late</th>
+                      <th>Leave</th>
+                      <th>Total Days</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Select month and click View History...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h3 style="margin-bottom: 14px;">Daily Logs</h3>
+              <div class="table-container">
+                <table class="data-table" id="table-tatt-logs">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Name</th>
+                      <th>Status</th>
+                      <th>Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No logs yet</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <!-- /att-teacher-module -->
         </article>
 
         <!-- ==================== SCREEN: FEES ==================== -->
@@ -3017,8 +3132,8 @@
             </div>
 
             <!-- Action Buttons for History -->
-            <div style="margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap;">
-              <button class="btn btn-success" id="btn-generate-bulk-ledger">Generate Fee Ledger for Selected Month</button>
+            <div id="ledger-action-btns" style="margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap;">
+              <button class="btn btn-success" id="btn-generate-bulk-ledger" style="white-space: normal; text-align: center; flex: 1 1 220px;">Generate Fee Ledger for Selected Month</button>
               <button class="btn" id="btn-save-history-dues" style="background-color:#d97706; color:white;">Save Changes (Dues)</button>
               <button class="btn btn-danger" id="btn-delete-bulk-ledger">Delete Monthly Ledger</button>
             </div>
@@ -4653,6 +4768,6 @@
     })();
   </script>
   <script src="js/section-history.js?v=1"></script>
-  <script src="js/app.js?v=20"></script>
+  <script src="js/app.js?v=21"></script>
 </body>
 </html>

@@ -2523,3 +2523,56 @@ nav {
     font-size: 0.68rem !important;
   }
 }
+
+/* ------------------------------------------------------------------
+   Attendance type switch (Student / Teacher) — styled like tab-btn
+   but intentionally NOT .tab-btn so the generic tab handler ignores it
+   ------------------------------------------------------------------ */
+.att-type-switch {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.att-type-btn {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 12px 24px;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--glass-bg);
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  white-space: normal;
+}
+
+.att-type-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.att-type-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+}
+
+.att-type-btn:active { transform: scale(0.98); }
+
+@media (max-width: 480px) {
+  .att-type-btn { flex: 1 1 100%; padding: 11px 16px; font-size: 0.9rem; }
+}
+
+/* Ledger action buttons — long labels must wrap, never clip */
+#ledger-action-btns > .btn {
+  white-space: normal;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
