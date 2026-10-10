@@ -8,9 +8,9 @@
  *
  * Bump SHELL_VERSION whenever a cached asset is renamed/removed.
  */
-const SHELL_VERSION = 'skyhonix-shell-v15';
-const PAGE_CACHE = 'skyhonix-pages-v15';
-const ASSET_CACHE = 'skyhonix-assets-v15';
+const SHELL_VERSION = 'skyhonix-shell-v16';
+const PAGE_CACHE = 'skyhonix-pages-v16';
+const ASSET_CACHE = 'skyhonix-assets-v16';
 
 const SHELL_PAGES = [
   '/index.html',
@@ -23,7 +23,7 @@ const SHELL_PAGES = [
 
 const SHELL_ASSETS = [
   '/css/styles.css?v=5',
-  '/js/app.js?v=19',
+  '/js/app.js?v=20',
   '/js/teacher-portal.js?v=16',
   '/js/parent-portal.js?v=16',
   '/js/section-history.js?v=1',
@@ -56,6 +56,12 @@ self.addEventListener('activate', (event) => {
     const keys = await caches.keys();
     await Promise.all(keys.filter(k => keep.indexOf(k) === -1).map(k => caches.delete(k)));
     await self.clients.claim();
+    // This fresh worker now controls every open page — including pages that
+    // were served by an older worker. Re-navigate them immediately so a stale
+    // page is replaced with current HTML/JS in the same app-open (the hash
+    // fragment, e.g. #token=..., is preserved by client.navigate).
+    const windows = await self.clients.matchAll({ type: 'window' });
+    windows.forEach(c => { try { c.navigate(c.url); } catch (e) {} });
   })());
 });
 
@@ -105,7 +111,7 @@ async function networkFirstNav(request) {
   const cached = await cache.match(request);
   if (cached) return cached;
 
-  // Nothing cached yet â€” keep waiting for the network instead of failing
+  // Nothing cached yet - keep waiting for the network instead of failing
   const waited = await network;
   if (waited) return waited;
 
