@@ -290,7 +290,7 @@ const migrationPromises = {};
 // Bump this whenever ensureSchoolTables() learns a new column/index/backfill.
 // The version is persisted inside each tenant database (app_meta.schema_version)
 // so tenants are only migrated ONCE ever instead of on every cold start.
-const BACKFILL_VERSION = 4;
+const BACKFILL_VERSION = 5;
 const backfillVersions = new Map();
 async function ensureSchoolTables(db, schoolId) {
   // Use raw Turso client for DDL/DML to avoid proxy rewriting
@@ -328,7 +328,7 @@ async function ensureSchoolTables(db, schoolId) {
   }
 
   const tables = [
-    'students', 'sections', 'class_fees', 'student_fee_exceptions',
+    'students', 'sections', 'school_classes', 'class_fees', 'student_fee_exceptions',
     'fee_ledger', 'attendance', 'fee_payments', 'fee_dues', 'past_dues',
     'fee_reminder_templates', 'date_sheet_templates', 'exams', 'exam_subjects',
     'marks', 'dmc_templates', 'results', 'student_promotion_history',
@@ -340,6 +340,9 @@ async function ensureSchoolTables(db, schoolId) {
   ];
 
   await runRaw('CREATE TABLE IF NOT EXISTS app_meta (k TEXT PRIMARY KEY, v TEXT)').catch(() => {});
+
+  // School classes registry (admin-created classes; has_sections=0 = class has no sections)
+  await runRaw('CREATE TABLE IF NOT EXISTS school_classes (id INTEGER PRIMARY KEY AUTOINCREMENT, class_name TEXT NOT NULL UNIQUE, has_sections INTEGER DEFAULT 0, school_id INTEGER)').catch(() => {});
 
   // Only ALTER the tables that are actually missing the column (usually none)
   let tableSql = '';

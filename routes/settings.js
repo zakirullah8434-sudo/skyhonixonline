@@ -169,7 +169,7 @@ router.get('/backup', authenticateToken, async (req, res) => {
 
     // Turso / Vercel: export all table data as SQL dump
     const tables = [
-      'fee_settings', 'users', 'settings', 'students', 'sections', 'class_fees',
+      'fee_settings', 'users', 'settings', 'students', 'sections', 'school_classes', 'class_fees',
       'student_fee_exceptions', 'fee_ledger', 'attendance', 'holidays', 'fee_payments',
       'fee_dues', 'past_dues', 'exams', 'exam_subjects', 'marks', 'results',
       'result_sections', 'student_promotion_history', 'teachers', 'parents',
@@ -271,7 +271,7 @@ router.post('/delete-all-data', authenticateToken, async (req, res) => {
       'marks', 'results', 'exam_subjects', 'exams',
       'student_promotion_history', 'result_sections',
       'attendance', 'fee_payments', 'fee_ledger', 'fee_dues', 'past_dues',
-      'class_fees', 'student_fee_exceptions', 'sections', 'students'
+      'class_fees', 'student_fee_exceptions', 'sections', 'school_classes', 'students'
     ];
 
     let deletedCount = 0;

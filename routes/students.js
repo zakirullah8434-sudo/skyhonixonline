@@ -7,6 +7,95 @@ const config = require('../config');
 const { authenticateToken } = require('./auth');
 const { querySchool, querySchoolOne, runSchool, querySchoolRaw } = require('../database_manager');
 const syncManager = require('../sync_manager');
+const { compareClasses, compareStudents } = require('../class_order');
+
+// Ensure the school_classes registry table exists for a tenant
+async function ensureSchoolClassesTable(schoolId) {
+  await runSchool(schoolId,
+    `CREATE TABLE IF NOT EXISTS school_classes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      class_name TEXT NOT NULL UNIQUE,
+      has_sections INTEGER DEFAULT 0,
+      school_id INTEGER
+    )`).catch(() => {});
+}
+
+// All known classes merged from the registry, students, sections and class_fees
+async function fetchMergedClasses(schoolId) {
+  await ensureSchoolClassesTable(schoolId);
+  const [regRows, rows, secRows, feeRows] = await Promise.all([
+    querySchoolRaw(schoolId,
+      `SELECT class_name, has_sections FROM school_classes WHERE (school_id = ? OR school_id IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]).catch(() => []),
+    querySchoolRaw(schoolId,
+      `SELECT DISTINCT class_name FROM students WHERE (school_id = ? OR school_id IS NULL) AND (status != 'Left' OR status IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]).catch(() => []),
+    querySchoolRaw(schoolId,
+      `SELECT DISTINCT class_name FROM sections WHERE (school_id = ? OR school_id IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]).catch(() => []),
+    querySchoolRaw(schoolId,
+      `SELECT DISTINCT class_name FROM class_fees WHERE (school_id = ? OR school_id IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]).catch(() => [])
+  ]);
+
+  const classMap = new Map(); // lowercased name -> { class_name, has_sections(null=implicit) }
+  const add = (name, hasSections) => {
+    const key = String(name).trim().toLowerCase();
+    if (!key) return;
+    if (!classMap.has(key)) classMap.set(key, { class_name: String(name).trim(), has_sections: hasSections });
+    else if (hasSections !== null && classMap.get(key).has_sections === null) classMap.get(key).has_sections = hasSections;
+  };
+  regRows.forEach(r => add(r.class_name, r.has_sections ? 1 : 0));
+  rows.forEach(r => add(r.class_name, null));
+  secRows.forEach(r => add(r.class_name, null));
+  feeRows.forEach(r => add(r.class_name, null));
+
+  const merged = Array.from(classMap.values());
+  merged.sort((a, b) => compareClasses(a.class_name, b.class_name));
+  return merged;
+}
+
+// Sections for a class: registry (sections table) + student-derived, honouring has_sections=0
+async function fetchClassSections(schoolId, className) {
+  await ensureSchoolClassesTable(schoolId);
+  const reg = await querySchoolOne(schoolId,
+    `SELECT has_sections FROM school_classes WHERE class_name = ?`, [className]).catch(() => null);
+
+  // Class explicitly created WITHOUT sections -> no sections at all
+  if (reg && !reg.has_sections) return [];
+
+  const [secRows, stuRows] = await Promise.all([
+    querySchool(schoolId,
+      `SELECT DISTINCT section_name FROM sections WHERE class_name = ? AND section_name IS NOT NULL AND section_name != '' ORDER BY section_name`,
+      [className]).catch(() => []),
+    querySchool(schoolId,
+      `SELECT DISTINCT section_name FROM students WHERE class_name = ? AND section_name IS NOT NULL AND section_name != '' AND (status IS NULL OR status != 'Left')`,
+      [className]).catch(() => [])
+  ]);
+
+  const seen = new Set();
+  const out = [];
+  [...secRows, ...stuRows].forEach(r => {
+    const name = String(r.section_name || '').trim();
+    if (name && !seen.has(name.toLowerCase())) {
+      seen.add(name.toLowerCase());
+      out.push({ section_name: name });
+    }
+  });
+  out.sort((a, b) => a.section_name.localeCompare(b.section_name));
+  return out;
+}
+
+function parseSectionsInput(sections) {
+  if (!sections) return [];
+  const list = Array.isArray(sections) ? sections : String(sections).split(/[,;]/);
+  const seen = new Set();
+  const out = [];
+  list.forEach(s => {
+    const name = String(s || '').trim();
+    if (name && !seen.has(name.toLowerCase())) {
+      seen.add(name.toLowerCase());
+      out.push(name);
+    }
+  });
+  return out;
+}
 
 // Setup multer memory storage for student photos (base64 in DB, not file on disk)
 const upload = multer({
@@ -36,8 +125,8 @@ router.get('/', authenticateToken, async (req, res) => {
   const { class_name, section_name, status, search, page, limit, lite } = req.query;
 
   const selectCols = lite
-    ? 'id, student_id, name, roll_no, class_name, section_name, father_name, phone, status, is_free, discount_amount, discount_percent, transport_fee, family_head_id, dob, admission_date, gender, blood_group'
-    : 'id, student_id, name, roll_no, class_name, section_name, father_name, phone, status, is_free, discount_amount, discount_percent, transport_fee, family_head_id, dob, admission_date, gender, blood_group, photo';
+    ? 'id, student_id, admission_no, name, roll_no, class_name, section_name, father_name, phone, status, is_free, discount_amount, discount_percent, transport_fee, family_head_id, dob, admission_date, gender, blood_group, photo'
+    : 'id, student_id, admission_no, name, roll_no, class_name, section_name, father_name, phone, status, is_free, discount_amount, discount_percent, transport_fee, family_head_id, dob, admission_date, gender, blood_group, photo';
 
   let query = `SELECT ${selectCols}
     FROM students WHERE 1=1`;
@@ -104,7 +193,7 @@ router.get('/', authenticateToken, async (req, res) => {
         querySchool(schoolId, query, params),
         querySchoolOne(schoolId, countQuery, countParams)
       ]);
-      students = studentsData;
+      students = studentsData.sort(compareStudents);
       res.json({
         data: students,
         pagination: {
@@ -116,7 +205,7 @@ router.get('/', authenticateToken, async (req, res) => {
       });
     } else {
       students = await querySchool(schoolId, query, params);
-      res.json(students);
+      res.json(students.sort(compareStudents));
     }
   } catch (err) {
     console.error('Fetch students error:', err);
@@ -124,26 +213,126 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /students/classes - Get unique active classes from students, sections, and class_fees
+// GET /students/classes - Get unique active classes (registry + students + sections + class_fees)
 router.get('/classes', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   try {
-    const [rows, secRows, feeRows] = await Promise.all([
-      querySchoolRaw(schoolId,
-        `SELECT DISTINCT class_name FROM students WHERE (school_id = ? OR school_id IS NULL) AND (status != 'Left' OR status IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]).catch(() => []),
-      querySchoolRaw(schoolId,
-        `SELECT DISTINCT class_name FROM sections WHERE (school_id = ? OR school_id IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]).catch(() => []),
-      querySchoolRaw(schoolId,
-        `SELECT DISTINCT class_name FROM class_fees WHERE (school_id = ? OR school_id IS NULL) AND class_name IS NOT NULL AND class_name != ''`, [schoolId]).catch(() => [])
-    ]);
+    const merged = await fetchMergedClasses(schoolId);
+    res.json(merged.map(c => c.class_name));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-    const classSet = new Set();
-    rows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
-    secRows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
-    feeRows.forEach(r => { if (r.class_name) classSet.add(r.class_name); });
+// GET /students/classes/detail - Classes with sections detail (for Create Classes manager)
+router.get('/classes/detail', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  try {
+    const merged = await fetchMergedClasses(schoolId);
+    const detailed = await Promise.all(merged.map(async c => {
+      const sections = await fetchClassSections(schoolId, c.class_name);
+      return {
+        class_name: c.class_name,
+        has_sections: c.has_sections === 0 ? 0 : (sections.length > 0 ? 1 : (c.has_sections === 1 ? 1 : 0)),
+        sections: sections.map(s => s.section_name)
+      };
+    }));
+    res.json(detailed);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-    const classes = Array.from(classSet).sort();
-    res.json(classes);
+// POST /students/classes - Create a class (optionally with sections; blank section = no sections)
+router.post('/classes', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const className = String(req.body.class_name || '').trim();
+  const sections = parseSectionsInput(req.body.sections);
+
+  if (!className) {
+    return res.status(400).json({ error: 'Class name is required' });
+  }
+
+  try {
+    await ensureSchoolClassesTable(schoolId);
+    const existing = await querySchoolOne(schoolId, 'SELECT id, has_sections FROM school_classes WHERE class_name = ?', [className]);
+    const hasSections = sections.length > 0 ? 1 : 0;
+
+    if (existing) {
+      await runSchool(schoolId, 'UPDATE school_classes SET has_sections = ? WHERE id = ?', [hasSections, existing.id]);
+    } else {
+      await runSchool(schoolId, 'INSERT INTO school_classes (class_name, has_sections, school_id) VALUES (?, ?, ?)',
+        [className, hasSections, schoolId]);
+    }
+
+    for (const sec of sections) {
+      await runSchool(schoolId, 'INSERT OR IGNORE INTO sections (class_name, section_name, school_id) VALUES (?, ?, ?)',
+        [className, sec, schoolId]);
+    }
+
+    res.status(201).json({
+      message: hasSections
+        ? `Class "${className}" created with ${sections.length} section(s)`
+        : `Class "${className}" created (no sections)`
+    });
+  } catch (err) {
+    console.error('Create class error:', err);
+    res.status(500).json({ error: 'Failed to create class: ' + err.message });
+  }
+});
+
+// POST /students/classes/:className/sections - Add sections to an existing class
+router.post('/classes/:className/sections', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const className = req.params.className;
+  const sections = parseSectionsInput(req.body.sections);
+
+  if (sections.length === 0) {
+    return res.status(400).json({ error: 'At least one section name is required' });
+  }
+
+  try {
+    await ensureSchoolClassesTable(schoolId);
+    const existing = await querySchoolOne(schoolId, 'SELECT id FROM school_classes WHERE class_name = ?', [className]);
+    if (existing) {
+      await runSchool(schoolId, 'UPDATE school_classes SET has_sections = 1 WHERE id = ?', [existing.id]);
+    } else {
+      await runSchool(schoolId, 'INSERT INTO school_classes (class_name, has_sections, school_id) VALUES (?, 1, ?)',
+        [className, schoolId]);
+    }
+
+    for (const sec of sections) {
+      await runSchool(schoolId, 'INSERT OR IGNORE INTO sections (class_name, section_name, school_id) VALUES (?, ?, ?)',
+        [className, sec, schoolId]);
+    }
+
+    res.status(201).json({ message: `Section(s) added to "${className}"` });
+  } catch (err) {
+    console.error('Add section error:', err);
+    res.status(500).json({ error: 'Failed to add section: ' + err.message });
+  }
+});
+
+// DELETE /students/classes/:className/sections/:sectionName - Remove a section
+router.delete('/classes/:className/sections/:sectionName', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { className, sectionName } = req.params;
+  try {
+    await runSchool(schoolId, 'DELETE FROM sections WHERE class_name = ? AND section_name = ?', [className, sectionName]);
+    res.json({ message: `Section "${sectionName}" removed from "${className}"` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /students/classes/:className - Remove a class from the registry (student records untouched)
+router.delete('/classes/:className', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const className = req.params.className;
+  try {
+    await runSchool(schoolId, 'DELETE FROM school_classes WHERE class_name = ?', [className]);
+    await runSchool(schoolId, 'DELETE FROM sections WHERE class_name = ?', [className]);
+    res.json({ message: `Class "${className}" removed` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -154,7 +343,7 @@ router.get('/all', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { class_name, section_name, search } = req.query;
 
-  let query = 'SELECT id, student_id, name, roll_no, class_name, section_name, father_name, phone, status, is_free, discount_amount, discount_percent, family_head_id, photo FROM students WHERE 1=1';
+  let query = 'SELECT id, student_id, admission_no, name, roll_no, class_name, section_name, father_name, phone, status, is_free, discount_amount, discount_percent, family_head_id, photo FROM students WHERE 1=1';
   const params = [];
 
   if (class_name) {
@@ -179,21 +368,19 @@ router.get('/all', authenticateToken, async (req, res) => {
 
   try {
     const students = await querySchool(schoolId, query, params);
-    res.json(students);
+    res.json(students.sort(compareStudents));
   } catch (err) {
     console.error('Fetch all students error:', err);
     res.status(500).json({ error: 'Failed to retrieve students: ' + err.message });
   }
 });
 
-// GET /students/sections/:className - Get sections for a class
+// GET /students/sections/:className - Get sections for a class (honours the no-sections registry flag)
 router.get('/sections/:className', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const className = req.params.className;
   try {
-    const rows = await querySchool(schoolId,
-      `SELECT DISTINCT section_name FROM students WHERE class_name = ? AND section_name IS NOT NULL AND section_name != '' AND (status IS NULL OR status != 'Left') ORDER BY section_name`,
-      [className]);
+    const rows = await fetchClassSections(schoolId, className);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

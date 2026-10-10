@@ -66,6 +66,61 @@ function imgSrc(val, fallback) {
   return '/' + val;
 }
 
+// Natural class ordering: Play Group → Pre-Nursery → Nursery → Prep → KG → 1st → 2nd → ...
+const _WORD_NUMBERS = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
+  ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
+  first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7,
+  eighth: 8, ninth: 9, tenth: 10, eleventh: 11, twelfth: 12
+};
+const _EARLY_TOKENS = new Set(['play', 'group', 'reception', 'pre', 'nursery', 'prep', 'pg']);
+function classSortTuple(name) {
+  const raw = String(name || '').trim();
+  const tokens = raw.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+  const joined = tokens.join(' ');
+  if (!joined) return [99, 0, ''];
+  const hasDigit = /\d/.test(joined);
+  if (!hasDigit && tokens.some(t => _EARLY_TOKENS.has(t))) {
+    let sub = 5;
+    if (tokens.includes('play') || tokens.includes('pg')) sub = 0;
+    else if (tokens.includes('reception')) sub = 1;
+    else if (tokens.includes('pre')) sub = 2;
+    else if (tokens.includes('nursery')) sub = 3;
+    else if (tokens.includes('prep')) sub = 4;
+    return [0, sub, joined];
+  }
+  if (tokens.some(t => /^(kg|kinder|ukg|lkg)$/.test(t) || /^kg[12]$/.test(t))) {
+    let sub = 0;
+    if (tokens.includes('ukg') || tokens.includes('kg2')) sub = 2;
+    else if (tokens.includes('lkg') || tokens.includes('kg1')) sub = 1;
+    return [1, sub, joined];
+  }
+  for (const t of tokens) {
+    if (_WORD_NUMBERS[t] !== undefined) return [2, _WORD_NUMBERS[t], joined];
+    const m = t.match(/^(\d{1,2})(st|nd|rd|th)?$/);
+    if (m) return [2, parseInt(m[1], 10), joined];
+  }
+  return [3, 0, joined];
+}
+function compareClasses(a, b) {
+  const ta = classSortTuple(a), tb = classSortTuple(b);
+  if (ta[0] !== tb[0]) return ta[0] - tb[0];
+  if (ta[1] !== tb[1]) return ta[1] - tb[1];
+  return String(ta[2]).localeCompare(String(tb[2]));
+}
+function compareStudents(a, b) {
+  const c = compareClasses(a.class_name, b.class_name);
+  if (c !== 0) return c;
+  const ra = parseInt(a.roll_no, 10), rb = parseInt(b.roll_no, 10);
+  const aNum = !isNaN(ra), bNum = !isNaN(rb);
+  if (aNum && bNum && ra !== rb) return ra - rb;
+  if (aNum !== bNum) return aNum ? -1 : 1;
+  const rollC = String(a.roll_no || '').localeCompare(String(b.roll_no || ''), undefined, { numeric: true });
+  if (rollC !== 0) return rollC;
+  return String(a.name || '').localeCompare(String(b.name || ''));
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Authentication Guard
   const token = localStorage.getItem('skyhonix_token');
@@ -2084,12 +2139,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const rollnoClassSelect = document.getElementById('rollno-class-select');
       const rollnoGenClass = document.getElementById('rollno-gen-class');
       const feePayClass = document.getElementById('fee-pay-class');
+      const feeSetupClass = document.getElementById('fee-setup-class');
 
       const selects = [
         filterClass, attClassSelect, attHistoryClass, attTotalClass, ledgerFilterClass,
         marksSelectClass, ssMarksSelectClass, calcClassSelect,
         historyFilterClass, studentFeeClass, reminderFilterClass,
-        slipClassSelect, datesheetClassSelect, rollnoClassSelect, rollnoGenClass, feePayClass
+        slipClassSelect, datesheetClassSelect, rollnoClassSelect, rollnoGenClass, feePayClass,
+        feeSetupClass
       ];
 
       const optsHtml = classes.map(cls => `<option value="${cls}">${cls}</option>`).join('');
@@ -2098,7 +2155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!sel) return;
         const currentVal = sel.value;
         const isAllClasses = ['student-filter-class', 'history-filter-class', 'student-fee-class', 'datesheet-class-select', 'rollno-class-select', 'rollno-gen-class', 'att-total-class', 'fee-pay-class'].includes(sel.id);
-        const isSelectPlaceholder = ['reminder-filter-class', 'slip-class'].includes(sel.id);
+        const isSelectPlaceholder = ['reminder-filter-class', 'slip-class', 'fee-setup-class'].includes(sel.id);
         
         if (isAllClasses) {
           sel.innerHTML = '<option value="">All Classes</option>' + optsHtml;
@@ -2129,9 +2186,12 @@ document.addEventListener('DOMContentLoaded', () => {
       tbody.innerHTML = '';
 
       if (students.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No students found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-muted);">No students found</td></tr>';
         return;
       }
+
+      // Nursery → KG → 1st → 2nd → ... ordering when "All Classes" (or multi-class result) is shown
+      students.sort(compareStudents);
 
       const rows = students.map(s => {
         const hasSibling = s.family_head_id ? `<span class="sib-badge">Sibling</span>` : (s.family_head_id === null ? '' : '');
@@ -2145,6 +2205,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `
           <tr>
             <td>${s.student_id}</td>
+            <td>${s.admission_no || '-'}</td>
             <td><strong>${s.roll_no || '-'}</strong></td>
             <td>
               <div style="display:flex; align-items:center; gap: 10px;">
@@ -2203,15 +2264,168 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCloseStudentModal = document.getElementById('btn-close-student-modal');
   const formStudent = document.getElementById('form-student');
 
-  btnAddStudent.addEventListener('click', () => {
+  // Populate the Add/Edit Student class dropdown from created classes
+  async function populateStudentClassDropdown(selectedClass) {
+    const sel = document.getElementById('stud-class');
+    let classes = [];
+    try { classes = await getCachedClasses(apiCall); } catch (e) { classes = []; }
+    const opts = ['<option value="">-- Select Class --</option>'];
+    classes.forEach(c => {
+      const name = typeof c === 'object' ? c.class_name : c;
+      opts.push(`<option value="${esc(name)}">${esc(name)}</option>`);
+    });
+    if (selectedClass && !classes.some(c => (typeof c === 'object' ? c.class_name : c) === selectedClass)) {
+      opts.push(`<option value="${esc(selectedClass)}">${esc(selectedClass)}</option>`);
+    }
+    sel.innerHTML = opts.join('');
+    if (selectedClass) sel.value = selectedClass;
+  }
+
+  // Populate the Add/Edit Student section dropdown for the chosen class
+  async function populateStudentSectionDropdown(className, selectedSection) {
+    const sel = document.getElementById('stud-section');
+    let opts = ['<option value="">No Section</option>'];
+    if (className) {
+      try {
+        const sections = await apiCall(`/students/sections/${encodeURIComponent(className)}`);
+        sections.forEach(s => {
+          if (s.section_name) opts.push(`<option value="${esc(s.section_name)}">${esc(s.section_name)}</option>`);
+        });
+      } catch (e) { console.error('[APP_ERROR]', e.message); }
+    }
+    if (selectedSection && !sectionsInclude(opts, selectedSection)) {
+      opts.push(`<option value="${esc(selectedSection)}">${esc(selectedSection)}</option>`);
+    }
+    sel.innerHTML = opts.join('');
+    if (selectedSection) sel.value = selectedSection;
+  }
+  function sectionsInclude(optsHtml, section) {
+    return optsHtml.some(o => o.includes(`value="${section}"`));
+  }
+
+  document.getElementById('stud-class').addEventListener('change', function() {
+    populateStudentSectionDropdown(this.value, '');
+  });
+
+  btnAddStudent.addEventListener('click', async () => {
     formStudent.reset();
     document.getElementById('student-edit-id').value = '';
     document.getElementById('modal-student-title').innerText = 'Add Student Profile';
     document.getElementById('stud-id').value = '';
+    await populateStudentClassDropdown('');
+    await populateStudentSectionDropdown('', '');
     modalStudent.classList.add('open');
   });
 
   btnCloseStudentModal.addEventListener('click', () => modalStudent.classList.remove('open'));
+
+  // ==========================================
+  // MODULE: CREATE / MANAGE CLASSES
+  // ==========================================
+  const modalCreateClasses = document.getElementById('modal-create-classes');
+  const btnCreateClasses = document.getElementById('btn-create-classes');
+  const btnCloseClassesModal = document.getElementById('btn-close-classes-modal');
+  const formCreateClass = document.getElementById('form-create-class');
+
+  async function loadManagedClasses() {
+    const listEl = document.getElementById('classes-managed-list');
+    try {
+      const classes = await apiCall('/students/classes/detail', 'GET', null, false, true);
+      if (!classes || classes.length === 0) {
+        listEl.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 16px;">No classes yet. Create your first class above.</p>';
+        return;
+      }
+      listEl.innerHTML = classes.map(c => {
+        const chips = (c.sections || []).map(sec =>
+          `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-main);border:1px solid var(--border-color);padding:3px 8px;border-radius:12px;font-size:0.78rem;">
+            ${esc(sec)}
+            <button type="button" class="btn-rm-section" data-class="${esc(c.class_name)}" data-section="${esc(sec)}" style="border:none;background:none;color:#ef4444;cursor:pointer;font-weight:700;padding:0 2px;line-height:1;">&times;</button>
+          </span>`).join(' ');
+        const noSecBadge = (!c.sections || c.sections.length === 0)
+          ? '<span style="color:var(--text-muted);font-size:0.78rem;">No Sections</span>' : '';
+        return `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 8px;border-bottom:1px solid var(--border-color);flex-wrap:wrap;">
+            <div style="flex:1;min-width:180px;">
+              <strong>${esc(c.class_name)}</strong>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center;">${chips} ${noSecBadge}</div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <input type="text" class="form-control add-section-input" data-class="${esc(c.class_name)}" placeholder="Add section (e.g. A)" style="width:130px;padding:5px 8px;font-size:0.8rem;">
+              <button type="button" class="btn btn-outline btn-sm btn-add-section" data-class="${esc(c.class_name)}">+ Section</button>
+              <button type="button" class="btn btn-danger btn-sm btn-delete-class" data-class="${esc(c.class_name)}">Delete</button>
+            </div>
+          </div>`;
+      }).join('');
+    } catch (e) {
+      listEl.innerHTML = `<p style="color:var(--text-muted);text-align:center;padding:16px;">Failed to load classes: ${esc(e.message)}</p>`;
+    }
+  }
+
+  async function refreshClassSources() {
+    invalidateClassCache();
+    try { await loadClassesList(); } catch (e) {}
+  }
+
+  btnCreateClasses.addEventListener('click', () => {
+    loadManagedClasses();
+    modalCreateClasses.classList.add('open');
+  });
+  btnCloseClassesModal.addEventListener('click', () => modalCreateClasses.classList.remove('open'));
+
+  formCreateClass.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('new-class-name').value.trim();
+    const sections = document.getElementById('new-class-sections').value.trim();
+    if (!name) { showToast('Please enter a class name', true); return; }
+    try {
+      const res = await apiCall('/students/classes', 'POST', { class_name: name, sections }, false, true);
+      showToast(res.message || 'Class saved');
+      document.getElementById('new-class-name').value = '';
+      document.getElementById('new-class-sections').value = '';
+      await loadManagedClasses();
+      await refreshClassSources();
+    } catch (err) { showToast(err.message, true); }
+  });
+
+  document.getElementById('classes-managed-list').addEventListener('click', async (e) => {
+    const delClass = e.target.closest('.btn-delete-class');
+    if (delClass) {
+      const name = delClass.getAttribute('data-class');
+      if (!confirm(`Delete class "${name}"? (Student records are not deleted)`)) return;
+      try {
+        const res = await apiCall(`/students/classes/${encodeURIComponent(name)}`, 'DELETE', null, false, true);
+        showToast(res.message || 'Class deleted');
+        await loadManagedClasses();
+        await refreshClassSources();
+      } catch (err) { showToast(err.message, true); }
+      return;
+    }
+    const rmSection = e.target.closest('.btn-rm-section');
+    if (rmSection) {
+      const name = rmSection.getAttribute('data-class');
+      const sec = rmSection.getAttribute('data-section');
+      try {
+        const res = await apiCall(`/students/classes/${encodeURIComponent(name)}/sections/${encodeURIComponent(sec)}`, 'DELETE', null, false, true);
+        showToast(res.message || 'Section removed');
+        await loadManagedClasses();
+        await refreshClassSources();
+      } catch (err) { showToast(err.message, true); }
+      return;
+    }
+    const addSection = e.target.closest('.btn-add-section');
+    if (addSection) {
+      const name = addSection.getAttribute('data-class');
+      const input = addSection.parentElement.querySelector(`.add-section-input[data-class="${CSS.escape(name)}"]`);
+      const sec = input ? input.value.trim() : '';
+      if (!sec) { showToast('Enter a section name first', true); return; }
+      try {
+        const res = await apiCall(`/students/classes/${encodeURIComponent(name)}/sections`, 'POST', { sections: sec }, false, true);
+        showToast(res.message || 'Section added');
+        await loadManagedClasses();
+        await refreshClassSources();
+      } catch (err) { showToast(err.message, true); }
+    }
+  });
 
   // Compress image to target KB using Canvas with quality scaling
   function compressImage(file, maxKB) {
@@ -2346,8 +2560,8 @@ document.addEventListener('DOMContentLoaded', () => {
           document.getElementById('stud-roll').value = s.roll_no || '';
           document.getElementById('stud-name').value = s.name;
           document.getElementById('stud-father').value = s.father_name || '';
-          document.getElementById('stud-class').value = s.class_name;
-          document.getElementById('stud-section').value = s.section_name || '';
+          await populateStudentClassDropdown(s.class_name || '');
+          await populateStudentSectionDropdown(s.class_name || '', s.section_name || '');
           document.getElementById('stud-phone').value = s.phone || '';
           document.getElementById('stud-dob').value = s.dob || '';
           document.getElementById('stud-dobwords').value = s.dob_words || '';

@@ -11,6 +11,7 @@
           "database_manager.js",
           "school_db_template.js",
           "sync_manager.js",
+          "class_order.js",
           "routes/**",
           "public/**",
           "node_modules/sqlite3/**",

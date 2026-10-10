@@ -65,6 +65,16 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
+      // 3b. School classes registry (admin-created classes; has_sections=0 means class has NO sections)
+      db.run(`
+        CREATE TABLE IF NOT EXISTS school_classes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          class_name TEXT NOT NULL UNIQUE,
+          has_sections INTEGER DEFAULT 0,
+          school_id INTEGER
+        )
+      `);
+
       // 4. Class fees
       db.run(`
         CREATE TABLE IF NOT EXISTS class_fees (
@@ -805,6 +815,7 @@ function migrateSchoolDatabase(db) {
 
         // Sequential migration for assignments columns
         const migrationSteps = [
+          `CREATE TABLE IF NOT EXISTS school_classes (id INTEGER PRIMARY KEY AUTOINCREMENT, class_name TEXT NOT NULL UNIQUE, has_sections INTEGER DEFAULT 0, school_id INTEGER)`,
           `CREATE TABLE IF NOT EXISTS assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, teacher_id INTEGER, teacher_name TEXT, subject TEXT, class_name TEXT, section_name TEXT, title TEXT NOT NULL, description TEXT, type TEXT DEFAULT 'homework', due_date TEXT, priority TEXT DEFAULT 'medium', status TEXT DEFAULT 'active', total_marks INTEGER DEFAULT 0, marks_info TEXT DEFAULT '', school_id INTEGER, created_at TEXT)`,
           `ALTER TABLE assignments ADD COLUMN status TEXT DEFAULT 'active'`,
           `ALTER TABLE assignments ADD COLUMN total_marks INTEGER DEFAULT 0`,

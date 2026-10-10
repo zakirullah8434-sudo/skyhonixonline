@@ -2132,7 +2132,10 @@
         <article class="screen-section" id="screen-students" style="display: none;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px;">
             <h2>Admissions</h2>
-            <button class="btn btn-primary" id="btn-add-student">Add New Student</button>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button class="btn btn-outline" id="btn-create-classes">Create Classes</button>
+              <button class="btn btn-primary" id="btn-add-student">Add New Student</button>
+            </div>
           </div>
 
           <div class="card" style="margin-bottom: 24px;">
@@ -2166,6 +2169,7 @@
               <thead>
                 <tr>
                   <th>ID</th>
+                  <th>Admission No</th>
                   <th>Roll</th>
                   <th>Name</th>
                   <th>Father's Name</th>
@@ -2176,7 +2180,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Select filters or search directory...</td></tr>
+                <tr><td colspan="9" style="text-align: center; color: var(--text-muted);">Select filters or search directory...</td></tr>
               </tbody>
             </table>
           </div>
@@ -3042,7 +3046,9 @@
                 <form id="form-fee-setup">
                   <div class="form-group">
                     <label class="form-label">Class Name</label>
-                    <input type="text" class="form-control" id="fee-setup-class" placeholder="e.g. Nursery, 1st, 10th" required>
+                    <select class="form-control" id="fee-setup-class" required>
+                      <option value="">-- Select Class --</option>
+                    </select>
                   </div>
                   <div class="form-group">
                     <label class="form-label">Monthly Standard Fee (PKR)</label>
@@ -4349,11 +4355,15 @@
         <div class="grid-3">
           <div class="form-group">
             <label class="form-label">Class</label>
-            <input type="text" class="form-control" id="stud-class" placeholder="e.g. KG, 1st" required>
+            <select class="form-control" id="stud-class" required>
+              <option value="">-- Select Class --</option>
+            </select>
           </div>
           <div class="form-group">
             <label class="form-label">Section Name</label>
-            <input type="text" class="form-control" id="stud-section" placeholder="e.g. A, B">
+            <select class="form-control" id="stud-section">
+              <option value="">No Section</option>
+            </select>
           </div>
           <div class="form-group">
             <label class="form-label">Contact Phone</label>
@@ -4463,6 +4473,44 @@
           <button type="submit" class="btn btn-primary" id="btn-save-student-profile">Save Student</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Create / Manage Classes -->
+  <div class="modal" id="modal-create-classes">
+    <div class="modal-content" style="max-width: 640px;">
+      <div class="modal-header">
+        <h2>Create Classes</h2>
+        <button class="drawer-close" id="btn-close-classes-modal">&times;</button>
+      </div>
+
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 16px;">
+        Create the classes of your school here. If a class has <strong>only one section</strong>, leave the section blank — it means the class has <strong>no sections</strong>.
+        Created classes appear in Admission, Fees, Exams, Attendance, Promotions, Timetable and Teacher assignment dropdowns.
+      </p>
+
+      <form id="form-create-class">
+        <div class="grid-2" style="gap: 12px; align-items: flex-end;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Class Name</label>
+            <input type="text" class="form-control" id="new-class-name" placeholder="e.g. Nursery, KG, 1st, 5th" required>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Sections (optional, comma separated)</label>
+            <input type="text" class="form-control" id="new-class-sections" placeholder="e.g. A, B, C — leave blank if no sections">
+          </div>
+        </div>
+        <div style="margin-top: 14px; display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="submit" class="btn btn-primary btn-sm">Save Class</button>
+        </div>
+      </form>
+
+      <div style="border-top: 1px solid var(--border-color); margin-top: 18px; padding-top: 14px;">
+        <h3 style="font-size: 1rem; margin-bottom: 10px;">Existing Classes</h3>
+        <div id="classes-managed-list" style="max-height: 320px; overflow-y: auto;">
+          <p style="color: var(--text-muted); text-align: center; padding: 16px;">Loading classes...</p>
+        </div>
+      </div>
     </div>
   </div>
 
