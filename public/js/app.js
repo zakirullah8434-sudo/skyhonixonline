@@ -2321,6 +2321,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ==========================================
   // MODULE: CREATE / MANAGE CLASSES
+  // Null-guarded: older cached portal.html without these elements must not crash
   // ==========================================
   const modalCreateClasses = document.getElementById('modal-create-classes');
   const btnCreateClasses = document.getElementById('btn-create-classes');
@@ -2329,6 +2330,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadManagedClasses() {
     const listEl = document.getElementById('classes-managed-list');
+    if (!listEl) return;
     try {
       const classes = await apiCall('/students/classes/detail', 'GET', null, false, true);
       if (!classes || classes.length === 0) {
@@ -2366,66 +2368,75 @@ document.addEventListener('DOMContentLoaded', () => {
     try { await loadClassesList(); } catch (e) {}
   }
 
-  btnCreateClasses.addEventListener('click', () => {
-    loadManagedClasses();
-    modalCreateClasses.classList.add('open');
-  });
-  btnCloseClassesModal.addEventListener('click', () => modalCreateClasses.classList.remove('open'));
+  if (btnCreateClasses && modalCreateClasses) {
+    btnCreateClasses.addEventListener('click', () => {
+      loadManagedClasses();
+      modalCreateClasses.classList.add('open');
+    });
+  }
+  if (btnCloseClassesModal && modalCreateClasses) {
+    btnCloseClassesModal.addEventListener('click', () => modalCreateClasses.classList.remove('open'));
+  }
 
-  formCreateClass.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = document.getElementById('new-class-name').value.trim();
-    const sections = document.getElementById('new-class-sections').value.trim();
-    if (!name) { showToast('Please enter a class name', true); return; }
-    try {
-      const res = await apiCall('/students/classes', 'POST', { class_name: name, sections }, false, true);
-      showToast(res.message || 'Class saved');
-      document.getElementById('new-class-name').value = '';
-      document.getElementById('new-class-sections').value = '';
-      await loadManagedClasses();
-      await refreshClassSources();
-    } catch (err) { showToast(err.message, true); }
-  });
+  if (formCreateClass) {
+    formCreateClass.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('new-class-name').value.trim();
+      const sections = document.getElementById('new-class-sections').value.trim();
+      if (!name) { showToast('Please enter a class name', true); return; }
+      try {
+        const res = await apiCall('/students/classes', 'POST', { class_name: name, sections }, false, true);
+        showToast(res.message || 'Class saved');
+        document.getElementById('new-class-name').value = '';
+        document.getElementById('new-class-sections').value = '';
+        await loadManagedClasses();
+        await refreshClassSources();
+      } catch (err) { showToast(err.message, true); }
+    });
+  }
 
-  document.getElementById('classes-managed-list').addEventListener('click', async (e) => {
-    const delClass = e.target.closest('.btn-delete-class');
-    if (delClass) {
-      const name = delClass.getAttribute('data-class');
-      if (!confirm(`Delete class "${name}"? (Student records are not deleted)`)) return;
-      try {
-        const res = await apiCall(`/students/classes/${encodeURIComponent(name)}`, 'DELETE', null, false, true);
-        showToast(res.message || 'Class deleted');
-        await loadManagedClasses();
-        await refreshClassSources();
-      } catch (err) { showToast(err.message, true); }
-      return;
-    }
-    const rmSection = e.target.closest('.btn-rm-section');
-    if (rmSection) {
-      const name = rmSection.getAttribute('data-class');
-      const sec = rmSection.getAttribute('data-section');
-      try {
-        const res = await apiCall(`/students/classes/${encodeURIComponent(name)}/sections/${encodeURIComponent(sec)}`, 'DELETE', null, false, true);
-        showToast(res.message || 'Section removed');
-        await loadManagedClasses();
-        await refreshClassSources();
-      } catch (err) { showToast(err.message, true); }
-      return;
-    }
-    const addSection = e.target.closest('.btn-add-section');
-    if (addSection) {
-      const name = addSection.getAttribute('data-class');
-      const input = addSection.parentElement.querySelector(`.add-section-input[data-class="${CSS.escape(name)}"]`);
-      const sec = input ? input.value.trim() : '';
-      if (!sec) { showToast('Enter a section name first', true); return; }
-      try {
-        const res = await apiCall(`/students/classes/${encodeURIComponent(name)}/sections`, 'POST', { sections: sec }, false, true);
-        showToast(res.message || 'Section added');
-        await loadManagedClasses();
-        await refreshClassSources();
-      } catch (err) { showToast(err.message, true); }
-    }
-  });
+  const classesManagedList = document.getElementById('classes-managed-list');
+  if (classesManagedList) {
+    classesManagedList.addEventListener('click', async (e) => {
+      const delClass = e.target.closest('.btn-delete-class');
+      if (delClass) {
+        const name = delClass.getAttribute('data-class');
+        if (!confirm(`Delete class "${name}"? (Student records are not deleted)`)) return;
+        try {
+          const res = await apiCall(`/students/classes/${encodeURIComponent(name)}`, 'DELETE', null, false, true);
+          showToast(res.message || 'Class deleted');
+          await loadManagedClasses();
+          await refreshClassSources();
+        } catch (err) { showToast(err.message, true); }
+        return;
+      }
+      const rmSection = e.target.closest('.btn-rm-section');
+      if (rmSection) {
+        const name = rmSection.getAttribute('data-class');
+        const sec = rmSection.getAttribute('data-section');
+        try {
+          const res = await apiCall(`/students/classes/${encodeURIComponent(name)}/sections/${encodeURIComponent(sec)}`, 'DELETE', null, false, true);
+          showToast(res.message || 'Section removed');
+          await loadManagedClasses();
+          await refreshClassSources();
+        } catch (err) { showToast(err.message, true); }
+        return;
+      }
+      const addSection = e.target.closest('.btn-add-section');
+      if (addSection) {
+        const name = addSection.getAttribute('data-class');
+        const input = addSection.parentElement.querySelector(`.add-section-input[data-class="${CSS.escape(name)}"]`);
+        const sec = input ? input.value.trim() : '';
+        if (!sec) { showToast('Enter a section name first', true); return; }
+        try {
+          const res = await apiCall(`/students/classes/${encodeURIComponent(name)}/sections`, 'POST', { sections: sec }, false, true);
+          showToast(res.message || 'Section added');
+          await loadManagedClasses();
+          await refreshClassSources();
+        } catch (err) { showToast(err.message, true); }
+      }
+    });
+  }
 
   // Compress image to target KB using Canvas with quality scaling
   function compressImage(file, maxKB) {

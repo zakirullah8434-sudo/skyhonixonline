@@ -19,13 +19,32 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=5" as="style">
-  <link rel="preload" href="js/app.js?v=17" as="script">
+  <link rel="preload" href="js/app.js?v=18" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/service-worker.js').catch(function () {});
     }
+  </script>
+
+  <!-- Self-healing update guard: if the server ships a newer portal build than the
+       (possibly service-worker-cached) page currently open, force one reload.
+       /api/version is network-only in the service worker, so it is never stale. -->
+  <script>
+    window.SKYHONIX_PAGE_VERSION = 'v18';
+    setTimeout(function () {
+      fetch('/api/version', { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.version && d.version !== window.SKYHONIX_PAGE_VERSION &&
+              !sessionStorage.getItem('skyhonix_updated_' + d.version)) {
+            sessionStorage.setItem('skyhonix_updated_' + d.version, '1');
+            location.reload();
+          }
+        })
+        .catch(function () {});
+    }, 2500);
   </script>
 
   <style>
@@ -4634,6 +4653,6 @@
     })();
   </script>
   <script src="js/section-history.js?v=1"></script>
-  <script src="js/app.js?v=17"></script>
+  <script src="js/app.js?v=18"></script>
 </body>
 </html>

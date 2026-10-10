@@ -20,6 +20,21 @@
       navigator.serviceWorker.register('/service-worker.js').catch(function () {});
     }
   </script>
+  <script>
+    window.SKYHONIX_PAGE_VERSION = 'v18';
+    setTimeout(function () {
+      fetch('/api/version', { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.version && d.version !== window.SKYHONIX_PAGE_VERSION &&
+              !sessionStorage.getItem('skyhonix_updated_' + d.version)) {
+            sessionStorage.setItem('skyhonix_updated_' + d.version, '1');
+            location.reload();
+          }
+        })
+        .catch(function () {});
+    }, 2500);
+  </script>
   <link rel="stylesheet" href="css/styles.css?v=5">
   <style>
     /* Teacher Portal unique styles (shared styles from styles.css) */

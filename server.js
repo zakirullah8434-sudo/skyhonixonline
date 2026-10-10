@@ -392,6 +392,15 @@ app.get('/api/dashboard/stats', async (req, res) => {
   }
 });
 
+// Asset/portal build version — the inline guards in portal.html / teacher-portal.html /
+// parent-portal.html compare this with the page's baked-in SKYHONIX_PAGE_VERSION and
+// auto-reload once when the server ships a newer build than the (SW-cached) page.
+// Keep in sync with ?v= query on js/app.js and SHELL_VERSION in public/sw.js.
+app.get('/api/version', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.json({ version: 'v18' });
+});
+
 // Mount API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentsRoutes);
