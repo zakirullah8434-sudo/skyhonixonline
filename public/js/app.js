@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v21';
+    const EXPECTED_PAGE_VERSION = 'v22';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -3564,7 +3564,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { showToast('Failed: ' + e.message, true); }
   });
 
-  // Teacher attendance: history
+  // Teacher attendance: history calendar + summary
   const tattHistoryMonth = document.getElementById('tatt-history-month');
   if (tattHistoryMonth) tattHistoryMonth.value = new Date().toISOString().slice(0, 7);
 
@@ -3573,8 +3573,40 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!month) { showToast('Month is required', true); return; }
     try {
       const data = await apiCall(`/attendance/teachers/history?month=${month}`);
+      const calBody = document.querySelector('#table-tatt-calendar tbody');
       const sumBody = document.querySelector('#table-tatt-summary tbody');
-      const logBody = document.querySelector('#table-tatt-logs tbody');
+
+      // Group logs by teacher for the calendar pills
+      const teacherLogs = {};
+      (data.logs || []).forEach(log => {
+        if (!teacherLogs[log.teacher_id]) {
+          teacherLogs[log.teacher_id] = { name: log.name || 'Unknown', subject: log.subject || '', records: [] };
+        }
+        teacherLogs[log.teacher_id].records.push({ date: log.date, status: log.status });
+      });
+
+      const calIds = Object.keys(teacherLogs);
+      if (calIds.length === 0) {
+        calBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No logs found for this period</td></tr>';
+      } else {
+        calBody.innerHTML = calIds.map(id => {
+          const t = teacherLogs[id];
+          t.records.sort((a, b) => new Date(a.date) - new Date(b.date));
+          const pills = t.records.map(r => {
+            const day = r.date.split('-')[2];
+            const badgeClass = r.status === 'Present' ? 'status-present' : (r.status === 'Absent' ? 'status-unpaid' : 'status-partial');
+            return `<span class="status-badge ${badgeClass}" style="margin:2px; font-size:0.7rem;" title="${r.date}">${day}: ${r.status.substring(0, 1)}</span>`;
+          }).join('');
+          return `
+            <tr>
+              <td><strong>${t.name}</strong></td>
+              <td>${t.subject || '-'}</td>
+              <td><div style="display:flex; flex-wrap:wrap;">${pills}</div></td>
+            </tr>
+          `;
+        }).join('');
+      }
+
       if (!data.summary || data.summary.length === 0) {
         sumBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No records this month</td></tr>';
       } else {
@@ -3590,23 +3622,277 @@ document.addEventListener('DOMContentLoaded', () => {
           </tr>
         `).join('');
       }
-      if (!data.logs || data.logs.length === 0) {
-        logBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No logs yet</td></tr>';
-      } else {
-        logBody.innerHTML = data.logs.map(l => {
-          const st = (l.status || '').toLowerCase();
-          const badgeClass = st === 'present' ? 'status-present' : (st === 'absent' ? 'status-unpaid' : 'status-partial');
-          return `
-            <tr>
-              <td>${l.date}</td>
-              <td><strong>${l.name || 'Unknown'}</strong></td>
-              <td><span class="status-badge ${badgeClass}">${l.status}</span></td>
-              <td>${l.time || '-'}</td>
-            </tr>
-          `;
-        }).join('');
-      }
     } catch (e) { showToast('Failed: ' + e.message, true); }
+  });
+
+  // Teacher attendance: QR scanner
+  let tHtml5QrcodeScanner = null;
+  let tCurrentFacing = 'environment';
+  const tScanHistoryTable = document.querySelector('#table-tatt-scan-history tbody');
+  const tScanFeedback = document.getElementById('tatt-scan-feedback-container');
+  const btnTattStart = document.getElementById('btn-tatt-start-scanner');
+  const btnTattStop = document.getElementById('btn-tatt-stop-scanner');
+  const btnTattFlip = document.getElementById('btn-tatt-flip-camera');
+
+  if (btnTattStart) {
+    btnTattStart.addEventListener('click', async () => {
+      if (tHtml5QrcodeScanner) return;
+      tScanFeedback.style.display = 'none';
+      try {
+        await loadQrLibrary();
+      } catch (err) {
+        showToast(err.message, true);
+        return;
+      }
+      tHtml5QrcodeScanner = new Html5Qrcode('tatt-reader');
+
+      tHtml5QrcodeScanner.start(
+        { facingMode: tCurrentFacing },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        async (decodedText) => {
+          const scanValue = (decodedText || '').trim();
+          if (!scanValue) return;
+          const now = Date.now();
+          if (window._tLastScanValue === scanValue && (now - (window._tLastScanTime || 0)) < 2000) return;
+          window._tLastScanValue = scanValue;
+          window._tLastScanTime = now;
+
+          try {
+            const dateStr = new Date().toISOString().split('T')[0];
+            const clientTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+            const result = await apiCall('/attendance/teachers/scan', 'POST', { scanValue, date: dateStr, time: clientTime });
+
+            if (result.alreadyMarked) {
+              playBeep('fail');
+              showToast(result.message, true);
+            } else {
+              playBeep('success');
+              showToast(result.message);
+            }
+
+            document.getElementById('tatt-scan-name').innerText = result.teacher.name;
+            document.getElementById('tatt-scan-subject').innerText = `Subject: ${result.teacher.subject || '-'}`;
+            document.getElementById('tatt-scan-time').innerText = result.alreadyMarked ? `Already marked at: ${result.teacher.time}` : `Checked in: ${result.teacher.time}`;
+            tScanFeedback.style.display = 'block';
+
+            if (tScanHistoryTable.innerHTML.includes('Awaiting teacher QR')) {
+              tScanHistoryTable.innerHTML = '';
+            }
+            const statusColor = result.alreadyMarked ? 'var(--warning)' : 'var(--accent)';
+            const statusLabel = result.alreadyMarked ? ' (Already Marked)' : '';
+            tScanHistoryTable.innerHTML = `
+              <tr>
+                <td><strong>${result.teacher.name}</strong></td>
+                <td>${result.teacher.subject || '-'}</td>
+                <td><span style="color:${statusColor}; font-weight:700;">${result.teacher.time}${statusLabel}</span></td>
+              </tr>
+            ` + tScanHistoryTable.innerHTML;
+          } catch (err) {
+            playBeep('fail');
+            showToast(`Scan failed: ${err.message}`, true);
+          }
+        },
+        () => {}
+      ).catch(err => {
+        showToast(`Camera error: ${err}`, true);
+      });
+
+      btnTattFlip.style.display = 'inline-block';
+    });
+  }
+
+  if (btnTattFlip) {
+    btnTattFlip.addEventListener('click', async () => {
+      if (!tHtml5QrcodeScanner) return;
+      tCurrentFacing = tCurrentFacing === 'environment' ? 'user' : 'environment';
+      try {
+        await tHtml5QrcodeScanner.stop();
+        tHtml5QrcodeScanner = null;
+        document.getElementById('tatt-reader').innerHTML = '';
+        btnTattStart.click();
+      } catch (e) {
+        showToast('Could not flip camera', true);
+      }
+    });
+  }
+
+  function stopTattQrScanner() {
+    if (tHtml5QrcodeScanner) {
+      tHtml5QrcodeScanner.stop().then(() => {
+        tHtml5QrcodeScanner = null;
+        document.getElementById('tatt-reader').innerHTML = '';
+        btnTattFlip.style.display = 'none';
+      }).catch(err => console.error(err));
+    }
+  }
+  if (btnTattStop) btnTattStop.addEventListener('click', stopTattQrScanner);
+
+  // Teacher attendance: total attendance
+  const tattTotalMonth = document.getElementById('tatt-total-month');
+  if (tattTotalMonth) tattTotalMonth.value = new Date().toISOString().slice(0, 7);
+
+  document.getElementById('btn-load-tatt-total')?.addEventListener('click', async () => {
+    const month = tattTotalMonth ? tattTotalMonth.value : '';
+    if (!month) { showToast('Month is required', true); return; }
+    try {
+      const data = await apiCall(`/attendance/teachers/total?month=${month}`);
+
+      const summaryEl = document.getElementById('tatt-total-summary');
+      if (summaryEl) summaryEl.style.display = 'block';
+      const sessEl = document.getElementById('tatt-total-session');
+      if (sessEl) sessEl.textContent = data.session_start_date || 'Not Set';
+      const daysEl = document.getElementById('tatt-total-days');
+      if (daysEl) daysEl.textContent = data.current_school_days;
+      const prevDaysEl = document.getElementById('tatt-total-prev-days');
+      if (prevDaysEl) prevDaysEl.textContent = data.prev_school_days;
+      const holEl = document.getElementById('tatt-total-holidays');
+      if (holEl) holEl.textContent = data.holidays_count;
+
+      const tbody = document.querySelector('#table-tatt-total tbody');
+      tbody.innerHTML = '';
+
+      if (!data.teachers || data.teachers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No active teachers found</td></tr>';
+        return;
+      }
+
+      let totalCurrentAll = 0;
+      let totalPrevAll = 0;
+      let totalCombinedAll = 0;
+
+      const rows = data.teachers.map(t => {
+        totalCurrentAll += t.current_attendance;
+        totalPrevAll += t.prev_attendance;
+        totalCombinedAll += t.total_attendance;
+        return `
+          <tr>
+            <td><strong>${t.name}</strong></td>
+            <td>${t.subject || '-'}</td>
+            <td><span class="status-badge status-present">${t.current_attendance}</span></td>
+            <td><span class="status-badge status-partial">${t.prev_attendance}</span></td>
+            <td><strong style="color: var(--primary); font-size: 1.1rem;">${t.total_attendance}</strong></td>
+          </tr>
+        `;
+      });
+
+      rows.push(`
+        <tr style="background: var(--glass-bg); font-weight: 700;">
+          <td colspan="2" style="text-align: right;">School Average (Current Month):</td>
+          <td><strong style="color: var(--primary); font-size: 1.1rem;">${data.current_school_days > 0 ? (totalCurrentAll / data.current_school_days).toFixed(2) : '0.00'}</strong></td>
+          <td><strong style="color: var(--primary);">${totalPrevAll}</strong></td>
+          <td><strong style="color: var(--primary); font-size: 1.1rem;">${totalCombinedAll}</strong></td>
+        </tr>
+      `);
+
+      tbody.innerHTML = rows.join('');
+
+      window._currentTattReport = {
+        month: data.current_month,
+        total_school_days: data.current_school_days,
+        prev_school_days: data.prev_school_days,
+        holidays_count: data.holidays_count,
+        report_data: data.teachers
+      };
+    } catch (e) { showToast('Failed: ' + e.message, true); }
+  });
+
+  document.getElementById('btn-save-tatt-report')?.addEventListener('click', async () => {
+    const report = window._currentTattReport;
+    if (!report) {
+      showToast('Calculate a report first before saving', true);
+      return;
+    }
+    try {
+      const res = await apiCall('/attendance/teachers/reports', 'POST', report, false, true);
+      showToast(res.message);
+      loadTattSavedReports();
+    } catch (e) { showToast('Failed to save: ' + e.message, true); }
+  });
+
+  async function loadTattSavedReports() {
+    try {
+      const reports = await apiCall('/attendance/teachers/reports');
+      const tbody = document.querySelector('#table-tatt-reports tbody');
+      tbody.innerHTML = '';
+      if (reports.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No saved reports yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = reports.map(r => `
+        <tr>
+          <td><strong>${r.month}</strong></td>
+          <td>${r.total_school_days}</td>
+          <td>${(r.report_data || []).length}</td>
+          <td>
+            <button class="btn btn-primary btn-sm btn-view-tatt-report" data-id="${r.id}" title="View Report">View</button>
+            <button class="btn btn-danger btn-sm btn-delete-tatt-report" data-id="${r.id}" title="Delete Report">✕</button>
+          </td>
+        </tr>
+      `).join('');
+
+      tbody.querySelectorAll('.btn-view-tatt-report').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const report = reports.find(r => r.id == btn.dataset.id);
+          if (!report) return;
+          if (tattTotalMonth) tattTotalMonth.value = report.month;
+          const summaryEl = document.getElementById('tatt-total-summary');
+          if (summaryEl) summaryEl.style.display = 'block';
+          const sessEl = document.getElementById('tatt-total-session');
+          if (sessEl) sessEl.textContent = report.session_start_date || 'Not Set';
+          const daysEl = document.getElementById('tatt-total-days');
+          if (daysEl) daysEl.textContent = report.total_school_days;
+          const prevDaysEl = document.getElementById('tatt-total-prev-days');
+          if (prevDaysEl) prevDaysEl.textContent = report.prev_school_days;
+          const holEl = document.getElementById('tatt-total-holidays');
+          if (holEl) holEl.textContent = report.holidays_count;
+
+          const teachers = report.report_data || [];
+          const tbody2 = document.querySelector('#table-tatt-total tbody');
+          let totalCurrentAll = 0, totalPrevAll = 0, totalCombinedAll = 0;
+          const rows = teachers.map(t => {
+            totalCurrentAll += t.current_attendance;
+            totalPrevAll += t.prev_attendance;
+            totalCombinedAll += t.total_attendance;
+            return `
+              <tr>
+                <td><strong>${t.name}</strong></td>
+                <td>${t.subject || '-'}</td>
+                <td><span class="status-badge status-present">${t.current_attendance}</span></td>
+                <td><span class="status-badge status-partial">${t.prev_attendance}</span></td>
+                <td><strong style="color: var(--primary); font-size: 1.1rem;">${t.total_attendance}</strong></td>
+              </tr>
+            `;
+          });
+          rows.push(`
+            <tr style="background: var(--glass-bg); font-weight: 700;">
+              <td colspan="2" style="text-align: right;">School Average (Current Month):</td>
+              <td><strong style="color: var(--primary); font-size: 1.1rem;">${report.total_school_days > 0 ? (totalCurrentAll / report.total_school_days).toFixed(2) : '0.00'}</strong></td>
+              <td><strong style="color: var(--primary);">${totalPrevAll}</strong></td>
+              <td><strong style="color: var(--primary); font-size: 1.1rem;">${totalCombinedAll}</strong></td>
+            </tr>
+          `);
+          tbody2.innerHTML = rows.join('');
+          if (summaryEl) summaryEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          showToast('Loaded saved report for ' + report.month);
+        });
+      });
+
+      tbody.querySelectorAll('.btn-delete-tatt-report').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this saved report?')) return;
+          try {
+            await apiCall(`/attendance/teachers/reports/${btn.dataset.id}`, 'DELETE', null, false, true);
+            showToast('Report removed');
+            loadTattSavedReports();
+          } catch (e) { showToast('Failed: ' + e.message, true); }
+        });
+      });
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
+  }
+
+  // Load teacher saved reports when the Total tab is opened
+  document.querySelector('[data-tab="tatt-total"]')?.addEventListener('click', () => {
+    loadTattSavedReports();
   });
 
   // ==========================================
@@ -5452,6 +5738,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const a4Page = document.getElementById('slip-a4-page');
     a4Page.innerHTML = '';
 
+    window._lastSlipStudentIds = students.map(s => s.id);
+    window._lastSlipYear = year;
+
     try {
       const allData = await Promise.all(
         students.map(s => apiCall(`/fees/slip/${s.id}?year=${year}`))
@@ -5497,6 +5786,43 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   }
+
+  document.getElementById('btn-save-pdf-slips')?.addEventListener('click', async () => {
+    const selectedIds = window._lastSlipStudentIds || [];
+    const year = window._lastSlipYear || document.getElementById('slip-year').value;
+
+    if (selectedIds.length === 0) {
+      showToast('Generate fee slips first', true);
+      return;
+    }
+
+    const btn = document.getElementById('btn-save-pdf-slips');
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Generating PDF...';
+
+    try {
+      const result = await apiCall('/fees/slips/generate-pdf', 'POST', {
+        student_ids: selectedIds,
+        year: parseInt(year)
+      });
+
+      const downloadUrl = result.file_path;
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = result.file_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast(`Fee Slip PDF generated for ${result.student_count} students`);
+    } catch (err) {
+      showToast('Failed to generate PDF: ' + err.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  });
 
   const btnBackSlipList = document.getElementById('btn-back-slip-list');
   if (btnBackSlipList) {

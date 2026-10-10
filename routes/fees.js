@@ -1568,4 +1568,231 @@ router.get('/reminders/download/:filename', authenticateToken, async (req, res) 
   res.download(filePath, filename);
 });
 
+// POST /fees/slips/generate-pdf - Generate fee slips PDF (4 slips per A4 page) for selected students
+router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { student_ids, year, title } = req.body;
+
+  if (!student_ids || !Array.isArray(student_ids) || student_ids.length === 0) {
+    return res.status(400).json({ error: 'student_ids array is required' });
+  }
+
+  try {
+    const PDFDocument = require('pdfkit');
+    const path = require('path');
+    const fs = require('fs');
+
+    const slipYear = parseInt(year) || new Date().getFullYear();
+    const months = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
+    const fullMonthMap = {
+      'Mar':'March','Apr':'April','May':'May','Jun':'June',
+      'Jul':'July','Aug':'August','Sep':'September','Oct':'October',
+      'Nov':'November','Dec':'December','Jan':'January','Feb':'February'
+    };
+    const yearMap = {
+      'Mar': slipYear, 'Apr': slipYear, 'May': slipYear, 'Jun': slipYear,
+      'Jul': slipYear, 'Aug': slipYear, 'Sep': slipYear, 'Oct': slipYear,
+      'Nov': slipYear, 'Dec': slipYear, 'Jan': slipYear + 1, 'Feb': slipYear + 1
+    };
+
+    const settings = await querySchoolOne(schoolId, 'SELECT * FROM fee_settings LIMIT 1');
+    const schoolName = settings ? settings.school_name : 'School Name';
+    const schoolPhone = settings ? settings.phone : '';
+    const schoolReg = settings ? settings.registration_number : '';
+
+    const uploadsDir = path.join(__dirname, '..', 'public', 'uploads', 'slips');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const fileName = `feeslip_${Date.now()}.pdf`;
+    const filePath = path.join(uploadsDir, fileName);
+
+    const studentDataList = [];
+    for (const studentId of student_ids) {
+      const student = await querySchoolOne(
+        schoolId,
+        `SELECT id, name, roll_no, father_name, class_name, section_name, admission_no
+         FROM students WHERE id = ?`,
+        [studentId]
+      );
+      if (!student) continue;
+
+      const ledgerRows = await querySchool(
+        schoolId,
+        `SELECT month, year, base_fee, monthly_fee, transport_fee, previous_due, total_payable, paid_amount, status
+         FROM fee_ledger WHERE student_id = ? AND year IN (?, ?)`,
+        [studentId, slipYear, slipYear + 1]
+      );
+
+      const ledgerMap = {};
+      ledgerRows.forEach(r => {
+        const shortMonth = months.find(m => fullMonthMap[m] === r.month);
+        if (shortMonth && r.year === yearMap[shortMonth]) {
+          ledgerMap[shortMonth] = r;
+        }
+      });
+
+      let netTotal = 0;
+      months.forEach(m => {
+        if (ledgerMap[m]) {
+          const unpaid = (ledgerMap[m].total_payable || 0) - (ledgerMap[m].paid_amount || 0);
+          if (unpaid > 0) netTotal += unpaid;
+        }
+      });
+
+      studentDataList.push({ student, ledgerMap, netTotal });
+    }
+
+    if (studentDataList.length === 0) {
+      return res.status(404).json({ error: 'No valid students found' });
+    }
+
+    const doc = new PDFDocument({ size: 'A4', bufferPages: true });
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
+
+    // 2 columns x 2 rows = 4 slips per A4 page
+    const SLIP_W = 267;
+    const SLIP_H = 390;
+    const MARGIN = 15;
+    const GAP = 10;
+    const SLIPS_PER_PAGE = 4;
+
+    function drawSlip(slipData, x, y) {
+      const { student, ledgerMap, netTotal } = slipData;
+
+      doc.rect(x, y, SLIP_W, SLIP_H).stroke();
+
+      doc.font('Helvetica-Bold').fontSize(9);
+      doc.text(schoolName.toUpperCase(), x + 5, y + 6, { width: SLIP_W - 10, align: 'center' });
+      doc.font('Helvetica').fontSize(5.5);
+      doc.text(`Contact: ${schoolPhone} | Reg No: ${schoolReg}`, x + 5, y + 18, { width: SLIP_W - 10, align: 'center' });
+
+      const sepY = y + 28;
+      doc.moveTo(x + 5, sepY).lineTo(x + SLIP_W - 5, sepY).lineWidth(0.5).stroke().lineWidth(1);
+
+      let iy = y + 32;
+      doc.font('Helvetica-Bold').fontSize(6);
+      doc.text('Name:', x + 7, iy, { continued: true }).font('Helvetica').text(` ${student.name}`, { width: SLIP_W / 2 - 10 });
+      doc.font('Helvetica-Bold').text('Roll No:', x + SLIP_W / 2, iy, { continued: true }).font('Helvetica').text(` ${student.roll_no || '-'}`, { width: SLIP_W / 2 - 10 });
+
+      iy += 9;
+      doc.font('Helvetica-Bold').text('F-Name:', x + 7, iy, { continued: true }).font('Helvetica').text(` ${student.father_name || '-'}`, { width: SLIP_W / 2 - 10 });
+      doc.font('Helvetica-Bold').text('ID:', x + SLIP_W / 2, iy, { continued: true }).font('Helvetica').text(` ${student.admission_no || student.id}`, { width: SLIP_W / 2 - 10 });
+
+      iy += 9;
+      doc.font('Helvetica-Bold').text('Class:', x + 7, iy, { continued: true }).font('Helvetica').text(` ${student.class_name}${student.section_name ? ' (' + student.section_name + ')' : ''}`, { width: SLIP_W / 2 - 10 });
+      doc.font('Helvetica-Bold').text('FEE SLIP', x + SLIP_W / 2, iy, { width: SLIP_W / 2 - 7, align: 'center' });
+
+      const tableX = x + 5;
+      const tableTopY = iy + 12;
+      const labelW = 34;
+      const dataW = (SLIP_W - 10 - labelW) / 12;
+      const rowH = 10;
+
+      doc.rect(tableX, tableTopY, SLIP_W - 10, rowH).fill('#f0f0f0').stroke();
+      doc.fill('#000');
+
+      let hx = tableX + labelW;
+      doc.font('Helvetica-Bold').fontSize(4.5);
+      months.forEach((m) => {
+        doc.text(m, hx, tableTopY + 2.5, { width: dataW, align: 'center' });
+        hx += dataW;
+      });
+
+      const rowDefs = [
+        { label: 'Mnth Fee', key: 'monthly_fee' },
+        { label: 'Transport', key: 'transport_fee' },
+        { label: 'Due', key: 'previous_due' },
+        { label: 'Total', key: 'total_payable' },
+        { label: 'Paid', key: 'paid_amount' },
+        { label: 'Unpaid', key: 'unpaid' }
+      ];
+
+      rowDefs.forEach((rd, ri) => {
+        const ry = tableTopY + rowH + ri * rowH;
+        doc.moveTo(tableX, ry).lineTo(tableX + SLIP_W - 10, ry).lineWidth(0.3).stroke().lineWidth(1);
+        doc.font('Helvetica-Bold').fontSize(4.5);
+        doc.text(rd.label, tableX + 2, ry + 2.5, { width: labelW - 2 });
+        let cx = tableX + labelW;
+        doc.font('Helvetica').fontSize(4.5);
+        months.forEach((m) => {
+          let val = '';
+          if (ledgerMap[m]) {
+            if (rd.key === 'unpaid') {
+              val = ((ledgerMap[m].total_payable || 0) - (ledgerMap[m].paid_amount || 0)).toLocaleString();
+            } else {
+              val = (ledgerMap[m][rd.key] || 0).toLocaleString();
+            }
+          }
+          doc.text(val, cx, ry + 2.5, { width: dataW, align: 'center' });
+          cx += dataW;
+        });
+      });
+
+      const tableBottomY = tableTopY + rowH + rowDefs.length * rowH;
+      doc.moveTo(tableX, tableBottomY).lineTo(tableX + SLIP_W - 10, tableBottomY).lineWidth(0.5).stroke().lineWidth(1);
+
+      const footY = tableBottomY + 6;
+      doc.moveTo(x + 5, footY).lineTo(x + SLIP_W - 5, footY).lineWidth(0.5).stroke().lineWidth(1);
+
+      doc.font('Helvetica').fontSize(5.5);
+      doc.text('Principal Sign: _______________', x + 7, footY + 3, { width: SLIP_W / 2 });
+
+      doc.font('Helvetica-Bold').fontSize(6.5);
+      doc.text(`NET TOTAL: ${netTotal.toLocaleString()}`, x + SLIP_W / 2, footY + 3, { width: SLIP_W / 2 - 7, align: 'right' });
+    }
+
+    for (let i = 0; i < studentDataList.length; i++) {
+      const posOnPage = i % SLIPS_PER_PAGE;
+      const col = posOnPage % 2;
+      const row = Math.floor(posOnPage / 2);
+
+      if (posOnPage === 0 && i > 0) {
+        doc.addPage();
+      }
+
+      const sx = MARGIN + col * (SLIP_W + GAP);
+      const sy = MARGIN + row * (SLIP_H + GAP);
+
+      drawSlip(studentDataList[i], sx, sy);
+    }
+
+    doc.end();
+
+    stream.on('finish', () => {
+      res.json({
+        message: 'Fee slips PDF generated successfully',
+        file_name: fileName,
+        file_path: `/uploads/slips/${fileName}`,
+        student_count: studentDataList.length
+      });
+    });
+
+    stream.on('error', (err) => {
+      res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
+    });
+
+  } catch (err) {
+    console.error('Slip PDF generation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /fees/slips/download/:filename - Download generated slips PDF
+router.get('/slips/download/:filename', authenticateToken, async (req, res) => {
+  const { filename } = req.params;
+  const path = require('path');
+  const fs = require('fs');
+
+  const filePath = path.join(__dirname, '..', 'public', 'uploads', 'slips', filename);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  res.download(filePath, filename);
+});
+
 module.exports = router;

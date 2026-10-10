@@ -729,4 +729,227 @@ router.get('/teachers/history', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /attendance/teachers/scan - Mark teacher present via QR scan (matches teacher id or phone)
+router.post('/teachers/scan', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { scanValue, date, time } = req.body;
+
+  if (!scanValue) {
+    return res.status(400).json({ error: 'Scan value is required' });
+  }
+
+  let cleaned = scanValue.trim();
+  try { cleaned = decodeURIComponent(cleaned); } catch (e) {}
+  cleaned = cleaned.trim();
+
+  const currentDate = date || new Date().toISOString().split('T')[0];
+  const currentTime = time || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+
+  try {
+    await ensureTeacherAttendanceTable(schoolId);
+
+    // Match by id, then phone
+    let teacher = await querySchoolOne(
+      schoolId,
+      "SELECT id, name, subject FROM teachers WHERE (school_id = ? OR school_id IS NULL) AND (status = 'Active' OR status IS NULL) AND id = ?",
+      [schoolId, cleaned]
+    );
+    if (!teacher && !isNaN(cleaned)) {
+      teacher = await querySchoolOne(
+        schoolId,
+        "SELECT id, name, subject FROM teachers WHERE (school_id = ? OR school_id IS NULL) AND (status = 'Active' OR status IS NULL) AND phone = ?",
+        [schoolId, cleaned]
+      );
+    }
+
+    if (!teacher) {
+      return res.status(404).json({ error: `Teacher with code '${cleaned}' not found. QR must contain teacher ID or phone.` });
+    }
+
+    const existing = await querySchoolOne(
+      schoolId,
+      "SELECT id, time, status FROM teacher_attendance WHERE teacher_id = ? AND date = ?",
+      [teacher.id, currentDate]
+    );
+
+    if (existing) {
+      return res.json({
+        alreadyMarked: true,
+        message: `${teacher.name} already marked ${existing.status} at ${existing.time}`,
+        teacher: { id: teacher.id, name: teacher.name, subject: teacher.subject || '', time: existing.time, status: existing.status }
+      });
+    }
+
+    await runSchool(
+      schoolId,
+      "INSERT INTO teacher_attendance (teacher_id, date, status, time, school_id) VALUES (?, ?, 'Present', ?, ?)",
+      [teacher.id, currentDate, currentTime, schoolId]
+    );
+
+    res.json({
+      message: `${teacher.name} marked PRESENT`,
+      teacher: { id: teacher.id, name: teacher.name, subject: teacher.subject || '', time: currentTime, status: 'Present' }
+    });
+  } catch (err) {
+    console.error('[Teacher QR Scan] Error:', err);
+    res.status(500).json({ error: 'Teacher QR scan failed: ' + err.message });
+  }
+});
+
+// GET /attendance/teachers/total - Per-teacher present-day totals for current + previous month
+router.get('/teachers/total', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { month } = req.query;
+
+  try {
+    await ensureTeacherAttendanceTable(schoolId);
+    await ensureHolidaysTable(schoolId);
+
+    const targetMonth = month || new Date().toISOString().slice(0, 7);
+    const [tYear, tMon] = targetMonth.split('-').map(Number);
+    const prevDate = new Date(tYear, tMon - 2, 1);
+    const prevMonth = prevDate.toISOString().slice(0, 7);
+
+    const sessionRow = await querySchoolOne(schoolId, "SELECT value FROM settings WHERE key = 'session_start_date'");
+    const sessionStart = sessionRow ? sessionRow.value : null;
+
+    // School days per month (Sundays + holidays excluded), same rule as student total
+    const holidays = await querySchool(
+      schoolId,
+      "SELECT date FROM holidays WHERE date >= ? AND date <= ?",
+      [prevMonth + '-01', targetMonth + '-31']
+    );
+    const holidayDates = new Set(holidays.map(h => h.date));
+
+    function schoolDaysFor(ym) {
+      const [y, m] = ym.split('-').map(Number);
+      const daysInMonth = new Date(y, m, 0).getDate();
+      const today = new Date().toISOString().split('T')[0];
+      const monthEnd = ym + '-31';
+      const effectiveEnd = monthEnd > today ? today : monthEnd;
+      let count = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dayStr = `${ym}-${String(d).padStart(2, '0')}`;
+        if (dayStr > effectiveEnd) break;
+        if (!holidayDates.has(dayStr) && new Date(dayStr).getDay() !== 0) count++;
+      }
+      return count;
+    }
+
+    const curDays = schoolDaysFor(targetMonth);
+    const prevDays = schoolDaysFor(prevMonth);
+
+    // Present-day counts per teacher per month (Present or Late counts as 1)
+    const curLogs = await querySchool(
+      schoolId,
+      `SELECT teacher_id, COUNT(*) as cnt FROM teacher_attendance
+       WHERE date LIKE ? AND (status = 'Present' OR status = 'Late')
+       GROUP BY teacher_id`,
+      [`${targetMonth}-%`]
+    );
+    const prevLogs = await querySchool(
+      schoolId,
+      `SELECT teacher_id, COUNT(*) as cnt FROM teacher_attendance
+       WHERE date LIKE ? AND (status = 'Present' OR status = 'Late')
+       GROUP BY teacher_id`,
+      [`${prevMonth}-%`]
+    );
+    const curMap = {}; curLogs.forEach(r => { curMap[r.teacher_id] = r.cnt; });
+    const prevMap = {}; prevLogs.forEach(r => { prevMap[r.teacher_id] = r.cnt; });
+
+    const teachers = await querySchool(
+      schoolId,
+      "SELECT id, name, subject FROM teachers WHERE (school_id = ? OR school_id IS NULL) AND (status = 'Active' OR status IS NULL) ORDER BY name",
+      [schoolId]
+    );
+
+    const result = teachers.map(t => ({
+      teacher_id: t.id,
+      name: t.name,
+      subject: t.subject || '',
+      current_attendance: curMap[t.id] || 0,
+      prev_attendance: prevMap[t.id] || 0,
+      total_attendance: (curMap[t.id] || 0) + (prevMap[t.id] || 0)
+    }));
+
+    res.json({
+      session_start_date: sessionStart,
+      current_month: targetMonth,
+      previous_month: prevMonth,
+      current_school_days: curDays,
+      prev_school_days: prevDays,
+      holidays_count: holidayDates.size,
+      teachers: result
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to calculate teacher totals: ' + err.message });
+  }
+});
+
+// Teacher attendance saved reports (per-month snapshots)
+let teacherReportsTableEnsured = false;
+async function ensureTeacherReportsTable(schoolId) {
+  if (teacherReportsTableEnsured) return;
+  await runSchool(schoolId, `
+    CREATE TABLE IF NOT EXISTS teacher_attendance_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      month TEXT NOT NULL,
+      total_school_days INTEGER,
+      prev_school_days INTEGER,
+      holidays_count INTEGER,
+      report_data TEXT,
+      school_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(month, school_id)
+    )
+  `);
+  teacherReportsTableEnsured = true;
+}
+
+router.post('/teachers/reports', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { month, total_school_days, prev_school_days, holidays_count, report_data } = req.body;
+  if (!month || !report_data) {
+    return res.status(400).json({ error: 'month and report_data are required' });
+  }
+  try {
+    await ensureTeacherReportsTable(schoolId);
+    await runSchool(schoolId, "DELETE FROM teacher_attendance_reports WHERE month = ? AND school_id = ?", [month, schoolId]);
+    await runSchool(
+      schoolId,
+      `INSERT INTO teacher_attendance_reports (month, total_school_days, prev_school_days, holidays_count, report_data, school_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [month, total_school_days || 0, prev_school_days || 0, holidays_count || 0, JSON.stringify(report_data), schoolId]
+    );
+    res.json({ message: 'Teacher attendance report saved!' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save report: ' + err.message });
+  }
+});
+
+router.get('/teachers/reports', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  try {
+    await ensureTeacherReportsTable(schoolId);
+    const reports = await querySchool(schoolId, "SELECT * FROM teacher_attendance_reports WHERE school_id = ? ORDER BY month DESC", [schoolId]);
+    reports.forEach(r => {
+      try { r.report_data = JSON.parse(r.report_data); } catch (e) { r.report_data = []; }
+    });
+    res.json(reports);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/teachers/reports/:id', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  try {
+    await ensureTeacherReportsTable(schoolId);
+    await runSchool(schoolId, "DELETE FROM teacher_attendance_reports WHERE id = ? AND school_id = ?", [req.params.id, schoolId]);
+    res.json({ message: 'Report removed!' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

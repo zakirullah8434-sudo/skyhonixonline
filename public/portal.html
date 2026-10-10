@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=6" as="style">
-  <link rel="preload" href="js/app.js?v=21" as="script">
+  <link rel="preload" href="js/app.js?v=22" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v21';
+    window.SKYHONIX_PAGE_VERSION = 'v22';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -2866,7 +2866,9 @@
           <div class="exam-option-panel" id="att-teacher-module" style="display: none;">
             <div class="tab-container">
               <button class="tab-btn active" data-tab="tatt-mark">Mark Attendance</button>
-              <button class="tab-btn" data-tab="tatt-history">History</button>
+              <button class="tab-btn" data-tab="tatt-scan">Webcam QR Scanner</button>
+              <button class="tab-btn" data-tab="tatt-history">History Calendar</button>
+              <button class="tab-btn" data-tab="tatt-total">Total Attendance</button>
             </div>
 
             <!-- Tab: Mark Teacher Attendance -->
@@ -2909,7 +2911,62 @@
               </div>
             </div>
 
-            <!-- Tab: Teacher Attendance History -->
+            <!-- Tab: Teacher QR Scanner -->
+            <div class="tab-content" id="tab-tatt-scan" style="display: none;">
+              <div class="grid-2">
+                <div class="card" style="text-align: center;">
+                  <h3>Real-time Camera Reader</h3>
+                  <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+                    Point the teacher's QR card (contains teacher ID or phone) towards the webcam.
+                  </p>
+                  <div class="qr-scanner-box">
+                    <div id="tatt-reader"></div>
+                  </div>
+                  <div style="margin-top: 20px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn btn-primary btn-sm" id="btn-tatt-start-scanner">Start Webcam</button>
+                    <button class="btn btn-outline btn-sm" id="btn-tatt-flip-camera" style="display:none;">Flip Camera</button>
+                    <button class="btn btn-outline btn-sm" id="btn-tatt-stop-scanner">Stop Webcam</button>
+                  </div>
+                </div>
+
+                <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                  <div>
+                    <h3>Scan Log & Output</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+                      Last successfully recorded teacher check-ins will display here.
+                    </p>
+
+                    <div id="tatt-scan-feedback-container" style="display: none;">
+                      <div class="scan-result-card">
+                        <div style="width: 70px; height: 70px; border-radius: 8px; background: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 2rem;">👨‍🏫</div>
+                        <div>
+                          <h4 id="tatt-scan-name" style="font-size: 1.15rem; color: var(--text-primary);">-</h4>
+                          <p id="tatt-scan-subject" style="color: var(--text-secondary); font-size: 0.9rem;">Subject: -</p>
+                          <p id="tatt-scan-time" style="color: var(--success); font-weight: 700; font-size: 0.85rem; margin-top: 4px;">Checked in: -</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="table-container" style="margin-top: 20px; margin-bottom: 0;">
+                    <table class="data-table" id="table-tatt-scan-history">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Subject</th>
+                          <th>Time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Awaiting teacher QR card scan...</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab: Teacher History Calendar -->
             <div class="tab-content" id="tab-tatt-history" style="display: none;">
               <div class="card" style="margin-bottom: 24px;">
                 <div class="grid-3" style="grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: flex-end;">
@@ -2919,7 +2976,7 @@
                   </div>
                   <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label">&nbsp;</label>
-                    <div style="color: var(--text-muted); font-size: 0.85rem; padding: 8px 0;">Monthly logs per teacher</div>
+                    <div style="color: var(--text-muted); font-size: 0.85rem; padding: 8px 0;">Day-by-day pills per teacher</div>
                   </div>
                   <div class="form-group" style="margin-bottom: 0;">
                     <button class="btn btn-primary" id="btn-load-tatt-history">View History</button>
@@ -2927,8 +2984,24 @@
                 </div>
               </div>
 
-              <h3 style="margin-bottom: 14px;">Monthly Summary</h3>
+              <h3 style="margin-bottom: 14px;">Daily Calendar</h3>
               <div class="table-container" style="margin-bottom: 24px;">
+                <table class="data-table" id="table-tatt-calendar">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Subject</th>
+                      <th>Attendance This Month</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Select month and click View History...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h3 style="margin-bottom: 14px;">Monthly Summary</h3>
+              <div class="table-container">
                 <table class="data-table" id="table-tatt-summary">
                   <thead>
                     <tr>
@@ -2942,26 +3015,99 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Select month and click View History...</td></tr>
+                    <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No summary yet</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Tab: Teacher Total Attendance -->
+            <div class="tab-content" id="tab-tatt-total" style="display: none;">
+              <!-- Total Attendance Report -->
+              <div class="card" style="margin-bottom: 24px;">
+                <h3>Total Attendance Report</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">
+                  Calculate total teacher attendance from session start to selected month. Each Present/Late day = <strong>1 attendance count</strong>. Session start &amp; holidays are configured in the Student Attendance Total tab.
+                </p>
+                <div class="grid-3" style="grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: flex-end;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Month</label>
+                    <input type="month" class="form-control" id="tatt-total-month">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">&nbsp;</label>
+                    <div style="color: var(--text-muted); font-size: 0.85rem; padding: 8px 0;">All active teachers included</div>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
+                    <button class="btn btn-primary" id="btn-load-tatt-total" style="width: 100%;">Calculate</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Summary Cards -->
+              <div id="tatt-total-summary" style="display: none; margin-bottom: 24px;">
+                <div class="grid-4">
+                  <div class="card" style="text-align: center; padding: 16px;">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Session Start</div>
+                    <div id="tatt-total-session" style="font-size: 1.3rem; font-weight: 700; color: var(--primary); margin-top: 6px;">-</div>
+                  </div>
+                  <div class="card" style="text-align: center; padding: 16px;">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Current Month Days</div>
+                    <div id="tatt-total-days" style="font-size: 1.3rem; font-weight: 700; color: var(--accent); margin-top: 6px;">-</div>
+                  </div>
+                  <div class="card" style="text-align: center; padding: 16px;">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Previous Month Days</div>
+                    <div id="tatt-total-prev-days" style="font-size: 1.3rem; font-weight: 700; color: var(--warning); margin-top: 6px;">-</div>
+                  </div>
+                  <div class="card" style="text-align: center; padding: 16px;">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Holidays</div>
+                    <div id="tatt-total-holidays" style="font-size: 1.3rem; font-weight: 700; color: var(--warning); margin-top: 6px;">-</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Total Attendance Table -->
+              <div class="table-container">
+                <table class="data-table" id="table-tatt-total">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Subject</th>
+                      <th>Attendance in This Month</th>
+                      <th>Attendance During Last Month</th>
+                      <th>Total Attendance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Select month and click Calculate...</td></tr>
                   </tbody>
                 </table>
               </div>
 
-              <h3 style="margin-bottom: 14px;">Daily Logs</h3>
-              <div class="table-container">
-                <table class="data-table" id="table-tatt-logs">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Name</th>
-                      <th>Status</th>
-                      <th>Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No logs yet</td></tr>
-                  </tbody>
-                </table>
+              <!-- Saved Reports -->
+              <div class="card" style="margin-top: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <h3>Saved Monthly Reports</h3>
+                  <button class="btn btn-primary btn-sm" id="btn-save-tatt-report">Save Current Report</button>
+                </div>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px;">
+                  Save the calculated report to view it later without recalculating.
+                </p>
+                <div class="table-container" style="margin-top: 12px;">
+                  <table class="data-table" id="table-tatt-reports">
+                    <thead>
+                      <tr>
+                        <th>Month</th>
+                        <th>School Days</th>
+                        <th>Teachers</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No saved reports yet</td></tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -3411,8 +3557,9 @@
 
               <!-- Fee Slip Preview & Print -->
               <div id="slip-preview-container" style="display: none;">
-                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-                  <button class="btn btn-primary" id="btn-print-fee-slip">🖨️ Print Fee Slips (4 per page)</button>
+                <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                  <button class="btn btn-primary" id="btn-save-pdf-slips">💾 Save as PDF (4 per page)</button>
+                  <button class="btn btn-outline" id="btn-print-fee-slip">🖨️ Print Fee Slips (4 per page)</button>
                   <button class="btn btn-outline" id="btn-back-slip-list">← Back to List</button>
                 </div>
 
@@ -4768,6 +4915,6 @@
     })();
   </script>
   <script src="js/section-history.js?v=1"></script>
-  <script src="js/app.js?v=21"></script>
+  <script src="js/app.js?v=22"></script>
 </body>
 </html>
