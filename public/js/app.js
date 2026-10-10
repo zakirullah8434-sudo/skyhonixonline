@@ -1,5 +1,20 @@
 ﻿// SkyHonix Workspace Application Logic (SPA Router & REST Clients)
 
+// Version self-heal: a stale service-worker cache can pair old HTML with this
+// newer JS (legacy ?v= URLs still resolve to the current file on the server).
+// When the page build and JS build disagree, reload once per session so both
+// come from the same release.
+(function () {
+  try {
+    const EXPECTED_PAGE_VERSION = 'v19';
+    const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
+    if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
+      sessionStorage.setItem(healKey, '1');
+      location.reload();
+    }
+  } catch (e) { /* sessionStorage unavailable — skip healing */ }
+})();
+
 function debounce(fn, ms) { let t; return function(...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); }; }
 function esc(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
 
@@ -10,10 +25,10 @@ async function getCachedClasses(apiCall) {
   try {
     const result = await apiCall('/students/classes');
     if (result && result.length > 0) {
-      _classCache = result;
+      _classCache = result.slice().sort(compareClasses);
       _classCacheTime = Date.now();
     }
-    return _classCache || result || [];
+    return _classCache || (Array.isArray(result) ? result.slice().sort(compareClasses) : []) || [];
   } catch (e) {
     console.error('[CLASSES_CACHE] Failed to load classes:', e);
     return _classCache || [];
@@ -2170,7 +2185,19 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { console.error('[CLASSES_LIST]', e.message); }
   }
 
+  // Render the Admissions table header from JS so the header row always
+  // matches the 9 data cells. Stale cached HTML shipped an 8-column header,
+  // which shifted every value under the wrong heading.
+  function ensureStudentsTableHeader() {
+    const thead = document.querySelector('#table-students thead');
+    if (!thead) return;
+    const heads = ['ID', 'Admission No', 'Roll', 'Name', 'Father\'s Name', 'Class / Sec', 'Waivers / Discount', 'Family Head', 'Actions'];
+    thead.innerHTML = '<tr>' + heads.map(h => `<th>${h}</th>`).join('') + '</tr>';
+  }
+  ensureStudentsTableHeader();
+
   async function loadStudentsList() {
+    ensureStudentsTableHeader();
     const cls = document.getElementById('student-filter-class').value;
     const sec = document.getElementById('student-filter-section').value;
     const search = document.getElementById('student-search').value.trim();
