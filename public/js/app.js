@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v25';
+    const EXPECTED_PAGE_VERSION = 'v26';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -290,29 +290,22 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(doPrint, 4000); // safety: never leave the user hanging on a broken image
   }
 
-  // Authenticated PDF download. On desktop browsers the blob + <a download>
-  // trick works. Inside the Android APK (Capacitor WebView) <a download> for
-  // blob URLs is silently ignored — the file never reaches the device — so
-  // there we open the download URL (with ?token=) in the system browser /
-  // Custom Tab, which honours Content-Disposition: attachment and saves the
-  // PDF into the phone's Downloads folder where the user can open it.
+  // Authenticated PDF download.
+  // - Native APK: Capacitor WebView ignores <a download> on blob URLs, so we
+  //   open the tokenized download URL in the system browser / Custom Tab
+  //   (Content-Disposition: attachment → saved to the phone's Downloads).
+  // - Normal browser: fetch once with the auth header and save via blob.
+  // The response body is read exactly once in each path.
   async function downloadPdfWithAuth(url, fileName) {
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-    if (!resp.ok) {
-      let msg = 'Download failed';
-      try { const j = await resp.json(); if (j.error) msg = j.error; } catch (e) { /* keep default */ }
-      throw new Error(msg);
-    }
-    await resp.arrayBuffer(); // validate the payload arrived intact
+    const isNative = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
 
-    const isNative = window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform();
     if (isNative) {
       const abs = new URL(url, window.location.origin);
       abs.searchParams.set('token', token);
       const target = abs.toString();
-      const browserPlugin = window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
-      if (browserPlugin && browserPlugin.open) {
-        await browserPlugin.open({ url: target });
+      const bp = window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
+      if (bp && bp.open) {
+        await bp.open({ url: target });
       } else {
         const a = document.createElement('a');
         a.href = target;
@@ -325,6 +318,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return 'native';
     }
 
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+    if (!resp.ok) {
+      let msg = 'Download failed';
+      try { const j = await resp.json(); if (j.error) msg = j.error; } catch (e) { /* keep default */ }
+      throw new Error(msg);
+    }
     const blob = await resp.blob();
     const dlUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -3538,8 +3537,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
 
   // Attendance type switch — NOT .tab-btn so the generic tab handler ignores it.
-  // Visibility is driven by the .att-hidden class (kept in sync with the inline
-  // switch in portal.html) so both mechanisms always agree.
+  // Forces inline display styles (not just classes) so it works even against
+  // older cached HTML that used style="display:none" on the teacher module.
   document.querySelectorAll('.att-type-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const type = btn.dataset.attType;
@@ -3548,7 +3547,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const teacherModule = document.getElementById('att-teacher-module');
       if (!studentModule || !teacherModule) return;
       if (type === 'teacher') {
+        teacherModule.style.display = 'block';
         teacherModule.classList.remove('att-hidden');
+        studentModule.style.display = 'none';
         studentModule.classList.add('att-hidden');
         // Force the first tab (Mark Attendance) visible — belt & braces so
         // the module is never blank even if a stale cache skipped the init.
@@ -3561,7 +3562,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (di && !di.value) di.value = new Date().toISOString().split('T')[0];
         loadTattSessionInfoForIndicator();
       } else {
+        studentModule.style.display = 'block';
         studentModule.classList.remove('att-hidden');
+        teacherModule.style.display = 'none';
         teacherModule.classList.add('att-hidden');
       }
     });

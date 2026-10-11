@@ -1,16 +1,16 @@
 /**
  * SkyHonix Service Worker - Instant App Shell
  *
- * Strategy (optimised for sub-second loads in the School / Teacher / Parent APKs):
+ * Strategy:
  *   - API              -> network only (never cached, offline -> 503)
- *   - HTML / navigate  -> network with a short timeout, falls back to cache instantly
- *   - JS / CSS / fonts / images -> cache-first + background revalidate (stale-while-revalidate)
+ *   - HTML / navigate  -> ALWAYS network-first (cache only as offline fallback)
+ *   - JS / CSS / fonts / images -> cache-first + background revalidate
  *
  * Bump SHELL_VERSION whenever a cached asset is renamed/removed.
  */
-const SHELL_VERSION = 'skyhonix-shell-v21';
-const PAGE_CACHE = 'skyhonix-pages-v21';
-const ASSET_CACHE = 'skyhonix-assets-v21';
+const SHELL_VERSION = 'skyhonix-shell-v22';
+const PAGE_CACHE = 'skyhonix-pages-v22';
+const ASSET_CACHE = 'skyhonix-assets-v22';
 
 const SHELL_PAGES = [
   '/index.html',
@@ -23,7 +23,7 @@ const SHELL_PAGES = [
 
 const SHELL_ASSETS = [
   '/css/styles.css?v=7',
-  '/js/app.js?v=25',
+  '/js/app.js?v=26',
   '/js/teacher-portal.js?v=16',
   '/js/parent-portal.js?v=16',
   '/js/section-history.js?v=1',
@@ -37,7 +37,6 @@ const SHELL_ASSETS = [
   '/js/sync-ui.js'
 ];
 
-const NAV_TIMEOUT = 700;   // ms before a navigation falls back to cache
 const ASSET_TIMEOUT = 500; // ms before a static asset falls back to cache
 
 self.addEventListener('install', (event) => {
@@ -81,8 +80,7 @@ function backgroundFetch(request, cache) {
 /**
  * Serve the cached copy as soon as the network has not answered within the
  * time budget; when the network answers first, the fresher copy is used.
- * Either way the cache is refreshed in the background, so the next load is
- * always up to date AND always instant.
+ * Used for uploads and static assets (NOT for HTML — see networkFirstNav).
  */
 async function cachedWithinBudget(request, cacheName, budget) {
   const cache = await caches.open(cacheName);
@@ -98,29 +96,29 @@ async function cachedWithinBudget(request, cacheName, budget) {
   return fresh || cached;
 }
 
+/**
+ * HTML is ALWAYS fetched fresh from the network; the cache is only used
+ * as an offline fallback. An earlier version raced the network against a
+ * short timeout which could serve stale HTML on slow mobile connections,
+ * leaving the page and the JS bundle out of sync (blank modules, broken
+ * switches). Freshness matters more than a few hundred ms here.
+ */
 async function networkFirstNav(request) {
   const cache = await caches.open(PAGE_CACHE);
-  const network = fetch(request).then((res) => {
+  try {
+    const res = await fetch(request);
     if (res && res.ok) cache.put(request, res.clone()).catch(() => {});
     return res;
-  }).catch(() => null);
-
-  const res = await Promise.race([network, delay(NAV_TIMEOUT, null)]);
-  if (res) return res;
-
-  const cached = await cache.match(request);
-  if (cached) return cached;
-
-  // Nothing cached yet - keep waiting for the network instead of failing
-  const waited = await network;
-  if (waited) return waited;
-
-  const fallback = await cache.match('/portal.html');
-  if (fallback) return fallback;
-  return new Response('<h1>You are offline</h1>', {
-    status: 503,
-    headers: { 'Content-Type': 'text/html' }
-  });
+  } catch (e) {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    const fallback = await cache.match('/portal.html');
+    if (fallback) return fallback;
+    return new Response('<h1>You are offline</h1>', {
+      status: 503,
+      headers: { 'Content-Type': 'text/html' }
+    });
+  }
 }
 
 self.addEventListener('fetch', (event) => {

@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=25" as="script">
+  <link rel="preload" href="js/app.js?v=26" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v25';
+    window.SKYHONIX_PAGE_VERSION = 'v26';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -4980,10 +4980,14 @@
         var teacher = document.getElementById('att-teacher-module');
         if (!student || !teacher) return;
         if (type === 'teacher') {
+          teacher.style.display = 'block';
           teacher.classList.remove('att-hidden');
+          student.style.display = 'none';
           student.classList.add('att-hidden');
         } else {
+          student.style.display = 'block';
           student.classList.remove('att-hidden');
+          teacher.style.display = 'none';
           teacher.classList.add('att-hidden');
         }
         var btns = document.querySelectorAll('.att-type-btn');
@@ -5020,6 +5024,6 @@
       showAttType('student');
     })();
   </script>
-  <script src="js/app.js?v=25"></script>
+  <script src="js/app.js?v=26"></script>
 </body>
 </html>
