@@ -2,9 +2,18 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { authenticateToken } = require('./auth');
 const { querySchool, querySchoolOne, runSchool, runSchoolTransaction, runSchoolRaw, querySchoolRawOne, querySchoolRaw } = require('../database_manager');
 const syncManager = require('../sync_manager');
+
+// Vercel serverless filesystem is read-only except /tmp — store generated
+// PDFs in a writable temp dir so "Save as PDF" works both locally and online.
+function pdfStorageDir(sub) {
+  const dir = path.join(os.tmpdir(), 'skyhonix-pdfs', sub);
+  try { fs.mkdirSync(dir, { recursive: true }); } catch (e) { /* dir exists */ }
+  return dir;
+}
 
 // GET /fees/setup - Get class fees list
 router.get('/setup', authenticateToken, async (req, res) => {
@@ -1355,11 +1364,8 @@ router.post('/reminders/generate-pdf', authenticateToken, async (req, res) => {
     const schoolPhone = settings ? settings.phone : '';
     const schoolReg = settings ? settings.registration_number : '';
 
-    // Create uploads directory if not exists
-    const uploadsDir = path.join(__dirname, '..', 'public', 'uploads', 'reminders');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
+    // Writable temp dir (works on Vercel serverless too)
+    const uploadsDir = pdfStorageDir('reminders');
 
     const fileName = `reminder_${Date.now()}.pdf`;
     const filePath = path.join(uploadsDir, fileName);
@@ -1538,7 +1544,7 @@ router.post('/reminders/generate-pdf', authenticateToken, async (req, res) => {
       res.json({
         message: 'PDF generated successfully',
         file_name: fileName,
-        file_path: `/uploads/reminders/${fileName}`,
+        file_path: `/api/fees/reminders/download/${fileName}`,
         student_count: studentDataList.length
       });
     });
@@ -1556,14 +1562,16 @@ router.post('/reminders/generate-pdf', authenticateToken, async (req, res) => {
 // GET /fees/reminders/download/:filename - Download generated PDF
 router.get('/reminders/download/:filename', authenticateToken, async (req, res) => {
   const { filename } = req.params;
-  const path = require('path');
-  const fs = require('fs');
+  if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
 
-  const filePath = path.join(__dirname, '..', 'public', 'uploads', 'reminders', filename);
+  const filePath = path.join(pdfStorageDir('reminders'), filename);
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
+
 
   res.download(filePath, filename);
 });
@@ -1600,10 +1608,7 @@ router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
     const schoolPhone = settings ? settings.phone : '';
     const schoolReg = settings ? settings.registration_number : '';
 
-    const uploadsDir = path.join(__dirname, '..', 'public', 'uploads', 'slips');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
+    const uploadsDir = pdfStorageDir('slips');
 
     const fileName = `feeslip_${Date.now()}.pdf`;
     const filePath = path.join(uploadsDir, fileName);
@@ -1765,7 +1770,7 @@ router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
       res.json({
         message: 'Fee slips PDF generated successfully',
         file_name: fileName,
-        file_path: `/uploads/slips/${fileName}`,
+        file_path: `/api/fees/slips/download/${fileName}`,
         student_count: studentDataList.length
       });
     });
@@ -1783,14 +1788,16 @@ router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
 // GET /fees/slips/download/:filename - Download generated slips PDF
 router.get('/slips/download/:filename', authenticateToken, async (req, res) => {
   const { filename } = req.params;
-  const path = require('path');
-  const fs = require('fs');
+  if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
 
-  const filePath = path.join(__dirname, '..', 'public', 'uploads', 'slips', filename);
+  const filePath = path.join(pdfStorageDir('slips'), filename);
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
+
 
   res.download(filePath, filename);
 });

@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v22';
+    const EXPECTED_PAGE_VERSION = 'v23';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -288,6 +288,27 @@ document.addEventListener('DOMContentLoaded', () => {
       else { img.onload = onImg; img.onerror = onImg; }
     });
     setTimeout(doPrint, 4000); // safety: never leave the user hanging on a broken image
+  }
+
+  // Authenticated PDF download — fetches with the login token (works on
+  // Vercel serverless where generated files live in a private temp dir),
+  // then saves via a temporary object URL.
+  async function downloadPdfWithAuth(url, fileName) {
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+    if (!resp.ok) {
+      let msg = 'Download failed';
+      try { const j = await resp.json(); if (j.error) msg = j.error; } catch (e) { /* keep default */ }
+      throw new Error(msg);
+    }
+    const blob = await resp.blob();
+    const dlUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = dlUrl;
+    link.download = fileName || 'document.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(dlUrl), 8000);
   }
 
   // ==========================================
@@ -3499,8 +3520,26 @@ document.addEventListener('DOMContentLoaded', () => {
       const teacherModule = document.getElementById('att-teacher-module');
       if (studentModule) studentModule.style.display = type === 'student' ? '' : 'none';
       if (teacherModule) teacherModule.style.display = type === 'teacher' ? '' : 'none';
+      if (type === 'teacher') loadTattSessionInfoForIndicator();
     });
   });
+
+  // Teacher Mark tab: show session start indicator
+  async function loadTattSessionInfoForIndicator() {
+    try {
+      const data = await apiCall('/attendance/session-info');
+      const indicator = document.getElementById('tatt-session-indicator');
+      const dateDisplay = document.getElementById('tatt-mark-session-date');
+      if (indicator && dateDisplay) {
+        if (data.session_start_date) {
+          indicator.style.display = 'block';
+          dateDisplay.textContent = data.session_start_date;
+        } else {
+          indicator.style.display = 'none';
+        }
+      }
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
+  }
 
   // Teacher attendance: mark grid
   const tattDateInput = document.getElementById('tatt-date-input');
@@ -3573,10 +3612,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!month) { showToast('Month is required', true); return; }
     try {
       const data = await apiCall(`/attendance/teachers/history?month=${month}`);
-      const calBody = document.querySelector('#table-tatt-calendar tbody');
+      const histBody = document.querySelector('#table-tatt-history tbody');
       const sumBody = document.querySelector('#table-tatt-summary tbody');
 
-      // Group logs by teacher for the calendar pills
+      // Group logs by teacher (same pill calendar as students)
       const teacherLogs = {};
       (data.logs || []).forEach(log => {
         if (!teacherLogs[log.teacher_id]) {
@@ -3585,11 +3624,11 @@ document.addEventListener('DOMContentLoaded', () => {
         teacherLogs[log.teacher_id].records.push({ date: log.date, status: log.status });
       });
 
-      const calIds = Object.keys(teacherLogs);
-      if (calIds.length === 0) {
-        calBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No logs found for this period</td></tr>';
+      const histIds = Object.keys(teacherLogs);
+      if (histIds.length === 0) {
+        histBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No logs found for this period</td></tr>';
       } else {
-        calBody.innerHTML = calIds.map(id => {
+        histBody.innerHTML = histIds.map(id => {
           const t = teacherLogs[id];
           t.records.sort((a, b) => new Date(a.date) - new Date(b.date));
           const pills = t.records.map(r => {
@@ -3890,9 +3929,82 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
-  // Load teacher saved reports when the Total tab is opened
+  // Teacher Total tab: session, holidays, saved reports on open
+  async function loadTattSessionInfo() {
+    try {
+      const data = await apiCall('/attendance/session-info');
+      const el = document.getElementById('tatt-session-start');
+      if (el) el.value = data.session_start_date || '';
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
+  }
+
+  document.getElementById('btn-save-tatt-session')?.addEventListener('click', async () => {
+    const date = document.getElementById('tatt-session-start').value;
+    try {
+      const res = await apiCall('/attendance/session-info', 'POST', { session_start_date: date });
+      showToast(res.message);
+      loadTattSessionInfoForIndicator();
+      const indicator = document.getElementById('att-session-indicator');
+      const dateDisplay = document.getElementById('att-mark-session-date');
+      if (indicator && dateDisplay) {
+        if (date) { indicator.style.display = 'block'; dateDisplay.textContent = date; }
+        else { indicator.style.display = 'none'; }
+      }
+    } catch (e) { showToast('Failed to save: ' + e.message, true); }
+  });
+
+  document.getElementById('btn-add-tatt-holiday')?.addEventListener('click', async () => {
+    const date = document.getElementById('tatt-holiday-date').value;
+    const name = document.getElementById('tatt-holiday-name').value.trim();
+    if (!date || !name) { showToast('Date and Holiday Name are required', true); return; }
+    try {
+      const res = await apiCall('/attendance/holidays', 'POST', { date, name, type: 'Holiday' });
+      showToast(res.message);
+      document.getElementById('tatt-holiday-date').value = '';
+      document.getElementById('tatt-holiday-name').value = '';
+      loadTattHolidaysList();
+    } catch (e) { showToast('Failed: ' + e.message, true); }
+  });
+
+  async function loadTattHolidaysList() {
+    try {
+      const holidays = await apiCall('/attendance/holidays');
+      const tbody = document.querySelector('#table-tatt-holidays tbody');
+      tbody.innerHTML = '';
+      if (holidays.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No holidays marked yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = holidays.map(h => `
+        <tr>
+          <td><strong>${h.date}</strong></td>
+          <td>${h.name}</td>
+          <td><span class="status-badge status-partial">${h.type || 'Holiday'}</span></td>
+          <td>
+            <button class="btn btn-danger btn-sm btn-delete-tatt-holiday" data-id="${h.id}" title="Remove Holiday">✕</button>
+          </td>
+        </tr>
+      `).join('');
+
+      tbody.querySelectorAll('.btn-delete-tatt-holiday').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Remove this holiday?')) return;
+          try {
+            await apiCall(`/attendance/holidays/${btn.dataset.id}`, 'DELETE');
+            showToast('Holiday removed');
+            loadTattHolidaysList();
+          } catch (e) { showToast('Failed: ' + e.message, true); }
+        });
+      });
+    } catch (e) { console.error('[APP_ERROR]', e.message); }
+  }
+
+  // Load teacher saved reports/session/holidays when the Total tab is opened
   document.querySelector('[data-tab="tatt-total"]')?.addEventListener('click', () => {
     loadTattSavedReports();
+    loadTattSessionInfo();
+    loadTattHolidaysList();
+    if (tattTotalMonth) tattTotalMonth.value = new Date().toISOString().slice(0, 7);
   });
 
   // ==========================================
@@ -5208,17 +5320,8 @@ document.addEventListener('DOMContentLoaded', () => {
         title: `Fee Reminder - ${cls || 'All'} - ${year}`
       });
 
-      const downloadUrl = result.file_path;
-      statusEl.innerHTML = `PDF ready! <a href="${downloadUrl}" target="_blank" style="color: var(--accent); text-decoration: underline; font-weight: 700;">Click to Download</a>`;
-
-      // Auto-download
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = result.file_name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
+      await downloadPdfWithAuth(result.file_path, result.file_name);
+      statusEl.innerHTML = `PDF ready! Saved as ${result.file_name}`;
       showToast(`PDF generated for ${result.student_count} students`);
     } catch (err) {
       statusEl.textContent = 'Failed to generate PDF';
@@ -5770,23 +5873,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  const btnPrintFeeSlip = document.getElementById('btn-print-fee-slip');
-  if (btnPrintFeeSlip) {
-    btnPrintFeeSlip.addEventListener('click', () => {
-      const a4Page = document.getElementById('slip-a4-page');
-      if (!a4Page || !a4Page.innerHTML.trim()) {
-        showToast('Generate fee slips first', true);
-        return;
-      }
-      showToast('Opening print dialog — choose "Save as PDF" as the destination.');
-      printViaIframe(a4Page.innerHTML, 'Fee Slips', '', () => {
-        // Auto-return to the student list after the print dialog closes
-        document.getElementById('slip-student-list-container').style.display = 'block';
-        document.getElementById('slip-preview-container').style.display = 'none';
-      });
-    });
-  }
-
   document.getElementById('btn-save-pdf-slips')?.addEventListener('click', async () => {
     const selectedIds = window._lastSlipStudentIds || [];
     const year = window._lastSlipYear || document.getElementById('slip-year').value;
@@ -5807,15 +5893,8 @@ document.addEventListener('DOMContentLoaded', () => {
         year: parseInt(year)
       });
 
-      const downloadUrl = result.file_path;
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = result.file_name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      showToast(`Fee Slip PDF generated for ${result.student_count} students`);
+      await downloadPdfWithAuth(result.file_path, result.file_name);
+      showToast(`Fee Slip PDF saved for ${result.student_count} students`);
     } catch (err) {
       showToast('Failed to generate PDF: ' + err.message, true);
     } finally {

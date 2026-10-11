@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=6" as="style">
-  <link rel="preload" href="js/app.js?v=22" as="script">
+  <link rel="preload" href="js/app.js?v=23" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v22';
+    window.SKYHONIX_PAGE_VERSION = 'v23';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -2874,7 +2874,10 @@
             <!-- Tab: Mark Teacher Attendance -->
             <div class="tab-content" id="tab-tatt-mark">
               <div class="card" style="margin-bottom: 24px;">
-                <div class="grid-3" style="grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: flex-end;">
+                <div id="tatt-session-indicator" style="display: none; padding: 8px 14px; background: var(--glass-bg); border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem; color: var(--text-muted); border-left: 3px solid var(--primary);">
+                  Session Start: <strong id="tatt-mark-session-date" style="color: var(--primary);">-</strong>
+                </div>
+                <div class="grid-3" style="grid-template-columns: 2fr 1fr; gap: 15px; align-items: flex-end;">
                   <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label">Date</label>
                     <input type="date" class="form-control" id="tatt-date-input">
@@ -2883,9 +2886,9 @@
                     <label class="form-label">&nbsp;</label>
                     <div style="color: var(--text-muted); font-size: 0.85rem; padding: 8px 0;">Teachers are synced from Assign Teachers</div>
                   </div>
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <button class="btn btn-primary" id="btn-load-tatt-grid">Load Teachers List</button>
-                  </div>
+                </div>
+                <div style="margin-top: 20px; display: flex; gap: 15px;">
+                  <button class="btn btn-primary" id="btn-load-tatt-grid">Load Teachers List</button>
                 </div>
               </div>
 
@@ -2969,33 +2972,32 @@
             <!-- Tab: Teacher History Calendar -->
             <div class="tab-content" id="tab-tatt-history" style="display: none;">
               <div class="card" style="margin-bottom: 24px;">
-                <div class="grid-3" style="grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: flex-end;">
+                <div class="grid-3" style="grid-template-columns: 2fr 1fr 1fr;">
                   <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Month</label>
+                    <label class="form-label">Month &amp; Year</label>
                     <input type="month" class="form-control" id="tatt-history-month">
                   </div>
                   <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label">&nbsp;</label>
-                    <div style="color: var(--text-muted); font-size: 0.85rem; padding: 8px 0;">Day-by-day pills per teacher</div>
+                    <div style="color: var(--text-muted); font-size: 0.85rem; padding: 8px 0;">All teachers</div>
                   </div>
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <button class="btn btn-primary" id="btn-load-tatt-history">View History</button>
+                  <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
+                    <button class="btn btn-primary" id="btn-load-tatt-history" style="width: 100%;">View History</button>
                   </div>
                 </div>
               </div>
 
-              <h3 style="margin-bottom: 14px;">Daily Calendar</h3>
               <div class="table-container" style="margin-bottom: 24px;">
-                <table class="data-table" id="table-tatt-calendar">
+                <table class="data-table" id="table-tatt-history">
                   <thead>
                     <tr>
                       <th>Name</th>
                       <th>Subject</th>
-                      <th>Attendance This Month</th>
+                      <th>Log Details</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Select month and click View History...</td></tr>
+                    <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Please select a month...</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -3023,20 +3025,74 @@
 
             <!-- Tab: Teacher Total Attendance -->
             <div class="tab-content" id="tab-tatt-total" style="display: none;">
+              <!-- Session & Holiday Config -->
+              <div class="grid-2" style="margin-bottom: 24px;">
+                <div class="card">
+                  <h3>Session Start Date</h3>
+                  <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px;">
+                    Set the academic session start date. Total attendance will be calculated from this date.
+                  </p>
+                  <div style="display: flex; gap: 10px; align-items: flex-end;">
+                    <div class="form-group" style="margin-bottom: 0; flex: 1;">
+                      <label class="form-label">Session Start</label>
+                      <input type="date" class="form-control" id="tatt-session-start">
+                    </div>
+                    <button class="btn btn-primary btn-sm" id="btn-save-tatt-session" style="margin-bottom: 2px;">Save</button>
+                  </div>
+                </div>
+                <div class="card">
+                  <h3>Mark Holiday / Festival</h3>
+                  <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px;">
+                    Mark a day as holiday. Holidays are excluded from total school days count.
+                  </p>
+                  <div style="display: flex; gap: 10px; align-items: flex-end;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Date</label>
+                      <input type="date" class="form-control" id="tatt-holiday-date">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0; flex: 1;">
+                      <label class="form-label">Holiday Name</label>
+                      <input type="text" class="form-control" id="tatt-holiday-name" placeholder="e.g. Eid, Independence Day">
+                    </div>
+                    <button class="btn btn-primary btn-sm" id="btn-add-tatt-holiday" style="margin-bottom: 2px;">Add</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Holiday List -->
+              <div class="card" style="margin-bottom: 24px;">
+                <h3>Holidays List</h3>
+                <div class="table-container" style="margin-top: 12px;">
+                  <table class="data-table" id="table-tatt-holidays">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Holiday Name</th>
+                        <th>Type</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No holidays marked yet</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               <!-- Total Attendance Report -->
               <div class="card" style="margin-bottom: 24px;">
                 <h3>Total Attendance Report</h3>
                 <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">
-                  Calculate total teacher attendance from session start to selected month. Each Present/Late day = <strong>1 attendance count</strong>. Session start &amp; holidays are configured in the Student Attendance Total tab.
+                  Calculate total teacher attendance from session start to selected month. Each Present/Late day = <strong>1 attendance count</strong>.
                 </p>
-                <div class="grid-3" style="grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: flex-end;">
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Month</label>
-                    <input type="month" class="form-control" id="tatt-total-month">
-                  </div>
+                <div class="grid-3" style="grid-template-columns: 2fr 1fr 1fr auto;">
                   <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label">&nbsp;</label>
                     <div style="color: var(--text-muted); font-size: 0.85rem; padding: 8px 0;">All active teachers included</div>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Month</label>
+                    <input type="month" class="form-control" id="tatt-total-month">
                   </div>
                   <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
                     <button class="btn btn-primary" id="btn-load-tatt-total" style="width: 100%;">Calculate</button>
@@ -3555,11 +3611,10 @@
                 </div>
               </div>
 
-              <!-- Fee Slip Preview & Print -->
+              <!-- Fee Slip Preview & Save as PDF -->
               <div id="slip-preview-container" style="display: none;">
                 <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
                   <button class="btn btn-primary" id="btn-save-pdf-slips">💾 Save as PDF (4 per page)</button>
-                  <button class="btn btn-outline" id="btn-print-fee-slip">🖨️ Print Fee Slips (4 per page)</button>
                   <button class="btn btn-outline" id="btn-back-slip-list">← Back to List</button>
                 </div>
 
@@ -4915,6 +4970,6 @@
     })();
   </script>
   <script src="js/section-history.js?v=1"></script>
-  <script src="js/app.js?v=22"></script>
+  <script src="js/app.js?v=23"></script>
 </body>
 </html>
