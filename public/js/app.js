@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v23';
+    const EXPECTED_PAGE_VERSION = 'v24';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -3520,7 +3520,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const teacherModule = document.getElementById('att-teacher-module');
       if (studentModule) studentModule.style.display = type === 'student' ? '' : 'none';
       if (teacherModule) teacherModule.style.display = type === 'teacher' ? '' : 'none';
-      if (type === 'teacher') loadTattSessionInfoForIndicator();
+      if (type === 'teacher') {
+        // Force the first tab (Mark Attendance) visible — belt & braces so
+        // the module is never blank even if a stale cache skipped the init.
+        teacherModule.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+        const firstTab = teacherModule.querySelector('#tab-tatt-mark');
+        if (firstTab) firstTab.style.display = 'block';
+        teacherModule.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+        // Default date + session indicator
+        const di = document.getElementById('tatt-date-input');
+        if (di && !di.value) di.value = new Date().toISOString().split('T')[0];
+        loadTattSessionInfoForIndicator();
+      }
     });
   });
 

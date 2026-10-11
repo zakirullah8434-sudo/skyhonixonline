@@ -16,6 +16,7 @@
           "public/**",
           "node_modules/sqlite3/**",
           "node_modules/@libsql/**",
+          "node_modules/pdfkit/**",
           "node_modules/.package-lock.json"
         ]
       }
