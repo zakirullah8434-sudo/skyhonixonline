@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=26" as="script">
+  <link rel="preload" href="js/app.js?v=27" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v26';
+    window.SKYHONIX_PAGE_VERSION = 'v27';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -2862,8 +2862,12 @@
           </div>
           <!-- /att-student-module -->
 
-          <!-- ===== MODULE: Teacher Attendance ===== -->
-          <div class="exam-option-panel att-hidden" id="att-teacher-module">
+          <!-- ===== MODULE: Teacher Attendance (always visible — stacked below students) ===== -->
+          <div style="margin: 40px 0 20px; padding: 14px 18px; background: var(--glass-bg); border-left: 4px solid var(--primary); border-radius: 10px;">
+            <h2 id="att-teacher-heading" style="margin: 0; font-size: 1.2rem;">👨‍🏫 Teacher Attendance</h2>
+            <p style="margin: 4px 0 0; color: var(--text-muted); font-size: 0.85rem;">Mark, scan, review and total teacher attendance below</p>
+          </div>
+          <div class="exam-option-panel" id="att-teacher-module">
             <div class="tab-container">
               <button class="tab-btn active" data-tab="tatt-mark">Mark Attendance</button>
               <button class="tab-btn" data-tab="tatt-scan">Webcam QR Scanner</button>
@@ -4971,41 +4975,21 @@
   </script>
   <script src="js/section-history.js?v=1"></script>
   <script>
-    // Attendance Student/Teacher switch — self-contained (no dependency on
-    // app.js) so the Teacher Attendance module can never end up invisible,
-    // even if the main script fails to load or an older copy is cached.
+    // Student/Teacher attendance buttons — both modules are ALWAYS visible
+    // (stacked vertically), so the buttons simply scroll to the section.
+    // No show/hide logic anywhere: the teacher section can never be blank.
     (function () {
-      function showAttType(type) {
-        var student = document.getElementById('att-student-module');
-        var teacher = document.getElementById('att-teacher-module');
-        if (!student || !teacher) return;
-        if (type === 'teacher') {
-          teacher.style.display = 'block';
-          teacher.classList.remove('att-hidden');
-          student.style.display = 'none';
-          student.classList.add('att-hidden');
-        } else {
-          student.style.display = 'block';
-          student.classList.remove('att-hidden');
-          teacher.style.display = 'none';
-          teacher.classList.add('att-hidden');
-        }
+      function scrollToAtt(type) {
         var btns = document.querySelectorAll('.att-type-btn');
         for (var i = 0; i < btns.length; i++) {
           if (btns[i].getAttribute('data-att-type') === type) btns[i].classList.add('active');
           else btns[i].classList.remove('active');
         }
+        var target = type === 'teacher'
+          ? (document.getElementById('att-teacher-heading') || document.getElementById('att-teacher-module'))
+          : document.getElementById('att-student-module');
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         if (type === 'teacher') {
-          // Always open on the first tab (Mark Attendance) — never blank
-          var tabBtns = teacher.querySelectorAll('.tab-btn');
-          var tabContents = teacher.querySelectorAll('.tab-content');
-          for (var j = 0; j < tabContents.length; j++) {
-            tabContents[j].style.display = j === 0 ? 'block' : 'none';
-          }
-          for (var k = 0; k < tabBtns.length; k++) {
-            if (k === 0) tabBtns[k].classList.add('active');
-            else tabBtns[k].classList.remove('active');
-          }
           var di = document.getElementById('tatt-date-input');
           if (di && !di.value) di.value = new Date().toISOString().split('T')[0];
           var hm = document.getElementById('tatt-history-month');
@@ -5019,11 +5003,10 @@
         var btn = el && el.closest ? el.closest('.att-type-btn') : null;
         if (!btn) return;
         var type = btn.getAttribute('data-att-type');
-        if (type === 'student' || type === 'teacher') showAttType(type);
+        if (type === 'student' || type === 'teacher') scrollToAtt(type);
       });
-      showAttType('student');
     })();
   </script>
-  <script src="js/app.js?v=26"></script>
+  <script src="js/app.js?v=27"></script>
 </body>
 </html>

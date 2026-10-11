@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v26';
+    const EXPECTED_PAGE_VERSION = 'v27';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -290,19 +290,31 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(doPrint, 4000); // safety: never leave the user hanging on a broken image
   }
 
-  // Authenticated PDF download.
-  // - Native APK: Capacitor WebView ignores <a download> on blob URLs, so we
-  //   open the tokenized download URL in the system browser / Custom Tab
-  //   (Content-Disposition: attachment → saved to the phone's Downloads).
-  // - Normal browser: fetch once with the auth header and save via blob.
-  // The response body is read exactly once in each path.
+  // Authenticated PDF download — works in EVERY environment:
+  // - No blob tricks, no double-reads. We validate access with a lightweight
+  //   fetch (body never consumed), then let the browser handle the actual
+  //   download via the tokenized URL. The server sends
+  //   Content-Disposition: attachment, so Android Chrome / the system
+  //   browser / Capacitor all save the file straight to the Downloads
+  //   folder where the user can open it.
   async function downloadPdfWithAuth(url, fileName) {
-    const isNative = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+    // 1) Validate access (do NOT read the body — it may not be needed)
+    const check = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+    if (!check.ok) {
+      let msg = 'Download failed';
+      try { const j = await check.json(); if (j.error) msg = j.error; } catch (e) { /* keep default */ }
+      throw new Error(msg);
+    }
+    try { if (check.body) check.body.cancel(); } catch (e) { /* ignore */ }
 
+    // 2) Build a self-authenticated download URL (token in query string)
+    const abs = new URL(url, window.location.origin);
+    abs.searchParams.set('token', token);
+    const target = abs.toString();
+
+    // 3) Native APK → system browser / Custom Tab (honours attachment)
+    const isNative = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
     if (isNative) {
-      const abs = new URL(url, window.location.origin);
-      abs.searchParams.set('token', token);
-      const target = abs.toString();
       const bp = window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
       if (bp && bp.open) {
         await bp.open({ url: target });
@@ -318,21 +330,15 @@ document.addEventListener('DOMContentLoaded', () => {
       return 'native';
     }
 
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-    if (!resp.ok) {
-      let msg = 'Download failed';
-      try { const j = await resp.json(); if (j.error) msg = j.error; } catch (e) { /* keep default */ }
-      throw new Error(msg);
-    }
-    const blob = await resp.blob();
-    const dlUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = dlUrl;
-    link.download = fileName || 'document.pdf';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(dlUrl), 8000);
+    // 4) Normal browser (desktop + mobile Chrome) → <a download> with the
+    //    direct URL. The attachment header forces a real file download.
+    const a = document.createElement('a');
+    a.href = target;
+    a.download = fileName || 'document.pdf';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     return 'web';
   }
 
@@ -3536,36 +3542,22 @@ document.addEventListener('DOMContentLoaded', () => {
   // MODULE: TEACHER ATTENDANCE (Student / Teacher switch)
   // ==========================================
 
-  // Attendance type switch — NOT .tab-btn so the generic tab handler ignores it.
-  // Forces inline display styles (not just classes) so it works even against
-  // older cached HTML that used style="display:none" on the teacher module.
+  // Attendance type buttons — BOTH modules are always visible (stacked),
+  // so these buttons simply scroll to the section. No hide/show logic:
+  // the teacher section can never end up invisible.
   document.querySelectorAll('.att-type-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const type = btn.dataset.attType;
       document.querySelectorAll('.att-type-btn').forEach(b => b.classList.toggle('active', b === btn));
-      const studentModule = document.getElementById('att-student-module');
-      const teacherModule = document.getElementById('att-teacher-module');
-      if (!studentModule || !teacherModule) return;
       if (type === 'teacher') {
-        teacherModule.style.display = 'block';
-        teacherModule.classList.remove('att-hidden');
-        studentModule.style.display = 'none';
-        studentModule.classList.add('att-hidden');
-        // Force the first tab (Mark Attendance) visible — belt & braces so
-        // the module is never blank even if a stale cache skipped the init.
-        teacherModule.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-        const firstTab = teacherModule.querySelector('#tab-tatt-mark');
-        if (firstTab) firstTab.style.display = 'block';
-        teacherModule.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
-        // Default date + session indicator
+        const heading = document.getElementById('att-teacher-heading') || document.getElementById('att-teacher-module');
+        if (heading) heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
         const di = document.getElementById('tatt-date-input');
         if (di && !di.value) di.value = new Date().toISOString().split('T')[0];
         loadTattSessionInfoForIndicator();
       } else {
-        studentModule.style.display = 'block';
-        studentModule.classList.remove('att-hidden');
-        teacherModule.style.display = 'none';
-        teacherModule.classList.add('att-hidden');
+        const studentModule = document.getElementById('att-student-module');
+        if (studentModule) studentModule.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
   });
