@@ -6,3 +6,5 @@ if (capacitorAndroidPath.exists()) {
     include ':capacitor-android'
     project(':capacitor-android').projectDir = capacitorAndroidPath
 }
+
+apply from: 'capacitor.settings.gradle'

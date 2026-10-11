@@ -1559,8 +1559,17 @@ router.post('/reminders/generate-pdf', authenticateToken, async (req, res) => {
   }
 });
 
+// Download auth: Capacitor WebView / external browser cannot send the
+// Authorization header, so download links may carry ?token=<jwt> instead.
+function pdfDownloadAuth(req, res, next) {
+  if (!req.headers['authorization'] && req.query && typeof req.query.token === 'string' && req.query.token) {
+    req.headers['authorization'] = 'Bearer ' + req.query.token;
+  }
+  return authenticateToken(req, res, next);
+}
+
 // GET /fees/reminders/download/:filename - Download generated PDF
-router.get('/reminders/download/:filename', authenticateToken, async (req, res) => {
+router.get('/reminders/download/:filename', pdfDownloadAuth, async (req, res) => {
   const { filename } = req.params;
   if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
     return res.status(400).json({ error: 'Invalid filename' });
@@ -1786,7 +1795,7 @@ router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
 });
 
 // GET /fees/slips/download/:filename - Download generated slips PDF
-router.get('/slips/download/:filename', authenticateToken, async (req, res) => {
+router.get('/slips/download/:filename', pdfDownloadAuth, async (req, res) => {
   const { filename } = req.params;
   if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
     return res.status(400).json({ error: 'Invalid filename' });

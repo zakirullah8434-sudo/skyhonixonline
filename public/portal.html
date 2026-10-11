@@ -18,8 +18,8 @@
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"></noscript>
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
-  <link rel="preload" href="css/styles.css?v=6" as="style">
-  <link rel="preload" href="js/app.js?v=24" as="script">
+  <link rel="preload" href="css/styles.css?v=7" as="style">
+  <link rel="preload" href="js/app.js?v=25" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v24';
+    window.SKYHONIX_PAGE_VERSION = 'v25';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -279,7 +279,7 @@
   </style>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/styles.css?v=6">
+  <link rel="stylesheet" href="css/styles.css?v=7">
   <!-- HTML5 QR Code Scanner Library is lazy-loaded on demand (see js/app.js) -->
   <!-- Chart.js CDN -->
   <script>
@@ -2863,7 +2863,7 @@
           <!-- /att-student-module -->
 
           <!-- ===== MODULE: Teacher Attendance ===== -->
-          <div class="exam-option-panel" id="att-teacher-module" style="display: none;">
+          <div class="exam-option-panel att-hidden" id="att-teacher-module">
             <div class="tab-container">
               <button class="tab-btn active" data-tab="tatt-mark">Mark Attendance</button>
               <button class="tab-btn" data-tab="tatt-scan">Webcam QR Scanner</button>
@@ -4970,6 +4970,56 @@
     })();
   </script>
   <script src="js/section-history.js?v=1"></script>
-  <script src="js/app.js?v=24"></script>
+  <script>
+    // Attendance Student/Teacher switch — self-contained (no dependency on
+    // app.js) so the Teacher Attendance module can never end up invisible,
+    // even if the main script fails to load or an older copy is cached.
+    (function () {
+      function showAttType(type) {
+        var student = document.getElementById('att-student-module');
+        var teacher = document.getElementById('att-teacher-module');
+        if (!student || !teacher) return;
+        if (type === 'teacher') {
+          teacher.classList.remove('att-hidden');
+          student.classList.add('att-hidden');
+        } else {
+          student.classList.remove('att-hidden');
+          teacher.classList.add('att-hidden');
+        }
+        var btns = document.querySelectorAll('.att-type-btn');
+        for (var i = 0; i < btns.length; i++) {
+          if (btns[i].getAttribute('data-att-type') === type) btns[i].classList.add('active');
+          else btns[i].classList.remove('active');
+        }
+        if (type === 'teacher') {
+          // Always open on the first tab (Mark Attendance) — never blank
+          var tabBtns = teacher.querySelectorAll('.tab-btn');
+          var tabContents = teacher.querySelectorAll('.tab-content');
+          for (var j = 0; j < tabContents.length; j++) {
+            tabContents[j].style.display = j === 0 ? 'block' : 'none';
+          }
+          for (var k = 0; k < tabBtns.length; k++) {
+            if (k === 0) tabBtns[k].classList.add('active');
+            else tabBtns[k].classList.remove('active');
+          }
+          var di = document.getElementById('tatt-date-input');
+          if (di && !di.value) di.value = new Date().toISOString().split('T')[0];
+          var hm = document.getElementById('tatt-history-month');
+          if (hm && !hm.value) hm.value = new Date().toISOString().slice(0, 7);
+          var tm = document.getElementById('tatt-total-month');
+          if (tm && !tm.value) tm.value = new Date().toISOString().slice(0, 7);
+        }
+      }
+      document.addEventListener('click', function (e) {
+        var el = e.target;
+        var btn = el && el.closest ? el.closest('.att-type-btn') : null;
+        if (!btn) return;
+        var type = btn.getAttribute('data-att-type');
+        if (type === 'student' || type === 'teacher') showAttType(type);
+      });
+      showAttType('student');
+    })();
+  </script>
+  <script src="js/app.js?v=25"></script>
 </body>
 </html>

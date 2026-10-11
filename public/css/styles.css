@@ -2570,6 +2570,10 @@ nav {
   .att-type-btn { flex: 1 1 100%; padding: 11px 16px; font-size: 0.9rem; }
 }
 
+/* Student / Teacher attendance module visibility — toggled by class (not
+   inline styles) so the switch works even if the main script fails to load */
+.att-hidden { display: none !important; }
+
 /* Ledger action buttons — long labels must wrap, never clip */
 #ledger-action-btns > .btn {
   white-space: normal;

@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v24';
+    const EXPECTED_PAGE_VERSION = 'v25';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -290,9 +290,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(doPrint, 4000); // safety: never leave the user hanging on a broken image
   }
 
-  // Authenticated PDF download — fetches with the login token (works on
-  // Vercel serverless where generated files live in a private temp dir),
-  // then saves via a temporary object URL.
+  // Authenticated PDF download. On desktop browsers the blob + <a download>
+  // trick works. Inside the Android APK (Capacitor WebView) <a download> for
+  // blob URLs is silently ignored — the file never reaches the device — so
+  // there we open the download URL (with ?token=) in the system browser /
+  // Custom Tab, which honours Content-Disposition: attachment and saves the
+  // PDF into the phone's Downloads folder where the user can open it.
   async function downloadPdfWithAuth(url, fileName) {
     const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
     if (!resp.ok) {
@@ -300,6 +303,28 @@ document.addEventListener('DOMContentLoaded', () => {
       try { const j = await resp.json(); if (j.error) msg = j.error; } catch (e) { /* keep default */ }
       throw new Error(msg);
     }
+    await resp.arrayBuffer(); // validate the payload arrived intact
+
+    const isNative = window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform();
+    if (isNative) {
+      const abs = new URL(url, window.location.origin);
+      abs.searchParams.set('token', token);
+      const target = abs.toString();
+      const browserPlugin = window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
+      if (browserPlugin && browserPlugin.open) {
+        await browserPlugin.open({ url: target });
+      } else {
+        const a = document.createElement('a');
+        a.href = target;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      return 'native';
+    }
+
     const blob = await resp.blob();
     const dlUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -309,6 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
     link.click();
     document.body.removeChild(link);
     setTimeout(() => URL.revokeObjectURL(dlUrl), 8000);
+    return 'web';
   }
 
   // ==========================================
@@ -3511,16 +3537,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // MODULE: TEACHER ATTENDANCE (Student / Teacher switch)
   // ==========================================
 
-  // Attendance type switch — NOT .tab-btn so the generic tab handler ignores it
+  // Attendance type switch — NOT .tab-btn so the generic tab handler ignores it.
+  // Visibility is driven by the .att-hidden class (kept in sync with the inline
+  // switch in portal.html) so both mechanisms always agree.
   document.querySelectorAll('.att-type-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const type = btn.dataset.attType;
       document.querySelectorAll('.att-type-btn').forEach(b => b.classList.toggle('active', b === btn));
       const studentModule = document.getElementById('att-student-module');
       const teacherModule = document.getElementById('att-teacher-module');
-      if (studentModule) studentModule.style.display = type === 'student' ? '' : 'none';
-      if (teacherModule) teacherModule.style.display = type === 'teacher' ? '' : 'none';
+      if (!studentModule || !teacherModule) return;
       if (type === 'teacher') {
+        teacherModule.classList.remove('att-hidden');
+        studentModule.classList.add('att-hidden');
         // Force the first tab (Mark Attendance) visible — belt & braces so
         // the module is never blank even if a stale cache skipped the init.
         teacherModule.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
@@ -3531,6 +3560,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const di = document.getElementById('tatt-date-input');
         if (di && !di.value) di.value = new Date().toISOString().split('T')[0];
         loadTattSessionInfoForIndicator();
+      } else {
+        studentModule.classList.remove('att-hidden');
+        teacherModule.classList.add('att-hidden');
       }
     });
   });
@@ -5331,9 +5363,13 @@ document.addEventListener('DOMContentLoaded', () => {
         title: `Fee Reminder - ${cls || 'All'} - ${year}`
       });
 
-      await downloadPdfWithAuth(result.file_path, result.file_name);
+      const dlMode = await downloadPdfWithAuth(result.file_path, result.file_name);
       statusEl.innerHTML = `PDF ready! Saved as ${result.file_name}`;
-      showToast(`PDF generated for ${result.student_count} students`);
+      if (dlMode === 'native') {
+        showToast(`PDF sent to your Downloads folder for ${result.student_count} students — open Files app → Downloads to view it`);
+      } else {
+        showToast(`PDF generated for ${result.student_count} students`);
+      }
     } catch (err) {
       statusEl.textContent = 'Failed to generate PDF';
       statusEl.style.color = 'var(--danger)';
@@ -5904,8 +5940,12 @@ document.addEventListener('DOMContentLoaded', () => {
         year: parseInt(year)
       });
 
-      await downloadPdfWithAuth(result.file_path, result.file_name);
-      showToast(`Fee Slip PDF saved for ${result.student_count} students`);
+      const dlMode = await downloadPdfWithAuth(result.file_path, result.file_name);
+      if (dlMode === 'native') {
+        showToast(`Fee Slip PDF sent to your Downloads folder (${result.student_count} students) — open Files app → Downloads to view it`);
+      } else {
+        showToast(`Fee Slip PDF saved for ${result.student_count} students`);
+      }
     } catch (err) {
       showToast('Failed to generate PDF: ' + err.message, true);
     } finally {
