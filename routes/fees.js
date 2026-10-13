@@ -1585,10 +1585,10 @@ router.get('/reminders/download/:filename', pdfDownloadAuth, async (req, res) =>
   res.download(filePath, filename);
 });
 
-// POST /fees/slips/generate-pdf - Generate fee slips PDF (4 slips per A4 page) for selected students
+// POST /fees/slips/generate-pdf - Generate fee slips PDF (4 slips per A4 landscape page)
 router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
-  const { student_ids, year, title } = req.body;
+  const { student_ids, year, month, title } = req.body;
 
   if (!student_ids || !Array.isArray(student_ids) || student_ids.length === 0) {
     return res.status(400).json({ error: 'student_ids array is required' });
@@ -1596,8 +1596,6 @@ router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
 
   try {
     const PDFDocument = require('pdfkit');
-    const path = require('path');
-    const fs = require('fs');
 
     const slipYear = parseInt(year) || new Date().getFullYear();
     const months = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
@@ -1612,10 +1610,32 @@ router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
       'Nov': slipYear, 'Dec': slipYear, 'Jan': slipYear + 1, 'Feb': slipYear + 1
     };
 
+    const currentMonthFull = new Date().toLocaleString('en-US', { month: 'long' });
+    const monthFull = Object.values(fullMonthMap).includes(month) ? month : currentMonthFull;
+    const shortMonth = months.find(m => fullMonthMap[m] === monthFull) || 'Mar';
+    const badgeText = `FEE SLIP ${shortMonth} ${yearMap[shortMonth]}`;
+
+    function imageBuffer(value) {
+      try {
+        if (!value || typeof value !== 'string') return null;
+        if (value.startsWith('data:')) {
+          const i = value.indexOf('base64,');
+          if (i < 0) return null;
+          return Buffer.from(value.slice(i + 7), 'base64');
+        }
+        const clean = value.replace(/^\/+/, '');
+        if (clean.includes('..')) return null;
+        const full = path.join(__dirname, '..', 'public', clean);
+        if (fs.existsSync(full)) return fs.readFileSync(full);
+      } catch (e) { /* unreadable or unsupported image */ }
+      return null;
+    }
+
     const settings = await querySchoolOne(schoolId, 'SELECT * FROM fee_settings LIMIT 1');
     const schoolName = settings ? settings.school_name : 'School Name';
     const schoolPhone = settings ? settings.phone : '';
     const schoolReg = settings ? settings.registration_number : '';
+    const logoBuf = imageBuffer(settings ? settings.logo_path : null);
 
     const uploadsDir = pdfStorageDir('slips');
 
@@ -1626,7 +1646,7 @@ router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
     for (const studentId of student_ids) {
       const student = await querySchoolOne(
         schoolId,
-        `SELECT id, name, roll_no, father_name, class_name, section_name, admission_no
+        `SELECT id, name, roll_no, father_name, class_name, section_name, admission_no, photo
          FROM students WHERE id = ?`,
         [studentId]
       );
@@ -1655,68 +1675,129 @@ router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
         }
       });
 
-      studentDataList.push({ student, ledgerMap, netTotal });
+      studentDataList.push({ student, ledgerMap, netTotal, photoBuf: imageBuffer(student.photo) });
     }
 
     if (studentDataList.length === 0) {
       return res.status(404).json({ error: 'No valid students found' });
     }
 
-    const doc = new PDFDocument({ size: 'A4', bufferPages: true });
+    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', bufferPages: true });
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
 
-    // 2 columns x 2 rows = 4 slips per A4 page
-    const SLIP_W = 267;
-    const SLIP_H = 390;
-    const MARGIN = 15;
+    // pdfkit auto-adds a page for each text op whose y exceeds (height - bottom margin).
+    // Our layout intentionally draws near the bottom edge, so zero the margins on every
+    // page to keep all 4 slips on a single landscape page.
+    const zeroMargins = () => { doc.page.margins = { top: 0, bottom: 0, left: 0, right: 0 }; };
+    doc.on('pageAdded', zeroMargins);
+    zeroMargins();
+
+    // A4 landscape: 2 columns x 2 rows = 4 slips per page
+    const PAGE_W = doc.page.width;
+    const PAGE_H = doc.page.height;
+    const MARGIN = 14;
     const GAP = 10;
+    const SLIP_W = (PAGE_W - MARGIN * 2 - GAP) / 2;
+    const SLIP_H = (PAGE_H - MARGIN * 2 - GAP) / 2;
     const SLIPS_PER_PAGE = 4;
 
+    function drawCutGuides() {
+      const cx = MARGIN + SLIP_W + GAP / 2;
+      const cy = MARGIN + SLIP_H + GAP / 2;
+      doc.save();
+      doc.lineWidth(0.6);
+      doc.dash(4, { space: 4 });
+      doc.moveTo(cx, MARGIN).lineTo(cx, PAGE_H - MARGIN).stroke();
+      doc.moveTo(MARGIN, cy).lineTo(PAGE_W - MARGIN, cy).stroke();
+      doc.undash();
+      doc.restore();
+    }
+
+    function tryImage(buf, ix, iy, iw, ih) {
+      if (!buf) return;
+      try {
+        doc.image(buf, ix, iy, { fit: [iw, ih], align: 'center', valign: 'center' });
+      } catch (e) { /* unsupported image format - box stays empty */ }
+    }
+
     function drawSlip(slipData, x, y) {
-      const { student, ledgerMap, netTotal } = slipData;
+      const { student, ledgerMap, netTotal, photoBuf } = slipData;
 
+      doc.lineWidth(0.9);
       doc.rect(x, y, SLIP_W, SLIP_H).stroke();
+      doc.lineWidth(1);
 
-      doc.font('Helvetica-Bold').fontSize(9);
-      doc.text(schoolName.toUpperCase(), x + 5, y + 6, { width: SLIP_W - 10, align: 'center' });
-      doc.font('Helvetica').fontSize(5.5);
-      doc.text(`Contact: ${schoolPhone} | Reg No: ${schoolReg}`, x + 5, y + 18, { width: SLIP_W - 10, align: 'center' });
+      // Header: school logo (left) + school name + contact / reg no (centered)
+      tryImage(logoBuf, x + 10, y + 8, 34, 34);
+      doc.font('Helvetica-Bold').fontSize(10.5);
+      doc.text(schoolName.toUpperCase(), x + 50, y + 11, { width: SLIP_W - 100, align: 'center', lineBreak: false });
+      doc.font('Helvetica').fontSize(6.5);
+      doc.text(`Contact: ${schoolPhone} | Reg No: ${schoolReg}`, x + 50, y + 27, { width: SLIP_W - 100, align: 'center', lineBreak: false });
+      doc.moveTo(x + 7, y + 50).lineTo(x + SLIP_W - 7, y + 50).lineWidth(0.7).stroke();
+      doc.lineWidth(1);
 
-      const sepY = y + 28;
-      doc.moveTo(x + 5, sepY).lineTo(x + SLIP_W - 5, sepY).lineWidth(0.5).stroke().lineWidth(1);
+      // Student details (left) + roll/id (middle) + FEE SLIP badge + photo box (right)
+      const leftX = x + 11;
+      const valX = x + 44;
+      const midX = x + SLIP_W * 0.47;
+      const midValX = midX + 34;
+      const rowY = [y + 57, y + 70, y + 83];
 
-      let iy = y + 32;
+      function infoRow(label, value, lx, vx, vy, vw) {
+        doc.font('Helvetica-Bold').fontSize(7);
+        doc.text(label, lx, vy, { width: 32, lineBreak: false });
+        doc.font('Helvetica').fontSize(7);
+        doc.text(String(value === undefined || value === null || value === '' ? '-' : value),
+          vx, vy, { width: vw, ellipsis: true, lineBreak: false });
+      }
+
+      infoRow('Name:', student.name, leftX, valX, rowY[0], midX - valX - 6);
+      infoRow('F-Name:', student.father_name, leftX, valX, rowY[1], midX - valX - 6);
+      infoRow('Class:', student.class_name + (student.section_name ? ' (' + student.section_name + ')' : ''), leftX, valX, rowY[2], midX - valX - 6);
+      infoRow('Roll No:', student.roll_no, midX, midValX, rowY[0], SLIP_W - (midValX - x) - 78);
+      infoRow('ID:', student.admission_no || student.id, midX, midValX, rowY[1], SLIP_W - (midValX - x) - 78);
+
+      const badgeW = 108;
+      const badgeH = 16;
+      const badgeX = midX;
+      const badgeY = y + 81;
+      doc.lineWidth(0.9);
+      doc.rect(badgeX, badgeY, badgeW, badgeH).stroke();
+      doc.lineWidth(1);
+      doc.font('Helvetica-Bold').fontSize(8);
+      doc.text(badgeText, badgeX, badgeY + 4.5, { width: badgeW, align: 'center', lineBreak: false });
+
+      const photoW = 57;
+      const photoH = 50;
+      const photoX = x + SLIP_W - photoW - 9;
+      const photoY = y + 54;
+      tryImage(photoBuf, photoX, photoY, photoW, photoH);
+      doc.lineWidth(0.9);
+      doc.rect(photoX, photoY, photoW, photoH).stroke();
+      doc.lineWidth(1);
+
+      // Fee table - full grid: label column + 12 month columns
+      const tableX = x + 9;
+      const tableW = SLIP_W - 18;
+      const labelW = 42;
+      const dataW = (tableW - labelW) / 12;
+      const headH = 15;
+      const rowH = 17;
+      const tableY = y + 111;
+      const tableH = headH + 6 * rowH;
+
+      doc.rect(tableX, tableY, tableW, headH).fill('#ececec');
+
       doc.font('Helvetica-Bold').fontSize(6);
-      doc.text('Name:', x + 7, iy, { continued: true }).font('Helvetica').text(` ${student.name}`, { width: SLIP_W / 2 - 10 });
-      doc.font('Helvetica-Bold').text('Roll No:', x + SLIP_W / 2, iy, { continued: true }).font('Helvetica').text(` ${student.roll_no || '-'}`, { width: SLIP_W / 2 - 10 });
-
-      iy += 9;
-      doc.font('Helvetica-Bold').text('F-Name:', x + 7, iy, { continued: true }).font('Helvetica').text(` ${student.father_name || '-'}`, { width: SLIP_W / 2 - 10 });
-      doc.font('Helvetica-Bold').text('ID:', x + SLIP_W / 2, iy, { continued: true }).font('Helvetica').text(` ${student.admission_no || student.id}`, { width: SLIP_W / 2 - 10 });
-
-      iy += 9;
-      doc.font('Helvetica-Bold').text('Class:', x + 7, iy, { continued: true }).font('Helvetica').text(` ${student.class_name}${student.section_name ? ' (' + student.section_name + ')' : ''}`, { width: SLIP_W / 2 - 10 });
-      doc.font('Helvetica-Bold').text('FEE SLIP', x + SLIP_W / 2, iy, { width: SLIP_W / 2 - 7, align: 'center' });
-
-      const tableX = x + 5;
-      const tableTopY = iy + 12;
-      const labelW = 34;
-      const dataW = (SLIP_W - 10 - labelW) / 12;
-      const rowH = 10;
-
-      doc.rect(tableX, tableTopY, SLIP_W - 10, rowH).fill('#f0f0f0').stroke();
-      doc.fill('#000');
-
       let hx = tableX + labelW;
-      doc.font('Helvetica-Bold').fontSize(4.5);
-      months.forEach((m) => {
-        doc.text(m, hx, tableTopY + 2.5, { width: dataW, align: 'center' });
+      months.forEach(m => {
+        doc.text(m, hx, tableY + 5, { width: dataW, align: 'center', lineBreak: false });
         hx += dataW;
       });
 
       const rowDefs = [
-        { label: 'Mnth Fee', key: 'monthly_fee' },
+        { label: 'Mthly Fee', key: 'monthly_fee' },
         { label: 'Transport', key: 'transport_fee' },
         { label: 'Due', key: 'previous_due' },
         { label: 'Total', key: 'total_payable' },
@@ -1725,13 +1806,12 @@ router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
       ];
 
       rowDefs.forEach((rd, ri) => {
-        const ry = tableTopY + rowH + ri * rowH;
-        doc.moveTo(tableX, ry).lineTo(tableX + SLIP_W - 10, ry).lineWidth(0.3).stroke().lineWidth(1);
-        doc.font('Helvetica-Bold').fontSize(4.5);
-        doc.text(rd.label, tableX + 2, ry + 2.5, { width: labelW - 2 });
+        const ry = tableY + headH + ri * rowH;
+        doc.font('Helvetica-Bold').fontSize(6);
+        doc.text(rd.label, tableX + 3, ry + 5.5, { width: labelW - 5, lineBreak: false });
+        doc.font('Helvetica').fontSize(5.5);
         let cx = tableX + labelW;
-        doc.font('Helvetica').fontSize(4.5);
-        months.forEach((m) => {
+        months.forEach(m => {
           let val = '';
           if (ledgerMap[m]) {
             if (rd.key === 'unpaid') {
@@ -1740,22 +1820,42 @@ router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
               val = (ledgerMap[m][rd.key] || 0).toLocaleString();
             }
           }
-          doc.text(val, cx, ry + 2.5, { width: dataW, align: 'center' });
+          doc.text(val, cx, ry + 6, { width: dataW, align: 'center', lineBreak: false });
           cx += dataW;
         });
       });
 
-      const tableBottomY = tableTopY + rowH + rowDefs.length * rowH;
-      doc.moveTo(tableX, tableBottomY).lineTo(tableX + SLIP_W - 10, tableBottomY).lineWidth(0.5).stroke().lineWidth(1);
+      // Every grid line: horizontals + vertical column separators
+      doc.save();
+      doc.lineWidth(0.4);
+      const hLines = [0];
+      for (let k = 0; k <= 6; k++) hLines.push(headH + k * rowH);
+      hLines.forEach(o => {
+        doc.moveTo(tableX, tableY + o).lineTo(tableX + tableW, tableY + o).stroke();
+      });
+      doc.moveTo(tableX, tableY).lineTo(tableX, tableY + tableH).stroke();
+      doc.moveTo(tableX + labelW, tableY).lineTo(tableX + labelW, tableY + tableH).stroke();
+      for (let i = 1; i <= 11; i++) {
+        const vx = tableX + labelW + i * dataW;
+        doc.moveTo(vx, tableY).lineTo(vx, tableY + tableH).stroke();
+      }
+      doc.moveTo(tableX + tableW, tableY).lineTo(tableX + tableW, tableY + tableH).stroke();
+      doc.restore();
 
-      const footY = tableBottomY + 6;
-      doc.moveTo(x + 5, footY).lineTo(x + SLIP_W - 5, footY).lineWidth(0.5).stroke().lineWidth(1);
+      // Footer: principal sign + boxed NET TOTAL
+      const footY = tableY + tableH + 10;
+      doc.font('Helvetica').fontSize(7);
+      doc.text('Principal Sign: _______________', x + 11, footY + 3, { lineBreak: false });
 
-      doc.font('Helvetica').fontSize(5.5);
-      doc.text('Principal Sign: _______________', x + 7, footY + 3, { width: SLIP_W / 2 });
-
-      doc.font('Helvetica-Bold').fontSize(6.5);
-      doc.text(`NET TOTAL: ${netTotal.toLocaleString()}`, x + SLIP_W / 2, footY + 3, { width: SLIP_W / 2 - 7, align: 'right' });
+      const ntW = 130;
+      const ntH = 17;
+      const ntX = x + SLIP_W - ntW - 9;
+      const ntY = footY - 2;
+      doc.lineWidth(0.9);
+      doc.rect(ntX, ntY, ntW, ntH).stroke();
+      doc.lineWidth(1);
+      doc.font('Helvetica-Bold').fontSize(8);
+      doc.text(`NET TOTAL: ${netTotal.toLocaleString()}`, ntX, ntY + 4.5, { width: ntW, align: 'center', lineBreak: false });
     }
 
     for (let i = 0; i < studentDataList.length; i++) {
@@ -1763,8 +1863,9 @@ router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
       const col = posOnPage % 2;
       const row = Math.floor(posOnPage / 2);
 
-      if (posOnPage === 0 && i > 0) {
-        doc.addPage();
+      if (posOnPage === 0) {
+        if (i > 0) doc.addPage();
+        drawCutGuides();
       }
 
       const sx = MARGIN + col * (SLIP_W + GAP);

@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v29';
+    const EXPECTED_PAGE_VERSION = 'v30';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -5753,11 +5753,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function buildSlipHTML(studentData, schoolData, year) {
+  function buildSlipHTML(studentData, schoolData, year, month) {
     const allMonths = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
     const d = studentData;
     const logoSrc = imgSrc(schoolData.logo, '');
     const studentPhoto = imgSrc(d.student.photo, '');
+
+    const monthShortMap = { January:'Jan', February:'Feb', March:'Mar', April:'Apr', May:'May', June:'Jun', July:'Jul', August:'Aug', September:'Sep', October:'Oct', November:'Nov', December:'Dec' };
+    const badgeMonth = monthShortMap[month] || (month || '').slice(0, 3);
+    const badgeYear = (month === 'January' || month === 'February') ? parseInt(year, 10) + 1 : parseInt(year, 10);
+    const badgeText = `FEE SLIP ${badgeMonth} ${badgeYear}`;
 
     // Only include months that have actual ledger data (not null)
     const activeMonths = allMonths.filter(m => d.monthlyFee[m] !== null && d.monthlyFee[m] !== undefined);
@@ -5783,7 +5788,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <div><strong>Roll No:</strong> ${d.student.roll_no || '-'}</div>
               <div><strong>ID:</strong> ${d.student.admission_no || d.student.id}</div>
             </div>
-            <div class="slip-badge">FEE SLIP ${year}-${parseInt(year)+1}</div>
+            <div class="slip-badge">${badgeText}</div>
           </div>
           <div style="text-align: center; padding: 20px; color: #666;">No fee ledger data found for this year.</div>
         </div>
@@ -5830,7 +5835,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div><strong>Roll No:</strong> ${d.student.roll_no || '-'}</div>
             <div><strong>ID:</strong> ${d.student.admission_no || d.student.id}</div>
           </div>
-            <div class="slip-badge">FEE SLIP ${year}-${parseInt(year)+1}</div>
+            <div class="slip-badge">${badgeText}</div>
           </div>
           <div class="table-container" style="border: 2px solid #000; background: #fff;">
             <table class="data-table" style="color: #000;">
@@ -5853,11 +5858,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function generateSlipsForStudents(students) {
     const year = document.getElementById('slip-year').value;
+    const month = document.getElementById('slip-month').value;
     const a4Page = document.getElementById('slip-a4-page');
     a4Page.innerHTML = '';
 
     window._lastSlipStudentIds = students.map(s => s.id);
     window._lastSlipYear = year;
+    window._lastSlipMonth = month;
 
     try {
       const allData = await Promise.all(
@@ -5869,7 +5876,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const pageStudents = allData.slice(i, i + SLIPS_PER_PAGE);
         let slipsHtml = '';
         pageStudents.forEach(data => {
-          slipsHtml += buildSlipHTML(data, data.school, year);
+          slipsHtml += buildSlipHTML(data, data.school, year, month);
         });
         const remaining = SLIPS_PER_PAGE - pageStudents.length;
         for (let j = 0; j < remaining; j++) {
@@ -5905,7 +5912,8 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const result = await apiCall('/fees/slips/generate-pdf', 'POST', {
         student_ids: selectedIds,
-        year: parseInt(year)
+        year: parseInt(year),
+        month: window._lastSlipMonth || document.getElementById('slip-month').value
       });
 
       await downloadPdfWithAuth(result.file_path, result.file_name);
