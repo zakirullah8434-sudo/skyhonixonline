@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=34" as="script">
+  <link rel="preload" href="js/app.js?v=35" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v34';
+    window.SKYHONIX_PAGE_VERSION = 'v35';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -4072,6 +4072,13 @@
                 <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
                   Configure the layout and fields for roll number slips.
                 </p>
+                <div class="form-group" style="margin-bottom: 18px;">
+                  <label class="form-label">Saved Templates (click Load to edit, save with a new name to create another template)</label>
+                  <div id="rollno-saved-templates" style="display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; padding: 10px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 10px; min-height: 52px;">
+                    <span style="color: var(--text-muted); font-size: 0.85rem;">No saved templates yet. Design below and save.</span>
+                  </div>
+                </div>
+                <hr style="border-color: var(--border-color); margin-bottom: 18px;">
                 <form id="form-rollno-design">
                   <div class="grid-2">
                     <div class="form-group">
@@ -4154,6 +4161,10 @@
                 <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
                   Select class and exam to generate roll number slips for all students.
                 </p>
+                <div class="form-group" style="margin-bottom: 14px;">
+                  <label class="form-label">Roll No Slip Template</label>
+                  <select class="form-control" id="rollno-gen-template"></select>
+                </div>
                 <div class="grid-3">
                   <div class="form-group">
                     <label class="form-label">Class</label>
@@ -4172,7 +4183,8 @@
                 <div class="card" style="padding: 30px; background: white; color: black;">
                   <div id="rollno-printable-content"></div>
                 </div>
-                <div style="text-align: center; margin-top: 20px;">
+                <div style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                  <button class="btn btn-primary" id="btn-save-rollno-pdf" style="min-width: 160px;">Save as PDF</button>
                   <button class="btn btn-secondary" id="btn-print-rollno">Print Roll No Slips</button>
                 </div>
               </div>
@@ -5011,6 +5023,6 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=34"></script>
+  <script src="js/app.js?v=35"></script>
 </body>
 </html>

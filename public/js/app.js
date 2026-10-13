@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v34';
+    const EXPECTED_PAGE_VERSION = 'v35';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -2275,7 +2275,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const isSelectPlaceholder = ['reminder-filter-class', 'slip-class', 'fee-setup-class'].includes(sel.id);
         
         if (isAllClasses) {
-          sel.innerHTML = '<option value="">All Classes</option>' + optsHtml;
+          // Roll No Slip designer submits class_name to the backend — 'All Classes'
+          // must carry a real value or the form's `required` check rejects it.
+          const allVal = sel.id === 'rollno-class-select' ? 'All Classes' : '';
+          sel.innerHTML = '<option value="' + allVal + '">All Classes</option>' + optsHtml;
         } else if (isSelectPlaceholder) {
           sel.innerHTML = '<option value="">-- Select Class --</option>' + optsHtml;
         } else {
@@ -8014,8 +8017,126 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   // ROLL NO SLIP PANEL LOGIC
   // ==========================================
+  // Roll No Slip designer: refresh saved list + generate-tab template dropdown
   function loadRollnoDesignData() {
-    // Dropdowns already populated
+    renderRollnoSavedTemplates();
+    loadRollnoGenTemplates();
+  }
+
+  // Render ALL saved roll no slip templates as a list in the designer (Load = edit; saving always creates another template)
+  async function renderRollnoSavedTemplates() {
+    const box = document.getElementById('rollno-saved-templates');
+    if (!box) return;
+    try {
+      const templates = await apiCall('/exams/rollno-templates', 'GET', null, false, true);
+      const list = (Array.isArray(templates) ? templates : []).slice().sort((a, b) => b.id - a.id);
+      if (list.length === 0) {
+        box.innerHTML = '<span style="color: var(--text-muted); font-size: 0.85rem;">No saved templates yet. Design below and save.</span>';
+        return;
+      }
+      // Duplicate names get a (#id) suffix so every saved template stays distinguishable
+      const nameCount = {};
+      list.forEach(t => { nameCount[t.name] = (nameCount[t.name] || 0) + 1; });
+      box.innerHTML = list.map(t => {
+        const dupMark = nameCount[t.name] > 1 ? ' (#' + t.id + ')' : '';
+        const tinfo = t.template || {};
+        const classMark = tinfo.class_name ? tinfo.class_name : 'All Classes';
+        return `<div style="display:flex; align-items:center; gap:10px; padding:8px 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border-color); border-radius: 8px;">
+          <span style="flex:1; font-size:0.9rem;">${t.name}${dupMark} <span style="color: var(--text-muted); font-size:0.8rem;">— ${classMark}${tinfo.term ? ' · ' + tinfo.term : ''}</span></span>
+          <button type="button" class="btn btn-outline btn-sm rn-load-tpl-btn" data-id="${t.id}">Load</button>
+          <button type="button" class="btn btn-danger btn-sm rn-del-tpl-btn" data-id="${t.id}" title="Delete Template">&#128465;</button>
+        </div>`;
+      }).join('');
+    } catch (e) { console.error('[ROLLNO] renderRollnoSavedTemplates error:', e.message); }
+  }
+
+  // Load saved roll no slip templates into the generate tab dropdown (duplicate names get a #id suffix)
+  async function loadRollnoGenTemplates() {
+    const sel = document.getElementById('rollno-gen-template');
+    if (!sel) return;
+    try {
+      const templates = await apiCall('/exams/rollno-templates', 'GET', null, false, true);
+      const list = (Array.isArray(templates) ? templates : []).slice().sort((a, b) => b.id - a.id);
+      const nameCount = {};
+      list.forEach(t => { nameCount[t.name] = (nameCount[t.name] || 0) + 1; });
+      const opts = ['<option value="">-- Select Template --</option>'];
+      list.forEach(t => {
+        const dupMark = nameCount[t.name] > 1 ? ' (#' + t.id + ')' : '';
+        opts.push('<option value="' + t.id + '">' + t.name + dupMark + '</option>');
+      });
+      sel.innerHTML = opts.join('');
+    } catch (e) { console.error('[ROLLNO] loadRollnoGenTemplates error:', e.message); }
+  }
+
+  // Principal sign restored from a loaded template (file inputs cannot be refilled — keep the stored data URL)
+  let _rollnoLoadedSign = '';
+
+  // Load a saved template into the designer form for editing (save with a name later = new template, original untouched)
+  async function loadRollnoTemplateIntoDesign(templateId) {
+    if (!templateId) return;
+    try {
+      const templates = await apiCall('/exams/rollno-templates', 'GET', null, false, true);
+      const tpl = templates.find(t => t.id == templateId);
+      if (!tpl) { showToast('Template not found', true); return; }
+      const t = tpl.template || {};
+
+      document.getElementById('rollno-template-name').value = tpl.name;
+
+      const examSel = document.getElementById('rollno-exam-select');
+      if (t.exam_id && examSel) {
+        for (let i = 0; i < examSel.options.length; i++) {
+          if (examSel.options[i].value == t.exam_id || examSel.options[i].text == t.exam_id) { examSel.selectedIndex = i; break; }
+        }
+      }
+      const classSel = document.getElementById('rollno-class-select');
+      if (t.class_name && classSel) {
+        let found = false;
+        for (let i = 0; i < classSel.options.length; i++) {
+          if (classSel.options[i].value === t.class_name || classSel.options[i].text === t.class_name) { classSel.selectedIndex = i; found = true; break; }
+        }
+        if (!found) classSel.value = 'All Classes';
+      }
+      if (t.term) document.getElementById('rollno-term-select').value = t.term;
+      if (t.include_logo !== undefined) document.getElementById('rollno-include-logo').value = String(t.include_logo);
+      if (t.include_qr !== undefined) document.getElementById('rollno-include-qr').value = String(t.include_qr);
+      if (t.per_page) document.getElementById('rollno-per-page').value = String(t.per_page);
+
+      // Instructions: tick matching predefined checkboxes; leftover text goes to the textarea
+      const instText = t.instructions || '';
+      document.querySelectorAll('.rollno-inst-check').forEach(cb => {
+        cb.checked = instText.indexOf(cb.value) !== -1;
+      });
+      const predefined = Array.from(document.querySelectorAll('.rollno-inst-check:checked')).map(c => c.value);
+      let rest = instText;
+      predefined.forEach(p => { rest = rest.split(p).join(''); });
+      rest = rest.replace(/^[\.\s]+/, '').replace(/\.\s+/g, '. ').trim();
+      document.getElementById('rollno-instructions').value = rest;
+
+      _rollnoLoadedSign = t.principal_sign || '';
+      showToast('Template loaded — save with a new name to create a copy');
+    } catch (e) { console.error('[ROLLNO] loadRollnoTemplateIntoDesign error:', e.message); }
+  }
+
+  // Saved-templates list: Load + Delete button clicks (event delegation)
+  const rnSavedBox = document.getElementById('rollno-saved-templates');
+  if (rnSavedBox) {
+    rnSavedBox.addEventListener('click', async (e) => {
+      const loadBtn = e.target.closest('.rn-load-tpl-btn');
+      const delBtn = e.target.closest('.rn-del-tpl-btn');
+      if (loadBtn) {
+        await loadRollnoTemplateIntoDesign(loadBtn.getAttribute('data-id'));
+        return;
+      }
+      if (delBtn) {
+        if (!confirm('Delete this roll no slip template?')) return;
+        try {
+          await apiCall('/exams/rollno-templates/' + delBtn.getAttribute('data-id'), 'DELETE', null, false, true);
+          showToast('Template deleted');
+          renderRollnoSavedTemplates();
+          loadRollnoGenTemplates();
+        } catch (err) { showToast(err.message, true); }
+      }
+    });
   }
 
   // Save roll no slip template
@@ -8039,7 +8160,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (customInst) checkedInst.push(customInst);
       const instructions = checkedInst.join('. ') + (checkedInst.length > 0 ? '.' : '');
 
-      let principal_sign = '';
+      let principal_sign = _rollnoLoadedSign || '';
       if (signFile) {
         principal_sign = await new Promise((resolve) => {
           const reader = new FileReader();
@@ -8054,6 +8175,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await apiCall('/exams/rollno-templates', 'POST', { name, template_json: JSON.stringify(template) });
         showToast(res.message);
         formRollnoDesign.reset();
+        _rollnoLoadedSign = '';
+        renderRollnoSavedTemplates();
+        loadRollnoGenTemplates();
       } catch (err) { console.error('[APP_ERROR]', err.message); }
     });
   }
@@ -8104,11 +8228,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const exam = examsRaw.find(e => e.id == exam_id);
         settings = settingsRaw;
         activeDatesheet = activeDatesheetRaw;
-        if (rollnoTemplatesRaw.length > 0) {
-          const tmpl = rollnoTemplatesRaw[0].template;
-          principal_sign = tmpl.principal_sign || null;
-          templateInstructions = tmpl.instructions || null;
-          templateTerm = tmpl.term || '';
+        // Use the template chosen in the Generate tab (fall back to the newest one)
+        const genTemplateId = document.getElementById('rollno-gen-template') ? document.getElementById('rollno-gen-template').value : '';
+        let tmplObj = null;
+        if (genTemplateId && Array.isArray(rollnoTemplatesRaw)) {
+          const found = rollnoTemplatesRaw.find(t => t.id == genTemplateId);
+          if (found) tmplObj = found.template || {};
+        }
+        if (!tmplObj && Array.isArray(rollnoTemplatesRaw) && rollnoTemplatesRaw.length > 0) {
+          tmplObj = rollnoTemplatesRaw[0].template || {};
+        }
+        if (tmplObj) {
+          principal_sign = tmplObj.principal_sign || null;
+          templateInstructions = tmplObj.instructions || null;
+          templateTerm = tmplObj.term || '';
         }
         const logoUrl = imgSrc(settings.logo_path, PLACEHOLDER_IMG);
 
@@ -8363,6 +8496,38 @@ document.addEventListener('DOMContentLoaded', () => {
         pw.focus();
         pw.print();
         pw.close();
+      }
+    });
+  }
+
+  // Save Roll No Slips as PDF: server-side PDF + native download (works in APK & browser mobile)
+  const btnSaveRollnoPdf = document.getElementById('btn-save-rollno-pdf');
+  if (btnSaveRollnoPdf) {
+    btnSaveRollnoPdf.addEventListener('click', async () => {
+      const class_name = (document.getElementById('rollno-gen-class').value || '').trim();
+      const exam_id = document.getElementById('rollno-gen-exam').value;
+      const genTemplateSel = document.getElementById('rollno-gen-template');
+      const template_id = genTemplateSel ? genTemplateSel.value : '';
+      if (!exam_id) {
+        showToast('Exam is required', true);
+        return;
+      }
+      try {
+        btnSaveRollnoPdf.disabled = true;
+        btnSaveRollnoPdf.textContent = 'Preparing PDF...';
+        const result = await apiCall('/exams/rollno-slips/generate-pdf', 'POST', {
+          template_id: template_id ? parseInt(template_id) : null,
+          class_name: class_name || 'All Classes',
+          exam_id: parseInt(exam_id)
+        }, false, true);
+        await downloadPdfWithAuth(result.file_path, result.file_name);
+        showToast('Roll no slips PDF saved to Downloads/SkyHonix');
+      } catch (err) {
+        console.error('[ROLLNO_PDF_ERROR]', err);
+        showToast('PDF save failed: ' + (err.message || 'error'), true);
+      } finally {
+        btnSaveRollnoPdf.disabled = false;
+        btnSaveRollnoPdf.textContent = 'Save as PDF';
       }
     });
   }

@@ -1078,6 +1078,11 @@ router.post('/datesheets/generate-pdf', authenticateToken, async (req, res) => {
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
 
+    // Zero margins: pdfkit auto-adds phantom pages when text nears the default 72pt bottom margin
+    const zeroMargins = () => { doc.page.margins = { top: 0, bottom: 0, left: 0, right: 0 }; };
+    doc.on('pageAdded', zeroMargins);
+    zeroMargins();
+
     const PAGE_W = doc.page.width;   // 842 landscape
     const MARGIN = 36;
     const CONTENT_W = PAGE_W - MARGIN * 2;
@@ -1099,13 +1104,22 @@ router.post('/datesheets/generate-pdf', authenticateToken, async (req, res) => {
       .text('Exam: ' + examLabel + '    |    Term: ' + (t.term || '-') + '    |    Template: ' + tplRow.name, MARGIN, headerY, { width: CONTENT_W, align: 'center' });
     headerY += 30;
 
-    // Matrix table
+    // Matrix table — auto-fit so the whole sheet stays on ONE A4 landscape page
     const CLASS_COL = 110;
     const DATE_COUNT = Math.max(sortedDates.length, 1);
     const DATE_COL = (CONTENT_W - CLASS_COL) / DATE_COUNT;
     const PAD = 6;
-    const cellFont = DATE_COUNT > 8 ? 7.5 : (DATE_COUNT > 6 ? 8.5 : 9.5);
-    const rowH = 26;
+    const FOOTER_H = 72;
+    const TABLE_TOP = headerY + 4;
+    const TABLE_BOTTOM = doc.page.height - MARGIN - FOOTER_H;
+    const availTableH = Math.max(TABLE_BOTTOM - TABLE_TOP, 60);
+    const rowsTotal = sortedClasses.length + 1; // header row + one row per class
+    // Scale row height to whatever fits the page (capped at the old fixed 26)
+    let rowH = Math.floor(availTableH / rowsTotal);
+    if (rowH > 26) rowH = 26;
+    if (rowH < 11) rowH = 11;
+    let cellFont = rowH >= 24 ? 9.5 : rowH >= 20 ? 8.5 : rowH >= 16 ? 7.5 : 6.5;
+    if (DATE_COUNT > 8 && cellFont > 6.5) cellFont = Math.max(6.5, cellFont - 1.5);
 
     const drawCell = (x, y, w, text, { bold = false, fill = '#ffffff', align = 'left' } = {}) => {
       doc.rect(x, y, w, rowH).fillAndStroke(fill, '#111827');
@@ -1123,18 +1137,11 @@ router.post('/datesheets/generate-pdf', authenticateToken, async (req, res) => {
       });
     };
 
-    // Header row, with page-break awareness
-    const bottomLimit = doc.page.height - MARGIN - 60; // leave room for footer
-    drawHeaderRow(headerY);
-    let y = headerY + rowH;
+    // Header row + class rows — no page breaks: sizing guarantees a single page
+    drawHeaderRow(TABLE_TOP);
+    let y = TABLE_TOP + rowH;
 
     sortedClasses.forEach((cls, idx) => {
-      if (y + rowH > bottomLimit) {
-        doc.addPage();
-        y = MARGIN;
-        drawHeaderRow(y);
-        y += rowH;
-      }
       const bg = idx % 2 === 0 ? '#ffffff' : '#f3f4f6';
       let x = MARGIN;
       drawCell(x, y, CLASS_COL, String(cls), { bold: true, fill: bg, align: 'center' });
@@ -1147,12 +1154,8 @@ router.post('/datesheets/generate-pdf', authenticateToken, async (req, res) => {
       y += rowH;
     });
 
-    // Footer (last page): instructions + principal sign
-    if (y + 90 > bottomLimit) {
-      doc.addPage();
-      y = MARGIN;
-    }
-    y += 28;
+    // Footer: instructions + principal sign (always on the same single page)
+    y += 22;
     doc.font('Helvetica').fontSize(9).fill('#374151');
     doc.text('• All students must be uniformed.', MARGIN, y);
     doc.text('• Students must reach the examination hall on time.', MARGIN, y + 14);
@@ -1398,6 +1401,261 @@ router.delete('/rollno-templates/:id', authenticateToken, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// POST /exams/rollno-slips/generate-pdf - Server-side roll no slips PDF (A4 landscape, template per_page)
+router.post('/rollno-slips/generate-pdf', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { template_id, class_name, exam_id } = req.body;
+
+  try {
+    let t = {};
+    if (template_id) {
+      const tplRow = await querySchoolOne(schoolId, 'SELECT name, template_json FROM roll_slip_templates WHERE id = ?', [parseInt(template_id)]);
+      if (tplRow) {
+        try { t = JSON.parse(tplRow.template_json || '{}'); } catch (e) { t = {}; }
+      }
+    }
+    const includeLogo = String(t.include_logo === undefined ? '1' : t.include_logo) !== '0';
+
+    // Exam label (same wording as the on-screen slips)
+    let examLabel = '';
+    if (exam_id) {
+      const ex = await querySchoolOne(schoolId, 'SELECT exam_name, year FROM exams WHERE id = ?', [parseInt(exam_id)]);
+      if (ex) examLabel = t.term ? t.term + ' ' + ex.exam_name + ' ' + ex.year : ex.exam_name + ' Exam ' + ex.year;
+    }
+    if (!examLabel) examLabel = t.term || 'Exam';
+
+    // Students — class filter mirrors the frontend generate handler
+    let students;
+    const cls = (class_name || '').trim();
+    const studentCols = 'SELECT name, father_name, roll_no, class_name, section_name FROM students WHERE (status IS NULL OR status != \'Left\')';
+    if (!cls || cls === 'All Classes') {
+      students = await querySchool(schoolId, studentCols + ' ORDER BY CAST(roll_no AS INTEGER), name');
+    } else {
+      students = await querySchool(schoolId, studentCols + ' AND class_name = ? ORDER BY CAST(roll_no AS INTEGER), name', [cls]);
+    }
+    if (!students || students.length === 0) {
+      return res.status(400).json({ error: 'No students found for the selected class' });
+    }
+
+    // Subject rows from the active date sheet (same source as the on-screen slips)
+    let subjectRows = [];
+    try {
+      await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS date_sheet_templates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        template_json TEXT,
+        is_active INTEGER DEFAULT 0,
+        created_at TEXT
+      )`);
+      const activeTpl = await querySchoolOne(schoolId, 'SELECT template_json FROM date_sheet_templates WHERE is_active = 1');
+      if (activeTpl) {
+        let at = {};
+        try { at = JSON.parse(activeTpl.template_json || '{}'); } catch (e) { at = {}; }
+        subjectRows = Array.isArray(at.subjects) ? at.subjects : [];
+      }
+    } catch (e) { subjectRows = []; }
+
+    const settings = await querySchoolOne(schoolId, 'SELECT * FROM fee_settings LIMIT 1');
+    const schoolName = settings ? settings.school_name : 'School Name';
+
+    function imageBuffer(value) {
+      try {
+        if (!value || typeof value !== 'string') return null;
+        if (value.startsWith('data:')) {
+          const i = value.indexOf('base64,');
+          if (i < 0) return null;
+          return Buffer.from(value.slice(i + 7), 'base64');
+        }
+        const clean = value.replace(/^\/+/, '');
+        if (clean.includes('..')) return null;
+        const full = path.join(__dirname, '..', 'public', clean);
+        if (fs.existsSync(full)) return fs.readFileSync(full);
+      } catch (e) { /* unreadable or unsupported image */ }
+      return null;
+    }
+
+    const logoBuf = includeLogo ? imageBuffer(settings ? settings.logo_path : null) : null;
+    const signBuf = imageBuffer(t.principal_sign || null);
+
+    // Instructions: template text, or the same defaults the on-screen slips use
+    const instructions = (t.instructions && String(t.instructions).trim())
+      ? String(t.instructions).split('. ').filter(Boolean).map(line => line.endsWith('.') ? line : line + '.')
+      : ['All Students Must be Uniformed.', 'Students Must come on time.', 'Dues Must be cleared.'];
+
+    const PDFDocument = require('pdfkit');
+    const uploadsDir = pdfStorageDir('rollno');
+    const fileName = `rollno_slips_${Date.now()}.pdf`;
+    const filePath = path.join(uploadsDir, fileName);
+
+    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', bufferPages: true, compress: false });
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
+
+    // Zero margins: pdfkit auto-adds phantom pages when text nears the default 72pt bottom margin
+    const zeroMargins = () => { doc.page.margins = { top: 0, bottom: 0, left: 0, right: 0 }; };
+    doc.on('pageAdded', zeroMargins);
+    zeroMargins();
+
+    const PAGE_W = doc.page.width;   // 842
+    const PAGE_H = doc.page.height;  // 595
+    const MARGIN = 18;
+    const GAP = 10;
+
+    // Grid per page: always 2 columns (matches the print layout); rows from template per_page
+    const perPageSetting = Math.min(6, Math.max(2, parseInt(t.per_page, 10) || 2));
+    const COLS = 2;
+    const ROWS = Math.ceil(perPageSetting / COLS);
+    const PER_PAGE = COLS * ROWS;
+    const SLIP_W = (PAGE_W - MARGIN * 2 - GAP) / COLS;
+    const SLIP_H = (PAGE_H - MARGIN * 2 - GAP * (ROWS - 1)) / ROWS;
+
+    const fmtDate = (d) => {
+      try { return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+      catch (e) { return d; }
+    };
+    const fmtDay = (d) => {
+      try { return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }); }
+      catch (e) { return '-'; }
+    };
+
+    const drawSlip = (x, y, s) => {
+      const w = SLIP_W, h = SLIP_H;
+      // Slip border
+      doc.rect(x, y, w, h).lineWidth(1.5).stroke('#000000');
+
+      // School name
+      doc.fill('#000000').font('Helvetica-Bold').fontSize(13)
+        .text(schoolName.toUpperCase(), x + 10, y + 12, { width: w - 20, align: 'center' });
+
+      // Logo + ROLL NO SLIP title
+      let titleY = y + 32;
+      if (logoBuf) {
+        try { doc.image(logoBuf, x + 14, titleY, { fit: [36, 36] }); } catch (e) { /* skip bad image */ }
+      }
+      doc.font('Helvetica-Bold').fontSize(12)
+        .text('ROLL NO SLIP', x + (logoBuf ? 58 : 10), titleY + 2, { width: w - (logoBuf ? 72 : 20), align: 'center' });
+      doc.font('Helvetica').fontSize(9).fill('#333333')
+        .text(examLabel, x + (logoBuf ? 58 : 10), titleY + 18, { width: w - (logoBuf ? 72 : 20), align: 'center' });
+
+      // Student info (2-column grid)
+      const infoY = titleY + 42;
+      doc.fill('#000000').font('Helvetica-Bold').fontSize(9);
+      doc.text('Name: ', x + 14, infoY);
+      doc.font('Helvetica').text(s.name || '-', x + 52, infoY, { width: w / 2 - 60 });
+      doc.font('Helvetica-Bold').text('Class: ', x + w / 2 + 6, infoY);
+      doc.font('Helvetica').text((s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : ''), x + w / 2 + 40, infoY, { width: w / 2 - 54 });
+      doc.font('Helvetica-Bold').text('Father Name: ', x + 14, infoY + 15);
+      doc.font('Helvetica').text(s.father_name || '-', x + 72, infoY + 15, { width: w / 2 - 80 });
+      doc.font('Helvetica-Bold').text('Roll No: ', x + w / 2 + 6, infoY + 15);
+      doc.font('Helvetica').text(s.roll_no != null && s.roll_no !== '' ? String(s.roll_no) : '-', x + w / 2 + 44, infoY + 15, { width: w / 2 - 58 });
+
+      // Exam table from the active date sheet (same filter as the on-screen slips)
+      const subjectsForClass = subjectRows.filter(sub => sub.class === 'All Classes' || sub.class === s.class_name);
+      const FOOTER_H = 62;
+      const tableTop = infoY + 36;
+      const tableH = h - (tableTop - y) - FOOTER_H;
+      const TH = 14;
+      const maxDataRows = Math.max(1, Math.floor((tableH - TH) / TH));
+      const colW = [w * 0.07, w * 0.19, w * 0.17, w * 0.33, w * 0.24];
+      const headers = ['#', 'Date', 'Day', 'Subject', 'Time'];
+
+      let ty = tableTop;
+      // Header row
+      doc.rect(x + 8, ty, w - 16, TH).fillAndStroke('#f0f0f0', '#000000');
+      let tx = x + 8;
+      doc.fill('#000000').font('Helvetica-Bold').fontSize(8);
+      headers.forEach((hd, ci) => {
+        doc.text(hd, tx + 2, ty + 3, { width: colW[ci] - 4, align: 'center', lineBreak: false });
+        tx += colW[ci];
+      });
+      ty += TH;
+
+      const cellText = (text, cx, cy, cw, bold) => {
+        doc.fill('#000000').font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(8)
+          .text(String(text), cx + 2, cy + 3, { width: cw - 4, align: 'center', ellipsis: true, lineBreak: false });
+      };
+
+      if (subjectsForClass.length === 0) {
+        doc.rect(x + 8, ty, w - 16, TH).fillAndStroke('#ffffff', '#000000');
+        cellText('No datesheet available', x + 8, ty, w - 16, false);
+      } else {
+        subjectsForClass.slice(0, maxDataRows).forEach((sub, i) => {
+          const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
+          doc.rect(x + 8, ty, w - 16, TH).fillAndStroke(bg, '#000000');
+          let cx = x + 8;
+          cellText(i + 1, cx, ty, colW[0], false); cx += colW[0];
+          cellText(fmtDate(sub.date || ''), cx, ty, colW[1], false); cx += colW[1];
+          cellText(fmtDay(sub.date || ''), cx, ty, colW[2], false); cx += colW[2];
+          cellText(sub.subject || '-', cx, ty, colW[3], false); cx += colW[3];
+          cellText(sub.time || '-', cx, ty, colW[4], false);
+          ty += TH;
+        });
+      }
+
+      // Footer: instructions (left) + principal signature (right)
+      const footY = y + h - FOOTER_H + 6;
+      doc.fill('#000000').font('Helvetica-Bold').fontSize(8)
+        .text('Instructions:', x + 12, footY);
+      doc.font('Helvetica').fontSize(7.5).fill('#333333');
+      instructions.slice(0, 4).forEach((inst, i) => {
+        doc.text('• ' + inst, x + 12, footY + 12 + i * 10, { width: w * 0.55 });
+      });
+      const signX = x + w - 12;
+      if (signBuf) {
+        try { doc.image(signBuf, signX - 90, footY, { fit: [80, 28] }); } catch (e) { /* skip bad image */ }
+      }
+      doc.moveTo(signX - 110, y + h - 18).lineTo(signX, y + h - 18).lineWidth(0.8).stroke('#000000');
+      doc.fill('#000000').font('Helvetica').fontSize(7.5)
+        .text('Principal Signature', signX - 110, y + h - 15, { width: 110, align: 'center' });
+    };
+
+    students.forEach((s, idx) => {
+      const slot = idx % PER_PAGE;
+      if (slot === 0 && idx > 0) doc.addPage();
+      const row = Math.floor(slot / COLS);
+      const col = slot % COLS;
+      const x = MARGIN + col * (SLIP_W + GAP);
+      const y = MARGIN + row * (SLIP_H + GAP);
+      drawSlip(x, y, s);
+    });
+
+    doc.end();
+
+    stream.on('finish', () => {
+      res.json({
+        message: 'Roll no slips PDF generated successfully',
+        file_name: fileName,
+        file_path: `/api/exams/rollno-slips/download/${fileName}`,
+        slip_count: students.length
+      });
+    });
+
+    stream.on('error', (err) => {
+      res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
+    });
+
+  } catch (err) {
+    console.error('Roll no slips PDF generation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /exams/rollno-slips/download/:filename - Download generated roll no slips PDF
+router.get('/rollno-slips/download/:filename', pdfDownloadAuth, async (req, res) => {
+  const { filename } = req.params;
+  if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
+
+  const filePath = path.join(pdfStorageDir('rollno'), filename);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  res.download(filePath, filename);
 });
 
 module.exports = router;
