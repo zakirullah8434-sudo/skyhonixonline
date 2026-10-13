@@ -119,16 +119,20 @@ router.post('/dues', authenticateToken, async (req, res) => {
 // GET /fees/ledger - List ledger entries with search and filter
 router.get('/ledger', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
-  const { class_name, section_name, month, year, status } = req.query;
+  const { class_name, section_name, month, year, status, student_id } = req.query;
 
   let query = `
-    SELECT fl.id, fl.student_id, fl.class_name, fl.section_name, fl.month, fl.year, fl.total_payable, fl.paid_amount, fl.status, fl.transport_fee, s.name as student_name, s.roll_no, s.father_name
+    SELECT fl.id, fl.student_id, fl.class_name, fl.section_name, fl.month, fl.year, fl.total_payable, fl.paid_amount, fl.status, fl.transport_fee, s.name as student_name, s.roll_no, s.father_name, s.photo, s.admission_no
     FROM fee_ledger fl
     JOIN students s ON s.id = fl.student_id
     WHERE (fl.school_id = ? OR fl.school_id IS NULL)
   `;
   const params = [schoolId];
 
+  if (student_id) {
+    query += ' AND fl.student_id = ?';
+    params.push(parseInt(student_id));
+  }
   if (class_name) {
     query += ' AND fl.class_name = ?';
     params.push(class_name);

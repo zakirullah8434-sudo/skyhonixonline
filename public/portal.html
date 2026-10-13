@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=32" as="script">
+  <link rel="preload" href="js/app.js?v=33" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v32';
+    window.SKYHONIX_PAGE_VERSION = 'v33';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -3229,26 +3229,26 @@
             <h2 style="margin-bottom: 24px;">Pay Fee & Payment Entry</h2>
             
             <div class="card" style="margin-bottom: 24px;">
-              <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1.2fr; gap: 12px; align-items: flex-end;">
+              <div style="display: grid; grid-template-columns: 1.3fr 0.85fr 0.85fr 0.85fr 0.7fr 0.9fr; gap: 10px; align-items: flex-end;">
                 <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Search Student</label>
-                  <input type="text" class="form-control" id="fee-pay-search" placeholder="Roll, name, father...">
+                  <label class="form-label" style="font-size: 0.78rem; margin-bottom: 4px;">Search Student</label>
+                  <input type="text" class="form-control" id="fee-pay-search" placeholder="Roll, name, father..." style="padding: 7px 10px; font-size: 0.85rem;">
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Class</label>
-                  <select class="form-control" id="fee-pay-class">
+                  <label class="form-label" style="font-size: 0.78rem; margin-bottom: 4px;">Class</label>
+                  <select class="form-control" id="fee-pay-class" style="padding: 7px 8px; font-size: 0.85rem;">
                     <option value="">All Classes</option>
                   </select>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Section</label>
-                  <select class="form-control" id="fee-pay-section">
+                  <label class="form-label" style="font-size: 0.78rem; margin-bottom: 4px;">Section</label>
+                  <select class="form-control" id="fee-pay-section" style="padding: 7px 8px; font-size: 0.85rem;">
                     <option value="All Sections">All Sections</option>
                   </select>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Month</label>
-                  <select class="form-control" id="fee-pay-month">
+                  <label class="form-label" style="font-size: 0.78rem; margin-bottom: 4px;">Month</label>
+                  <select class="form-control" id="fee-pay-month" style="padding: 7px 8px; font-size: 0.85rem;">
                     <option>January</option><option>February</option><option>March</option>
                     <option>April</option><option>May</option><option>June</option>
                     <option>July</option><option>August</option><option>September</option>
@@ -3256,17 +3256,17 @@
                   </select>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Year</label>
-                  <select class="form-control" id="fee-pay-year"></select>
+                  <label class="form-label" style="font-size: 0.78rem; margin-bottom: 4px;">Year</label>
+                  <select class="form-control" id="fee-pay-year" style="padding: 7px 8px; font-size: 0.85rem;"></select>
                 </div>
                 <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end; gap: 8px;">
-                  <button class="btn btn-primary" id="btn-search-pay-ledger" style="flex: 1;">Search</button>
+                  <button class="btn btn-primary" id="btn-search-pay-ledger" style="flex: 1; padding: 8px 12px; font-size: 0.85rem;">Search</button>
                 </div>
               </div>
               <div style="margin-top: 10px; display: flex; gap: 12px; align-items: flex-end;">
                 <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label">Status</label>
-                  <select class="form-control" id="fee-pay-filter-status">
+                  <label class="form-label" style="font-size: 0.78rem; margin-bottom: 4px;">Status</label>
+                  <select class="form-control" id="fee-pay-filter-status" style="padding: 7px 8px; font-size: 0.85rem;">
                     <option value="Unpaid">Unpaid / Partial</option>
                     <option value="Partial">Partial Only</option>
                     <option value="Paid">Paid Only</option>
@@ -3287,7 +3287,7 @@
                     <th>Paid Amount</th>
                     <th>Remaining Due</th>
                     <th>Status</th>
-                    <th>Record Transaction</th>
+                    <th>Pay Fee</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -4855,32 +4855,69 @@
     </div>
   </div>
 
-  <!-- MODAL: Record Transaction Fee Invoice Receipt -->
-  <div class="modal" id="modal-transaction">
-    <div class="modal-content" style="max-width: 450px;">
+  <!-- MODAL: Student Fee Payment Window -->
+  <div class="modal" id="modal-fee-payment">
+    <div class="modal-content" style="max-width: 580px;">
       <div class="modal-header">
-        <h2>Collect Tuition Payment</h2>
-        <button class="drawer-close" id="btn-close-tx-modal">&times;</button>
+        <h2>Pay Fee</h2>
+        <button class="drawer-close" id="btn-close-fee-payment-modal">&times;</button>
       </div>
 
-      <div style="background: var(--bg-main); border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem;">
-        <p>Student: <strong id="tx-student-name">-</strong></p>
-        <p>Month: <strong id="tx-month-year">-</strong></p>
-        <p>Total Dues: <strong id="tx-total-payable">-</strong> PKR</p>
-      </div>
-
-      <form id="form-fee-pay-record">
-        <input type="hidden" id="tx-ledger-id">
-        <div class="form-group">
-          <label class="form-label">Amount Received (PKR)</label>
-          <input type="number" class="form-control" id="tx-pay-amount" required>
+      <!-- Student summary card -->
+      <div style="display: flex; gap: 16px; align-items: center; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+        <img id="fpm-photo" src="" alt="" style="width: 74px; height: 74px; border-radius: 10px; object-fit: cover; border: 2px solid var(--border-color); background: var(--bg-main); display: none;">
+        <div id="fpm-photo-fallback" style="width: 74px; height: 74px; border-radius: 10px; border: 2px dashed var(--border-color); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--text-muted); font-size: 1.5rem; flex-shrink: 0;"></div>
+        <div style="flex: 1; min-width: 0;">
+          <div id="fpm-name" style="font-weight: 700; font-size: 1.05rem;"></div>
+          <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+            Class: <strong id="fpm-class">-</strong> &middot; Roll: <strong id="fpm-roll">-</strong> &middot; Adm No: <strong id="fpm-admno">-</strong>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+            Monthly Fee: <strong id="fpm-monthly-fee">-</strong> Rs &middot; Paying for: <strong id="fpm-month-year">-</strong>
+          </div>
         </div>
-        <div class="form-group">
+      </div>
+
+      <!-- Selected month breakdown -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+        <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; text-align: center;">
+          <div style="font-size: 0.75rem; color: var(--text-muted);">Month Total</div>
+          <div id="fpm-month-total" style="font-weight: 700; margin-top: 2px;">-</div>
+        </div>
+        <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; text-align: center;">
+          <div style="font-size: 0.75rem; color: var(--text-muted);">Already Paid</div>
+          <div id="fpm-month-paid" style="font-weight: 700; margin-top: 2px;">-</div>
+        </div>
+        <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; text-align: center;">
+          <div style="font-size: 0.75rem; color: var(--text-muted);">Remaining</div>
+          <div id="fpm-month-remaining" style="font-weight: 700; margin-top: 2px; color: var(--secondary);">-</div>
+        </div>
+      </div>
+
+      <!-- Previous dues box -->
+      <div id="fpm-dues-box" style="display: none; border: 1px dashed #d97706; background: rgba(217, 119, 6, 0.08); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
+        <div style="font-weight: 700; color: #d97706; margin-bottom: 6px;">
+          Previous Dues: <span id="fpm-dues-count">0</span> month(s) &mdash; <span id="fpm-dues-total">0</span> Rs
+        </div>
+        <div id="fpm-dues-list" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px; line-height: 1.6;"></div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-sm" id="btn-fpm-add-dues" style="background: #d97706; color: #fff;">+ Add Dues to Pay</button>
+          <button type="button" class="btn btn-sm btn-outline" id="btn-fpm-remove-dues" style="display: none;">Remove Dues</button>
+        </div>
+      </div>
+
+      <!-- Payment inputs -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label">Amount to Pay (PKR)</label>
+          <input type="number" class="form-control" id="fpm-amount" min="1" required>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
           <label class="form-label">Payment Date</label>
-          <input type="date" class="form-control" id="tx-pay-date" required>
+          <input type="date" class="form-control" id="fpm-date" required>
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 15px;">Confirm Payment</button>
-      </form>
+      </div>
+      <button class="btn btn-primary" id="btn-fpm-pay" style="width: 100%; margin-top: 16px; padding: 12px;">Pay Fee</button>
     </div>
   </div>
 
@@ -4974,6 +5011,6 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=32"></script>
+  <script src="js/app.js?v=33"></script>
 </body>
 </html>

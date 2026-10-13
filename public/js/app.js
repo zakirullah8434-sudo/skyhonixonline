@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v32';
+    const EXPECTED_PAGE_VERSION = 'v33';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -2436,14 +2436,15 @@ document.addEventListener('DOMContentLoaded', () => {
     populateStudentSectionDropdown(this.value, '');
   });
 
-  btnAddStudent.addEventListener('click', async () => {
+  btnAddStudent.addEventListener('click', () => {
     formStudent.reset();
     document.getElementById('student-edit-id').value = '';
     document.getElementById('modal-student-title').innerText = 'Add Student Profile';
     document.getElementById('stud-id').value = '';
-    await populateStudentClassDropdown('');
-    await populateStudentSectionDropdown('', '');
+    // Open the modal INSTANTLY — dropdowns fill in the background (class list is cached 5 min)
     modalStudent.classList.add('open');
+    populateStudentClassDropdown('').catch(() => {});
+    populateStudentSectionDropdown('', '').catch(() => {});
   });
 
   btnCloseStudentModal.addEventListener('click', () => modalStudent.classList.remove('open'));
@@ -4623,6 +4624,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Search Pending Invoices (Pay Fee)
+  const FEE_MONTH_ORDER = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   async function searchPayLedger() {
     const search = document.getElementById('fee-pay-search').value.trim();
     const status = document.getElementById('fee-pay-filter-status').value;
@@ -4647,7 +4649,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const filtered = ledgers.filter(l => {
         if (!search) return true;
         const s = search.toLowerCase();
-        return l.student_name.toLowerCase().includes(s) || l.roll_no.toLowerCase().includes(s) || l.class_name.toLowerCase().includes(s);
+        return l.student_name.toLowerCase().includes(s) || (l.roll_no || '').toLowerCase().includes(s) || l.class_name.toLowerCase().includes(s) || (l.admission_no || '').toLowerCase().includes(s);
       });
 
       if (filtered.length === 0) {
@@ -4661,30 +4663,36 @@ document.addEventListener('DOMContentLoaded', () => {
         if (l.status === 'Partial') badgeClass = 'status-partial';
 
         return `
-            <tr>
+            <tr style="cursor: pointer;" class="fpm-row">
               <td>
                 <div style="font-weight:700;">${l.student_name}</div>
-                <div style="font-size:0.8rem; color:var(--text-muted);">Roll: ${l.roll_no || 'N/A'} | Father: ${l.father_name || '-'}</div>
+                <div style="font-size:0.8rem; color:var(--text-muted);">Roll: ${l.roll_no || 'N/A'} | Adm: ${l.admission_no || '-'} | Father: ${l.father_name || '-'}</div>
               </td>
-              <td>${l.class_name}</td>
+              <td>${l.class_name}${l.section_name ? ' - ' + l.section_name : ''}</td>
               <td><strong>${l.month} ${l.year}</strong></td>
               <td>${l.total_payable.toLocaleString()} Rs</td>
               <td>${l.paid_amount.toLocaleString()} Rs</td>
               <td><strong style="color:var(--secondary);">${remaining.toLocaleString()} Rs</strong></td>
               <td><span class="status-badge ${badgeClass}">${l.status}</span></td>
               <td>
-                <button class="btn btn-primary btn-sm btn-record-tx" 
-                  data-id="${l.id}" 
-                  data-name="${l.student_name}" 
-                  data-month="${l.month} ${l.year}" 
-                  data-due="${remaining}">Collect Fee</button>
+                <button class="btn btn-primary btn-sm btn-fpm-pay"
+                  data-id="${l.id}"
+                  data-student-id="${l.student_id}"
+                  data-name="${escAttr(l.student_name)}"
+                  data-class="${escAttr(l.class_name)}"
+                  data-section="${escAttr(l.section_name || '')}"
+                  data-roll="${escAttr(l.roll_no || '')}"
+                  data-admno="${escAttr(l.admission_no || '')}"
+                  data-photo="${escAttr(l.photo || '')}"
+                  data-month="${escAttr(l.month)}"
+                  data-year="${l.year}"
+                  data-total="${l.total_payable}"
+                  data-paid="${l.paid_amount}">Pay</button>
               </td>
             </tr>
           `;
       });
       tbody.innerHTML = rows.join('');
-
-      attachFeePaymentFormEvents();
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
@@ -4693,87 +4701,189 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSearchPayLedger.addEventListener('click', () => searchPayLedger());
   }
 
-  // Collect modal form bindings — use event delegation
-  const modalTx = document.getElementById('modal-transaction');
-  let _feeTxDelegationBound = false;
-  function attachFeePaymentFormEvents() {
-    if (_feeTxDelegationBound) return;
-    _feeTxDelegationBound = true;
-    
-    // Event delegation on the ledger table body
-    const ledgerBody = document.querySelector('#table-unpaid-ledgers tbody');
-    if (ledgerBody) {
-      ledgerBody.addEventListener('click', (e) => {
-        const btn = e.target.closest('.btn-record-tx');
-        if (!btn) return;
-        const id = btn.getAttribute('data-id');
-        const name = btn.getAttribute('data-name');
-        const month = btn.getAttribute('data-month');
-        const due = btn.getAttribute('data-due');
+  // ---- Student Fee Payment Window ----
+  let _fpmState = null; // { selectedId, studentId, monthRemaining, dues:[], duesIncluded }
+  function escAttr(s) { return esc(s).replace(/"/g, '&quot;'); }
 
-        document.getElementById('tx-ledger-id').value = id;
-        document.getElementById('tx-student-name').innerText = name;
-        document.getElementById('tx-month-year').innerText = month;
-        document.getElementById('tx-total-payable').innerText = parseFloat(due).toLocaleString();
-        document.getElementById('tx-pay-amount').value = Math.round(due);
-        document.getElementById('tx-pay-date').value = new Date().toISOString().split('T')[0];
+  function openFeePaymentWindow(l) {
+    const modal = document.getElementById('modal-fee-payment');
+    if (!modal) return;
 
-        modalTx.classList.add('open');
-      });
+    const total = parseFloat(l.total) || 0;
+    const paid = parseFloat(l.paid) || 0;
+    const remaining = Math.max(0, total - paid);
+
+    // Photo (with initials fallback)
+    const photoEl = document.getElementById('fpm-photo');
+    const fbEl = document.getElementById('fpm-photo-fallback');
+    const photoSrc = l.photo ? imgSrc(l.photo, '') : '';
+    if (photoSrc) {
+      photoEl.src = photoSrc;
+      photoEl.style.display = 'block';
+      fbEl.style.display = 'none';
+    } else {
+      photoEl.style.display = 'none';
+      fbEl.style.display = 'flex';
+      fbEl.textContent = (l.name || '?').charAt(0).toUpperCase();
+    }
+
+    document.getElementById('fpm-name').textContent = l.name || '-';
+    document.getElementById('fpm-class').textContent = (l.cls || '-') + (l.section ? ' - ' + l.section : '');
+    document.getElementById('fpm-roll').textContent = l.roll || '-';
+    document.getElementById('fpm-admno').textContent = l.admno || '-';
+    document.getElementById('fpm-monthly-fee').textContent = total.toLocaleString();
+    document.getElementById('fpm-month-year').textContent = l.month + ' ' + l.year;
+    document.getElementById('fpm-month-total').textContent = total.toLocaleString() + ' Rs';
+    document.getElementById('fpm-month-paid').textContent = paid.toLocaleString() + ' Rs';
+    document.getElementById('fpm-month-remaining').textContent = remaining.toLocaleString() + ' Rs';
+
+    // Default: pay the selected month's remaining fee
+    _fpmState = { selectedId: l.id, studentId: l.studentId, monthRemaining: remaining, dues: [], duesIncluded: false };
+    document.getElementById('fpm-amount').value = Math.round(remaining);
+    document.getElementById('fpm-date').value = new Date().toISOString().split('T')[0];
+
+    // Dues controls reset
+    const duesBox = document.getElementById('fpm-dues-box');
+    duesBox.style.display = 'none';
+    document.getElementById('btn-fpm-add-dues').style.display = '';
+    document.getElementById('btn-fpm-remove-dues').style.display = 'none';
+
+    const payBtn = document.getElementById('btn-fpm-pay');
+    payBtn.disabled = false;
+    payBtn.textContent = 'Pay Fee';
+
+    modal.classList.add('open');
+
+    // Fetch this student's other unpaid months (previous dues) in the background
+    if (l.studentId) {
+      apiCall('/fees/ledger?student_id=' + encodeURIComponent(l.studentId) + '&status=Unpaid').then(ledgers => {
+        if (!_fpmState || _fpmState.selectedId != l.id) return;
+        const dues = (ledgers || []).filter(x => x.id != l.id && (x.total_payable - x.paid_amount) > 0)
+          .sort((a, b) => (a.year - b.year) || (FEE_MONTH_ORDER.indexOf(a.month) - FEE_MONTH_ORDER.indexOf(b.month)));
+        _fpmState.dues = dues;
+        if (dues.length > 0) {
+          const duesTotal = dues.reduce((sum, d) => sum + (d.total_payable - d.paid_amount), 0);
+          document.getElementById('fpm-dues-count').textContent = dues.length;
+          document.getElementById('fpm-dues-total').textContent = duesTotal.toLocaleString();
+          document.getElementById('fpm-dues-list').innerHTML = dues.map(d =>
+            `${d.month} ${d.year}: <strong style="color:#d97706;">${(d.total_payable - d.paid_amount).toLocaleString()} Rs</strong>`
+          ).join(' &middot; ');
+          duesBox.style.display = 'block';
+        }
+      }).catch(() => {});
     }
   }
 
-  const btnCloseTxModal = document.getElementById('btn-close-tx-modal');
-  if (btnCloseTxModal) {
-    btnCloseTxModal.addEventListener('click', () => {
-      modalTx.classList.remove('open');
+  // Dues include/remove toggles
+  const btnFpmAddDues = document.getElementById('btn-fpm-add-dues');
+  if (btnFpmAddDues) {
+    btnFpmAddDues.addEventListener('click', () => {
+      if (!_fpmState || _fpmState.dues.length === 0) return;
+      _fpmState.duesIncluded = true;
+      const duesTotal = _fpmState.dues.reduce((sum, d) => sum + (d.total_payable - d.paid_amount), 0);
+      document.getElementById('fpm-amount').value = Math.round(_fpmState.monthRemaining + duesTotal);
+      btnFpmAddDues.style.display = 'none';
+      document.getElementById('btn-fpm-remove-dues').style.display = '';
+    });
+  }
+  const btnFpmRemoveDues = document.getElementById('btn-fpm-remove-dues');
+  if (btnFpmRemoveDues) {
+    btnFpmRemoveDues.addEventListener('click', () => {
+      if (!_fpmState) return;
+      _fpmState.duesIncluded = false;
+      document.getElementById('fpm-amount').value = Math.round(_fpmState.monthRemaining);
+      btnFpmRemoveDues.style.display = 'none';
+      document.getElementById('btn-fpm-add-dues').style.display = '';
     });
   }
 
-  const formFeePayRecord = document.getElementById('form-fee-pay-record');
-  if (formFeePayRecord) {
-    formFeePayRecord.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const ledger_id = document.getElementById('tx-ledger-id').value;
-      const amount_paid = document.getElementById('tx-pay-amount').value;
-      const payment_date = document.getElementById('tx-pay-date').value;
+  // Pay: allocate the amount across selected month (+dues when included), oldest dues last
+  const btnFpmPay = document.getElementById('btn-fpm-pay');
+  if (btnFpmPay) {
+    btnFpmPay.addEventListener('click', async () => {
+      if (!_fpmState) return;
+      const amount = parseFloat(document.getElementById('fpm-amount').value);
+      const payDate = document.getElementById('fpm-date').value;
+      if (!amount || amount <= 0) { showToast('Enter a valid amount to pay', true); return; }
 
-      const btnSubmit = formFeePayRecord.querySelector('button[type="submit"]');
-      if (btnSubmit) { btnSubmit.disabled = true; btnSubmit.textContent = 'Processing...'; }
+      // Build payment schedule: selected month first, then (if included) dues oldest-first
+      const schedule = [{ ledger_id: _fpmState.selectedId, remaining: _fpmState.monthRemaining }];
+      if (_fpmState.duesIncluded) {
+        _fpmState.dues.forEach(d => schedule.push({ ledger_id: d.id, remaining: d.total_payable - d.paid_amount }));
+      }
 
+      // Allocate entered amount across the schedule in order
+      let left = amount;
+      const payments = [];
+      for (const item of schedule) {
+        if (left <= 0 || item.remaining <= 0) continue;
+        const pay = Math.min(item.remaining, left);
+        payments.push({ ledger_id: item.ledger_id, amount_paid: Math.round(pay) });
+        left -= pay;
+      }
+      if (payments.length === 0) { showToast('Nothing to pay with this amount', true); return; }
+
+      btnFpmPay.disabled = true;
+      btnFpmPay.textContent = 'Processing...';
       try {
-        const res = await apiCall('/fees/pay', 'POST', { ledger_id, amount_paid, payment_date }, false, true);
-        showToast(res.message || 'Fee payment recorded successfully!');
-        modalTx.classList.remove('open');
-
-        // Optimistic UI update: immediately reflect payment in the table row
-        if (res.ledger) {
-          const row = document.querySelector(`#table-unpaid-ledgers tbody tr button[data-id="${ledger_id}"]`)?.closest('tr');
-          if (row) {
-            const ledger = res.ledger;
-            const remaining = ledger.total_payable - ledger.paid_amount;
-            if (remaining <= 0 || ledger.status === 'Paid') {
-              row.remove();
-            } else {
-              const cells = row.querySelectorAll('td');
-              if (cells[4]) cells[4].innerHTML = `<strong>${ledger.paid_amount.toLocaleString()} Rs</strong>`;
-              if (cells[5]) cells[5].innerHTML = `<strong style="color:var(--secondary);">${remaining.toLocaleString()} Rs</strong>`;
-              if (cells[6]) {
-                const badgeClass = ledger.status === 'Partial' ? 'status-partial' : 'status-unpaid';
-                cells[6].innerHTML = `<span class="status-badge ${badgeClass}">${ledger.status}</span>`;
-              }
-              const btn = row.querySelector('.btn-record-tx');
-              if (btn) btn.setAttribute('data-due', remaining);
-            }
-          }
+        let paidCount = 0;
+        for (const p of payments) {
+          await apiCall('/fees/pay', 'POST', { ledger_id: p.ledger_id, amount_paid: p.amount_paid, payment_date: payDate }, false, true);
+          paidCount++;
         }
-
-        // Fire-and-forget background refresh — don't block the UI
+        showToast(paidCount > 1
+          ? 'Payment recorded for ' + paidCount + ' months (' + amount.toLocaleString() + ' Rs)'
+          : 'Fee payment recorded successfully!');
+        document.getElementById('modal-fee-payment').classList.remove('open');
+        searchPayLedger().catch(() => {});
         refreshAllFeeViews().catch(() => {});
-      } catch (err) { console.error('[APP_ERROR]', err.message); showToast('Payment failed: ' + err.message, true); }
-      finally { if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = 'Record Payment'; } }
+      } catch (err) {
+        console.error('[APP_ERROR]', err.message);
+        showToast('Payment failed: ' + err.message, true);
+      } finally {
+        btnFpmPay.disabled = false;
+        btnFpmPay.textContent = 'Pay Fee';
+      }
     });
   }
+
+  const btnCloseFpm = document.getElementById('btn-close-fee-payment-modal');
+  if (btnCloseFpm) {
+    btnCloseFpm.addEventListener('click', () => {
+      document.getElementById('modal-fee-payment').classList.remove('open');
+    });
+  }
+
+  // Ledger table clicks — Pay button or row opens the payment window
+  let _fpmDelegationBound = false;
+  function attachFeePaymentFormEvents() {
+    if (_fpmDelegationBound) return;
+    _fpmDelegationBound = true;
+    const ledgerBody = document.querySelector('#table-unpaid-ledgers tbody');
+    if (!ledgerBody) return;
+    ledgerBody.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-fpm-pay');
+      const row = e.target.closest('tr');
+      if (!btn && !row) return;
+      const target = btn || (row && row.querySelector('.btn-fpm-pay'));
+      if (!target) return;
+      openFeePaymentWindow({
+        id: target.getAttribute('data-id'),
+        studentId: target.getAttribute('data-student-id'),
+        name: target.getAttribute('data-name'),
+        cls: target.getAttribute('data-class'),
+        section: target.getAttribute('data-section'),
+        roll: target.getAttribute('data-roll'),
+        admno: target.getAttribute('data-admno'),
+        photo: target.getAttribute('data-photo'),
+        month: target.getAttribute('data-month'),
+        year: target.getAttribute('data-year'),
+        total: target.getAttribute('data-total'),
+        paid: target.getAttribute('data-paid')
+      });
+    });
+  }
+  attachFeePaymentFormEvents();
 
   // Helper: Refresh all fee-related views after any change
   async function refreshAllFeeViews() {
