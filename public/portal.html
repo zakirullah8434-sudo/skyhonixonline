@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=33" as="script">
+  <link rel="preload" href="js/app.js?v=34" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v33';
+    window.SKYHONIX_PAGE_VERSION = 'v34';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -4024,18 +4024,16 @@
               <div class="card" style="max-width: 700px; margin: 0 auto;">
                 <h3>Generate & Print Date Sheet</h3>
                 <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
-                  Select a saved template to preview all subjects for all classes, then activate and print.
+                  Select a saved template, load it to preview, then activate and save as PDF.
                 </p>
-                <div class="grid-2">
-                  <div class="form-group">
-                    <label class="form-label">Select Template</label>
-                    <select class="form-control" id="datesheet-gen-template"></select>
-                  </div>
-                  <div class="form-group" style="display: flex; align-items: flex-end; gap: 10px;">
-                    <button class="btn btn-primary" id="btn-load-datesheet" style="flex: 1;">Load Date Sheet</button>
-                    <button class="btn btn-success" id="btn-activate-datesheet" style="flex: 1;">Activate</button>
-                    <button class="btn btn-danger" id="btn-delete-datesheet" title="Delete Template">&#128465;</button>
-                  </div>
+                <div class="form-group" style="margin-bottom: 12px;">
+                  <label class="form-label">Select Template</label>
+                  <select class="form-control" id="datesheet-gen-template"></select>
+                </div>
+                <button class="btn btn-primary" id="btn-load-datesheet" style="width: 100%; padding: 13px; font-size: 1.02rem; font-weight: 700; letter-spacing: 0.3px; margin-bottom: 12px;">Load Date Sheet</button>
+                <div style="display: flex; gap: 10px;">
+                  <button class="btn btn-success" id="btn-activate-datesheet" style="flex: 1; padding: 11px; font-weight: 600;">Activate Date Sheet</button>
+                  <button class="btn btn-danger" id="btn-delete-datesheet" title="Delete Template" style="padding: 11px 18px;">&#128465;</button>
                 </div>
                 <div id="datesheet-active-badge" style="display: none; margin-top: 12px; padding: 10px 15px; border-radius: 8px; background: var(--success-light); border-left: 4px solid var(--success); font-size: 0.9rem; color: var(--success);">
                 </div>
@@ -4043,11 +4041,13 @@
                 </div>
               </div>
               <div id="datesheet-preview" style="display: none; margin-top: 24px;">
-                <div class="card" style="padding: 30px; background: white; color: black;">
-                  <div id="datesheet-printable-content"></div>
+                <div class="card" style="padding: 20px; background: white; color: black; overflow: hidden;">
+                  <div id="datesheet-preview-scroll" style="overflow: hidden; width: 100%;">
+                    <div id="datesheet-printable-content" style="transform-origin: top left;"></div>
+                  </div>
                 </div>
                 <div style="text-align: center; margin-top: 20px;">
-                  <button class="btn btn-secondary" id="btn-print-datesheet">Print Date Sheet</button>
+                  <button class="btn btn-secondary" id="btn-print-datesheet" style="padding: 13px 30px; font-size: 1rem; font-weight: 700;">Save as PDF</button>
                 </div>
               </div>
             </div>
@@ -5011,6 +5011,6 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=33"></script>
+  <script src="js/app.js?v=34"></script>
 </body>
 </html>

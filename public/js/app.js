@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v33';
+    const EXPECTED_PAGE_VERSION = 'v34';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -7853,20 +7853,55 @@ document.addEventListener('DOMContentLoaded', () => {
             '</div>' +
           '</div>';
         document.getElementById('datesheet-preview').style.display = 'block';
+        fitDatesheetPreview();
       } catch (err) { console.error('[APP_ERROR]', err.message); }
     });
   }
 
+  // Scale the loaded date sheet to the device width so the FULL matrix is
+  // visible on mobile screens (transform scale + adjusted wrapper height).
+  function fitDatesheetPreview() {
+    const wrap = document.getElementById('datesheet-preview-scroll');
+    const content = document.getElementById('datesheet-printable-content');
+    if (!wrap || !content) return;
+    content.style.transform = '';
+    wrap.style.height = '';
+    const avail = wrap.clientWidth;
+    const natural = content.scrollWidth || content.offsetWidth;
+    if (avail > 0 && natural > avail) {
+      const k = avail / natural;
+      content.style.transformOrigin = 'top left';
+      content.style.transform = 'scale(' + k + ')';
+      wrap.style.height = Math.ceil(content.offsetHeight * k) + 'px';
+    }
+  }
+  window.addEventListener('resize', () => {
+    const preview = document.getElementById('datesheet-preview');
+    if (preview && preview.style.display !== 'none') fitDatesheetPreview();
+  });
+
+  // Save Date Sheet as PDF: server-side PDF + native download (works in APK & browser)
   const btnPrintDatesheet = document.getElementById('btn-print-datesheet');
   if (btnPrintDatesheet) {
-    btnPrintDatesheet.addEventListener('click', () => {
-      const content = document.getElementById('datesheet-printable-content').innerHTML;
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`<html><head><title>Print Datesheet</title><style>@page{margin:0;size:A4;}</style></head><body style="padding:40px;background:white;color:black;font-family:sans-serif;min-height:100vh;">${content}</body></html>`);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
+    btnPrintDatesheet.addEventListener('click', async () => {
+      const templateId = document.getElementById('datesheet-gen-template').value;
+      if (!templateId) {
+        showToast('Please load a date sheet template first', true);
+        return;
+      }
+      btnPrintDatesheet.disabled = true;
+      btnPrintDatesheet.textContent = 'Generating PDF...';
+      try {
+        const result = await apiCall('/exams/datesheets/generate-pdf', 'POST', { template_id: templateId }, false, true);
+        await downloadPdfWithAuth(result.file_path, result.file_name);
+        showToast('Date sheet PDF saved to Downloads');
+      } catch (err) {
+        console.error('[APP_ERROR]', err.message);
+        showToast('PDF save failed: ' + err.message, true);
+      } finally {
+        btnPrintDatesheet.disabled = false;
+        btnPrintDatesheet.textContent = 'Save as PDF';
+      }
     });
   }
 

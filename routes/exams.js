@@ -1,8 +1,28 @@
 const express = require('express');
 const router = express.Router();
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const { authenticateToken } = require('./auth');
 const { querySchool, querySchoolOne, runSchool, runSchoolTransaction } = require('../database_manager');
 const syncManager = require('../sync_manager');
+
+// Vercel serverless filesystem is read-only except /tmp — store generated
+// PDFs in a writable temp dir so "Save as PDF" works both locally and online.
+function pdfStorageDir(sub) {
+  const dir = path.join(os.tmpdir(), 'skyhonix-pdfs', sub);
+  try { fs.mkdirSync(dir, { recursive: true }); } catch (e) { /* dir exists */ }
+  return dir;
+}
+
+// Download auth: Capacitor WebView / external browser cannot send the
+// Authorization header, so download links may carry ?token=<jwt> instead.
+function pdfDownloadAuth(req, res, next) {
+  if (!req.headers['authorization'] && req.query && typeof req.query.token === 'string' && req.query.token) {
+    req.headers['authorization'] = 'Bearer ' + req.query.token;
+  }
+  return authenticateToken(req, res, next);
+}
 
 // GET /exams - Get list of exams
 router.get('/', authenticateToken, async (req, res) => {
@@ -972,6 +992,210 @@ router.put('/datesheets/:id/activate', authenticateToken, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// POST /exams/datesheets/generate-pdf - Generate a date sheet PDF (A4 landscape matrix)
+router.post('/datesheets/generate-pdf', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { template_id } = req.body;
+
+  if (!template_id) {
+    return res.status(400).json({ error: 'template_id is required' });
+  }
+
+  try {
+    const tplRow = await querySchoolOne(schoolId, 'SELECT id, name, template_json FROM date_sheet_templates WHERE id = ?', [parseInt(template_id)]);
+    if (!tplRow) {
+      return res.status(404).json({ error: 'Date sheet template not found' });
+    }
+
+    let t = {};
+    try { t = JSON.parse(tplRow.template_json || '{}'); } catch (e) { t = {}; }
+    const subjects = Array.isArray(t.subjects) ? t.subjects : [];
+    if (subjects.length === 0) {
+      return res.status(400).json({ error: 'This template has no subject rows' });
+    }
+
+    // Exam label: prefer exam_name/year from the template; fall back to linked exam
+    let examLabel = (t.exam_name || '') + (t.year ? ' ' + t.year : '');
+    if (!t.exam_name && t.exam_id) {
+      const ex = await querySchoolOne(schoolId, 'SELECT exam_name, year FROM exams WHERE id = ?', [parseInt(t.exam_id)]);
+      if (ex) examLabel = ex.exam_name + ' ' + ex.year;
+    }
+    if (!examLabel) examLabel = tplRow.name || 'Exam';
+
+    function imageBuffer(value) {
+      try {
+        if (!value || typeof value !== 'string') return null;
+        if (value.startsWith('data:')) {
+          const i = value.indexOf('base64,');
+          if (i < 0) return null;
+          return Buffer.from(value.slice(i + 7), 'base64');
+        }
+        const clean = value.replace(/^\/+/, '');
+        if (clean.includes('..')) return null;
+        const full = path.join(__dirname, '..', 'public', clean);
+        if (fs.existsSync(full)) return fs.readFileSync(full);
+      } catch (e) { /* unreadable or unsupported image */ }
+      return null;
+    }
+
+    const settings = await querySchoolOne(schoolId, 'SELECT * FROM fee_settings LIMIT 1');
+    const schoolName = settings ? settings.school_name : 'School Name';
+    const logoBuf = imageBuffer(settings ? settings.logo_path : null);
+
+    // Build the matrix the same way the on-screen preview does
+    const dateSet = new Set();
+    const classSet = new Set();
+    const cellMap = {};
+    subjects.forEach(s => {
+      const cls = s.class || 'All Classes';
+      const date = s.date || '';
+      classSet.add(cls);
+      if (date) dateSet.add(date);
+      if (!cellMap[cls]) cellMap[cls] = {};
+      cellMap[cls][date] = s.subject || '-';
+    });
+    const sortedDates = Array.from(dateSet).sort();
+    const sortedClasses = Array.from(classSet).sort((a, b) => {
+      const na = parseInt(a), nb = parseInt(b);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return String(a).localeCompare(String(b));
+    });
+    const fmtDate = (d) => {
+      try {
+        return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      } catch (e) { return d; }
+    };
+
+    const PDFDocument = require('pdfkit');
+    const uploadsDir = pdfStorageDir('datesheets');
+    const fileName = `datesheet_${Date.now()}.pdf`;
+    const filePath = path.join(uploadsDir, fileName);
+
+    // compress:false keeps the single-page sheet tiny (~KBs) and content verifiable
+    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', bufferPages: true, compress: false });
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
+
+    const PAGE_W = doc.page.width;   // 842 landscape
+    const MARGIN = 36;
+    const CONTENT_W = PAGE_W - MARGIN * 2;
+
+    // Header: logo + school name + DATE SHEET title
+    let headerY = MARGIN;
+    if (logoBuf) {
+      try { doc.image(logoBuf, MARGIN, headerY, { fit: [64, 64] }); } catch (e) { /* skip bad image */ }
+    }
+    doc.fill('#111827').font('Helvetica-Bold').fontSize(20)
+      .text(schoolName, MARGIN + (logoBuf ? 76 : 0), headerY + 12, { width: CONTENT_W - (logoBuf ? 76 : 0), align: logoBuf ? 'left' : 'center' });
+    headerY += 74;
+    doc.moveTo(MARGIN, headerY).lineTo(PAGE_W - MARGIN, headerY).lineWidth(2).stroke('#111827');
+    headerY += 14;
+    doc.font('Helvetica-Bold').fontSize(16).fill('#111827')
+      .text('DATE SHEET', MARGIN, headerY, { width: CONTENT_W, align: 'center' });
+    headerY += 24;
+    doc.font('Helvetica').fontSize(10).fill('#374151')
+      .text('Exam: ' + examLabel + '    |    Term: ' + (t.term || '-') + '    |    Template: ' + tplRow.name, MARGIN, headerY, { width: CONTENT_W, align: 'center' });
+    headerY += 30;
+
+    // Matrix table
+    const CLASS_COL = 110;
+    const DATE_COUNT = Math.max(sortedDates.length, 1);
+    const DATE_COL = (CONTENT_W - CLASS_COL) / DATE_COUNT;
+    const PAD = 6;
+    const cellFont = DATE_COUNT > 8 ? 7.5 : (DATE_COUNT > 6 ? 8.5 : 9.5);
+    const rowH = 26;
+
+    const drawCell = (x, y, w, text, { bold = false, fill = '#ffffff', align = 'left' } = {}) => {
+      doc.rect(x, y, w, rowH).fillAndStroke(fill, '#111827');
+      doc.fill('#111827').font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(cellFont)
+        .text(text, x + PAD, y + rowH / 2 - cellFont / 2 - 1, { width: w - PAD * 2, align, height: rowH - 4, ellipsis: true, lineBreak: false });
+    };
+
+    const drawHeaderRow = (y) => {
+      let x = MARGIN;
+      drawCell(x, y, CLASS_COL, 'Class', { bold: true, fill: '#e5e7eb', align: 'center' });
+      x += CLASS_COL;
+      sortedDates.forEach(d => {
+        drawCell(x, y, DATE_COL, fmtDate(d), { bold: true, fill: '#e5e7eb', align: 'center' });
+        x += DATE_COL;
+      });
+    };
+
+    // Header row, with page-break awareness
+    const bottomLimit = doc.page.height - MARGIN - 60; // leave room for footer
+    drawHeaderRow(headerY);
+    let y = headerY + rowH;
+
+    sortedClasses.forEach((cls, idx) => {
+      if (y + rowH > bottomLimit) {
+        doc.addPage();
+        y = MARGIN;
+        drawHeaderRow(y);
+        y += rowH;
+      }
+      const bg = idx % 2 === 0 ? '#ffffff' : '#f3f4f6';
+      let x = MARGIN;
+      drawCell(x, y, CLASS_COL, String(cls), { bold: true, fill: bg, align: 'center' });
+      x += CLASS_COL;
+      sortedDates.forEach(d => {
+        const subject = (cellMap[cls] && cellMap[cls][d]) ? cellMap[cls][d] : '';
+        drawCell(x, y, DATE_COL, String(subject), { fill: bg, align: 'center' });
+        x += DATE_COL;
+      });
+      y += rowH;
+    });
+
+    // Footer (last page): instructions + principal sign
+    if (y + 90 > bottomLimit) {
+      doc.addPage();
+      y = MARGIN;
+    }
+    y += 28;
+    doc.font('Helvetica').fontSize(9).fill('#374151');
+    doc.text('• All students must be uniformed.', MARGIN, y);
+    doc.text('• Students must reach the examination hall on time.', MARGIN, y + 14);
+    doc.text('Principal Sign: ____________________', PAGE_W - MARGIN - 200, y, { width: 200, align: 'right' });
+    doc.font('Helvetica-Bold').fontSize(10).fill('#111827')
+      .text(schoolName, PAGE_W - MARGIN - 200, y + 20, { width: 200, align: 'right' });
+
+    doc.end();
+
+    stream.on('finish', () => {
+      res.json({
+        message: 'Date sheet PDF generated successfully',
+        file_name: fileName,
+        file_path: `/api/exams/datesheets/download/${fileName}`,
+        class_count: sortedClasses.length,
+        date_count: sortedDates.length
+      });
+    });
+
+    stream.on('error', (err) => {
+      res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
+    });
+
+  } catch (err) {
+    console.error('Datesheet PDF generation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /exams/datesheets/download/:filename - Download generated date sheet PDF
+router.get('/datesheets/download/:filename', pdfDownloadAuth, async (req, res) => {
+  const { filename } = req.params;
+  if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
+
+  const filePath = path.join(pdfStorageDir('datesheets'), filename);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  res.download(filePath, filename);
 });
 
 // GET /exams/marks/spreadsheet - Get multi-subject marks spreadsheet
