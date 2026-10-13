@@ -888,7 +888,9 @@ router.delete('/datesheets/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// PUT /exams/datesheets/:id/activate - Activate a datesheet template (deactivates others)
+// PUT /exams/datesheets/:id/activate - Activate a datesheet template (deactivates others).
+// Activation = the exam is now running: the exam registry entry is created automatically
+// (and its subjects seeded) from the template's exam_name/year/term/subjects.
 router.put('/datesheets/:id/activate', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const id = req.params.id;
@@ -900,8 +902,73 @@ router.put('/datesheets/:id/activate', authenticateToken, async (req, res) => {
       is_active INTEGER DEFAULT 0
     )`);
     await runSchool(schoolId, 'UPDATE date_sheet_templates SET is_active = 0');
-    await runSchool(schoolId, 'UPDATE date_sheet_templates SET is_active = 1 WHERE id = ?', [parseInt(id)]);
-    res.json({ message: 'Datesheet activated successfully' });
+    const upd = await runSchool(schoolId, 'UPDATE date_sheet_templates SET is_active = 1 WHERE id = ?', [parseInt(id)]);
+    if (!upd.changes) {
+      return res.status(404).json({ error: 'Datesheet template not found' });
+    }
+
+    const tplRow = await querySchoolOne(schoolId, 'SELECT name, template_json FROM date_sheet_templates WHERE id = ?', [parseInt(id)]);
+    let parsed = {};
+    try { parsed = JSON.parse((tplRow && tplRow.template_json) || '{}'); } catch (e) { parsed = {}; }
+
+    // Resolve exam name/year: new templates carry exam_name + year; legacy templates only carry exam_id
+    let examName = parsed.exam_name;
+    let examYear = parsed.year ? parseInt(parsed.year) : null;
+    let examId = parsed.exam_id || null;
+    if ((!examName || !examYear) && examId) {
+      const oldExam = await querySchoolOne(schoolId, 'SELECT id, exam_name, year FROM exams WHERE id = ?', [parseInt(examId)]);
+      if (oldExam) {
+        examId = oldExam.id;
+        examName = examName || oldExam.exam_name;
+        examYear = examYear || parseInt(oldExam.year);
+      }
+    }
+    examName = examName || (tplRow && tplRow.name) || 'Exam';
+    examYear = examYear || new Date().getFullYear();
+
+    // Classes derived from the template's subject rows
+    const subjects = Array.isArray(parsed.subjects) ? parsed.subjects : [];
+    const classes = [...new Set(subjects.map(s => (s.class || 'All Classes')))];
+    if (classes.length === 0) classes.push('All Classes');
+    const classesJson = JSON.stringify(classes);
+
+    // Reuse an existing exam with the same name+year, else create it (the exam is now running)
+    let exam = await querySchoolOne(schoolId, 'SELECT id FROM exams WHERE exam_name = ? AND year = ? ORDER BY id DESC LIMIT 1', [examName, examYear]);
+    if (!exam) {
+      const inserted = await runSchool(schoolId, 'INSERT INTO exams (exam_name, year, classes) VALUES (?, ?, ?)', [examName, examYear, classesJson]);
+      examId = inserted.id;
+    } else {
+      examId = exam.id;
+    }
+
+    // Seed exam_subjects from the template (deduped) so marks entry / result flows see them
+    const term = parsed.term || '1st Term';
+    for (const s of subjects) {
+      const subj = (s.subject || '').trim();
+      if (!subj) continue;
+      const cls = s.class || 'All Classes';
+      const maxMarks = parseInt(s.max_marks) || 100;
+      const exists = await querySchoolOne(
+        schoolId,
+        'SELECT id FROM exam_subjects WHERE exam_id = ? AND class = ? AND subject = ? AND term = ?',
+        [examId, cls, subj, term]
+      );
+      if (!exists) {
+        await runSchool(
+          schoolId,
+          'INSERT INTO exam_subjects (exam_id, class, subject, max_marks, term) VALUES (?, ?, ?, ?, ?)',
+          [examId, cls, subj, maxMarks, term]
+        );
+      }
+    }
+
+    // Link the exam back into the template so downstream filters (marks spreadsheet etc.) scope correctly
+    parsed.exam_id = examId;
+    parsed.exam_name = examName;
+    parsed.year = examYear;
+    await runSchool(schoolId, 'UPDATE date_sheet_templates SET template_json = ? WHERE id = ?', [JSON.stringify(parsed), parseInt(id)]);
+
+    res.json({ message: 'Datesheet activated — exam "' + examName + '" (' + examYear + ') is now running', examId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

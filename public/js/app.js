@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v31';
+    const EXPECTED_PAGE_VERSION = 'v32';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -6623,19 +6623,18 @@ document.addEventListener('DOMContentLoaded', () => {
   function loadExamPanelData(opt) {
     loadClassesList();
     loadExamsDropdowns();
-    loadExamSetupYears();
-    loadExamClassCheckboxes();
 
     if (opt === 'exam-datesheet') {
+      loadDatesheetExamYears();
       loadDatesheetDesignData();
     } else if (opt === 'exam-rollno') {
       loadRollnoDesignData();
     }
   }
 
-  // Populate year dropdown for Create Exam (from current year to +5 years)
-  function loadExamSetupYears() {
-    const yearSel = document.getElementById('exam-create-year');
+  // Populate year dropdown for the Date Sheet Designer (from current year to +5 years)
+  function loadDatesheetExamYears() {
+    const yearSel = document.getElementById('datesheet-exam-year');
     if (!yearSel) return;
     const currentYear = new Date().getFullYear();
     yearSel.innerHTML = '';
@@ -6644,37 +6643,6 @@ document.addEventListener('DOMContentLoaded', () => {
       opts.push(`<option value="${y}">${y}</option>`);
     }
     yearSel.innerHTML = opts.join('');
-  }
-
-  // Populate class checkboxes for exam creation (All Classes + each class)
-  async function loadExamClassCheckboxes() {
-    const container = document.getElementById('exam-class-checkboxes');
-    if (!container) return;
-
-    const allLabel = `<label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
-        <input type="checkbox" id="exam-class-all" value="All Classes"> <span>All Classes</span>
-      </label>`;
-    const otherLabel = `<label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05); flex: 1 1 100%;">
-        <span style="font-weight:600; min-width:50px;">Other:</span>
-        <input type="text" id="exam-class-other" class="form-control" placeholder="e.g. Nursery, LKG, UKG (comma-separated)" style="flex:1; padding:4px 8px; font-size:0.85rem;">
-      </label>`;
-
-    let classes = [];
-    try {
-      invalidateClassCache();
-      classes = await getCachedClasses(apiCall);
-    } catch (e) { console.error('[EXAM_CLASSES]', e.message); }
-
-    const classLabels = classes.map(cls => `
-        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.05);">
-          <input type="checkbox" class="exam-class-check" value="${cls}"> <span>${cls}</span>
-        </label>
-      `);
-
-    container.innerHTML = allLabel + classLabels.join('') + otherLabel;
-    document.getElementById('exam-class-all').addEventListener('change', (e) => {
-      document.querySelectorAll('.exam-class-check').forEach(cb => cb.checked = e.target.checked);
-    });
   }
 
   function loadExamsData() {
@@ -6691,11 +6659,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const ssMarksSelectExam = document.getElementById('ss-marks-exam');
       const calcExamSelect = document.getElementById('calc-exam-select');
       const dmcSelectExam = document.getElementById('dmc-select-exam');
-      const datesheetExamSelect = document.getElementById('datesheet-exam-select');
       const rollnoExamSelect = document.getElementById('rollno-exam-select');
       const rollnoGenExam = document.getElementById('rollno-gen-exam');
 
-      const selectors = [marksSelectExam, ssMarksSelectExam, calcExamSelect, dmcSelectExam, datesheetExamSelect, rollnoExamSelect, rollnoGenExam];
+      const selectors = [marksSelectExam, ssMarksSelectExam, calcExamSelect, dmcSelectExam, rollnoExamSelect, rollnoGenExam];
 
       // Deduplicate exams by id
       const seen = new Set();
@@ -6718,46 +6685,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     } catch (e) { console.error('[EXAMS_DROPDOWN]', e.message); }
   }
-
-  // Create exam registry
-  document.getElementById('form-create-exam').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const exam_name = document.getElementById('exam-create-name').value;
-    const year = document.getElementById('exam-create-year').value;
-
-    // Get selected classes
-    const allCb = document.getElementById('exam-class-all');
-    const classCbs = document.querySelectorAll('.exam-class-check');
-    const otherInput = document.getElementById('exam-class-other');
-    let selectedClasses = [];
-    if (allCb && allCb.checked) {
-      selectedClasses = ['All Classes'];
-    } else {
-      classCbs.forEach(cb => { if (cb.checked) selectedClasses.push(cb.value); });
-    }
-
-    // Include manually typed "Other" classes
-    if (otherInput && otherInput.value.trim()) {
-      otherInput.value.split(',').forEach(c => {
-        const trimmed = c.trim();
-        if (trimmed && !selectedClasses.includes(trimmed)) selectedClasses.push(trimmed);
-      });
-    }
-
-    if (selectedClasses.length === 0) {
-      showToast('Please select at least one class', true);
-      return;
-    }
-
-    try {
-      const res = await apiCall('/exams', 'POST', { exam_name, year, classes: selectedClasses });
-      showToast(res.message);
-      loadExamsDropdowns();
-      if (allCb) allCb.checked = false;
-      classCbs.forEach(cb => cb.checked = false);
-      if (otherInput) otherInput.value = '';
-    } catch (err) { console.error('[APP_ERROR]', err.message); }
-  });
 
   // Marks Spreadsheet loader - fetches all subjects for class
   document.getElementById('btn-load-marks-grid').addEventListener('click', async () => {
@@ -7401,75 +7328,78 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = '';
         datesheetRowCount = 0;
       }
-      // Reset edit mode
-      const editIdEl = document.getElementById('datesheet-edit-id');
-      if (editIdEl) editIdEl.value = '';
       const tplNameEl = document.getElementById('datesheet-template-name');
       if (tplNameEl) tplNameEl.value = '';
-      const saveBtn = document.getElementById('btn-save-datesheet');
-      if (saveBtn) saveBtn.textContent = 'Save Date Sheet Template';
-      // Load saved templates into both generate tab dropdown AND designer dropdown
+      // Load saved templates list + generate tab dropdown
+      renderDatesheetSavedTemplates();
       loadDatesheetTemplates();
-      loadDatesheetDesignerDropdown();
     } catch (e) { console.error('[DATESHEET] loadDatesheetDesignData error:', e.message); }
   }
 
-  // Populate the designer "Load Existing Template" dropdown
-  async function loadDatesheetDesignerDropdown() {
-    const sel = document.getElementById('datesheet-design-template');
-    if (!sel) return;
+  // Render ALL saved templates as a list in the designer (Load = edit; saving always creates another template)
+  async function renderDatesheetSavedTemplates() {
+    const box = document.getElementById('datesheet-saved-templates');
+    if (!box) return;
     try {
       const templates = await apiCall('/exams/datesheets', 'GET', null, false, true);
-      const uniqueMap = {};
-      (Array.isArray(templates) ? templates : []).forEach(t => {
-        const key = t.name;
-        if (!uniqueMap[key] || t.id > uniqueMap[key].id) {
-          uniqueMap[key] = t;
-        }
-      });
-      const unique = Object.values(uniqueMap).sort((a, b) => b.id - a.id);
-      const opts = ['<option value="">-- Create New Template --</option>'];
-      unique.forEach(t => {
-        const activeMark = t.is_active ? ' [ACTIVE]' : '';
-        const style = t.is_active ? ' style="font-weight:bold;color:#16a34a;"' : '';
-        opts.push('<option value="' + t.id + '"' + style + '>' + t.name + activeMark + '</option>');
-      });
-      sel.innerHTML = opts.join('');
-    } catch (e) { console.error('[DATESHEET] loadDatesheetDesignerDropdown error:', e.message); }
+      const list = (Array.isArray(templates) ? templates : []).slice().sort((a, b) => b.id - a.id);
+      if (list.length === 0) {
+        box.innerHTML = '<span style="color: var(--text-muted); font-size: 0.85rem;">No saved templates yet. Design below and save.</span>';
+        return;
+      }
+      // Duplicate names get a (#id) suffix so every saved template stays distinguishable
+      const nameCount = {};
+      list.forEach(t => { nameCount[t.name] = (nameCount[t.name] || 0) + 1; });
+      box.innerHTML = list.map(t => {
+        const dupMark = nameCount[t.name] > 1 ? ' (#' + t.id + ')' : '';
+        const activeMark = t.is_active ? ' <span style="color:#16a34a;font-weight:700;">[ACTIVE]</span>' : '';
+        const subjCount = (t.template && Array.isArray(t.template.subjects)) ? t.template.subjects.length : 0;
+        return `<div style="display:flex; align-items:center; gap:10px; padding:8px 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border-color); border-radius: 8px;">
+          <span style="flex:1; font-size:0.9rem;">${t.name}${dupMark}${activeMark} <span style="color: var(--text-muted); font-size:0.8rem;">— ${subjCount} subject(s)</span></span>
+          <button type="button" class="btn btn-outline btn-sm ds-load-tpl-btn" data-id="${t.id}">Load</button>
+          <button type="button" class="btn btn-danger btn-sm ds-del-tpl-btn" data-id="${t.id}" title="Delete Template">&#128465;</button>
+        </div>`;
+      }).join('');
+    } catch (e) { console.error('[DATESHEET] renderDatesheetSavedTemplates error:', e.message); }
   }
 
-  // Load selected template into the designer form for editing
-  const btnLoadToDesign = document.getElementById('btn-load-datesheet-to-design');
-  if (btnLoadToDesign) {
-  btnLoadToDesign.addEventListener('click', async () => {
-    const sel = document.getElementById('datesheet-design-template');
-    const templateId = sel.value;
-    if (!templateId) {
-      // Reset to new template mode
-      document.getElementById('datesheet-edit-id').value = '';
-      document.getElementById('datesheet-template-name').value = '';
-      document.getElementById('datesheet-term-select').selectedIndex = 0;
-      document.getElementById('datesheet-rows-container').innerHTML = '';
-      datesheetRowCount = 0;
-      const saveBtn = document.getElementById('btn-save-datesheet');
-      if (saveBtn) saveBtn.textContent = 'Save Date Sheet Template';
-      return;
-    }
+  // Load a saved template into the designer form for editing (save with a name later = new template, original untouched)
+  async function loadDatesheetTemplateIntoDesign(templateId) {
+    if (!templateId) return;
     try {
       const templates = await apiCall('/exams/datesheets', 'GET', null, false, true);
       const tpl = templates.find(t => t.id == templateId);
       if (!tpl) { showToast('Template not found', true); return; }
-      const t = tpl.template;
+      const t = tpl.template || {};
 
-      // Set edit mode
-      document.getElementById('datesheet-edit-id').value = tpl.id;
       document.getElementById('datesheet-template-name').value = tpl.name;
 
-      // Set exam dropdown
-      const examSel = document.getElementById('datesheet-exam-select');
-      if (t.exam_id) {
-        for (let i = 0; i < examSel.options.length; i++) {
-          if (examSel.options[i].value == t.exam_id) { examSel.selectedIndex = i; break; }
+      // Exam name/year: new templates carry them directly; legacy templates only carry exam_id
+      const examNameSel = document.getElementById('datesheet-exam-name');
+      const yearSel = document.getElementById('datesheet-exam-year');
+      if (t.exam_name) {
+        for (let i = 0; i < examNameSel.options.length; i++) {
+          if (examNameSel.options[i].value === t.exam_name || examNameSel.options[i].text === t.exam_name) { examNameSel.selectedIndex = i; break; }
+        }
+      } else if (t.exam_id) {
+        try {
+          const exams = await apiCall('/exams');
+          const ex = exams.find(e => e.id == t.exam_id);
+          if (ex) {
+            for (let i = 0; i < examNameSel.options.length; i++) {
+              if (examNameSel.options[i].value === ex.exam_name || examNameSel.options[i].text === ex.exam_name) { examNameSel.selectedIndex = i; break; }
+            }
+            if (yearSel) {
+              for (let i = 0; i < yearSel.options.length; i++) {
+                if (yearSel.options[i].value == ex.year) { yearSel.selectedIndex = i; break; }
+              }
+            }
+          }
+        } catch (e2) {}
+      }
+      if (t.year && yearSel) {
+        for (let i = 0; i < yearSel.options.length; i++) {
+          if (yearSel.options[i].value == t.year) { yearSel.selectedIndex = i; break; }
         }
       }
 
@@ -7500,7 +7430,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: flex-end;" id="datesheet-row-${datesheetRowCount}">
             <div class="form-group" style="margin-bottom: 0;">
               <label class="form-label">Subject</label>
-              <input type="text" class="form-control" placeholder="e.g. Mathematics" required value="${sub.subject || ''}">
+              <input type="text" class="form-control ds-row-subject" placeholder="e.g. Mathematics" required value="${sub.subject || ''}">
             </div>
             <div class="form-group" style="margin-bottom: 0;">
               <label class="form-label">Class</label>
@@ -7512,7 +7442,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="form-group" style="margin-bottom: 0;">
               <label class="form-label">Time</label>
-              <input type="text" class="form-control" placeholder="e.g. 9:00 AM - 12:00 PM" required value="${sub.time || ''}">
+              <input type="text" class="form-control ds-row-time" placeholder="e.g. 9:00 AM - 12:00 PM" required value="${sub.time || '08:00 am to 11:00 am'}">
             </div>
             <button type="button" class="btn btn-danger btn-sm btn-remove-datesheet-row" style="margin-bottom: 2px;">&times;</button>
           </div>
@@ -7528,32 +7458,47 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      const saveBtn = document.getElementById('btn-save-datesheet');
-      if (saveBtn) saveBtn.textContent = 'Update Date Sheet Template';
-      showToast('Template loaded — ' + subjects.length + ' subjects');
+      showToast('Template loaded — ' + subjects.length + ' subjects. Edit freely, then save with a name to create another template.');
     } catch (err) { showToast('Failed to load template', true); }
-  });
   }
 
-  // Load saved date sheet templates into the generate tab dropdown (deduplicated by name)
+  // Saved-templates list: Load + Delete button clicks (event delegation)
+  const dsSavedBox = document.getElementById('datesheet-saved-templates');
+  if (dsSavedBox) {
+    dsSavedBox.addEventListener('click', async (e) => {
+      const loadBtn = e.target.closest('.ds-load-tpl-btn');
+      const delBtn = e.target.closest('.ds-del-tpl-btn');
+      if (loadBtn) {
+        await loadDatesheetTemplateIntoDesign(loadBtn.getAttribute('data-id'));
+        return;
+      }
+      if (delBtn) {
+        if (!confirm('Delete this datesheet template?')) return;
+        try {
+          await apiCall('/exams/datesheets/' + delBtn.getAttribute('data-id'), 'DELETE', null, false, true);
+          showToast('Template deleted');
+          renderDatesheetSavedTemplates();
+          loadDatesheetTemplates();
+        } catch (err) { showToast(err.message, true); }
+      }
+    });
+  }
+
+  // Load saved date sheet templates into the generate tab dropdown (ALL templates, duplicate names get a #id suffix)
   async function loadDatesheetTemplates() {
     const sel = document.getElementById('datesheet-gen-template');
     if (!sel) return;
     try {
       const templates = await apiCall('/exams/datesheets', 'GET', null, false, true);
-      const uniqueMap = {};
-      (Array.isArray(templates) ? templates : []).forEach(t => {
-        const key = t.name;
-        if (!uniqueMap[key] || t.id > uniqueMap[key].id) {
-          uniqueMap[key] = t;
-        }
-      });
-      const unique = Object.values(uniqueMap).sort((a, b) => b.id - a.id);
+      const list = (Array.isArray(templates) ? templates : []).slice().sort((a, b) => b.id - a.id);
+      const nameCount = {};
+      list.forEach(t => { nameCount[t.name] = (nameCount[t.name] || 0) + 1; });
       const opts = ['<option value="">-- Select Template --</option>'];
-      unique.forEach(t => {
+      list.forEach(t => {
+        const dupMark = nameCount[t.name] > 1 ? ' (#' + t.id + ')' : '';
         const activeMark = t.is_active ? ' [ACTIVE]' : '';
         const style = t.is_active ? ' style="font-weight:bold;color:#16a34a;"' : '';
-        opts.push('<option value="' + t.id + '"' + style + '>' + t.name + activeMark + '</option>');
+        opts.push('<option value="' + t.id + '"' + style + '>' + t.name + dupMark + activeMark + '</option>');
       });
       sel.innerHTML = opts.join('');
       updateDatesheetActiveBadge(Array.isArray(templates) ? templates : []);
@@ -7623,7 +7568,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: flex-end;" id="datesheet-row-${currentRowId}">
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label">Subject</label>
-            <input type="text" class="form-control" placeholder="e.g. Mathematics" required>
+            <input type="text" class="form-control ds-row-subject" placeholder="e.g. Mathematics" required>
           </div>
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label">Class</label>
@@ -7635,7 +7580,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label">Time</label>
-            <input type="text" class="form-control" placeholder="e.g. 9:00 AM - 12:00 PM" required>
+            <input type="text" class="form-control ds-row-time" placeholder="e.g. 9:00 AM - 12:00 PM" required value="08:00 am to 11:00 am">
           </div>
           <button type="button" class="btn btn-danger btn-sm btn-remove-datesheet-row" style="margin-bottom: 2px;">&times;</button>
         </div>
@@ -7665,9 +7610,9 @@ document.addEventListener('DOMContentLoaded', () => {
     formDatesheetDesign.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = document.getElementById('datesheet-template-name').value.trim();
-      const exam_id = document.getElementById('datesheet-exam-select').value;
+      const exam_name = document.getElementById('datesheet-exam-name').value;
+      const year = parseInt(document.getElementById('datesheet-exam-year').value);
       const term = document.getElementById('datesheet-term-select').value;
-      const editId = document.getElementById('datesheet-edit-id').value;
 
       const rows = document.querySelectorAll('#datesheet-rows-container [id^="datesheet-row-"]');
       if (rows.length === 0) {
@@ -7688,94 +7633,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
 
-      const template = { exam_id, term, subjects };
-      
+      // Always save as a NEW template (the loaded/edited template is never overwritten)
+      const template = { exam_name, year, term, subjects };
+
       try {
-        let res;
-        if (editId) {
-          res = await apiCall('/exams/datesheets/' + editId, 'PUT', { name, template_json: JSON.stringify(template) }, false, true);
-        } else {
-          res = await apiCall('/exams/datesheets', 'POST', { name, template_json: JSON.stringify(template) }, false, true);
-        }
-        showToast(res.message);
-        const savedId = editId || res.id;
-        await Promise.all([loadDatesheetTemplates(), loadDatesheetDesignerDropdown()]);
-        try {
-          if (savedId) {
-            const freshTemplates = await apiCall('/exams/datesheets', 'GET', null, false, true);
-            const freshTpl = freshTemplates.find(t => t.id == savedId);
-            if (freshTpl) {
-              document.getElementById('datesheet-edit-id').value = freshTpl.id;
-              document.getElementById('datesheet-template-name').value = freshTpl.name;
-              const ft = freshTpl.template;
-              const examSel = document.getElementById('datesheet-exam-select');
-              if (ft.exam_id) {
-                for (let i = 0; i < examSel.options.length; i++) {
-                  if (examSel.options[i].value == ft.exam_id) { examSel.selectedIndex = i; break; }
-                }
-              }
-              const termSel = document.getElementById('datesheet-term-select');
-              if (ft.term) {
-                for (let i = 0; i < termSel.options.length; i++) {
-                  if (termSel.options[i].value === ft.term) { termSel.selectedIndex = i; break; }
-                }
-              }
-              const container = document.getElementById('datesheet-rows-container');
-              container.innerHTML = '';
-              datesheetRowCount = 0;
-              let dsClasses = [];
-              try { dsClasses = await getCachedClasses(apiCall); } catch (e) {}
-              const freshSubjects = ft.subjects || [];
-              freshSubjects.forEach(sub => {
-                datesheetRowCount++;
-                let classOpts = '<option value="All Classes">All Classes</option>';
-                if (dsClasses && dsClasses.length > 0) {
-                  dsClasses.forEach(cls => { classOpts += `<option value="${cls}">${cls}</option>`; });
-                }
-                const rowHtml = `
-                  <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: flex-end;" id="datesheet-row-${datesheetRowCount}">
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label">Subject</label>
-                      <input type="text" class="form-control" placeholder="e.g. Mathematics" required value="${sub.subject || ''}">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label">Class</label>
-                      <select class="form-control ds-row-class" required>${classOpts}</select>
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label">Date</label>
-                      <input type="date" class="form-control" required value="${sub.date || ''}">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label">Time</label>
-                      <input type="text" class="form-control" placeholder="e.g. 9:00 AM - 12:00 PM" required value="${sub.time || ''}">
-                    </div>
-                    <button type="button" class="btn btn-danger btn-sm btn-remove-datesheet-row" style="margin-bottom: 2px;">&times;</button>
-                  </div>
-                `;
-                container.insertAdjacentHTML('beforeend', rowHtml);
-                const newRow = document.getElementById('datesheet-row-' + datesheetRowCount);
-                const classSelect = newRow.querySelector('.ds-row-class');
-                if (sub.class) {
-                  for (let i = 0; i < classSelect.options.length; i++) {
-                    if (classSelect.options[i].value === sub.class) { classSelect.selectedIndex = i; break; }
-                  }
-                }
-              });
-              const saveBtn = document.getElementById('btn-save-datesheet');
-              if (saveBtn) saveBtn.textContent = 'Update Date Sheet Template';
-            }
-          } else {
-            formDatesheetDesign.reset();
-            document.getElementById('datesheet-rows-container').innerHTML = '';
-            document.getElementById('datesheet-edit-id').value = '';
-            datesheetRowCount = 0;
-            const saveBtn = document.getElementById('btn-save-datesheet');
-            if (saveBtn) saveBtn.textContent = 'Save Date Sheet Template';
-          }
-        } catch (reloadErr) {
-          console.error('[APP_ERROR] Reload after save failed:', reloadErr.message);
-        }
+        const res = await apiCall('/exams/datesheets', 'POST', { name, template_json: JSON.stringify(template) }, false, true);
+        showToast('Saved as new template: ' + name);
+        // Clear only the name field; keep rows so the user can tweak and save another variant quickly
+        document.getElementById('datesheet-template-name').value = '';
+        await Promise.all([renderDatesheetSavedTemplates(), loadDatesheetTemplates()]);
       } catch (err) { showToast('Save failed: ' + err.message, true); }
     });
   }
@@ -7906,7 +7772,8 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await apiCall('/exams/datesheets/' + templateId + '/activate', 'PUT', null, false, true);
         showToast(res.message);
-        await Promise.all([loadDatesheetTemplates(), loadDatesheetDesignerDropdown()]);
+        // Activation creates the exam server-side — refresh exam dropdowns + template lists
+        await Promise.all([loadDatesheetTemplates(), renderDatesheetSavedTemplates(), loadExamsDropdowns()]);
       } catch (err) {
         showToast('Failed to activate datesheet', true);
       }
@@ -7925,7 +7792,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Template deleted');
         document.getElementById('datesheet-preview').style.display = 'none';
         document.getElementById('datesheet-template-info').style.display = 'none';
-        await Promise.all([loadDatesheetTemplates(), loadDatesheetDesignerDropdown()]);
+        await Promise.all([loadDatesheetTemplates(), renderDatesheetSavedTemplates()]);
       } catch (err) { showToast(err.message, true); }
     });
   }
