@@ -1721,9 +1721,30 @@ router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
       } catch (e) { /* unsupported image format - box stays empty */ }
     }
 
+    function getImageSize(buf) {
+      try {
+        if (buf.length > 24 && buf[0] === 0x89 && buf[1] === 0x50) {
+          return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+        }
+        if (buf.length > 4 && buf[0] === 0xff && buf[1] === 0xd8) {
+          let i = 2;
+          while (i + 9 < buf.length) {
+            if (buf[i] !== 0xff) { i++; continue; }
+            const marker = buf[i + 1];
+            if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+              return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+            }
+            i += 2 + buf.readUInt16BE(i + 2);
+          }
+        }
+      } catch (e) { /* unknown format */ }
+      return null;
+    }
+
     function drawSlip(slipData, x, y) {
       const { student, ledgerMap, netTotal, photoBuf } = slipData;
 
+      doc.fill('#000');
       doc.lineWidth(0.9);
       doc.rect(x, y, SLIP_W, SLIP_H).stroke();
       doc.lineWidth(1);
@@ -1772,10 +1793,25 @@ router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
       const photoH = 50;
       const photoX = x + SLIP_W - photoW - 9;
       const photoY = y + 54;
-      tryImage(photoBuf, photoX, photoY, photoW, photoH);
-      doc.lineWidth(0.9);
-      doc.rect(photoX, photoY, photoW, photoH).stroke();
-      doc.lineWidth(1);
+      let photoDrawn = false;
+      if (photoBuf) {
+        try {
+          const dim = getImageSize(photoBuf);
+          const scale = dim ? Math.max(photoW / dim.w, photoH / dim.h) : 1;
+          const dw = (dim ? dim.w : photoW) * scale;
+          const dh = (dim ? dim.h : photoH) * scale;
+          doc.save();
+          doc.rect(photoX, photoY, photoW, photoH).clip();
+          doc.image(photoBuf, photoX + (photoW - dw) / 2, photoY + (photoH - dh) / 2, { width: dw, height: dh });
+          doc.restore();
+          photoDrawn = true;
+        } catch (e) { photoDrawn = false; }
+      }
+      if (!photoDrawn) {
+        doc.lineWidth(0.9);
+        doc.rect(photoX, photoY, photoW, photoH).stroke();
+        doc.lineWidth(1);
+      }
 
       // Fee table - full grid: label column + 12 month columns
       const tableX = x + 9;
@@ -1788,6 +1824,7 @@ router.post('/slips/generate-pdf', authenticateToken, async (req, res) => {
       const tableH = headH + 6 * rowH;
 
       doc.rect(tableX, tableY, tableW, headH).fill('#ececec');
+      doc.fill('#000');
 
       doc.font('Helvetica-Bold').fontSize(6);
       let hx = tableX + labelW;
