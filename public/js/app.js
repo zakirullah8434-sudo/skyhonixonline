@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v28';
+    const EXPECTED_PAGE_VERSION = 'v29';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -290,72 +290,33 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(doPrint, 4000); // safety: never leave the user hanging on a broken image
   }
 
-  // Authenticated PDF download — fetches the file ONCE (single body read),
-  // then delivers it by environment:
-  //   • APK (Capacitor): native SaveToDownloads plugin writes the PDF straight
-  //     into Downloads/SkyHonix/ via MediaStore (works on every Android
-  //     version, visible in the Files app immediately).
-  //     Fallbacks: open tokenized URL in the system browser.
-  //   • Normal browser: blob + <a download> (Chrome saves to Downloads).
-  function arrayBufferToBase64(buffer) {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    const chunk = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunk) {
-      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-    }
-    return btoa(binary);
-  }
-
+  // Authenticated PDF save — works in EVERY environment:
+  //   • APK (Capacitor WebView): the WebView cannot save files by itself, so
+  //     MainActivity installs a native DownloadListener — clicking the link
+  //     hands the URL to native code, which downloads it and writes it into
+  //     Downloads/SkyHonix/ (a native toast then shows the exact path).
+  //   • Normal browser: the server sends Content-Disposition: attachment, so
+  //     the browser saves the file straight to its Downloads folder.
   async function downloadPdfWithAuth(url, fileName) {
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-    if (!resp.ok) {
+    const check = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+    if (!check.ok) {
       let msg = 'Download failed';
-      try { const j = await resp.json(); if (j.error) msg = j.error; } catch (e) { /* keep default */ }
+      try { const j = await check.json(); if (j.error) msg = j.error; } catch (e) { /* keep default */ }
       throw new Error(msg);
     }
-    const buf = await resp.arrayBuffer(); // single read — consumed below
+    try { if (check.body) check.body.cancel(); } catch (e) { /* ignore */ }
 
-    const isNative = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
-    if (isNative) {
-      // 1) Preferred: write the file directly into the phone's Downloads
-      const sp = window.Capacitor.Plugins && window.Capacitor.Plugins.SaveToDownloads;
-      if (sp && sp.save) {
-        try {
-          const res = await sp.save({ data: arrayBufferToBase64(buf), fileName: fileName || 'document.pdf' });
-          if (res && res.path) return { mode: 'saved', path: res.path };
-        } catch (e) { console.warn('[SAVE_TO_DOWNLOADS]', e.message); /* fall through */ }
-      }
-      // 2) Fallback: tokenized URL in the system browser (attachment header → Downloads)
-      const abs = new URL(url, window.location.origin);
-      abs.searchParams.set('token', token);
-      const target = abs.toString();
-      const bp = window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
-      if (bp && bp.open) {
-        await bp.open({ url: target });
-        return { mode: 'native' };
-      }
-      const a = document.createElement('a');
-      a.href = target;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      return { mode: 'native' };
-    }
+    const abs = new URL(url, window.location.origin);
+    abs.searchParams.set('token', token);
 
-    // Web: blob download built from the SAME buffer (already read once)
-    const blob = new Blob([buf], { type: 'application/pdf' });
-    const dlUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = dlUrl;
-    link.download = fileName || 'document.pdf';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(dlUrl), 8000);
-    return { mode: 'web' };
+    const a = document.createElement('a');
+    a.href = abs.toString();
+    a.download = fileName || 'document.pdf';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return 'started';
   }
 
   // ==========================================
@@ -5374,17 +5335,9 @@ document.addEventListener('DOMContentLoaded', () => {
         title: `Fee Reminder - ${cls || 'All'} - ${year}`
       });
 
-      const dl = await downloadPdfWithAuth(result.file_path, result.file_name);
-      if (dl && dl.mode === 'saved') {
-        statusEl.innerHTML = `PDF saved to ${dl.path}`;
-        showToast(`PDF saved to ${dl.path} — open Files app → Downloads to view it`);
-      } else if (dl && dl.mode === 'native') {
-        statusEl.innerHTML = `PDF ready! Saved as ${result.file_name}`;
-        showToast(`PDF sent to your Downloads folder for ${result.student_count} students — open Files app → Downloads`);
-      } else {
-        statusEl.innerHTML = `PDF ready! Saved as ${result.file_name}`;
-        showToast(`PDF generated for ${result.student_count} students`);
-      }
+      await downloadPdfWithAuth(result.file_path, result.file_name);
+      statusEl.innerHTML = 'PDF is downloading...';
+      showToast(`PDF for ${result.student_count} students is downloading - find it in Files app > Downloads > SkyHonix`);
     } catch (err) {
       statusEl.textContent = 'Failed to generate PDF';
       statusEl.style.color = 'var(--danger)';
@@ -5955,14 +5908,8 @@ document.addEventListener('DOMContentLoaded', () => {
         year: parseInt(year)
       });
 
-      const dl = await downloadPdfWithAuth(result.file_path, result.file_name);
-      if (dl && dl.mode === 'saved') {
-        showToast(`Fee Slip PDF saved to ${dl.path} — open Files app → Downloads to view it`);
-      } else if (dl && dl.mode === 'native') {
-        showToast(`Fee Slip PDF sent to your Downloads folder (${result.student_count} students) — open Files app → Downloads`);
-      } else {
-        showToast(`Fee Slip PDF saved for ${result.student_count} students`);
-      }
+      await downloadPdfWithAuth(result.file_path, result.file_name);
+      showToast(`Fee Slip PDF is downloading - find it in Files app > Downloads > SkyHonix`);
     } catch (err) {
       showToast('Failed to generate PDF: ' + err.message, true);
     } finally {
