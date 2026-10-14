@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v36';
+    const EXPECTED_PAGE_VERSION = 'v37';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -8202,33 +8202,25 @@ document.addEventListener('DOMContentLoaded', () => {
         btnGenerateRollno.disabled = true;
         btnGenerateRollno.textContent = 'Loading...';
 
+        // One parallel batch: slim students (no photo payload) + exam/settings/datesheet/template data
         const class_name_raw = (class_name || '').trim();
-        let students = [];
-        if (!class_name_raw || class_name_raw === 'All Classes') {
-          students = await apiCall('/students');
-        } else {
-          students = await apiCall(`/students?class_name=${encodeURIComponent(class_name_raw)}`);
-        }
-        if (students && !Array.isArray(students)) students = students.data || [];
-        console.log('[ROLLNO_DEBUG] class_name:', class_name_raw, 'students count:', Array.isArray(students) ? students.length : 0, students);
-
-        if (!Array.isArray(students) || students.length === 0) {
-          if (class_name_raw && class_name_raw !== 'All Classes') {
-            console.log('[ROLLNO_DEBUG] Retrying without class filter...');
-            students = await apiCall('/students');
-            if (students && !Array.isArray(students)) students = students.data || [];
-            console.log('[ROLLNO_DEBUG] All students count:', Array.isArray(students) ? students.length : 0);
-          }
-        }
-
-        let settings = {}, activeDatesheet = null, principal_sign = null, templateInstructions = null, templateTerm = '';
-        const [examsRaw, settingsRaw, activeDatesheetRaw, rollnoTemplatesRaw] = await Promise.all([
+        const [students, examsRaw, settingsRaw, activeDatesheetRaw, rollnoTemplatesRaw] = await Promise.all([
+          (async () => {
+            let list = await apiCall('/students?slim=1' + (class_name_raw && class_name_raw !== 'All Classes' ? '&class_name=' + encodeURIComponent(class_name_raw) : ''));
+            if (list && !Array.isArray(list)) list = list.data || [];
+            if ((!list || list.length === 0) && class_name_raw && class_name_raw !== 'All Classes') {
+              list = await apiCall('/students?slim=1');
+              if (list && !Array.isArray(list)) list = list.data || [];
+            }
+            return list || [];
+          })(),
           apiCall('/exams'),
           apiCall('/settings').catch(() => ({})),
           apiCall('/exams/datesheets/active').catch(() => null),
           apiCall('/exams/rollno-templates').catch(() => [])
         ]);
 
+        let settings = {}, activeDatesheet = null, principal_sign = null, templateInstructions = null, templateTerm = '';
         const exam = examsRaw.find(e => e.id == exam_id);
         settings = settingsRaw;
         activeDatesheet = activeDatesheetRaw;
@@ -8291,8 +8283,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 'Dues Must be cleared.'
               ];
           let instHtml = instructions.map(inst => '<li>' + inst.replace(/\.$/, '') + '</li>').join('');
-
-          const studentPhoto = imgSrc(s.photo, '');
 
           // Open a new page div every 2 slips
           if (slipCount % 2 === 0) {

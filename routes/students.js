@@ -122,10 +122,11 @@ function fileToDataUri(file) {
 // GET /students - Search, filter, and list students (with photo)
 router.get('/', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
-  const { class_name, section_name, status, search, page, limit, lite } = req.query;
+  const { class_name, section_name, status, search, page, limit, lite, slim } = req.query;
 
-  const selectCols = lite
-    ? 'id, student_id, admission_no, name, roll_no, class_name, section_name, father_name, phone, status, is_free, discount_amount, discount_percent, transport_fee, family_head_id, dob, admission_date, gender, blood_group, photo'
+  // slim=1: minimal photo-free projection for fast bulk flows (e.g. roll no slip preview)
+  const selectCols = slim
+    ? 'id, name, roll_no, class_name, section_name, father_name'
     : 'id, student_id, admission_no, name, roll_no, class_name, section_name, father_name, phone, status, is_free, discount_amount, discount_percent, transport_fee, family_head_id, dob, admission_date, gender, blood_group, photo';
 
   let query = `SELECT ${selectCols}
