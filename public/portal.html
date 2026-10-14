@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=35" as="script">
+  <link rel="preload" href="js/app.js?v=36" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v35';
+    window.SKYHONIX_PAGE_VERSION = 'v36';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -4031,9 +4031,9 @@
                   <select class="form-control" id="datesheet-gen-template"></select>
                 </div>
                 <button class="btn btn-primary" id="btn-load-datesheet" style="width: 100%; padding: 13px; font-size: 1.02rem; font-weight: 700; letter-spacing: 0.3px; margin-bottom: 12px;">Load Date Sheet</button>
-                <div style="display: flex; gap: 10px;">
-                  <button class="btn btn-success" id="btn-activate-datesheet" style="flex: 1; padding: 11px; font-weight: 600;">Activate Date Sheet</button>
-                  <button class="btn btn-danger" id="btn-delete-datesheet" title="Delete Template" style="padding: 11px 18px;">&#128465;</button>
+                <button class="btn btn-success" id="btn-activate-datesheet" style="width: 100%; padding: 13px; font-size: 1.02rem; font-weight: 700; letter-spacing: 0.3px; margin-bottom: 8px;">Activate Date Sheet</button>
+                <div style="display: flex; justify-content: flex-end;">
+                  <button class="btn btn-danger btn-sm" id="btn-delete-datesheet" title="Delete Template" style="padding: 5px 9px; font-size: 0.8rem; line-height: 1.2;">&#128465;</button>
                 </div>
                 <div id="datesheet-active-badge" style="display: none; margin-top: 12px; padding: 10px 15px; border-radius: 8px; background: var(--success-light); border-left: 4px solid var(--success); font-size: 0.9rem; color: var(--success);">
                 </div>
@@ -4175,7 +4175,10 @@
                     <select class="form-control" id="rollno-gen-exam" required></select>
                   </div>
                   <div class="form-group" style="display: flex; align-items: flex-end;">
-                    <button class="btn btn-primary" id="btn-generate-rollno-slips" style="width: 100%;">Generate Slips</button>
+                    <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                      <button class="btn btn-primary" id="btn-generate-rollno-slips" style="width: 100%;">Generate Slips</button>
+                      <button class="btn btn-primary" id="btn-save-rollno-pdf" style="width: 100%; display: none;">Save as PDF</button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4183,8 +4186,7 @@
                 <div class="card" style="padding: 30px; background: white; color: black;">
                   <div id="rollno-printable-content"></div>
                 </div>
-                <div style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                  <button class="btn btn-primary" id="btn-save-rollno-pdf" style="min-width: 160px;">Save as PDF</button>
+                <div style="text-align: center; margin-top: 20px;">
                   <button class="btn btn-secondary" id="btn-print-rollno">Print Roll No Slips</button>
                 </div>
               </div>
@@ -5023,6 +5025,6 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=35"></script>
+  <script src="js/app.js?v=36"></script>
 </body>
 </html>

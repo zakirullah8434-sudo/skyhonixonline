@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v35';
+    const EXPECTED_PAGE_VERSION = 'v36';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -8194,6 +8194,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      // Save as PDF only appears below Generate Slips once a fresh preview exists
+      const savePdfBtn = document.getElementById('btn-save-rollno-pdf');
+      if (savePdfBtn) savePdfBtn.style.display = 'none';
+
       try {
         btnGenerateRollno.disabled = true;
         btnGenerateRollno.textContent = 'Loading...';
@@ -8374,6 +8378,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('rollno-printable-content').innerHTML = slipsHtml;
         document.getElementById('rollno-preview').style.display = 'block';
+        if (savePdfBtn) savePdfBtn.style.display = 'block';
       } catch (err) {
         console.error('[ROLLNO_ERROR]', err);
         showToast('Error: ' + (err.message || 'Failed to generate slips'), true);

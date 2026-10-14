@@ -1503,11 +1503,10 @@ router.post('/rollno-slips/generate-pdf', authenticateToken, async (req, res) =>
     const MARGIN = 18;
     const GAP = 10;
 
-    // Grid per page: always 2 columns (matches the print layout); rows from template per_page
-    const perPageSetting = Math.min(6, Math.max(2, parseInt(t.per_page, 10) || 2));
+    // Exactly 2 slips per A4 landscape page, side by side — content auto-adjusts to fill each slip box
     const COLS = 2;
-    const ROWS = Math.ceil(perPageSetting / COLS);
-    const PER_PAGE = COLS * ROWS;
+    const ROWS = 1;
+    const PER_PAGE = 2;
     const SLIP_W = (PAGE_W - MARGIN * 2 - GAP) / COLS;
     const SLIP_H = (PAGE_H - MARGIN * 2 - GAP * (ROWS - 1)) / ROWS;
 
@@ -1522,102 +1521,114 @@ router.post('/rollno-slips/generate-pdf', authenticateToken, async (req, res) =>
 
     const drawSlip = (x, y, s) => {
       const w = SLIP_W, h = SLIP_H;
-      // Slip border
       doc.rect(x, y, w, h).lineWidth(1.5).stroke('#000000');
 
-      // School name
-      doc.fill('#000000').font('Helvetica-Bold').fontSize(13)
-        .text(schoolName.toUpperCase(), x + 10, y + 12, { width: w - 20, align: 'center' });
+      const PAD_X = Math.round(w * 0.035);
+
+      // School name (auto size for long names)
+      const nameSize = schoolName.length > 42 ? 11 : (schoolName.length > 28 ? 13 : 15);
+      doc.fill('#000000').font('Helvetica-Bold').fontSize(nameSize)
+        .text(schoolName.toUpperCase(), x + PAD_X, y + 14, { width: w - PAD_X * 2, align: 'center', ellipsis: true, lineBreak: false });
 
       // Logo + ROLL NO SLIP title
-      let titleY = y + 32;
+      const titleY = y + 42;
+      const titleX = x + (logoBuf ? PAD_X + 56 : PAD_X);
+      const titleW = w - (logoBuf ? PAD_X * 2 + 56 : PAD_X * 2);
       if (logoBuf) {
-        try { doc.image(logoBuf, x + 14, titleY, { fit: [36, 36] }); } catch (e) { /* skip bad image */ }
+        try { doc.image(logoBuf, x + PAD_X, titleY - 6, { fit: [46, 46] }); } catch (e) { /* skip bad image */ }
       }
-      doc.font('Helvetica-Bold').fontSize(12)
-        .text('ROLL NO SLIP', x + (logoBuf ? 58 : 10), titleY + 2, { width: w - (logoBuf ? 72 : 20), align: 'center' });
-      doc.font('Helvetica').fontSize(9).fill('#333333')
-        .text(examLabel, x + (logoBuf ? 58 : 10), titleY + 18, { width: w - (logoBuf ? 72 : 20), align: 'center' });
+      doc.fill('#000000').font('Helvetica-Bold').fontSize(15)
+        .text('ROLL NO SLIP', titleX, titleY, { width: titleW, align: 'center', lineBreak: false });
+      doc.font('Helvetica').fontSize(10).fill('#333333')
+        .text(examLabel, titleX, titleY + 21, { width: titleW, align: 'center', ellipsis: true, lineBreak: false });
 
-      // Student info (2-column grid)
-      const infoY = titleY + 42;
-      doc.fill('#000000').font('Helvetica-Bold').fontSize(9);
-      doc.text('Name: ', x + 14, infoY);
-      doc.font('Helvetica').text(s.name || '-', x + 52, infoY, { width: w / 2 - 60 });
-      doc.font('Helvetica-Bold').text('Class: ', x + w / 2 + 6, infoY);
-      doc.font('Helvetica').text((s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : ''), x + w / 2 + 40, infoY, { width: w / 2 - 54 });
-      doc.font('Helvetica-Bold').text('Father Name: ', x + 14, infoY + 15);
-      doc.font('Helvetica').text(s.father_name || '-', x + 72, infoY + 15, { width: w / 2 - 80 });
-      doc.font('Helvetica-Bold').text('Roll No: ', x + w / 2 + 6, infoY + 15);
-      doc.font('Helvetica').text(s.roll_no != null && s.roll_no !== '' ? String(s.roll_no) : '-', x + w / 2 + 44, infoY + 15, { width: w / 2 - 58 });
+      // Student info — 2-column grid
+      const infoY = titleY + 50;
+      const col2 = x + w / 2 + 4;
+      doc.fill('#000000').fontSize(11);
+      doc.font('Helvetica-Bold').text('Name:', x + PAD_X, infoY, { lineBreak: false });
+      doc.font('Helvetica').text(s.name || '-', x + PAD_X + 46, infoY, { width: w / 2 - PAD_X - 54, ellipsis: true, lineBreak: false });
+      doc.font('Helvetica-Bold').text('Class:', col2, infoY, { lineBreak: false });
+      doc.font('Helvetica').text((s.class_name || '-') + (s.section_name ? ' - ' + s.section_name : ''), col2 + 46, infoY, { width: w / 2 - PAD_X - 46, ellipsis: true, lineBreak: false });
+      doc.font('Helvetica-Bold').text('Father Name:', x + PAD_X, infoY + 21, { lineBreak: false });
+      doc.font('Helvetica').text(s.father_name || '-', x + PAD_X + 88, infoY + 21, { width: w / 2 - PAD_X - 96, ellipsis: true, lineBreak: false });
+      doc.font('Helvetica-Bold').text('Roll No:', col2, infoY + 21, { lineBreak: false });
+      doc.font('Helvetica').text(s.roll_no != null && s.roll_no !== '' ? String(s.roll_no) : '-', col2 + 58, infoY + 21, { width: w / 2 - PAD_X - 58, ellipsis: true, lineBreak: false });
 
-      // Exam table from the active date sheet (same filter as the on-screen slips)
+      // Exam table — rows stretch to fill the whole space between info and footer (auto adjust)
       const subjectsForClass = subjectRows.filter(sub => sub.class === 'All Classes' || sub.class === s.class_name);
-      const FOOTER_H = 62;
-      const tableTop = infoY + 36;
+      const FOOTER_H = 76;
+      const tableTop = infoY + 56;
       const tableH = h - (tableTop - y) - FOOTER_H;
-      const TH = 14;
-      const maxDataRows = Math.max(1, Math.floor((tableH - TH) / TH));
-      const colW = [w * 0.07, w * 0.19, w * 0.17, w * 0.33, w * 0.24];
+      const MIN_ROW = 16;
+      const maxRows = Math.floor(tableH / MIN_ROW) - 1;
+      const shownSubjects = subjectsForClass.slice(0, Math.max(maxRows, 1));
+      const nRows = Math.max(shownSubjects.length, 1);
+      let rowH = Math.floor(tableH / (nRows + 1));
+      if (rowH > 46) rowH = 46;
+      if (rowH < MIN_ROW) rowH = MIN_ROW;
+      const tFont = rowH >= 32 ? 11 : (rowH >= 24 ? 9.5 : 8);
+
+      const tableX = x + PAD_X;
+      const tableW = w - PAD_X * 2;
+      const colW = [tableW * 0.07, tableW * 0.19, tableW * 0.17, tableW * 0.33, tableW * 0.24];
       const headers = ['#', 'Date', 'Day', 'Subject', 'Time'];
+
+      const cellText = (text, cx, cy, cw, bold) => {
+        doc.fill('#000000').font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(tFont)
+          .text(String(text), cx + 4, cy + rowH / 2 - tFont / 2 - 1, { width: cw - 8, align: 'center', ellipsis: true, lineBreak: false });
+      };
 
       let ty = tableTop;
       // Header row
-      doc.rect(x + 8, ty, w - 16, TH).fillAndStroke('#f0f0f0', '#000000');
-      let tx = x + 8;
-      doc.fill('#000000').font('Helvetica-Bold').fontSize(8);
+      doc.rect(tableX, ty, tableW, rowH).fillAndStroke('#f0f0f0', '#000000');
+      let tx = tableX;
       headers.forEach((hd, ci) => {
-        doc.text(hd, tx + 2, ty + 3, { width: colW[ci] - 4, align: 'center', lineBreak: false });
+        cellText(hd, tx, ty, colW[ci], true);
         tx += colW[ci];
       });
-      ty += TH;
+      ty += rowH;
 
-      const cellText = (text, cx, cy, cw, bold) => {
-        doc.fill('#000000').font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(8)
-          .text(String(text), cx + 2, cy + 3, { width: cw - 4, align: 'center', ellipsis: true, lineBreak: false });
-      };
-
-      if (subjectsForClass.length === 0) {
-        doc.rect(x + 8, ty, w - 16, TH).fillAndStroke('#ffffff', '#000000');
-        cellText('No datesheet available', x + 8, ty, w - 16, false);
+      if (shownSubjects.length === 0) {
+        doc.rect(tableX, ty, tableW, rowH).fillAndStroke('#ffffff', '#000000');
+        cellText('No datesheet available', tableX, ty, tableW, false);
       } else {
-        subjectsForClass.slice(0, maxDataRows).forEach((sub, i) => {
+        shownSubjects.forEach((sub, i) => {
           const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
-          doc.rect(x + 8, ty, w - 16, TH).fillAndStroke(bg, '#000000');
-          let cx = x + 8;
+          doc.rect(tableX, ty, tableW, rowH).fillAndStroke(bg, '#000000');
+          let cx = tableX;
           cellText(i + 1, cx, ty, colW[0], false); cx += colW[0];
           cellText(fmtDate(sub.date || ''), cx, ty, colW[1], false); cx += colW[1];
           cellText(fmtDay(sub.date || ''), cx, ty, colW[2], false); cx += colW[2];
           cellText(sub.subject || '-', cx, ty, colW[3], false); cx += colW[3];
           cellText(sub.time || '-', cx, ty, colW[4], false);
-          ty += TH;
+          ty += rowH;
         });
       }
 
-      // Footer: instructions (left) + principal signature (right)
-      const footY = y + h - FOOTER_H + 6;
-      doc.fill('#000000').font('Helvetica-Bold').fontSize(8)
-        .text('Instructions:', x + 12, footY);
-      doc.font('Helvetica').fontSize(7.5).fill('#333333');
+      // Footer: instructions (left) + principal signature (right), pinned to slip bottom
+      const footY = y + h - FOOTER_H + 8;
+      doc.fill('#000000').font('Helvetica-Bold').fontSize(10)
+        .text('Instructions:', x + PAD_X, footY, { lineBreak: false });
+      doc.font('Helvetica').fontSize(9).fill('#333333');
       instructions.slice(0, 4).forEach((inst, i) => {
-        doc.text('• ' + inst, x + 12, footY + 12 + i * 10, { width: w * 0.55 });
+        doc.text('• ' + inst, x + PAD_X, footY + 16 + i * 12, { width: w * 0.55 });
       });
-      const signX = x + w - 12;
+      const signRight = x + w - PAD_X;
       if (signBuf) {
-        try { doc.image(signBuf, signX - 90, footY, { fit: [80, 28] }); } catch (e) { /* skip bad image */ }
+        try { doc.image(signBuf, signRight - 110, footY, { fit: [100, 32] }); } catch (e) { /* skip bad image */ }
       }
-      doc.moveTo(signX - 110, y + h - 18).lineTo(signX, y + h - 18).lineWidth(0.8).stroke('#000000');
-      doc.fill('#000000').font('Helvetica').fontSize(7.5)
-        .text('Principal Signature', signX - 110, y + h - 15, { width: 110, align: 'center' });
+      doc.moveTo(signRight - 170, y + h - 28).lineTo(signRight, y + h - 28).lineWidth(0.8).stroke('#000000');
+      doc.fill('#000000').font('Helvetica').fontSize(9)
+        .text('Principal Signature', signRight - 170, y + h - 24, { width: 170, align: 'center', lineBreak: false });
     };
 
     students.forEach((s, idx) => {
       const slot = idx % PER_PAGE;
       if (slot === 0 && idx > 0) doc.addPage();
-      const row = Math.floor(slot / COLS);
       const col = slot % COLS;
       const x = MARGIN + col * (SLIP_W + GAP);
-      const y = MARGIN + row * (SLIP_H + GAP);
+      const y = MARGIN;
       drawSlip(x, y, s);
     });
 
