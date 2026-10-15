@@ -647,7 +647,7 @@ router.get('/dmc/:studentId', authenticateToken, async (req, res) => {
 
 // Build DMC payloads for ALL students in a class (shared by the GET route and the PDF generator)
 async function buildClassDmcs(schoolId, className, exam_id, term, section_name) {
-    let studentsQuery = "SELECT id, student_id, name, roll_no, father_name, class_name, section_name, phone, dob, gender FROM students WHERE class_name = ? AND (status IS NULL OR status != 'Left')";
+    let studentsQuery = "SELECT id, student_id, name, photo, roll_no, father_name, class_name, section_name, phone, dob, gender FROM students WHERE class_name = ? AND (status IS NULL OR status != 'Left')";
     const params = [className];
     if (section_name && section_name !== 'All Sections') {
       studentsQuery += " AND section_name = ?";
@@ -1815,19 +1815,19 @@ router.post('/dmc/generate-pdf', authenticateToken, async (req, res) => {
     const PH = doc.page.height;          // 842
     const year = new Date().getFullYear();
 
-    const FOOT_Y = PH - M - 40;
+    // Keep the top and bottom 15% of every page blank (printer registration band)
+    const BAND = Math.round(PH * 0.15);
+    const FOOT_Y = PH - BAND - 36;
     const SIG_Y = FOOT_Y - 55;
-    const STRIP_BOTTOM = SIG_Y - 24;
     const STRIP_H = 40;
-    const STRIP_Y = STRIP_BOTTOM - STRIP_H;
-    const TABLE_BOTTOM = STRIP_Y - 18;
+    const TABLE_BOTTOM = SIG_Y - 24 - STRIP_H - 18;
 
     const drawDmc = (entry) => {
       const s = entry.student || {};
       const sum = entry.summary || {};
       const details = entry.reportDetails || [];
 
-      let y = M;
+      let y = BAND;
 
       // Logo (centered, max 70x70)
       const logoBuf = imageBuffer(settings ? settings.logo_path : null);
@@ -1836,7 +1836,7 @@ router.post('/dmc/generate-pdf', authenticateToken, async (req, res) => {
           doc.image(logoBuf, M + (CW - 70) / 2, y, { width: 70, height: 70 });
         } catch (e) { /* unsupported image format */ }
       }
-      y = 116;
+      y = BAND + 76;
 
       // School name (uppercase, shrink to fit one line)
       const nameFont = String(schoolName).length > 45 ? 13 : (String(schoolName).length > 30 ? 15 : 17);
@@ -1894,17 +1894,31 @@ router.post('/dmc/generate-pdf', authenticateToken, async (req, res) => {
       const tableTop = photoY + 100 + 18;
 
       // Marks table (adaptive row height keeps the footer on the same page)
-      const colRatios = [0.06, 0.42, 0.15, 0.15, 0.22];
-      const colW = colRatios.map(r => CW * r);
+      const headers = ['No', 'Subject', 'Total Marks', 'Obtained Marks', 'Remarks'];
+      const headerH = 22;
+      const rows = details.map((d, i) => [String(i + 1), d.subject || '-', String(d.max_marks != null ? d.max_marks : '-'), String(d.obtained_marks != null ? d.obtained_marks : '-'), d.status || '']);
+      const nRows = Math.max(rows.length, 1);
+      const rowH = Math.min(24, Math.max(8, Math.floor((TABLE_BOTTOM - tableTop - headerH) / (nRows + 1))));
+      const tFont = rowH >= 20 ? 9.5 : (rowH >= 17 ? 8.5 : 7.5);
+
+      // Auto-size columns from the actual content instead of fixed ratios
+      const pad = 10;
+      const colMin = [26, 80, 62, 74, 62];
+      const totalRowVals = ['Total', '', String(sum.total != null ? sum.total : '-'), String(sum.obtained != null ? sum.obtained : '-'), String(sum.remarks || '')];
+      let colW = headers.map((hd, ci) => {
+        doc.font('Helvetica-Bold').fontSize(9);
+        let w = doc.widthOfString(String(hd));
+        doc.font('Helvetica').fontSize(tFont);
+        [...rows, totalRowVals].forEach(r => { w = Math.max(w, doc.widthOfString(String(r[ci]))); });
+        return Math.max(w + pad, colMin[ci]);
+      });
+      const sumW = colW.reduce((a, b) => a + b, 0);
+      if (sumW < CW) colW[1] += CW - sumW;                  // spare width goes to Subject
+      else if (sumW > CW) colW = colW.map(w => w * (CW / sumW));
+      colW[colW.length - 1] += CW - colW.reduce((a, b) => a + b, 0);  // exact total
       const colX = [];
       let acc = M;
       colW.forEach(w => { colX.push(acc); acc += w; });
-      const headers = ['No', 'Subject', 'Total Marks', 'Obtained Marks', 'Remarks'];
-      const headerH = 22;
-      const rows = details.map((d, i) => [String(i + 1), d.subject || '-', String(d.max_marks != null ? d.max_marks : '-'), String(d.marks != null ? d.marks : '-'), '']);
-      const nRows = Math.max(rows.length, 1);
-      const rowH = Math.min(24, Math.max(11, Math.floor((TABLE_BOTTOM - tableTop - headerH) / (nRows + 1))));
-      const tFont = rowH >= 20 ? 9.5 : (rowH >= 17 ? 8.5 : 7.5);
 
       const cell = (cx, cy, cw, ch, label, opts) => {
         opts = opts || {};
@@ -1949,13 +1963,15 @@ router.post('/dmc/generate-pdf', authenticateToken, async (req, res) => {
       cell(M, ty, totalRowW, rowH, 'Total', { bold: true });
       cell(colX[2], ty, colW[2], rowH, String(sum.total != null ? sum.total : '-'), { align: 'center', bold: true });
       cell(colX[3], ty, colW[3], rowH, String(sum.obtained != null ? sum.obtained : '-'), { align: 'center', bold: true });
-      cell(colX[4], ty, colW[4], rowH, '', {});
+      cell(colX[4], ty, colW[4], rowH, String(sum.remarks || ''), { bold: true });
 
-      // Percentage / Grade / Position strip
+      // Percentage / Grade / Position strip (attached to the table, no fixed gap)
+      const stripY = ty + 14;
+      const stripBottom = stripY + STRIP_H;
       const segW = CW / 3;
-      doc.rect(M, STRIP_Y, CW, STRIP_H).fillAndStroke('#f9f9f9', '#111111');
+      doc.rect(M, stripY, CW, STRIP_H).fillAndStroke('#f9f9f9', '#111111');
       for (let i = 1; i < 3; i++) {
-        doc.moveTo(M + segW * i, STRIP_Y).lineTo(M + segW * i, STRIP_BOTTOM).lineWidth(0.5).stroke('#111111');
+        doc.moveTo(M + segW * i, stripY).lineTo(M + segW * i, stripBottom).lineWidth(0.5).stroke('#111111');
       }
       const strip = [
         ['Percentage:', sum.percentage != null ? sum.percentage + '%' : '-'],
@@ -1965,8 +1981,8 @@ router.post('/dmc/generate-pdf', authenticateToken, async (req, res) => {
       strip.forEach(([label, value], i) => {
         const sx = M + segW * i;
         doc.font('Helvetica-Bold').fontSize(9).fillColor('#000000')
-          .text(label, sx, STRIP_Y + 8, { width: segW, align: 'center', lineBreak: false });
-        doc.fontSize(13).text(String(value), sx, STRIP_Y + 21, { width: segW, align: 'center', lineBreak: false, ellipsis: true });
+          .text(label, sx, stripY + 8, { width: segW, align: 'center', lineBreak: false });
+        doc.fontSize(13).text(String(value), sx, stripY + 21, { width: segW, align: 'center', lineBreak: false, ellipsis: true });
       });
 
       // Signature block

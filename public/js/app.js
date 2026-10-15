@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v38';
+    const EXPECTED_PAGE_VERSION = 'v39';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -6744,6 +6744,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loadRollnoDesignData();
     } else if (opt === 'exam-resultcard') {
       loadDmcClassFilter();
+      loadDmcStudents();
     }
   }
 
@@ -7102,8 +7103,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('dmc-filter-class').addEventListener('change', async function() {
     const cls = this.value;
     const secSel = document.getElementById('dmc-filter-section');
+    activeStudentDmcId = null;
     if (!cls) {
       secSel.innerHTML = '<option value="">-- All Sections --</option>';
+      loadDmcStudents();
       return;
     }
     try {
@@ -7111,11 +7114,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const opts = ['<option value="">-- All Sections --</option>'];
       sections.forEach(s => { opts.push(`<option value="${s.section_name}">${s.section_name}</option>`); });
       secSel.innerHTML = opts.join('');
+      loadDmcStudents();
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
-  // Load students button
-  document.getElementById('btn-dmc-load-students').addEventListener('click', () => loadDmcStudents());
+  // Section change also reloads the student list
+  document.getElementById('dmc-filter-section').addEventListener('change', () => {
+    activeStudentDmcId = null;
+    loadDmcStudents();
+  });
 
   async function loadDmcStudents() {
     const cls = document.getElementById('dmc-filter-class').value;
@@ -7241,9 +7248,9 @@ document.addEventListener('DOMContentLoaded', () => {
               <tr style="background: #f0f0f0;">
                 <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 6%;">No</th>
                 <th style="border: 1px solid #111; padding: 8px 10px; text-align: left;">Subject</th>
-                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 15%;">Total Marks</th>
-                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 15%;">Obtained Marks</th>
-                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 22%;">Remarks</th>
+                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center;">Total Marks</th>
+                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center;">Obtained Marks</th>
+                <th style="border: 1px solid #111; padding: 8px 10px; text-align: center;">Remarks</th>
               </tr>
             </thead>
             <tbody>
@@ -7252,13 +7259,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="border: 1px solid #111; padding: 8px 10px;">${r.subject}</td>
                 <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.max_marks}</td>
                 <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.obtained_marks}</td>
-                <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;"></td>
+                <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.status || '-'}</td>
               </tr>`).join('')}
               <tr style="font-weight: 700; background: #f9f9f9;">
                 <td style="border: 1px solid #111; padding: 8px 10px;" colspan="2">Total</td>
                 <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${totalMax}</td>
                 <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${totalObt}</td>
-                <td style="border: 1px solid #111; padding: 8px 10px;"></td>
+                <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${sum.remarks || '-'}</td>
               </tr>
             </tbody>
           </table>
@@ -7353,9 +7360,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <tr style="background: #f0f0f0;">
                   <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 6%;">No</th>
                   <th style="border: 1px solid #111; padding: 8px 10px; text-align: left;">Subject</th>
-                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 15%;">Total Marks</th>
-                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 15%;">Obtained Marks</th>
-                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 22%;">Remarks</th>
+                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center;">Total Marks</th>
+                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center;">Obtained Marks</th>
+                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center;">Remarks</th>
                 </tr>
               </thead>
               <tbody>
@@ -7364,13 +7371,13 @@ document.addEventListener('DOMContentLoaded', () => {
                   <td style="border: 1px solid #111; padding: 8px 10px;">${r.subject}</td>
                   <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.max_marks}</td>
                   <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.obtained_marks}</td>
-                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;"></td>
+                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.status || '-'}</td>
                 </tr>`).join('')}
                 <tr style="font-weight: 700; background: #f9f9f9;">
                   <td style="border: 1px solid #111; padding: 8px 10px;" colspan="2">Total</td>
                   <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${totalMax}</td>
                   <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${totalObt}</td>
-                  <td style="border: 1px solid #111; padding: 8px 10px;"></td>
+                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${sum.remarks || '-'}</td>
                 </tr>
               </tbody>
             </table>
