@@ -524,20 +524,11 @@ router.get('/results/comparison', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /exams/dmc - Fetch DMC detailed card for a single student
-router.get('/dmc/:studentId', authenticateToken, async (req, res) => {
-  const schoolId = req.user.schoolId;
-  const studentId = parseInt(req.params.studentId);
-  const { exam_id, term } = req.query;
-
-  if (!exam_id || !term) {
-    return res.status(400).json({ error: 'exam_id and term are required' });
-  }
-
-  try {
+// Build one student's DMC payload (shared by the GET route and the PDF generator)
+async function buildSingleDmc(schoolId, studentId, exam_id, term) {
     // 1. Get student profile details
     const student = await querySchoolOne(schoolId, 'SELECT * FROM students WHERE id = ?', [studentId]);
-    if (!student) return res.status(404).json({ error: 'Student not found' });
+    if (!student) { const e = new Error('Student not found'); e.status = 404; throw e; }
 
     // 2. Get list of subjects (try exam_subjects first, fallback to timetable)
     let subjects = await querySchool(
@@ -634,24 +625,28 @@ router.get('/dmc/:studentId', authenticateToken, async (req, res) => {
       remarks: savedResult ? savedResult.remarks : (percentage >= 33 ? 'Pass' : 'Fail')
     };
 
-    res.json({ student, summary, reportDetails });
+  return { student, summary, reportDetails };
+}
 
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET /exams/dmc/class/:className - Get DMC data for ALL students in a class
-router.get('/dmc/class/:className', authenticateToken, async (req, res) => {
+// GET /exams/dmc - Fetch DMC detailed card for a single student
+router.get('/dmc/:studentId', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
-  const className = req.params.className;
-  const { exam_id, term, section_name } = req.query;
+  const studentId = parseInt(req.params.studentId);
+  const { exam_id, term } = req.query;
 
   if (!exam_id || !term) {
     return res.status(400).json({ error: 'exam_id and term are required' });
   }
 
   try {
+    res.json(await buildSingleDmc(schoolId, studentId, exam_id, term));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// Build DMC payloads for ALL students in a class (shared by the GET route and the PDF generator)
+async function buildClassDmcs(schoolId, className, exam_id, term, section_name) {
     let studentsQuery = "SELECT id, student_id, name, roll_no, father_name, class_name, section_name, phone, dob, gender FROM students WHERE class_name = ? AND (status IS NULL OR status != 'Left')";
     const params = [className];
     if (section_name && section_name !== 'All Sections') {
@@ -660,6 +655,7 @@ router.get('/dmc/class/:className', authenticateToken, async (req, res) => {
     }
     studentsQuery += " ORDER BY CAST(roll_no AS INTEGER), name";
     const students = await querySchool(schoolId, studentsQuery, params);
+    if (students.length === 0) return [];
 
     // Get subjects for this class (from timetable as fallback)
     let subjects = await querySchool(
@@ -753,9 +749,23 @@ router.get('/dmc/class/:className', authenticateToken, async (req, res) => {
       });
     }
 
-    res.json(results);
+  return results;
+}
+
+// GET /exams/dmc/class/:className - Get DMC data for ALL students in a class
+router.get('/dmc/class/:className', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const className = req.params.className;
+  const { exam_id, term, section_name } = req.query;
+
+  if (!exam_id || !term) {
+    return res.status(400).json({ error: 'exam_id and term are required' });
+  }
+
+  try {
+    res.json(await buildClassDmcs(schoolId, className, exam_id, term, section_name));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -1706,6 +1716,316 @@ router.get('/rollno-slips/download/:filename', pdfDownloadAuth, async (req, res)
   }
 
   const filePath = path.join(pdfStorageDir('rollno'), filename);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  res.download(filePath, filename);
+});
+
+// ==========================================
+// DMC PDF GENERATOR (server-side; window.print() is unsupported in the APK WebView)
+// ==========================================
+router.post('/dmc/generate-pdf', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { exam_id, term, student_id, class_name, section_name } = req.body || {};
+
+  if (!exam_id || !term) {
+    return res.status(400).json({ error: 'exam_id and term are required' });
+  }
+  if (!!student_id === !!class_name) {
+    return res.status(400).json({ error: 'Provide exactly one of student_id or class_name' });
+  }
+
+  try {
+    const entries = [];
+    if (student_id) {
+      entries.push(await buildSingleDmc(schoolId, parseInt(student_id), parseInt(exam_id), term));
+    } else {
+      const list = await buildClassDmcs(schoolId, class_name, parseInt(exam_id), term, section_name);
+      if (list.length === 0) {
+        return res.status(400).json({ error: 'No students found for the selected class/section' });
+      }
+      entries.push(...list);
+    }
+
+    const settings = await querySchoolOne(schoolId, 'SELECT * FROM fee_settings LIMIT 1');
+    const schoolName = settings ? settings.school_name : 'School Name';
+
+    // Cache decoded image refs per request (logo repeats for every card; photos dedupe by value)
+    const imgCache = new Map();
+    function imageBuffer(value) {
+      if (!value || typeof value !== 'string') return null;
+      if (imgCache.has(value)) return imgCache.get(value);
+      let buf = null;
+      try {
+        if (value.startsWith('data:')) {
+          const i = value.indexOf('base64,');
+          if (i >= 0) buf = Buffer.from(value.slice(i + 7), 'base64');
+        } else {
+          const clean = value.replace(/^\/+/, '');
+          if (!clean.includes('..')) {
+            const full = path.join(__dirname, '..', 'public', clean);
+            if (fs.existsSync(full)) buf = fs.readFileSync(full);
+          }
+        }
+      } catch (e) { /* unreadable or unsupported image */ }
+      imgCache.set(value, buf);
+      return buf;
+    }
+
+    function getImageSize(buf) {
+      try {
+        if (buf.length > 24 && buf[0] === 0x89 && buf[1] === 0x50) {
+          return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+        }
+        if (buf.length > 4 && buf[0] === 0xff && buf[1] === 0xd8) {
+          let i = 2;
+          while (i + 9 < buf.length) {
+            if (buf[i] !== 0xff) { i++; continue; }
+            const marker = buf[i + 1];
+            if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+              return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+            }
+            const segLen = buf.readUInt16BE(i + 2);
+            i += (segLen >= 2 ? segLen : 2);
+          }
+        }
+      } catch (e) { /* unknown format */ }
+      return null;
+    }
+
+    const PDFDocument = require('pdfkit');
+    const uploadsDir = pdfStorageDir('dmc');
+    const fileName = `dmc_${Date.now()}.pdf`;
+    const filePath = path.join(uploadsDir, fileName);
+
+    const doc = new PDFDocument({ size: 'A4', bufferPages: true, compress: false });
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
+
+    // Zero margins: pdfkit auto-adds phantom pages when text nears the default 72pt bottom margin
+    const zeroMargins = () => { doc.page.margins = { top: 0, bottom: 0, left: 0, right: 0 }; };
+    doc.on('pageAdded', zeroMargins);
+    zeroMargins();
+
+    const M = 40;
+    const CW = doc.page.width - M * 2;   // 515 on A4 portrait (595 wide)
+    const PH = doc.page.height;          // 842
+    const year = new Date().getFullYear();
+
+    const FOOT_Y = PH - M - 40;
+    const SIG_Y = FOOT_Y - 55;
+    const STRIP_BOTTOM = SIG_Y - 24;
+    const STRIP_H = 40;
+    const STRIP_Y = STRIP_BOTTOM - STRIP_H;
+    const TABLE_BOTTOM = STRIP_Y - 18;
+
+    const drawDmc = (entry) => {
+      const s = entry.student || {};
+      const sum = entry.summary || {};
+      const details = entry.reportDetails || [];
+
+      let y = M;
+
+      // Logo (centered, max 70x70)
+      const logoBuf = imageBuffer(settings ? settings.logo_path : null);
+      if (logoBuf) {
+        try {
+          doc.image(logoBuf, M + (CW - 70) / 2, y, { width: 70, height: 70 });
+        } catch (e) { /* unsupported image format */ }
+      }
+      y = 116;
+
+      // School name (uppercase, shrink to fit one line)
+      const nameFont = String(schoolName).length > 45 ? 13 : (String(schoolName).length > 30 ? 15 : 17);
+      doc.font('Helvetica-Bold').fontSize(nameFont).fillColor('#000000')
+        .text(String(schoolName).toUpperCase(), M, y, { width: CW, align: 'center', lineBreak: false, ellipsis: true });
+      y += nameFont + 6;
+
+      doc.fontSize(12).text('DETAILED MARKS CERTIFICATE', M, y, { width: CW, align: 'center', lineBreak: false });
+      y += 18;
+      doc.font('Helvetica').fontSize(10).fillColor('#333333')
+        .text(`${term} Examination ${year}`, M, y, { width: CW, align: 'center', lineBreak: false, ellipsis: true });
+      y += 22;
+
+      // Info block (left) + photo box (right)
+      const infoTop = y;
+      const photoX = M + CW - 80;
+      const photoY = infoTop;
+      const infoW = CW - 80 - 24;
+      const infoLines = [
+        ['Name:', s.name || '-'],
+        ['Father Name:', s.father_name || '-'],
+        ['Roll No:', String(s.roll_no || s.id || '-')],
+        ['Class:', `${s.class_name || '-'} - ${s.section_name || '-'}`]
+      ];
+      infoLines.forEach(([label, value], i) => {
+        const yy = infoTop + i * 22;
+        doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000').text(label, M, yy, { lineBreak: false });
+        const lw = doc.widthOfString(label) + 6;
+        doc.font('Helvetica').text(String(value), M + lw, yy, { width: infoW - lw, ellipsis: true, lineBreak: false });
+      });
+
+      // Photo (cover-crop into an 80x100 box)
+      doc.rect(photoX, photoY, 80, 100).lineWidth(1).stroke('#cccccc');
+      let photoDrawn = false;
+      const photoBuf = imageBuffer(s.photo);
+      if (photoBuf) {
+        try {
+          const dim = getImageSize(photoBuf);
+          if (dim && dim.w && dim.h) {
+            const scale = Math.max(80 / dim.w, 100 / dim.h);
+            const dw = dim.w * scale, dh = dim.h * scale;
+            doc.save();
+            doc.rect(photoX, photoY, 80, 100).clip();
+            doc.image(photoBuf, photoX - (dw - 80) / 2, photoY - (dh - 100) / 2, { width: dw, height: dh });
+            doc.restore();
+            photoDrawn = true;
+          }
+        } catch (e) { photoDrawn = false; }
+      }
+      if (!photoDrawn) {
+        doc.font('Helvetica').fontSize(7.5).fillColor('#888888')
+          .text('No Photo', photoX, photoY + 46, { width: 80, align: 'center', lineBreak: false });
+      }
+
+      const tableTop = photoY + 100 + 18;
+
+      // Marks table (adaptive row height keeps the footer on the same page)
+      const colRatios = [0.06, 0.42, 0.15, 0.15, 0.22];
+      const colW = colRatios.map(r => CW * r);
+      const colX = [];
+      let acc = M;
+      colW.forEach(w => { colX.push(acc); acc += w; });
+      const headers = ['No', 'Subject', 'Total Marks', 'Obtained Marks', 'Remarks'];
+      const headerH = 22;
+      const rows = details.map((d, i) => [String(i + 1), d.subject || '-', String(d.max_marks != null ? d.max_marks : '-'), String(d.marks != null ? d.marks : '-'), '']);
+      const nRows = Math.max(rows.length, 1);
+      const rowH = Math.min(24, Math.max(11, Math.floor((TABLE_BOTTOM - tableTop - headerH) / (nRows + 1))));
+      const tFont = rowH >= 20 ? 9.5 : (rowH >= 17 ? 8.5 : 7.5);
+
+      const cell = (cx, cy, cw, ch, label, opts) => {
+        opts = opts || {};
+        let fs = opts.font || tFont;
+        doc.font(opts.bold ? 'Helvetica-Bold' : 'Helvetica');
+        doc.fontSize(fs);
+        while (fs > 6 && doc.widthOfString(String(label)) > cw - 8) {
+          fs -= 0.5;
+          doc.fontSize(fs);
+        }
+        doc.fillColor(opts.color || '#000000')
+          .text(String(label), cx + 4, cy + ch / 2 - fs * 0.65, { width: cw - 8, align: opts.align || 'left', ellipsis: true, lineBreak: false });
+      };
+
+      doc.rect(M, tableTop, CW, headerH).fillAndStroke('#f0f0f0', '#111111');
+      headers.forEach((hd, ci) => {
+        if (ci > 0) doc.moveTo(colX[ci], tableTop).lineTo(colX[ci], tableTop + headerH).lineWidth(0.5).stroke('#111111');
+        cell(colX[ci], tableTop, colW[ci], headerH, hd, { bold: true, align: ci >= 2 ? 'center' : 'left', font: 9 });
+      });
+
+      let ty = tableTop + headerH;
+      if (rows.length === 0) {
+        doc.rect(M, ty, CW, rowH).fillAndStroke('#ffffff', '#111111');
+        cell(M, ty, CW, rowH, 'No marks recorded', { align: 'center' });
+        ty += rowH;
+      } else {
+        rows.forEach((r, ri) => {
+          doc.rect(M, ty, CW, rowH).fillAndStroke(ri % 2 === 0 ? '#ffffff' : '#f9f9f9', '#111111');
+          r.forEach((val, ci) => {
+            if (ci > 0) doc.moveTo(colX[ci], ty).lineTo(colX[ci], ty + rowH).lineWidth(0.5).stroke('#111111');
+            cell(colX[ci], ty, colW[ci], rowH, val, { align: ci >= 2 ? 'center' : 'left' });
+          });
+          ty += rowH;
+        });
+      }
+
+      // Total row (first two columns merged like the on-screen DMC)
+      const totalRowW = colW[0] + colW[1];
+      doc.rect(M, ty, CW, rowH).fillAndStroke('#f9f9f9', '#111111');
+      doc.moveTo(M + totalRowW, ty).lineTo(M + totalRowW, ty + rowH).lineWidth(0.5).stroke('#111111');
+      doc.moveTo(colX[3], ty).lineTo(colX[3], ty + rowH).lineWidth(0.5).stroke('#111111');
+      cell(M, ty, totalRowW, rowH, 'Total', { bold: true });
+      cell(colX[2], ty, colW[2], rowH, String(sum.total != null ? sum.total : '-'), { align: 'center', bold: true });
+      cell(colX[3], ty, colW[3], rowH, String(sum.obtained != null ? sum.obtained : '-'), { align: 'center', bold: true });
+      cell(colX[4], ty, colW[4], rowH, '', {});
+
+      // Percentage / Grade / Position strip
+      const segW = CW / 3;
+      doc.rect(M, STRIP_Y, CW, STRIP_H).fillAndStroke('#f9f9f9', '#111111');
+      for (let i = 1; i < 3; i++) {
+        doc.moveTo(M + segW * i, STRIP_Y).lineTo(M + segW * i, STRIP_BOTTOM).lineWidth(0.5).stroke('#111111');
+      }
+      const strip = [
+        ['Percentage:', sum.percentage != null ? sum.percentage + '%' : '-'],
+        ['Grade:', sum.grade || '-'],
+        ['Position:', sum.position || '-']
+      ];
+      strip.forEach(([label, value], i) => {
+        const sx = M + segW * i;
+        doc.font('Helvetica-Bold').fontSize(9).fillColor('#000000')
+          .text(label, sx, STRIP_Y + 8, { width: segW, align: 'center', lineBreak: false });
+        doc.fontSize(13).text(String(value), sx, STRIP_Y + 21, { width: segW, align: 'center', lineBreak: false, ellipsis: true });
+      });
+
+      // Signature block
+      doc.font('Helvetica').fontSize(8.5).fillColor('#000000');
+      doc.text('Signatures of:', M, SIG_Y, { width: CW, align: 'center', lineBreak: false });
+      doc.text('Principal Sign: _______________', M, SIG_Y + 13, { width: CW, align: 'right', lineBreak: false });
+      const lineY = SIG_Y + 30;
+      const sigCenters = [M + CW * 0.165, M + CW * 0.5, M + CW * 0.835];
+      const sigCaps = ['Teacher incharge', 'Parent', 'Principal'];
+      sigCenters.forEach((cx) => {
+        doc.moveTo(cx - 75, lineY).lineTo(cx + 75, lineY).lineWidth(0.8).stroke('#000000');
+      });
+      doc.fontSize(8);
+      sigCaps.forEach((cap, i) => {
+        doc.text(cap, sigCenters[i] - 75, lineY + 5, { width: 150, align: 'center', lineBreak: false });
+      });
+
+      // Footer
+      doc.moveTo(M, FOOT_Y - 6).lineTo(M + CW, FOOT_Y - 6).lineWidth(0.5).stroke('#cccccc');
+      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      doc.font('Helvetica').fontSize(8).fillColor('#555555');
+      doc.text(`Result Declaration Date: ${today}`, M, FOOT_Y, { width: CW, align: 'center', lineBreak: false });
+      doc.text('Note: Error and omission can be accepted within three days. This result is computer generated by SkyHonix Digital.', M, FOOT_Y + 12, { width: CW, align: 'center', lineBreak: false, ellipsis: true });
+      doc.text(`Contact: ${(settings && settings.phone) || 'N/A'}`, M, FOOT_Y + 24, { width: CW, align: 'center', lineBreak: false, ellipsis: true });
+    };
+
+    entries.forEach((entry, i) => {
+      if (i > 0) doc.addPage();
+      drawDmc(entry);
+    });
+    doc.end();
+
+    stream.on('finish', () => {
+      res.json({
+        message: 'DMC PDF generated successfully',
+        file_name: fileName,
+        file_path: `/api/exams/dmc/download/${fileName}`,
+        student_count: entries.length
+      });
+    });
+
+    stream.on('error', (err) => {
+      res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
+    });
+
+  } catch (err) {
+    console.error('DMC PDF generation error:', err);
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// GET /exams/dmc/download/:filename - Download generated DMC PDF
+router.get('/dmc/download/:filename', pdfDownloadAuth, async (req, res) => {
+  const { filename } = req.params;
+  if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
+
+  const filePath = path.join(pdfStorageDir('dmc'), filename);
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });

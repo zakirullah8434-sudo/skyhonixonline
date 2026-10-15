@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v37';
+    const EXPECTED_PAGE_VERSION = 'v38';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -6742,6 +6742,8 @@ document.addEventListener('DOMContentLoaded', () => {
       loadDatesheetDesignData();
     } else if (opt === 'exam-rollno') {
       loadRollnoDesignData();
+    } else if (opt === 'exam-resultcard') {
+      loadDmcClassFilter();
     }
   }
 
@@ -7300,6 +7302,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('dmc-printable-sheet').innerHTML = html;
       document.getElementById('dmc-printable-sheet').style.display = 'block';
       document.getElementById('btn-print-dmc').style.display = 'block';
+      document.getElementById('btn-dmc-pdf').style.display = 'block';
     });
   }
 
@@ -7412,6 +7415,7 @@ document.addEventListener('DOMContentLoaded', () => {
       container.innerHTML = html;
       container.style.display = 'block';
       document.getElementById('btn-print-dmc').style.display = 'block';
+      document.getElementById('btn-dmc-pdf').style.display = 'block';
       showToast(`${allDmcs.length} result card(s) loaded`);
     });
   }
@@ -7426,6 +7430,38 @@ document.addEventListener('DOMContentLoaded', () => {
     printWindow.focus();
     printWindow.print();
     printWindow.close();
+  });
+
+  // Save DMC(s) as PDF via server-side generator (window.print() is unsupported in the APK WebView)
+  document.getElementById('btn-dmc-pdf').addEventListener('click', async () => {
+    const exam_id = document.getElementById('dmc-select-exam').value;
+    const term = document.getElementById('dmc-select-term').value;
+    const cls = document.getElementById('dmc-filter-class').value;
+    const sec = document.getElementById('dmc-filter-section').value;
+
+    if (!exam_id || !term) {
+      showToast('Select exam and term first', true);
+      return;
+    }
+
+    const payload = { exam_id: parseInt(exam_id), term };
+    if (activeStudentDmcId) {
+      payload.student_id = activeStudentDmcId;
+    } else if (cls) {
+      payload.class_name = cls;
+      if (sec && sec !== 'All Sections') payload.section_name = sec;
+    } else {
+      showToast('Load a student or class first', true);
+      return;
+    }
+
+    try {
+      showToast('Generating PDF...');
+      const result = await apiCall('/exams/dmc/generate-pdf', 'POST', payload);
+      await downloadPdfWithAuth(result.file_path, result.file_name);
+    } catch (err) {
+      showToast('Failed to generate PDF: ' + err.message, true);
+    }
   });
 
   // ==========================================

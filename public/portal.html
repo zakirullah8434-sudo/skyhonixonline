@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=37" as="script">
+  <link rel="preload" href="js/app.js?v=38" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v37';
+    window.SKYHONIX_PAGE_VERSION = 'v38';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -4266,7 +4266,7 @@
                   <label class="form-label">Or search by name</label>
                   <input type="text" class="form-control" id="dmc-student-search" placeholder="Type student name...">
                 </div>
-                <button class="btn btn-primary btn-sm" id="btn-dmc-load-students" style="margin-bottom: 10px;">Load Students</button>
+                <button class="btn btn-primary btn-sm" id="btn-dmc-load-students" style="margin-bottom: 10px; align-self: flex-start;">Load Students</button>
                 <div class="table-container" style="flex: 1; margin-bottom: 0; overflow-y: auto;">
                   <table class="data-table" id="table-dmc-students">
                     <thead>
@@ -4287,7 +4287,10 @@
               <div class="card" id="dmc-display-container">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                   <h3>Result Card (DMC)</h3>
-                  <button class="btn btn-outline btn-sm" id="btn-print-dmc" style="display: none;">Print Result Card</button>
+                  <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                    <button class="btn btn-primary btn-sm" id="btn-dmc-pdf" style="display: none;">Save as PDF</button>
+                    <button class="btn btn-outline btn-sm" id="btn-print-dmc" style="display: none;">Print Result Card</button>
+                  </div>
                 </div>
 
                 <div class="form-group" style="max-width: 400px; display: flex; gap: 15px;">
@@ -5025,6 +5028,6 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=37"></script>
+  <script src="js/app.js?v=38"></script>
 </body>
 </html>
