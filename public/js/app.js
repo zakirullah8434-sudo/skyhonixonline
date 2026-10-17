@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v40';
+    const EXPECTED_PAGE_VERSION = 'v42';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -2751,6 +2751,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         qrPlaceholder.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(code)}" alt="Student Code QR" style="width:130px; height:130px;">`;
         
+        modalQr.dataset.studentId = btn.getAttribute('data-id');
         modalQr.classList.add('open');
       }
 
@@ -2782,18 +2783,31 @@ document.addEventListener('DOMContentLoaded', () => {
       modalQr.classList.remove('open');
     });
 
-    document.getElementById('btn-print-qr-execute').addEventListener('click', () => {
-      const printContents = document.getElementById('print-card-content').innerHTML;
-      // printViaIframe works in the APK WebView (window.open is blocked there) and
-      // opens the native print dialog → Save as PDF. CSS vars don't resolve inside
-      // the iframe, so pin explicit colors with !important.
-      const extraCss = `
-  body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #fff; }
-  #print-card-content { width: 320px; max-width: 90vw; margin: 0 auto; font-family: Arial, sans-serif !important; }
-  #qr-card-school, #qr-card-name { color: #1E293B !important; }
-  #qr-card-roll { color: #475569 !important; }
-  #qr-card-id { color: #B8860B !important; }`;
-      printViaIframe(printContents, 'Student Attendance Card', extraCss);
+    document.getElementById('btn-print-qr-execute').addEventListener('click', async () => {
+      // Server-side PDF: the WebView print dialog is unreliable on mobile, so
+      // generate the card PDF on the server and hand it to the native
+      // DownloadListener (Downloads/SkyHonix) or the browser's Downloads.
+      const id = modalQr.dataset.studentId;
+      if (!id) {
+        showToast('Student not selected. Close and reopen the card.', true);
+        return;
+      }
+
+      const qrBtn = document.getElementById('btn-print-qr-execute');
+      const origText = qrBtn.textContent;
+      qrBtn.disabled = true;
+      qrBtn.textContent = 'Generating PDF...';
+
+      try {
+        const result = await apiCall(`/students/${id}/card-pdf`, 'POST', null, false, true);
+        await downloadPdfWithAuth(result.file_path, result.file_name);
+        showToast('Student Card PDF is saving - find it in Files app > Downloads > SkyHonix');
+      } catch (err) {
+        showToast('Failed to generate PDF: ' + (err.message || 'Unknown error'), true);
+      } finally {
+        qrBtn.disabled = false;
+        qrBtn.textContent = origText;
+      }
     });
 
     document.getElementById('btn-close-sib-modal').addEventListener('click', () => {

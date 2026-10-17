@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=40" as="script">
+  <link rel="preload" href="js/app.js?v=42" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v40';
+    window.SKYHONIX_PAGE_VERSION = 'v42';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -4956,7 +4956,7 @@
         <p id="qr-card-id" style="color: #B8860B; font-size: 0.85rem; font-weight: 700; margin-top: 6px;">ID: -</p>
       </div>
       
-      <button class="btn btn-secondary btn-sm" id="btn-print-qr-execute" style="width: 100%;">🖨️ Print Student Card</button>
+      <button class="btn btn-secondary btn-sm" id="btn-print-qr-execute" style="width: 100%;">💾 Save as PDF</button>
     </div>
   </div>
 
@@ -5030,6 +5030,6 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=40"></script>
+  <script src="js/app.js?v=42"></script>
 </body>
 </html>

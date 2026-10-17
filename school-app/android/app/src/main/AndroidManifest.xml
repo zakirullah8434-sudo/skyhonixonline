@@ -38,6 +38,12 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Required so getUserMedia({video:true}) is not auto-denied by Chromium in the
+         WebView: Capacitor's onPermissionRequest maps VIDEO_CAPTURE -> CAMERA and
+         launches the runtime permission dialog for this permission. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <!-- Needed only on Android 9 and below to write into public Downloads -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />

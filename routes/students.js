@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const config = require('../config');
 const { authenticateToken } = require('./auth');
 const { querySchool, querySchoolOne, runSchool, querySchoolRaw } = require('../database_manager');
@@ -763,6 +764,133 @@ router.delete('/:id/transfers/:transferId', authenticateToken, async (req, res) 
   } catch (err) {
     res.status(500).json({ error: 'Failed to remove transfer record.' });
   }
+});
+
+// Vercel serverless filesystem is read-only except /tmp — store generated
+// PDFs in a writable temp dir so "Save as PDF" works both locally and online.
+function pdfStorageDir(sub) {
+  const dir = path.join(os.tmpdir(), 'skyhonix-pdfs', sub);
+  try { fs.mkdirSync(dir, { recursive: true }); } catch (e) { /* dir exists */ }
+  return dir;
+}
+
+// Download auth: Capacitor WebView / external browser cannot send the
+// Authorization header, so download links may carry ?token=<jwt> instead.
+function pdfDownloadAuth(req, res, next) {
+  if (!req.headers['authorization'] && req.query && typeof req.query.token === 'string' && req.query.token) {
+    req.headers['authorization'] = 'Bearer ' + req.query.token;
+  }
+  return authenticateToken(req, res, next);
+}
+
+// POST /students/:id/card-pdf - Generate the QR attendance card as a PDF
+router.post('/:id/card-pdf', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const studentId = req.params.id;
+
+  try {
+    const student = await querySchoolOne(schoolId, 'SELECT * FROM students WHERE id = ?', [studentId]);
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    let feeSettings = null;
+    try {
+      feeSettings = await querySchoolOne(schoolId, 'SELECT school_name FROM fee_settings LIMIT 1');
+    } catch (e) { feeSettings = null; }
+    const schoolName = (feeSettings && feeSettings.school_name) || req.user.schoolName || 'Student Attendance Card';
+
+    const PDFDocument = require('pdfkit');
+
+    // QR image from the same public API the frontend uses; fall back to plain
+    // text in the QR box if the fetch fails (offline / timeout).
+    let qrBuffer = null;
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      const qrResp = await fetch(
+        'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(student.student_id || ''),
+        { signal: ctrl.signal }
+      );
+      clearTimeout(timer);
+      if (qrResp.ok) qrBuffer = Buffer.from(await qrResp.arrayBuffer());
+    } catch (e) { qrBuffer = null; }
+
+    const safeCode = String(student.student_id || student.id || 'card')
+      .replace(/[^A-Za-z0-9_-]/g, '') || 'card';
+    const fileName = `StudentCard_${safeCode}_${Date.now()}.pdf`;
+    const filePath = path.join(pdfStorageDir('cards'), fileName);
+
+    const W = 300, H = 460;
+    const doc = new PDFDocument({ size: [W, H], margin: 0 });
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
+
+    // Outer + inner gold borders
+    doc.rect(8, 8, W - 16, H - 16).lineWidth(3).stroke('#D4A017');
+    doc.rect(14, 14, W - 28, H - 28).lineWidth(1).stroke('#E5C76B');
+
+    doc.font('Helvetica-Bold').fontSize(16).fillColor('#1E293B')
+      .text(schoolName, 20, 32, { width: W - 40, align: 'center' });
+    doc.font('Helvetica').fontSize(9).fillColor('#64748B')
+      .text('Student QR Attendance Card', 20, 56, { width: W - 40, align: 'center' });
+    doc.moveTo(30, 76).lineTo(W - 30, 76).lineWidth(1).stroke('#D4A017');
+
+    const qrSize = 150;
+    const qrX = (W - qrSize) / 2;
+    const qrY = 96;
+    doc.rect(qrX - 6, qrY - 6, qrSize + 12, qrSize + 12).lineWidth(1).stroke('#CBD5E1');
+    if (qrBuffer) {
+      doc.image(qrBuffer, qrX, qrY, { width: qrSize, height: qrSize });
+    } else {
+      doc.font('Courier-Bold').fontSize(10).fillColor('#0F172A')
+        .text(student.student_id || '', qrX, qrY + qrSize / 2 - 6, { width: qrSize, align: 'center' });
+    }
+
+    doc.font('Helvetica-Bold').fontSize(15).fillColor('#1E293B')
+      .text(student.name || '', 20, qrY + qrSize + 24, { width: W - 40, align: 'center' });
+    doc.font('Helvetica').fontSize(10).fillColor('#475569')
+      .text(`Roll No: ${student.roll_no || 'N/A'} | Class: ${student.class_name || ''}${student.section_name ? ' - ' + student.section_name : ''}`,
+        20, qrY + qrSize + 46, { width: W - 40, align: 'center' });
+    doc.font('Helvetica-Bold').fontSize(11).fillColor('#B8860B')
+      .text(`Student ID: ${student.student_id || ''}`, 20, qrY + qrSize + 66, { width: W - 40, align: 'center' });
+    doc.font('Helvetica').fontSize(8).fillColor('#94A3B8')
+      .text('Scan this code for attendance', 20, H - 44, { width: W - 40, align: 'center' });
+
+    doc.end();
+
+    stream.on('finish', () => {
+      res.json({
+        message: 'Card PDF generated successfully',
+        file_name: fileName,
+        file_path: `/api/students/card-pdf/download/${fileName}`
+      });
+    });
+
+    stream.on('error', (err) => {
+      res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
+    });
+
+  } catch (err) {
+    console.error('Card PDF generation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /students/card-pdf/download/:filename - Download generated card PDF
+router.get('/card-pdf/download/:filename', pdfDownloadAuth, async (req, res) => {
+  const { filename } = req.params;
+  if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
+
+  const filePath = path.join(pdfStorageDir('cards'), filename);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  res.download(filePath, filename);
 });
 
 module.exports = router;
