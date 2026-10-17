@@ -2784,19 +2784,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('btn-print-qr-execute').addEventListener('click', () => {
       const printContents = document.getElementById('print-card-content').innerHTML;
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <html><head><title>Print Card</title></head>
-        <body style="display:flex; align-items:center; justify-content:center; height:100vh; background:white; margin:0;">
-          <div style="width:300px; padding:20px; border:2px solid black; border-radius:10px; text-align:center;">
-            ${printContents}
-          </div>
-        </body></html>
-      `);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
+      // printViaIframe works in the APK WebView (window.open is blocked there) and
+      // opens the native print dialog → Save as PDF. CSS vars don't resolve inside
+      // the iframe, so pin explicit colors with !important.
+      const extraCss = `
+  body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #fff; }
+  #print-card-content { width: 320px; max-width: 90vw; margin: 0 auto; font-family: Arial, sans-serif !important; }
+  #qr-card-school, #qr-card-name { color: #1E293B !important; }
+  #qr-card-roll { color: #475569 !important; }
+  #qr-card-id { color: #B8860B !important; }`;
+      printViaIframe(printContents, 'Student Attendance Card', extraCss);
     });
 
     document.getElementById('btn-close-sib-modal').addEventListener('click', () => {
