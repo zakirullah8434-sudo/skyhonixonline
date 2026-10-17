@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v39';
+    const EXPECTED_PAGE_VERSION = 'v40';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -3199,12 +3199,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   // MODULE: ATTENDANCE
   // ==========================================
-  function loadAttendanceFilters() {
-    loadClassesList();
+  async function loadAttendanceFilters() {
+    await loadClassesList();
     document.getElementById('att-date-input').value = new Date().toISOString().split('T')[0];
     document.getElementById('att-history-month').value = new Date().toISOString().slice(0, 7);
     // Show session start date indicator
     loadSessionInfoForIndicator();
+    // Auto-load BOTH mark grids (silent) so the screen never renders its
+    // empty placeholder tables. loadClassesList has resolved by this point,
+    // so the class select already holds its first class on a fresh open.
+    loadAttendanceGrid({ silent: true });
+    loadTeacherAttendanceGrid({ silent: true });
   }
 
   async function loadSessionInfoForIndicator() {
@@ -3245,13 +3250,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Load Grid Students
   const tableAttGrid = document.getElementById('table-attendance-grid');
-  document.getElementById('btn-load-att-grid').addEventListener('click', async () => {
+  async function loadAttendanceGrid({ silent = false } = {}) {
     const cls = document.getElementById('att-class-select').value;
     const sec = document.getElementById('att-sec-select').value;
     const date = document.getElementById('att-date-input').value;
 
     if (!cls || !date) {
-      showToast('Class and Date are required', true);
+      if (!silent) showToast('Class and Date are required', true);
       return;
     }
 
@@ -3302,7 +3307,8 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('att-grid-actions').style.display = 'block';
 
     } catch (e) { console.error('[APP_ERROR]', e.message); }
-  });
+  }
+  document.getElementById('btn-load-att-grid').addEventListener('click', () => loadAttendanceGrid());
 
   // Save Attendance from grid list
   document.getElementById('btn-save-attendance').addEventListener('click', async () => {
@@ -3536,9 +3542,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const di = document.getElementById('tatt-date-input');
         if (di && !di.value) di.value = new Date().toISOString().split('T')[0];
         loadTattSessionInfoForIndicator();
+        // If the teacher grid never loaded (no data rows), load it now.
+        if (!document.querySelector('#table-tatt-grid tbody tr[data-teacher-id]')) {
+          loadTeacherAttendanceGrid({ silent: true });
+        }
       } else {
         const studentModule = document.getElementById('att-student-module');
         if (studentModule) studentModule.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // If the student grid never loaded (no data rows), load it now.
+        if (!document.querySelector('#table-attendance-grid tbody tr[data-student-id]')) {
+          loadAttendanceGrid({ silent: true });
+        }
       }
     });
   });
@@ -3565,9 +3579,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (tattDateInput) tattDateInput.value = new Date().toISOString().split('T')[0];
 
   const tableTattGrid = document.getElementById('table-tatt-grid');
-  document.getElementById('btn-load-tatt-grid')?.addEventListener('click', async () => {
+  async function loadTeacherAttendanceGrid({ silent = false } = {}) {
     const date = tattDateInput ? tattDateInput.value : '';
-    if (!date) { showToast('Date is required', true); return; }
+    if (!date) { if (!silent) showToast('Date is required', true); return; }
     try {
       const teachers = await apiCall(`/attendance/teachers?date=${date}`);
       const tbody = tableTattGrid.querySelector('tbody');
@@ -3602,7 +3616,8 @@ document.addEventListener('DOMContentLoaded', () => {
       tbody.innerHTML = rows.join('');
       document.getElementById('tatt-grid-actions').style.display = 'block';
     } catch (e) { console.error('[APP_ERROR]', e.message); }
-  });
+  }
+  document.getElementById('btn-load-tatt-grid')?.addEventListener('click', () => loadTeacherAttendanceGrid());
 
   document.getElementById('btn-save-tatt')?.addEventListener('click', async () => {
     const date = tattDateInput ? tattDateInput.value : '';
