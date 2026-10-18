@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=42" as="script">
+  <link rel="preload" href="js/app.js?v=43" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v42';
+    window.SKYHONIX_PAGE_VERSION = 'v43';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -490,6 +490,7 @@
               <span class="dash-status-label">Workspace Status</span>
               <span id="dash-status-badge" class="dash-status-pill">Active</span>
             </div>
+            <button id="dash-btn-scan" class="btn btn-primary" style="width: 100%; margin-top: 14px;">📷 QR Attendance</button>
           </div>
 
           <!-- Stats Grid -->
@@ -2565,7 +2566,8 @@
             <button class="att-type-btn" data-att-type="teacher">👨‍🏫 Teacher Attendance</button>
           </div>
 
-          <!-- ===== MODULE: Student Attendance ===== -->
+          <!-- ===== MODULE: Student Attendance (visible when student button selected) ===== -->
+          <div id="att-student-section">
           <div class="exam-option-panel" id="att-student-module">
 
           <div class="tab-container">
@@ -2861,8 +2863,10 @@
             </div>
           </div>
           <!-- /att-student-module -->
+          </div><!-- /#att-student-section -->
 
-          <!-- ===== MODULE: Teacher Attendance (always visible — stacked below students) ===== -->
+          <!-- ===== MODULE: Teacher Attendance (hidden until teacher button selected) ===== -->
+          <div id="att-teacher-section" class="att-hidden">
           <div style="margin: 40px 0 20px; padding: 14px 18px; background: var(--glass-bg); border-left: 4px solid var(--primary); border-radius: 10px;">
             <h2 id="att-teacher-heading" style="margin: 0; font-size: 1.2rem;">👨‍🏫 Teacher Attendance</h2>
             <p style="margin: 4px 0 0; color: var(--text-muted); font-size: 0.85rem;">Mark, scan, review and total teacher attendance below</p>
@@ -3172,6 +3176,7 @@
             </div>
           </div>
           <!-- /att-teacher-module -->
+          </div><!-- /#att-teacher-section -->
         </article>
 
         <!-- ==================== SCREEN: FEES ==================== -->
@@ -4998,15 +5003,25 @@
   </script>
   <script src="js/section-history.js?v=1"></script>
   <script>
-    // Student/Teacher attendance buttons — both modules are ALWAYS visible
-    // (stacked vertically), so the buttons simply scroll to the section.
-    // No show/hide logic anywhere: the teacher section can never be blank.
+    // Student/Teacher attendance buttons — toggle visibility of the two
+    // stacked modules via .att-hidden (display:none). This inline handler
+    // runs BEFORE app.js's handler, so it shows/hides the section first,
+    // ensuring scrollIntoView targets the now-visible element.
     (function () {
-      function scrollToAtt(type) {
+      function showAtt(type) {
         var btns = document.querySelectorAll('.att-type-btn');
         for (var i = 0; i < btns.length; i++) {
           if (btns[i].getAttribute('data-att-type') === type) btns[i].classList.add('active');
           else btns[i].classList.remove('active');
+        }
+        var ss = document.getElementById('att-student-section');
+        var ts = document.getElementById('att-teacher-section');
+        if (type === 'teacher') {
+          if (ts) ts.classList.remove('att-hidden');
+          if (ss) ss.classList.add('att-hidden');
+        } else {
+          if (ss) ss.classList.remove('att-hidden');
+          if (ts) ts.classList.add('att-hidden');
         }
         var target = type === 'teacher'
           ? (document.getElementById('att-teacher-heading') || document.getElementById('att-teacher-module'))
@@ -5026,10 +5041,10 @@
         var btn = el && el.closest ? el.closest('.att-type-btn') : null;
         if (!btn) return;
         var type = btn.getAttribute('data-att-type');
-        if (type === 'student' || type === 'teacher') scrollToAtt(type);
+        if (type === 'student' || type === 'teacher') showAtt(type);
       });
     })();
   </script>
-  <script src="js/app.js?v=42"></script>
+  <script src="js/app.js?v=43"></script>
 </body>
 </html>

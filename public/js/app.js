@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v42';
+    const EXPECTED_PAGE_VERSION = 'v43';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -845,13 +845,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Dashboard shortcuts (Quick Actions block was removed from the dashboard)
+  // Dashboard QR Attendance: opens student QR scanner in combined mode
+  // (student + teacher QRs both accepted). Flag is cleared in stopQrScanner.
   const dashBtnScan = document.getElementById('dash-btn-scan');
   if (dashBtnScan) dashBtnScan.addEventListener('click', () => {
     document.querySelector('[data-screen="attendance"]').click();
     // QR scanner lives in the Student Attendance module — force it visible
     document.querySelector('.att-type-btn[data-att-type="student"]')?.click();
     document.querySelector('[data-tab="att-scan"]').click();
+    // Enable combined student+teacher decoding before starting the scanner
+    window._qrCombinedMode = true;
     document.getElementById('btn-start-scanner').click();
   });
   const dashBtnFees = document.getElementById('dash-btn-fees');
@@ -3408,7 +3411,24 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
           const dateStr = new Date().toISOString().split('T')[0];
           const clientTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-          const result = await apiCall('/attendance/scan', 'POST', { scanValue, date: dateStr, time: clientTime });
+          let result;
+          let isTeacherResult = false;
+          try {
+            result = await apiCall('/attendance/scan', 'POST', { scanValue, date: dateStr, time: clientTime });
+          } catch (studentErr) {
+            // Combined mode (dashboard QR Attendance): fall back to teacher scan
+            if (window._qrCombinedMode) {
+              try {
+                result = await apiCall('/attendance/teachers/scan', 'POST', { scanValue, date: dateStr, time: clientTime });
+                isTeacherResult = true;
+              } catch (teacherErr) {
+                // Both failed — show the original student error
+                throw studentErr;
+              }
+            } else {
+              throw studentErr;
+            }
+          }
 
           if (result.alreadyMarked) {
             playBeep('fail');
@@ -3418,26 +3438,49 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast(result.message);
           }
 
-          document.getElementById('scan-name').innerText = result.student.name;
-          document.getElementById('scan-roll-class').innerText = `Roll No: ${result.student.roll_no || '-'} | Class: ${result.student.class_name}`;
-          document.getElementById('scan-time').innerText = result.alreadyMarked ? `Already marked at: ${result.student.time}` : `Checked in: ${result.student.time}`;
-          document.getElementById('scan-photo').src = imgSrc(result.student.photo);
-          scanFeedback.style.display = 'block';
+          if (isTeacherResult) {
+            // Render teacher result into the student feedback panel
+            document.getElementById('scan-name').innerText = result.teacher.name;
+            document.getElementById('scan-roll-class').innerText = `Roll No: - | Teacher · ${result.teacher.subject || '-'}`;
+            document.getElementById('scan-time').innerText = result.alreadyMarked ? `Already marked at: ${result.teacher.time}` : `Checked in: ${result.teacher.time}`;
+            scanFeedback.style.display = 'block';
 
-          const existingRows = scanHistoryTable.innerHTML;
-          if (existingRows.includes('Awaiting QR card scan')) {
-            scanHistoryTable.innerHTML = '';
+            const existingRows = scanHistoryTable.innerHTML;
+            if (existingRows.includes('Awaiting QR card scan')) {
+              scanHistoryTable.innerHTML = '';
+            }
+            const statusColor = result.alreadyMarked ? 'var(--warning)' : 'var(--accent)';
+            const statusLabel = result.alreadyMarked ? ' (Already Marked)' : '';
+            scanHistoryTable.innerHTML = `
+              <tr>
+                <td><strong>-</strong></td>
+                <td>${result.teacher.name}</td>
+                <td>Teacher · ${result.teacher.subject || '-'}</td>
+                <td><span style="color:${statusColor}; font-weight:700;">${result.teacher.time}${statusLabel}</span></td>
+              </tr>
+            ` + scanHistoryTable.innerHTML;
+          } else {
+            document.getElementById('scan-name').innerText = result.student.name;
+            document.getElementById('scan-roll-class').innerText = `Roll No: ${result.student.roll_no || '-'} | Class: ${result.student.class_name}`;
+            document.getElementById('scan-time').innerText = result.alreadyMarked ? `Already marked at: ${result.student.time}` : `Checked in: ${result.student.time}`;
+            document.getElementById('scan-photo').src = imgSrc(result.student.photo);
+            scanFeedback.style.display = 'block';
+
+            const existingRows = scanHistoryTable.innerHTML;
+            if (existingRows.includes('Awaiting QR card scan')) {
+              scanHistoryTable.innerHTML = '';
+            }
+            const statusColor = result.alreadyMarked ? 'var(--warning)' : 'var(--accent)';
+            const statusLabel = result.alreadyMarked ? ' (Already Marked)' : '';
+            scanHistoryTable.innerHTML = `
+              <tr>
+                <td><strong>${result.student.roll_no || '-'}</strong></td>
+                <td>${result.student.name}</td>
+                <td>${result.student.class_name}</td>
+                <td><span style="color:${statusColor}; font-weight:700;">${result.student.time}${statusLabel}</span></td>
+              </tr>
+            ` + scanHistoryTable.innerHTML;
           }
-          const statusColor = result.alreadyMarked ? 'var(--warning)' : 'var(--accent)';
-          const statusLabel = result.alreadyMarked ? ' (Already Marked)' : '';
-          scanHistoryTable.innerHTML = `
-            <tr>
-              <td><strong>${result.student.roll_no || '-'}</strong></td>
-              <td>${result.student.name}</td>
-              <td>${result.student.class_name}</td>
-              <td><span style="color:${statusColor}; font-weight:700;">${result.student.time}${statusLabel}</span></td>
-            </tr>
-          ` + scanHistoryTable.innerHTML;
 
         } catch (err) {
           playBeep('fail');
@@ -3469,6 +3512,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function stopQrScanner() {
+    // Clear combined student+teacher decode mode when scanner stops
+    window._qrCombinedMode = false;
     if (html5QrcodeScanner) {
       html5QrcodeScanner.stop().then(() => {
         html5QrcodeScanner = null;
@@ -3540,14 +3585,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // MODULE: TEACHER ATTENDANCE (Student / Teacher switch)
   // ==========================================
 
-  // Attendance type buttons — BOTH modules are always visible (stacked),
-  // so these buttons simply scroll to the section. No hide/show logic:
-  // the teacher section can never end up invisible.
+  // Attendance type buttons — toggle .att-hidden on #att-student-section /
+  // #att-teacher-section (idempotent; the portal.html inline handler already
+  // ran and may have toggled them). Also stop the other module's scanner so
+  // only one camera is active, and lazy-load grids if not yet loaded.
   document.querySelectorAll('.att-type-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const type = btn.dataset.attType;
       document.querySelectorAll('.att-type-btn').forEach(b => b.classList.toggle('active', b === btn));
+      const ss = document.getElementById('att-student-section');
+      const ts = document.getElementById('att-teacher-section');
       if (type === 'teacher') {
+        if (ts) ts.classList.remove('att-hidden');
+        if (ss) ss.classList.add('att-hidden');
+        // Stop the student QR scanner if it's running (camera conflict)
+        try { if (typeof stopQrScanner === 'function') stopQrScanner(); } catch (e) {}
         const heading = document.getElementById('att-teacher-heading') || document.getElementById('att-teacher-module');
         if (heading) heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
         const di = document.getElementById('tatt-date-input');
@@ -3558,6 +3610,10 @@ document.addEventListener('DOMContentLoaded', () => {
           loadTeacherAttendanceGrid({ silent: true });
         }
       } else {
+        if (ss) ss.classList.remove('att-hidden');
+        if (ts) ts.classList.add('att-hidden');
+        // Stop the teacher QR scanner if it's running (camera conflict)
+        try { if (typeof stopTattQrScanner === 'function') stopTattQrScanner(); } catch (e) {}
         const studentModule = document.getElementById('att-student-module');
         if (studentModule) studentModule.scrollIntoView({ behavior: 'smooth', block: 'start' });
         // If the student grid never loaded (no data rows), load it now.
@@ -3801,6 +3857,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function stopTattQrScanner() {
+    window._qrCombinedMode = false;
     if (tHtml5QrcodeScanner) {
       tHtml5QrcodeScanner.stop().then(() => {
         tHtml5QrcodeScanner = null;
