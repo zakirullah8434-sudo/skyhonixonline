@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=43" as="script">
+  <link rel="preload" href="js/app.js?v=44" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v43';
+    window.SKYHONIX_PAGE_VERSION = 'v44';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -5045,6 +5045,19 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=43"></script>
+  <!-- QR Attendance Chooser Modal -->
+  <div id="qr-chooser-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:var(--glass-bg); border-radius:16px; padding:32px; width:90%; max-width:400px; text-align:center;">
+      <h3 style="margin:0 0 8px; color:var(--text-primary);">QR Attendance</h3>
+      <p style="color:var(--text-muted); margin:0 0 24px; font-size:0.9rem;">Select attendance type to scan</p>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <button id="qr-choose-student" style="padding:16px 20px; background:var(--primary); color:white; border:none; border-radius:10px; font-size:1rem; cursor:pointer;">👨‍🎓 Student Attendance</button>
+        <button id="qr-choose-teacher" style="padding:16px 20px; background:var(--primary); color:white; border:none; border-radius:10px; font-size:1rem; cursor:pointer;">👨‍🏫 Teacher Attendance</button>
+        <button id="qr-choose-cancel" style="padding:12px 20px; background:transparent; color:var(--text-muted); border:1px solid var(--text-muted); border-radius:10px; font-size:0.9rem; cursor:pointer;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js?v=44"></script>
 </body>
 </html>
