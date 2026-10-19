@@ -398,7 +398,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
 // Keep in sync with ?v= query on js/app.js and SHELL_VERSION in public/sw.js.
 app.get('/api/version', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-  res.json({ version: 'v44' });
+  res.json({ version: 'v45' });
 });
 
 // Mount API routes
