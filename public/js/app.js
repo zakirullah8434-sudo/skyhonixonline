@@ -864,7 +864,34 @@ document.addEventListener('DOMContentLoaded', () => {
   function openAttendanceView(type) {
     activateScreen('attendance');
     window._qrCombinedMode = false;
-    document.querySelector(`.att-type-btn[data-att-type="${type}"]`)?.click();
+    const ss = document.getElementById('att-student-section');
+    const ts = document.getElementById('att-teacher-section');
+    if (type === 'teacher') {
+      if (ts) ts.classList.remove('att-hidden');
+      if (ss) ss.classList.add('att-hidden');
+      // Stop the student QR scanner if it's running (camera conflict)
+      try { if (typeof stopQrScanner === 'function') stopQrScanner(); } catch (e) {}
+      const heading = document.getElementById('att-teacher-heading') || document.getElementById('att-teacher-module');
+      if (heading) heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const di = document.getElementById('tatt-date-input');
+      if (di && !di.value) di.value = new Date().toISOString().split('T')[0];
+      loadTattSessionInfoForIndicator();
+      // Always (re)load the teacher grid on open — a previously failed
+      // silent load used to leave the placeholder row and the view looked
+      // empty. Failures are surfaced inline by loadTeacherAttendanceGrid.
+      loadTeacherAttendanceGrid({ silent: true });
+    } else {
+      if (ss) ss.classList.remove('att-hidden');
+      if (ts) ts.classList.add('att-hidden');
+      // Stop the teacher QR scanner if it's running (camera conflict)
+      try { if (typeof stopTattQrScanner === 'function') stopTattQrScanner(); } catch (e) {}
+      const studentModule = document.getElementById('att-student-module');
+      if (studentModule) studentModule.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // If the student grid never loaded (no data rows), load it now.
+      if (!document.querySelector('#table-attendance-grid tbody tr[data-student-id]')) {
+        loadAttendanceGrid({ silent: true });
+      }
+    }
     const tab = document.querySelector(type === 'teacher' ? '[data-tab="tatt-mark"]' : '[data-tab="att-mark"]');
     tab?.click();
     // Keep the QR menu sidebar item highlighted while inside attendance
@@ -875,6 +902,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   document.getElementById('qr-menu-student')?.addEventListener('click', () => openAttendanceView('student'));
   document.getElementById('qr-menu-teacher')?.addEventListener('click', () => openAttendanceView('teacher'));
+  // Back button in the attendance screen header → return to the QR menu
+  document.getElementById('att-back-btn')?.addEventListener('click', () => activateScreen('qr-menu'));
 
   const dashBtnFees = document.getElementById('dash-btn-fees');
   if (dashBtnFees) dashBtnFees.addEventListener('click', () => {
@@ -3695,47 +3724,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================
-  // MODULE: TEACHER ATTENDANCE (Student / Teacher switch)
+  // MODULE: TEACHER ATTENDANCE
   // ==========================================
-
-  // Attendance type buttons — toggle .att-hidden on #att-student-section /
-  // #att-teacher-section (idempotent; the portal.html inline handler already
-  // ran and may have toggled them). Also stop the other module's scanner so
-  // only one camera is active, and lazy-load grids if not yet loaded.
-  document.querySelectorAll('.att-type-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const type = btn.dataset.attType;
-      document.querySelectorAll('.att-type-btn').forEach(b => b.classList.toggle('active', b === btn));
-      const ss = document.getElementById('att-student-section');
-      const ts = document.getElementById('att-teacher-section');
-      if (type === 'teacher') {
-        if (ts) ts.classList.remove('att-hidden');
-        if (ss) ss.classList.add('att-hidden');
-        // Stop the student QR scanner if it's running (camera conflict)
-        try { if (typeof stopQrScanner === 'function') stopQrScanner(); } catch (e) {}
-        const heading = document.getElementById('att-teacher-heading') || document.getElementById('att-teacher-module');
-        if (heading) heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        const di = document.getElementById('tatt-date-input');
-        if (di && !di.value) di.value = new Date().toISOString().split('T')[0];
-        loadTattSessionInfoForIndicator();
-        // If the teacher grid never loaded (no data rows), load it now.
-        if (!document.querySelector('#table-tatt-grid tbody tr[data-teacher-id]')) {
-          loadTeacherAttendanceGrid({ silent: true });
-        }
-      } else {
-        if (ss) ss.classList.remove('att-hidden');
-        if (ts) ts.classList.add('att-hidden');
-        // Stop the teacher QR scanner if it's running (camera conflict)
-        try { if (typeof stopTattQrScanner === 'function') stopTattQrScanner(); } catch (e) {}
-        const studentModule = document.getElementById('att-student-module');
-        if (studentModule) studentModule.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        // If the student grid never loaded (no data rows), load it now.
-        if (!document.querySelector('#table-attendance-grid tbody tr[data-student-id]')) {
-          loadAttendanceGrid({ silent: true });
-        }
-      }
-    });
-  });
 
   // Teacher Mark tab: show session start indicator
   async function loadTattSessionInfoForIndicator() {
@@ -3795,7 +3785,19 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       tbody.innerHTML = rows.join('');
       document.getElementById('tatt-grid-actions').style.display = 'block';
-    } catch (e) { console.error('[APP_ERROR]', e.message); }
+    } catch (e) {
+      console.error('[APP_ERROR]', e.message);
+      // Surface the failure in-place: a silent catch left the
+      // "Please load teachers list above..." placeholder in the grid,
+      // making the teacher attendance view look empty.
+      try {
+        const tbody = tableTattGrid ? tableTattGrid.querySelector('tbody') : null;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ef4444;">Failed to load teachers: ${e.message}</td></tr>`;
+        const actions = document.getElementById('tatt-grid-actions');
+        if (actions) actions.style.display = 'none';
+      } catch (e2) {}
+      showToast('Failed to load teachers: ' + e.message, true);
+    }
   }
   document.getElementById('btn-load-tatt-grid')?.addEventListener('click', () => loadTeacherAttendanceGrid());
 
