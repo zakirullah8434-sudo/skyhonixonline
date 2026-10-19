@@ -339,6 +339,33 @@ function createSchoolDatabaseSchema(db) {
         )
       `);
 
+      // 22c. Teacher attendance (lazy-created at runtime too; present here
+      // so brand-new tenants never hit "no such table: teacher_attendance")
+      db.run(`
+        CREATE TABLE IF NOT EXISTS teacher_attendance (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          teacher_id INTEGER NOT NULL,
+          date TEXT NOT NULL,
+          status TEXT NOT NULL,
+          time TEXT,
+          school_id INTEGER,
+          UNIQUE(teacher_id, date)
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS teacher_attendance_reports (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          month TEXT NOT NULL,
+          total_school_days INTEGER,
+          prev_school_days INTEGER,
+          holidays_count INTEGER,
+          report_data TEXT,
+          school_id INTEGER,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       // 23. Result sections (Virtual roll range splitting)
       db.run(`
         CREATE TABLE IF NOT EXISTS result_sections (

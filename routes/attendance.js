@@ -3,11 +3,11 @@ const router = express.Router();
 const { authenticateToken } = require('./auth');
 const { querySchool, querySchoolOne, runSchool, runSchoolTransaction } = require('../database_manager');
 
-let holidaysTableEnsured = false;
-
-// Ensure holidays table exists (defensive migration for existing databases)
+// Ensure holidays table exists (defensive migration for existing databases).
+// NOTE: runs per-call (CREATE TABLE IF NOT EXISTS) — no module-level flag.
+// A one-shot flag only ever created the table in the FIRST school DB hit
+// after boot, leaving every other tenant with "no such table" errors.
 async function ensureHolidaysTable(schoolId) {
-  if (holidaysTableEnsured) return;
   await runSchool(schoolId, `
     CREATE TABLE IF NOT EXISTS holidays (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -18,7 +18,6 @@ async function ensureHolidaysTable(schoolId) {
     )
   `);
   await runSchool(schoolId, `CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_date ON holidays (date)`);
-  holidaysTableEnsured = true;
 }
 
 // Ensure attendance_reports table exists (defensive migration for existing databases)
@@ -601,10 +600,10 @@ router.delete('/saved-reports/:id', authenticateToken, async (req, res) => {
 // TEACHER ATTENDANCE
 // ==========================================
 
-let teacherAttendanceTableEnsured = false;
-
+// Ensure teacher_attendance table exists per school (no module-level flag:
+// the flag was set by whichever tenant hit it first after boot, so every
+// other tenant's teacher section got "no such table: teacher_attendance").
 async function ensureTeacherAttendanceTable(schoolId) {
-  if (teacherAttendanceTableEnsured) return;
   await runSchool(schoolId, `
     CREATE TABLE IF NOT EXISTS teacher_attendance (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -616,7 +615,6 @@ async function ensureTeacherAttendanceTable(schoolId) {
       UNIQUE(teacher_id, date)
     )
   `);
-  teacherAttendanceTableEnsured = true;
 }
 
 // GET /attendance/teachers - List active teachers merged with attendance log for a date
@@ -887,9 +885,7 @@ router.get('/teachers/total', authenticateToken, async (req, res) => {
 });
 
 // Teacher attendance saved reports (per-month snapshots)
-let teacherReportsTableEnsured = false;
 async function ensureTeacherReportsTable(schoolId) {
-  if (teacherReportsTableEnsured) return;
   await runSchool(schoolId, `
     CREATE TABLE IF NOT EXISTS teacher_attendance_reports (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -903,7 +899,6 @@ async function ensureTeacherReportsTable(schoolId) {
       UNIQUE(month, school_id)
     )
   `);
-  teacherReportsTableEnsured = true;
 }
 
 router.post('/teachers/reports', authenticateToken, async (req, res) => {

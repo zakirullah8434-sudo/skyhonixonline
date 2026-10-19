@@ -588,6 +588,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (targetScreen !== 'attendance' && html5QrcodeScanner) {
       stopQrScanner();
     }
+    // Always close the dashboard camera-only overlay on navigation
+    // (function declaration later in this file — hoisted)
+    stopDashScanner();
 
     // Toggle active link
     sidebarItems.forEach(i => {
@@ -617,17 +620,8 @@ document.addEventListener('DOMContentLoaded', () => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
       const key = item.getAttribute('data-screen');
-      // Sidebar "QR Attendance" opens the Student/Teacher chooser modal
-      // instead of navigating. Programmatic navigation (dashboard combined
-      // button, chooser buttons, Android back) calls activateScreen()
-      // directly and bypasses this chooser.
-      if (key === 'attendance') {
-        const chooser = document.getElementById('qr-chooser-modal');
-        if (chooser) {
-          chooser.style.display = 'flex';
-          return;
-        }
-      }
+      // Sidebar "QR Attendance" now opens the dedicated QR menu screen
+      // (#screen-qr-menu) with Student / Teacher entry buttons.
       activateScreen(key);
     });
   });
@@ -640,6 +634,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const key = item.getAttribute('data-screen');
       if (key) navKeys.add(key);
     });
+    // 'attendance' is no longer a sidebar item (it opens via the QR menu
+    // buttons) — register it so Android back can navigate into/out of it.
+    navKeys.add('attendance');
     window.SkyHonixSectionHistory.init({
       getActive: () => {
         for (const screen of screens) {
@@ -857,42 +854,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Dashboard QR Attendance: combined student+teacher scanner.
-  // Navigates via activateScreen() directly (bypasses the sidebar chooser).
+  // Dashboard QR Attendance: camera-only fullscreen scanner (combined
+  // student+teacher). Stays on the dashboard — no screen navigation.
   const dashBtnScan = document.getElementById('dash-btn-scan');
-  if (dashBtnScan) dashBtnScan.addEventListener('click', () => {
+  if (dashBtnScan) dashBtnScan.addEventListener('click', startDashScanner);
+
+  // QR Attendance menu screen: open a dedicated attendance view.
+  // Each view shows only its own data (student or teacher section).
+  function openAttendanceView(type) {
     activateScreen('attendance');
-    document.querySelector('.att-type-btn[data-att-type="student"]')?.click();
-    document.querySelector('[data-tab="att-scan"]').click();
-    window._qrCombinedMode = true;
-    document.getElementById('btn-start-scanner')?.click();
-  });
-
-  // QR Attendance chooser modal (sidebar entry): Student / Teacher scanners
-  const qrChooserModal = document.getElementById('qr-chooser-modal');
-  if (qrChooserModal) {
-    const closeQrChooser = () => { qrChooserModal.style.display = 'none'; };
-
-    document.getElementById('qr-choose-student')?.addEventListener('click', () => {
-      closeQrChooser();
-      activateScreen('attendance');
-      window._qrCombinedMode = false;
-      document.querySelector('.att-type-btn[data-att-type="student"]')?.click();
-      document.querySelector('[data-tab="att-scan"]').click();
-      document.getElementById('btn-start-scanner')?.click();
+    window._qrCombinedMode = false;
+    document.querySelector(`.att-type-btn[data-att-type="${type}"]`)?.click();
+    const tab = document.querySelector(type === 'teacher' ? '[data-tab="tatt-mark"]' : '[data-tab="att-mark"]');
+    tab?.click();
+    // Keep the QR menu sidebar item highlighted while inside attendance
+    sidebarItems.forEach(i => {
+      if (i.getAttribute('data-screen') === 'qr-menu') i.classList.add('active');
+      else i.classList.remove('active');
     });
-
-    document.getElementById('qr-choose-teacher')?.addEventListener('click', () => {
-      closeQrChooser();
-      activateScreen('attendance');
-      window._qrCombinedMode = false;
-      document.querySelector('.att-type-btn[data-att-type="teacher"]')?.click();
-      document.querySelector('[data-tab="tatt-scan"]').click();
-      document.getElementById('btn-tatt-start-scanner')?.click();
-    });
-
-    document.getElementById('qr-choose-cancel')?.addEventListener('click', closeQrChooser);
   }
+  document.getElementById('qr-menu-student')?.addEventListener('click', () => openAttendanceView('student'));
+  document.getElementById('qr-menu-teacher')?.addEventListener('click', () => openAttendanceView('teacher'));
 
   const dashBtnFees = document.getElementById('dash-btn-fees');
   if (dashBtnFees) dashBtnFees.addEventListener('click', () => {
@@ -3416,36 +3398,28 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   loadQrLibrary().catch(() => {}); // warm the cache shortly after boot
 
-  btnStartScanner.addEventListener('click', async () => {
-    if (html5QrcodeScanner) return;
+  // Shared decode processor: used by both the attendance-screen scanner and
+  // the dashboard camera-only overlay. Renders feedback into the attendance
+  // feedback panel (even when that screen is hidden) and, when provided,
+  // also writes a result line into `dashResultEl`.
+  async function processScanValue(decodedText, dashResultEl) {
+    // Trim whitespace from decoded text
+    const scanValue = (decodedText || '').trim();
+    if (!scanValue) return;
 
-    scanFeedback.style.display = 'none';
+    // Prevent duplicate rapid scans of the same code within 2 seconds
+    const now = Date.now();
+    if (window._lastScanValue === scanValue && (now - (window._lastScanTime || 0)) < 2000) return;
+    window._lastScanValue = scanValue;
+    window._lastScanTime = now;
+
+    const setDash = (text, isError) => {
+      if (!dashResultEl) return;
+      dashResultEl.textContent = text;
+      dashResultEl.style.color = isError ? '#ff8f8f' : '#fff';
+    };
+
     try {
-      await loadQrLibrary();
-    } catch (err) {
-      showToast(err.message, true);
-      return;
-    }
-    html5QrcodeScanner = new Html5Qrcode('reader');
-
-    html5QrcodeScanner.start(
-      { facingMode: currentFacing },
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 }
-      },
-      async (decodedText) => {
-        // Trim whitespace from decoded text
-        const scanValue = (decodedText || '').trim();
-        if (!scanValue) return;
-
-        // Prevent duplicate rapid scans of the same code within 2 seconds
-        const now = Date.now();
-        if (window._lastScanValue === scanValue && (now - (window._lastScanTime || 0)) < 2000) return;
-        window._lastScanValue = scanValue;
-        window._lastScanTime = now;
-
-        try {
           const dateStr = new Date().toISOString().split('T')[0];
           const clientTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
           let result;
@@ -3470,9 +3444,11 @@ document.addEventListener('DOMContentLoaded', () => {
           if (result.alreadyMarked) {
             playBeep('fail');
             showToast(result.message, true);
+            setDash(result.message, true);
           } else {
             playBeep('success');
             showToast(result.message);
+            setDash(result.message, false);
           }
 
           if (isTeacherResult) {
@@ -3520,11 +3496,32 @@ document.addEventListener('DOMContentLoaded', () => {
             ` + scanHistoryTable.innerHTML;
           }
 
-        } catch (err) {
-          playBeep('fail');
-          showToast(`Scan failed: ${err.message}`, true);
-        }
+    } catch (err) {
+      playBeep('fail');
+      showToast(`Scan failed: ${err.message}`, true);
+      setDash(`Scan failed: ${err.message}`, true);
+    }
+  }
+
+  btnStartScanner.addEventListener('click', async () => {
+    if (html5QrcodeScanner) return;
+
+    scanFeedback.style.display = 'none';
+    try {
+      await loadQrLibrary();
+    } catch (err) {
+      showToast(err.message, true);
+      return;
+    }
+    html5QrcodeScanner = new Html5Qrcode('reader');
+
+    html5QrcodeScanner.start(
+      { facingMode: currentFacing },
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 }
       },
+      (decodedText) => processScanValue(decodedText),
       (errorMessage) => {
         // Scanner verbose error, ignore
       }
@@ -3562,6 +3559,84 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   btnStopScanner.addEventListener('click', stopQrScanner);
+
+  // ===== Dashboard camera-only QR scanner overlay =====
+  // Combined student+teacher scanning. Opens fullscreen over the dashboard
+  // without navigating; one Html5Qrcode instance, separate from `#reader`.
+  let dashHtml5Scanner = null;
+  let dashFacing = 'environment';
+
+  async function startDashScanner() {
+    if (dashHtml5Scanner) return;
+    const overlay = document.getElementById('dash-scan-overlay');
+    if (!overlay) return;
+    // One camera at a time: close the attendance-screen scanner if running
+    if (html5QrcodeScanner) stopQrScanner();
+
+    overlay.style.display = 'flex';
+    const resultEl = document.getElementById('dash-scan-result');
+    if (resultEl) {
+      resultEl.textContent = 'Point the camera at a student or teacher QR card…';
+      resultEl.style.color = '#fff';
+    }
+    try {
+      await loadQrLibrary();
+    } catch (err) {
+      showToast(err.message, true);
+      overlay.style.display = 'none';
+      return;
+    }
+
+    window._qrCombinedMode = true;
+    dashHtml5Scanner = new Html5Qrcode('dash-reader');
+    dashHtml5Scanner.start(
+      { facingMode: dashFacing },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => processScanValue(decodedText, resultEl),
+      () => {
+        // Scanner verbose error, ignore
+      }
+    ).catch(err => {
+      dashHtml5Scanner = null;
+      overlay.style.display = 'none';
+      showToast(`Camera error: ${err}`, true);
+    });
+
+    const flip = document.getElementById('dash-flip-camera');
+    if (flip) flip.style.display = 'inline-block';
+  }
+
+  function stopDashScanner() {
+    const overlay = document.getElementById('dash-scan-overlay');
+    if (overlay && overlay.style.display !== 'none') overlay.style.display = 'none';
+    const flip = document.getElementById('dash-flip-camera');
+    if (flip) flip.style.display = 'none';
+    if (dashHtml5Scanner) {
+      const s = dashHtml5Scanner;
+      dashHtml5Scanner = null;
+      s.stop().then(() => {
+        if (typeof s.clear === 'function') s.clear();
+        const r = document.getElementById('dash-reader');
+        if (r) r.innerHTML = '';
+      }).catch(() => {});
+    }
+    if (!html5QrcodeScanner) window._qrCombinedMode = false;
+  }
+
+  document.getElementById('dash-close-scan')?.addEventListener('click', stopDashScanner);
+
+  document.getElementById('dash-flip-camera')?.addEventListener('click', async () => {
+    if (!dashHtml5Scanner) return;
+    const s = dashHtml5Scanner;
+    dashHtml5Scanner = null;
+    dashFacing = dashFacing === 'environment' ? 'user' : 'environment';
+    try {
+      await s.stop();
+    } catch (e) { /* stop failure — restart anyway below */ }
+    const r = document.getElementById('dash-reader');
+    if (r) r.innerHTML = '';
+    startDashScanner();
+  });
 
   // Attendance history logs
   document.getElementById('btn-load-att-history').addEventListener('click', async () => {

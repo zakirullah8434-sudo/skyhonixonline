@@ -343,6 +343,27 @@ async function initSchoolTablesTurso(client) {
     UNIQUE(school_id, student_id, date)
   )`);
 
+  await t(`CREATE TABLE IF NOT EXISTS teacher_attendance (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    teacher_id INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    status TEXT NOT NULL,
+    time TEXT,
+    school_id INTEGER,
+    UNIQUE(teacher_id, date)
+  )`);
+
+  await t(`CREATE TABLE IF NOT EXISTS teacher_attendance_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    month TEXT NOT NULL,
+    total_school_days INTEGER,
+    prev_school_days INTEGER,
+    holidays_count INTEGER,
+    report_data TEXT,
+    school_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   await t(`CREATE TABLE IF NOT EXISTS fee_payments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     school_id INTEGER NOT NULL,

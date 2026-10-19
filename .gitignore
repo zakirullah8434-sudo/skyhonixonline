@@ -66,3 +66,7 @@ public/uploads/reminders/
 public/backups/
 image/result/
 pkg_check.txt
+
+# Build temp files
+*.pid
+build-now.log
