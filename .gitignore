@@ -47,7 +47,7 @@ teacher-app/node_modules/
 parent-app/node_modules/
 
 # APK output
-dist-apks/
+dist-apks*/
 
 # Build scripts/temp
 build-apks.ps1
