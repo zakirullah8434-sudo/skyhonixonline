@@ -628,7 +628,7 @@ router.get('/teachers', authenticateToken, async (req, res) => {
     const teachers = await querySchool(schoolId,
       `SELECT id, name, subject, assigned_class
        FROM teachers
-       WHERE (school_id = ? OR school_id IS NULL) AND (status = 'Active' OR status IS NULL)
+       WHERE (school_id = ? OR school_id IS NULL)
        ORDER BY name`,
       [schoolId]
     );

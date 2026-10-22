@@ -1,4 +1,4 @@
-﻿// SkyHonix Workspace Application Logic (SPA Router & REST Clients)
+// SkyHonix Workspace Application Logic (SPA Router & REST Clients)
 
 // Version self-heal: a stale service-worker cache can pair old HTML with this
 // newer JS (legacy ?v= URLs still resolve to the current file on the server).
@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v49';
+    const EXPECTED_PAGE_VERSION = 'v50';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -9456,8 +9456,8 @@ document.addEventListener('DOMContentLoaded', () => {
           teachers.forEach(t => { opts.push(`<option value="${t.id}">${t.name}</option>`); });
           ttTeacher.innerHTML = opts.join('');
         }
-      } catch (e) { console.error('[APP_ERROR] Teachers load failed:', e.message); }
-    } catch (e) { console.error('[APP_ERROR]', e.message); }
+      } catch (e) { console.error('[APP_ERROR] Teachers load failed:', e.message); showToast('Failed to load teachers: ' + e.message, true); }
+    } catch (e) { console.error('[APP_ERROR]', e.message); showToast('Failed to load timetable dropdowns: ' + e.message, true); }
   }
 
   const ttClassEl = document.getElementById('tt-class');

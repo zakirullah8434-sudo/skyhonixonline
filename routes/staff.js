@@ -14,7 +14,8 @@ router.get('/teachers', authenticateToken, async (req, res) => {
   if (req.query.lite === 'true') {
     try {
       const teachers = await querySchool(schoolId,
-        `SELECT id, name, phone, subject, qualification, status, assigned_class, can_collect_fees FROM teachers WHERE (school_id = ? OR school_id IS NULL) AND (status = 'Active' OR status IS NULL) ORDER BY name`
+        `SELECT id, name, phone, subject, qualification, status, assigned_class, can_collect_fees FROM teachers WHERE (school_id = ? OR school_id IS NULL) ORDER BY name`,
+        [schoolId]
       );
       return res.json(teachers);
     } catch (err) {
