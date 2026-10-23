@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v50';
+    const EXPECTED_PAGE_VERSION = 'v51';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -1867,9 +1867,72 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => { printWindow.print(); }, 500);
   });
 
-  // Student ID Card: Download (using html2canvas-like approach via canvas)
-  document.getElementById('btn-idcard-stu-download').addEventListener('click', () => {
-    showToast('Tip: Right-click the card and "Save as image", or use Print > Save as PDF');
+  // ==========================================
+  // ID CARD EXPORT: SAVE AS PDF (jsPDF + html2canvas)
+  // ==========================================
+  function waitForImages(root) {
+    const imgs = Array.from(root.querySelectorAll('img'));
+    return Promise.all(imgs.map(img => {
+      if (img.complete) return Promise.resolve();
+      return new Promise(resolve => {
+        img.addEventListener('load', () => resolve(), { once: true });
+        img.addEventListener('error', () => resolve(), { once: true });
+        setTimeout(resolve, 4000);
+      });
+    }));
+  }
+
+  function collectCardNodes(root) {
+    if (!root) return [];
+    const out = [];
+    root.querySelectorAll('div').forEach(el => {
+      const st = el.getAttribute('style');
+      if (st && st.indexOf('box-shadow') !== -1 && st.indexOf('overflow:hidden') !== -1) out.push(el);
+    });
+    return out;
+  }
+
+  async function exportIdCardsToPdf(containerId, filename) {
+    const container = document.getElementById(containerId);
+    if (!container) { showToast('Generate the cards first', true); return; }
+    if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
+      showToast('PDF library failed to load. Please refresh the page.', true); return;
+    }
+    const cards = collectCardNodes(container);
+    if (!cards.length) { showToast('No cards to export. Generate the cards first', true); return; }
+    const { jsPDF } = window.jspdf;
+    let pdf = null;
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      await waitForImages(card);
+      const canvas = await html2canvas(card, { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false });
+      const wIn = card.offsetWidth / 96;
+      const hIn = card.offsetHeight / 96;
+      const orientation = wIn >= hIn ? 'landscape' : 'portrait';
+      if (!pdf) {
+        pdf = new jsPDF({ unit: 'in', format: [wIn, hIn], orientation: orientation, compress: true });
+      } else {
+        pdf.addPage([wIn, hIn], orientation);
+      }
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, wIn, hIn, undefined, 'FAST');
+    }
+    pdf.save(filename);
+  }
+
+  // Student ID Card: Download → Save as PDF
+  document.getElementById('btn-idcard-stu-download').addEventListener('click', async function() {
+    const studentData = JSON.parse(document.getElementById('idcard-stu-student').dataset.studentData || '{}');
+    const label = studentData.student_id || studentData.name || 'student';
+    const original = this.textContent;
+    this.disabled = true; this.textContent = '⏳ Exporting…';
+    try {
+      await exportIdCardsToPdf('idcard-stu-printable', `ID-Card-${label}.pdf`);
+    } catch (e) {
+      console.error('[APP_ERROR]', e.message);
+      showToast('PDF export failed: ' + e.message, true);
+    } finally {
+      this.disabled = false; this.textContent = original;
+    }
   });
 
   // Teacher ID Card: Generate
@@ -2024,8 +2087,18 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => { printWindow.print(); }, 800);
   });
 
-  document.getElementById('btn-idcard-cw-download').addEventListener('click', () => {
-    showToast('Tip: Use Print > Save as PDF to download all cards');
+  document.getElementById('btn-idcard-cw-download').addEventListener('click', async function() {
+    const className = document.getElementById('idcard-cw-class').value || 'class';
+    const original = this.textContent;
+    this.disabled = true; this.textContent = '⏳ Exporting…';
+    try {
+      await exportIdCardsToPdf('idcard-cw-printable', `ID-Cards-${className}.pdf`);
+    } catch (e) {
+      console.error('[APP_ERROR]', e.message);
+      showToast('PDF export failed: ' + e.message, true);
+    } finally {
+      this.disabled = false; this.textContent = original;
+    }
   });
 
   // ==========================================
@@ -9640,6 +9713,20 @@ document.addEventListener('DOMContentLoaded', () => {
     cb.addEventListener('change', () => loadTimetableGrid());
   });
 
+  // Normalize stored time strings ("08:00:00", "8:00 AM") for <input type="time"> (HH:MM)
+  function normalizeTimeForInput(t) {
+    if (!t) return '';
+    const m = String(t).trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp][Mm])?$/);
+    if (!m) return '';
+    let h = parseInt(m[1], 10);
+    const min = m[2];
+    const ap = m[3] ? m[3].toLowerCase() : null;
+    if (ap === 'pm' && h < 12) h += 12;
+    if (ap === 'am' && h === 12) h = 0;
+    if (isNaN(h) || h < 0 || h > 23) return '';
+    return String(h).padStart(2, '0') + ':' + min;
+  }
+
   // Click cell to load into form (for new entry)
   window.ttCellClick = function(day, period) {
     document.getElementById('tt-day').value = day;
@@ -9658,8 +9745,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('tt-period').value = period;
     document.getElementById('tt-subject').value = subject;
     document.getElementById('tt-teacher').value = teacher_id;
-    document.getElementById('tt-start-time').value = start_time;
-    document.getElementById('tt-end-time').value = end_time;
+    document.getElementById('tt-start-time').value = normalizeTimeForInput(start_time);
+    document.getElementById('tt-end-time').value = normalizeTimeForInput(end_time);
     document.getElementById('btn-tt-cancel').style.display = 'inline-block';
     showToast('Editing: ' + subject + ' (Period ' + period + ' ' + day + ')');
   };

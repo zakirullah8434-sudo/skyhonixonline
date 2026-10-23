@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=50" as="script">
+  <link rel="preload" href="js/app.js?v=51" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v50';
+    window.SKYHONIX_PAGE_VERSION = 'v51';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -956,7 +956,7 @@
               <div id="idcard-stu-preview-container" style="display: none;">
                 <div style="margin-bottom: 15px; display: flex; gap: 10px;">
                   <button class="btn btn-primary" id="btn-idcard-stu-print">🖨️ Print ID Card</button>
-                  <button class="btn btn-secondary" id="btn-idcard-stu-download">📥 Download as Image</button>
+                  <button class="btn btn-secondary" id="btn-idcard-stu-download">📥 Save as PDF</button>
                 </div>
                 <div id="idcard-stu-printable" style="display: flex; gap: 20px; flex-wrap: wrap;"></div>
               </div>
@@ -2043,11 +2043,11 @@
                   </div>
                   <div class="form-group">
                     <label class="form-label">Start Time</label>
-                    <input type="text" class="form-control" id="tt-start-time" placeholder="e.g. 08:00">
+                    <input type="time" class="form-control" id="tt-start-time">
                   </div>
                   <div class="form-group">
                     <label class="form-label">End Time</label>
-                    <input type="text" class="form-control" id="tt-end-time" placeholder="e.g. 08:45">
+                    <input type="time" class="form-control" id="tt-end-time">
                   </div>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
@@ -5023,6 +5023,8 @@
     <div id="dash-scan-result" style="color:#fff; padding:16px; min-height:56px; font-size:0.95rem; text-align:center; background:rgba(255,255,255,0.08);">Point the camera at a student or teacher QR card…</div>
   </div>
 
-  <script src="js/app.js?v=50"></script>
+  <script src="js/vendor/jspdf.umd.min.js?v=51"></script>
+  <script src="js/vendor/html2canvas.min.js?v=51"></script>
+  <script src="js/app.js?v=51"></script>
 </body>
 </html>
