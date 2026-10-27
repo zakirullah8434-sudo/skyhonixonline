@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v51';
+    const EXPECTED_PAGE_VERSION = 'v53';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -1391,6 +1391,60 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => resetPMpanels());
   });
 
+  // Slim list of every active student used by the ID-card "Select Student"
+  // dropdown (slim=1 skips photo payloads, so even a whole school loads fast).
+  async function fetchIdCardStudents(className) {
+    const qs = className ? `?class_name=${encodeURIComponent(className)}&slim=1` : '?slim=1';
+    return await apiCall(`/students${qs}`);
+  }
+
+  // Full records (photo / DOB / gender / admission no ...) for the current
+  // ID-card scope, pulled in pages of 500 so big schools aren't truncated.
+  async function fetchFullStudentsForIdCards(className) {
+    const all = [];
+    let page = 1;
+    for (;;) {
+      const base = className ? `/students?class_name=${encodeURIComponent(className)}` : '/students';
+      const res = await apiCall(`${base}${className ? '&' : '?'}page=${page}&limit=500`);
+      const rows = Array.isArray(res) ? res : (res && res.data) || [];
+      all.push(...rows);
+      const pages = res && res.pagination ? res.pagination.pages : 1;
+      if (!rows.length || page >= pages) break;
+      page++;
+    }
+    return all;
+  }
+
+  // Fills the student dropdown: "📋 Complete Class" is ALWAYS the first option
+  // and is pre-selected, followed by every student name (optionally filtered
+  // by the selected class).
+  async function loadIdCardStudentOptions() {
+    const studentSelect = document.getElementById('idcard-stu-student');
+    if (!studentSelect) return;
+    const className = document.getElementById('idcard-stu-class').value;
+    let students = [];
+    try {
+      students = await fetchIdCardStudents(className);
+    } catch (e) {
+      console.error('[APP_ERROR]', e.message);
+      students = [];
+    }
+    window.__idCardStudents = students; // cached slim list (count + labels)
+
+    const scope = className ? `Complete Class — ${className}` : 'Complete Class (All Students)';
+    const opts = [`<option value="__ALL__">📋 ${scope} (${students.length} students)</option>`];
+    students.forEach(s => {
+      const label = className
+        ? `${s.roll_no || '-'} - ${s.name}`
+        : `${s.class_name || '-'} | ${s.roll_no || '-'} - ${s.name}`;
+      opts.push(`<option value="${s.id}">${label}</option>`);
+    });
+    studentSelect.innerHTML = opts.join('');
+    studentSelect.disabled = false;
+    studentSelect.value = '__ALL__'; // default: whole class, not one student
+    studentSelect.dispatchEvent(new Event('change'));
+  }
+
   async function loadPMIdCard() {
     try {
       const classes = await getCachedClasses(apiCall);
@@ -1413,28 +1467,19 @@ document.addEventListener('DOMContentLoaded', () => {
         cwClassSelect.innerHTML = opts.join('');
       }
     } catch (e) { console.error('[APP_ERROR]', e.message); }
+    // Student dropdown: pre-select "Complete Class" + list every student name
+    loadIdCardStudentOptions();
   }
 
-  // Student ID Card: class change loads students
-  document.getElementById('idcard-stu-class').addEventListener('change', async function() {
-    const className = this.value;
+  // Student ID Card: class change reloads the student dropdown (Complete Class stays default)
+  document.getElementById('idcard-stu-class').addEventListener('change', function() {
     const studentSelect = document.getElementById('idcard-stu-student');
-      studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
-      studentSelect.disabled = true;
-      document.getElementById('btn-idcard-stu-generate').disabled = true;
-      document.getElementById('idcard-stu-info').style.display = 'none';
-      document.getElementById('idcard-stu-preview-container').style.display = 'none';
-
-      if (!className) return;
-      try {
-        const students = await apiCall(`/students?class_name=${encodeURIComponent(className)}`);
-        const opts = ['<option value="">-- Select Student --</option>'];
-        students.forEach(s => {
-          opts.push(`<option value="${s.id}">${s.roll_no || '-'} - ${s.name}</option>`);
-        });
-        studentSelect.innerHTML = opts.join('');
-        studentSelect.disabled = false;
-    } catch (e) { console.error('[APP_ERROR]', e.message); }
+    studentSelect.innerHTML = '<option value="__ALL__">📋 Complete Class…</option>';
+    studentSelect.disabled = true;
+    document.getElementById('btn-idcard-stu-generate').disabled = true;
+    document.getElementById('idcard-stu-info').style.display = 'none';
+    document.getElementById('idcard-stu-preview-container').style.display = 'none';
+    loadIdCardStudentOptions();
   });
 
   // Student ID Card: student change loads info
@@ -1445,6 +1490,29 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('idcard-stu-preview-container').style.display = 'none';
 
     if (!studentId) return;
+
+    // Handle "Complete Class" option (whole class, or the whole school when
+    // no class filter is set)
+    if (studentId === '__ALL__') {
+      const className = document.getElementById('idcard-stu-class').value;
+      const students = window.__idCardStudents || [];
+      document.getElementById('idcard-stu-info').style.display = 'block';
+      document.getElementById('idcard-stu-name').textContent = `Complete Class: ${className || 'All Classes'}`;
+      document.getElementById('idcard-stu-father').textContent = `${students.length} students`;
+      document.getElementById('idcard-stu-id').textContent = '-';
+      document.getElementById('idcard-stu-classname').textContent = className || 'All Classes';
+      document.getElementById('idcard-stu-roll').textContent = '-';
+      document.getElementById('idcard-stu-phone').textContent = '-';
+      document.getElementById('idcard-stu-dob').textContent = '-';
+      document.getElementById('idcard-stu-gender').textContent = '-';
+      document.getElementById('idcard-stu-admno').textContent = '-';
+      document.getElementById('btn-idcard-stu-generate').disabled = students.length === 0;
+      // Slim id-list kept for the count; full records are pulled at generate time
+      this.dataset.studentsData = JSON.stringify(students);
+      this.dataset.studentData = '';
+      return;
+    }
+
     try {
       const data = await apiCall(`/students/${studentId}`);
       const s = data.student;
@@ -1461,7 +1529,8 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('btn-idcard-stu-generate').disabled = false;
 
       // Store student data for card generation
-      document.getElementById('idcard-stu-student').dataset.studentData = JSON.stringify(s);
+      this.dataset.studentData = JSON.stringify(s);
+      this.dataset.studentsData = '';
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
@@ -1834,9 +1903,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return generateIdCardHtml(s, design, schoolName, logoPath, includeQr, false, principalSign);
   }
 
-  // Student ID Card: Generate
+  // Student ID Card: Generate (supports single student or Complete Class batch)
   document.getElementById('btn-idcard-stu-generate').addEventListener('click', async () => {
-    const studentData = JSON.parse(document.getElementById('idcard-stu-student').dataset.studentData || '{}');
+    const studentSelect = document.getElementById('idcard-stu-student');
+    const isAll = studentSelect.value === '__ALL__';
     const design = document.getElementById('idcard-stu-design').value;
     const includeQr = document.getElementById('idcard-stu-qr').value === '1';
     const includeBarcode = document.getElementById('idcard-stu-barcode').value === '1';
@@ -1853,8 +1923,35 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (e) { console.error('[APP_ERROR]', e.message); }
 
-    const html = generateIdCardHtml(studentData, design, settings.school_name, settings.logo_path, includeQr, includeBarcode, principalSign);
-    document.getElementById('idcard-stu-printable').innerHTML = html;
+    const printable = document.getElementById('idcard-stu-printable');
+
+    if (isAll) {
+      // Batch mode: one card per student in scope (selected class, or every
+      // class when none is selected). The dropdown only holds slim rows, so
+      // pull the full records in bulk (paged) instead of one request per kid.
+      let students = [];
+      try { students = JSON.parse(studentSelect.dataset.studentsData || '[]'); } catch (e) {}
+      if (!students.length) { showToast('No students found', true); return; }
+      const className = document.getElementById('idcard-stu-class').value;
+      try {
+        showToast(`Preparing ID cards for ${students.length} student(s)…`);
+        const full = await fetchFullStudentsForIdCards(className);
+        if (full.length) students = full;
+      } catch (e) { console.error('[APP_ERROR]', e.message); /* fall back to slim rows */ }
+
+      let html = '';
+      for (const s of students) {
+        html += generateIdCardHtml(s, design, settings.school_name, settings.logo_path, includeQr, includeBarcode, principalSign);
+      }
+      printable.innerHTML = html;
+    } else {
+      // Single student mode
+      const studentData = JSON.parse(studentSelect.dataset.studentData || '{}');
+      if (!studentData.name) { showToast('Select a student first', true); return; }
+      const html = generateIdCardHtml(studentData, design, settings.school_name, settings.logo_path, includeQr, includeBarcode, principalSign);
+      printable.innerHTML = html;
+    }
+
     document.getElementById('idcard-stu-preview-container').style.display = 'block';
   });
 
@@ -1892,14 +1989,47 @@ document.addEventListener('DOMContentLoaded', () => {
     return out;
   }
 
+  // Writes a generated jsPDF to disk. Works in BOTH environments:
+  //   • APK (Capacitor WebView): the WebView DownloadListener cannot fetch
+  //     blob:/data: URLs at all ("unknown protocol: blob"), so the raw base64
+  //     bytes are handed to the native SaveToDownloads plugin, which writes
+  //     the file into Downloads/SkyHonix/ and returns the saved path.
+  //   • Browser: an anchor with a data: URL + download attribute saves the
+  //     file straight to the Downloads folder.
+  async function saveGeneratedPdf(pdf, filename) {
+    const base64 = pdf.output('datauristring').replace(/^data:[^,]*,/, '');
+
+    // 1) Native APK path (Capacitor plugin registered in MainActivity)
+    try {
+      const cap = window.Capacitor;
+      const plugin = cap && cap.Plugins && cap.Plugins.SaveToDownloads;
+      if (plugin && typeof plugin.save === 'function') {
+        const res = await plugin.save({ data: base64, fileName: filename });
+        if (res && res.success !== false) {
+          showToast(res.path ? '✅ Saved: ' + res.path : '✅ Saved to Downloads/SkyHonix');
+          return;
+        }
+      }
+    } catch (e) { console.error('[PDF_SAVE_NATIVE]', e.message); }
+
+    // 2) Browser / fallback path
+    const a = document.createElement('a');
+    a.href = 'data:application/pdf;base64,' + base64;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast('📥 Saving ' + filename + '…');
+  }
+
   async function exportIdCardsToPdf(containerId, filename) {
     const container = document.getElementById(containerId);
-    if (!container) { showToast('Generate the cards first', true); return; }
+    if (!container) throw new Error('Generate the cards first');
     if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
-      showToast('PDF library failed to load. Please refresh the page.', true); return;
+      throw new Error('PDF library failed to load. Please refresh the page.');
     }
     const cards = collectCardNodes(container);
-    if (!cards.length) { showToast('No cards to export. Generate the cards first', true); return; }
+    if (!cards.length) throw new Error('No cards to export. Generate the cards first');
     const { jsPDF } = window.jspdf;
     let pdf = null;
     for (let i = 0; i < cards.length; i++) {
@@ -1916,13 +2046,23 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, wIn, hIn, undefined, 'FAST');
     }
-    pdf.save(filename);
+    // NOTE: never pdf.save() here — it creates a blob: URL, which the Android
+    // WebView DownloadListener cannot download ("unknown protocol: blob").
+    await saveGeneratedPdf(pdf, filename);
   }
 
   // Student ID Card: Download → Save as PDF
   document.getElementById('btn-idcard-stu-download').addEventListener('click', async function() {
-    const studentData = JSON.parse(document.getElementById('idcard-stu-student').dataset.studentData || '{}');
-    const label = studentData.student_id || studentData.name || 'student';
+    const studentSelect = document.getElementById('idcard-stu-student');
+    let label;
+    if (studentSelect.value === '__ALL__') {
+      const cls = document.getElementById('idcard-stu-class').value;
+      label = cls ? `Class-${cls}` : 'All-Students';
+    } else {
+      const studentData = JSON.parse(studentSelect.dataset.studentData || '{}');
+      label = studentData.student_id || studentData.name || 'student';
+    }
+    label = String(label).replace(/[^\w\-]+/g, '_');
     const original = this.textContent;
     this.disabled = true; this.textContent = '⏳ Exporting…';
     try {
@@ -1965,6 +2105,22 @@ document.addEventListener('DOMContentLoaded', () => {
     printWindow.document.write(`<html><head><title>Teacher ID Card</title><style>@media print{body{margin:0;}}body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f5f9;}}</style></head><body>${content}</body></html>`);
     printWindow.document.close();
     setTimeout(() => { printWindow.print(); }, 500);
+  });
+
+  // Teacher ID Card: Download → Save as PDF
+  document.getElementById('btn-idcard-teach-download').addEventListener('click', async function() {
+    const teacherData = JSON.parse(document.getElementById('idcard-teach-teacher').dataset.teacherData || '{}');
+    const label = String(teacherData.teacher_id || teacherData.name || 'teacher').replace(/[^\w\-]+/g, '_');
+    const original = this.textContent;
+    this.disabled = true; this.textContent = '⏳ Exporting…';
+    try {
+      await exportIdCardsToPdf('idcard-teach-printable', `Teacher-ID-Card-${label}.pdf`);
+    } catch (e) {
+      console.error('[APP_ERROR]', e.message);
+      showToast('PDF export failed: ' + e.message, true);
+    } finally {
+      this.disabled = false; this.textContent = original;
+    }
   });
 
   // Staff ID Card: Generate
@@ -2088,7 +2244,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('btn-idcard-cw-download').addEventListener('click', async function() {
-    const className = document.getElementById('idcard-cw-class').value || 'class';
+    const className = String(document.getElementById('idcard-cw-class').value || 'class').replace(/[^\w\-]+/g, '_');
     const original = this.textContent;
     this.disabled = true; this.textContent = '⏳ Exporting…';
     try {

@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.BridgeActivity;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -42,6 +43,22 @@ public class MainActivity extends BridgeActivity {
 
     private void handleDownload(String url, String userAgent, String contentDisposition,
             String mimeType) {
+        if (url == null) {
+            return;
+        }
+        // blob: URLs only exist inside the page that created them — the native
+        // side can never fetch one ("unknown protocol: blob"). Tell the user
+        // which button to use instead of crashing into a malformed-URL error.
+        if (url.startsWith("blob:")) {
+            showToast("Blob downloads are not supported in the app. "
+                    + "Use the \"Save as PDF\" button in the ID Card section.");
+            return;
+        }
+        // data: URLs carry the whole file inline — decode and save them here.
+        if (url.startsWith("data:")) {
+            saveDataUrl(url, contentDisposition, mimeType);
+            return;
+        }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
                 && ContextCompat.checkSelfPermission(this,
                         Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -56,6 +73,54 @@ public class MainActivity extends BridgeActivity {
             return;
         }
         performDownload(url, userAgent, contentDisposition, mimeType);
+    }
+
+    private void saveDataUrl(final String url, final String contentDisposition,
+            final String mimeType) {
+        new Thread(() -> {
+            try {
+                int comma = url.indexOf(',');
+                if (comma < 0) {
+                    showToast("Download failed: malformed data URL");
+                    return;
+                }
+                String header = url.substring(5, comma); // strip "data:"
+                String payload = url.substring(comma + 1);
+
+                byte[] bytes;
+                if (header.contains(";base64")) {
+                    bytes = android.util.Base64.decode(payload,
+                            android.util.Base64.DEFAULT);
+                } else {
+                    bytes = java.net.URLDecoder.decode(payload, "UTF-8")
+                            .getBytes("UTF-8");
+                }
+
+                String mime = mimeType;
+                int semi = header.indexOf(';');
+                String headerMime = semi > 0 ? header.substring(0, semi) : header;
+                if (!headerMime.trim().isEmpty()) {
+                    mime = headerMime.trim();
+                }
+                if (mime == null || mime.trim().isEmpty()) {
+                    mime = "application/pdf";
+                }
+
+                String name = DownloadsSaver.fileNameFromDisposition(contentDisposition);
+                if (name == null || name.trim().isEmpty()) {
+                    name = "document";
+                    if (mime.contains("pdf")) {
+                        name = "document.pdf";
+                    }
+                }
+
+                String savedPath = DownloadsSaver.save(getApplicationContext(),
+                        new ByteArrayInputStream(bytes), name, mime);
+                showToast("Saved: " + savedPath);
+            } catch (Exception e) {
+                showToast("Download failed: " + e.getMessage());
+            }
+        }, "skyhonix-dataurl-download").start();
     }
 
     @Override
