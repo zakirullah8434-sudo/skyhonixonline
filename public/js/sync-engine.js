@@ -22,7 +22,7 @@
   }
 
   // Execute a single HTTP request
-  async function executeRequest(operation, endpoint, payload, isFormData) {
+  async function executeRequest(action, endpoint, payload, isFormData) {
     const token = getToken();
     const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -31,7 +31,7 @@
     // Idempotency key to prevent duplicate records on retry
     headers['X-Idempotency-Key'] = action.id || window.SkyOfflineDB.generateLocalId();
 
-    const options = { method: operation === 'DELETE' ? 'DELETE' : operation === 'UPDATE' ? 'PUT' : 'POST', headers };
+    const options = { method: action.operation === 'DELETE' ? 'DELETE' : action.operation === 'UPDATE' ? 'PUT' : 'POST', headers };
     if (payload && operation !== 'DELETE') {
       options.body = isFormData ? payload : JSON.stringify(payload);
     }
@@ -161,7 +161,7 @@
       delete payload._serverId;
       delete payload._localId;
 
-      const data = await executeRequest(action.operation, endpoint, payload, payload._isFormData);
+      const data = await executeRequest(action, endpoint, payload, payload._isFormData);
       delete payload._isFormData;
 
       // Handle ID mapping for CREATE operations

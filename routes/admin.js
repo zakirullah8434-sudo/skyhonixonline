@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
+const sqlite3 = require('sqlite3');
 const { queryMain, queryMainOne, runMain, getSchoolDb } = require('../database_manager');
 
 // Helper: get student count from a school's database
@@ -200,6 +201,146 @@ router.get('/schools/:schoolId', authenticateAdmin, async (req, res) => {
   } catch (err) {
     console.error('Error fetching school details:', err);
     res.status(500).json({ error: 'Failed to fetch school details: ' + err.message });
+  }
+});
+
+// ---- Duplicate-student scan & cleanup (v55) ----
+// Older releases could create the same student more than once (multi-tap while
+// the network was flaky + no server-side uniqueness guard). v54+ prevents new
+// duplicates; these admin endpoints detect and clean up the historical ones.
+// Rules mirror the student guards: admission_no unique school-wide,
+// roll_no unique per class, student_id never repeated.
+function dbAll(db, sql, params) {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params || [], (err, rows) => (err ? reject(err) : resolve(rows)));
+  });
+}
+function dbRun(db, sql, params) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params || [], function (err) { return err ? reject(err) : resolve(this); });
+  });
+}
+
+// Admin scans open a DEDICATED short-lived connection instead of reusing the
+// long-lived cached tenant connection, so a scan always reads the latest
+// committed rows regardless of what the pooled handle has open. (The v55
+// "scan sees nothing" bug was actually server.js's 8s GET response cache —
+// fixed by the duplicate-students bypass there — this dedicated connection is
+// defense-in-depth for a rare, admin-only operation.) Turso mode has no local
+// file: read through the shared proxy there (HTTP reads are always current).
+async function withScanDb(schoolId, fn) {
+  if (config.useTurso) return fn(await getSchoolDb(schoolId), null);
+  const school = await queryMainOne('SELECT db_file FROM schools WHERE id = ?', [schoolId]);
+  const dbPath = school && school.db_file ? path.join(config.DATABASES_DIR, school.db_file) : null;
+  if (!dbPath || !fs.existsSync(dbPath)) return fn(null, dbPath); // no student DB yet → no duplicates
+  const db = await new Promise((resolve, reject) => {
+    const conn = new sqlite3.Database(dbPath, (err) => (err ? reject(err) : resolve(conn)));
+  });
+  try { db.configure('busyTimeout', 5000); } catch (e) { /* best effort */ }
+  try { return await fn(db, dbPath); } finally { db.close(); }
+}
+
+async function findDuplicateStudentGroupsOnDb(db) {
+  const groups = { admission_no: [], roll_no: [], student_id: [] };
+  if (!db) return { groups, totalArchiveIds: [], totalStudents: 0 };
+  const rows = await dbAll(db,
+    `SELECT id, student_id, admission_no, roll_no, class_name, name, status
+     FROM students ORDER BY id ASC`);
+
+  const byAdm = new Map(), byRoll = new Map(), bySid = new Map();
+  for (const r of rows) {
+    const adm = String(r.admission_no || '').trim().toLowerCase();
+    if (adm) { if (!byAdm.has(adm)) byAdm.set(adm, []); byAdm.get(adm).push(r); }
+    const roll = String(r.roll_no || '').trim().toLowerCase();
+    const cls = String(r.class_name || '').trim().toLowerCase();
+    if (roll && cls) { const k = cls + '|' + roll; if (!byRoll.has(k)) byRoll.set(k, []); byRoll.get(k).push(r); }
+    const sid = String(r.student_id || '').trim().toLowerCase();
+    if (sid) { if (!bySid.has(sid)) bySid.set(sid, []); bySid.get(sid).push(r); }
+  }
+
+  // A row kept once it appears in ANY duplicate group is archived by dedupe.
+  const seen = new Set();
+  const pack = (field, key, list, extra) => {
+    if (list.length < 2) return;
+    const dups = list.filter(r => r.status !== 'Left');
+    if (dups.length < 2) return; // already cleaned (only one active copy left)
+    const keep = dups[0];
+    const archive = dups.slice(1);
+    archive.forEach(r => seen.add(r.id));
+    groups[field].push({
+      field, key, ...extra,
+      keep: { id: keep.id, name: keep.name, student_id: keep.student_id, admission_no: keep.admission_no, roll_no: keep.roll_no, class_name: keep.class_name },
+      archive: archive.map(r => ({ id: r.id, name: r.name, student_id: r.student_id, admission_no: r.admission_no, roll_no: r.roll_no, class_name: r.class_name }))
+    });
+  };
+
+  for (const [k, list] of byAdm) pack('admission_no', k, list, {});
+  for (const [k, list] of byRoll) { const [cls, roll] = k.split('|'); pack('roll_no', k, list, { class_name: cls, roll_no: roll }); }
+  for (const [k, list] of bySid) pack('student_id', k, list, {});
+
+  const totalArchiveIds = [...seen];
+  return { groups, totalArchiveIds, totalStudents: rows.length };
+}
+
+async function findDuplicateStudentGroups(schoolId) {
+  return withScanDb(schoolId, findDuplicateStudentGroupsOnDb);
+}
+
+// GET /admin/schools/:schoolId/duplicate-students — report only
+router.get('/schools/:schoolId/duplicate-students', authenticateAdmin, async (req, res) => {
+  try {
+    const schoolId = req.params.schoolId;
+    const school = await queryMainOne('SELECT id FROM schools WHERE id = ?', [schoolId]);
+    if (!school) return res.status(404).json({ error: 'School not found' });
+
+    const { groups, totalArchiveIds, totalStudents } = await findDuplicateStudentGroups(schoolId);
+    const summary = {
+      admission_no: groups.admission_no.length,
+      roll_no: groups.roll_no.length,
+      student_id: groups.student_id.length,
+      students_to_archive: totalArchiveIds.length
+    };
+    res.json({ message: 'Duplicate scan complete', summary, groups, total_students: totalStudents });
+  } catch (err) {
+    console.error('Error scanning duplicates:', err);
+    res.status(500).json({ error: 'Failed to scan duplicates: ' + err.message });
+  }
+});
+
+// POST /admin/schools/:schoolId/dedupe-students — archive the extra copies
+// (marks them status='Left', the same non-destructive "remove" the portal uses).
+// Body: { apply: true } to actually archive; anything else is a dry run.
+router.post('/schools/:schoolId/dedupe-students', authenticateAdmin, async (req, res) => {
+  try {
+    const schoolId = req.params.schoolId;
+    const school = await queryMainOne('SELECT id FROM schools WHERE id = ?', [schoolId]);
+    if (!school) return res.status(404).json({ error: 'School not found' });
+
+    const apply = req.body && req.body.apply === true;
+
+    // Scan AND archive on the same dedicated connection (see withScanDb) so
+    // the ids we archive are exactly the ids we just saw, even if another
+    // process wrote rows after the cached connection's snapshot was taken.
+    const { groups, totalArchiveIds, archived } = await withScanDb(schoolId, async (db) => {
+      const scan = await findDuplicateStudentGroupsOnDb(db);
+      let archived = 0;
+      if (apply && scan.totalArchiveIds.length && db) {
+        for (const id of scan.totalArchiveIds) {
+          await dbRun(db, `UPDATE students SET status = 'Left' WHERE id = ? AND (status IS NULL OR status != 'Left')`, [id]);
+          archived++;
+        }
+      }
+      return { groups: scan.groups, totalArchiveIds: scan.totalArchiveIds, archived };
+    });
+    res.json({
+      message: apply
+        ? `Archived ${archived} duplicate student record${archived === 1 ? '' : 's'} (kept the oldest copy of each).`
+        : `Dry run: ${totalArchiveIds.length} duplicate record(s) would be archived. Send { apply: true } to proceed.`,
+      applied: apply, archived, would_archive: totalArchiveIds.length, groups
+    });
+  } catch (err) {
+    console.error('Error de-duplicating students:', err);
+    res.status(500).json({ error: 'Failed to de-duplicate students: ' + err.message });
   }
 });
 

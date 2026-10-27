@@ -110,6 +110,33 @@
     }
   }
 
+  // ---- Offline queue helpers (module scope, shared by OfflineAPI/SyncManager) ----
+
+  // FormData cannot be stored in IndexedDB or replayed as JSON — flatten it
+  // to a plain object (file blobs are dropped; text fields are kept).
+  function formDataToPlain(body) {
+    if (typeof FormData === 'undefined' || !(body instanceof FormData)) return body;
+    const out = {};
+    for (const [k, v] of body.entries()) {
+      if (typeof v === 'string' || typeof v === 'number') out[k] = v;
+    }
+    return out;
+  }
+
+  // Stable signature of a CREATE payload (sorted keys, volatile fields like
+  // photos ignored) so identical multi-tap creates collapse into one queue item.
+  function createSignature(payload) {
+    const out = {};
+    Object.keys(payload || {}).sort().forEach(k => { if (k !== 'photo') out[k] = payload[k]; });
+    return JSON.stringify(out);
+  }
+
+  async function findQueuedCreate(queue, entity, payload) {
+    const sig = createSignature(payload);
+    const pending = await queue.getPending();
+    return pending.find(a => a.entity === entity && a.operation === 'CREATE' && createSignature(a.payload) === sig) || null;
+  }
+
   class SyncManager {
     constructor(db, queue, mapper, cache, network) { this.db = db; this.queue = queue; this.mapper = mapper; this.cache = cache; this.network = network; this._syncing = false; this._listeners = []; this._token = ''; this._apiBase = ''; this._lastSync = null; }
     setAuth(t, b) { this._token = t; this._apiBase = b; }
@@ -157,19 +184,43 @@
     async _syncOne(act) {
       await this.queue.update(act.actionId, { status: 'syncing', lastAttempt: new Date().toISOString() });
       try {
+        const isForm = typeof FormData !== 'undefined' && act.payload instanceof FormData;
         const resp = await fetch(this._apiBase + act.endpoint, { method: act.method,
-          headers: { 'Authorization': 'Bearer ' + this._token, 'Content-Type': 'application/json' },
-          body: act.method !== 'GET' && act.method !== 'HEAD' ? JSON.stringify(act.payload) : undefined });
+          headers: { 'Authorization': 'Bearer ' + this._token, ...(isForm ? {} : { 'Content-Type': 'application/json' }) },
+          body: act.method !== 'GET' && act.method !== 'HEAD' ? (isForm ? act.payload : JSON.stringify(act.payload)) : undefined });
         const txt = await resp.text(); let res; try { res = JSON.parse(txt); } catch(e) { throw new Error('Invalid response'); }
-        if (!resp.ok) { if (resp.status === 401 || resp.status === 403) { await this.queue.update(act.actionId, { status: 'failed', errorMessage: 'Auth expired' }); return; } throw new Error(res.error || 'Server error'); }
+        if (!resp.ok) {
+          if (resp.status === 401 || resp.status === 403) { await this.queue.update(act.actionId, { status: 'failed', errorMessage: 'Auth expired' }); return; }
+          const serverMsg = res.error || 'Server error';
+          // Permanent rejection (duplicate admission no./roll no./student ID,
+          // validation). Retrying cannot succeed: fail the item for good,
+          // delete the optimistic local copy so it stops showing as a phantom
+          // duplicate record, and surface the server's real reason.
+          if (resp.status === 400 || resp.status === 409 || resp.status === 422) {
+            await this.queue.update(act.actionId, { status: 'failed', errorMessage: serverMsg });
+            if (act.entity && act.entityId && await this.mapper.isLocal(act.entityId)) {
+              await this.cache.delete(act.entity, act.entityId);
+            }
+            this._notify({ status: 'failed', message: 'Save rejected — ' + serverMsg });
+            return;
+          }
+          throw new Error(serverMsg);
+        }
+        // Success: map the local id to the server id and remove the optimistic
+        // local copy — previously the phantom stayed in entity_cache forever
+        // and resurfaced as a duplicate whenever a later GET fell back to cache.
         if (act.operation === 'CREATE' && res.id && act.entityId && await this.mapper.isLocal(act.entityId)) {
           await this.mapper.map(act.entityId, res.id);
           const pending2 = await this.queue.getPending();
           for (const p of pending2) { if (p.dependentOn === act.entityId) { p.dependentOn = res.id; p.entityId = res.id; p.payload = this._replIds(p.payload, act.entityId, res.id); await this.queue.update(p.actionId, p); } }
         }
+        if (act.entity && act.entityId && await this.mapper.isLocal(act.entityId)) {
+          await this.cache.delete(act.entity, act.entityId);
+          await this.mapper.map(act.entityId, res.id || act.entityId);
+        }
         const rid = res.id || act.entityId;
         if (rid) await this.cache.updateStatus(act.entity, rid, 'synced');
-        await this.queue.update(act.actionId, { status: 'completed' });
+        await this.queue.remove(act.actionId); // done — don't accumulate finished items
       } catch(e) {
         const rc = (act.retryCount || 0) + 1;
         await this.queue.update(act.actionId, { status: rc >= act.maxRetries ? 'failed' : 'pending', retryCount: rc, errorMessage: e.message });
@@ -202,11 +253,21 @@
 
     async _queueMut(endpoint, method, body, entity, entityId) {
       const uj = localStorage.getItem('skyhonix_user'); const u = uj ? JSON.parse(uj) : {};
+      // FormData (e.g. the Add Student form) can't be serialized into the
+      // IndexedDB queue and JSON.stringify(FormData) replays as "{}" — flatten
+      // it first so the queued create carries the real data.
+      body = formDataToPlain(body);
       let lid = entityId; const isCreate = method === 'POST' && !entityId;
       if (isCreate) lid = this.genLocalId();
       const op = method === 'DELETE' ? 'DELETE' : (method === 'PUT' ? 'UPDATE' : 'CREATE');
-      const existing = await this.queue.dedup(entity, lid || entityId, op, body || {});
-      if (existing) return { _offline: true, _syncStatus: 'pending', _actionId: existing, _localId: lid, id: lid, message: 'Saved locally. Will sync when online.' };
+      // Dedup BEFORE enqueueing: same entity+id for UPDATE/DELETE, same
+      // entity+payload for CREATE. Multi-tap on a flaky connection used to
+      // queue N identical creates (fresh local id per tap), which then showed
+      // up as N duplicate records.
+      const existing = op === 'CREATE'
+        ? (entity ? await findQueuedCreate(this.queue, entity, body) : null)
+        : await this.queue.dedup(entity, lid || entityId, op, body || {});
+      if (existing) return { _offline: true, _syncStatus: 'pending', _actionId: existing.actionId, _localId: existing.entityId, id: existing.entityId, _deduped: true, message: 'Saved locally. Will sync when online.' };
       const act = await this.queue.enqueue({ operation: op, entity, entityId: lid || entityId, endpoint, method, payload: body || {}, userId: u.id || u.teacherId, schoolId: u.schoolId });
       if (entity && body && op !== 'DELETE') await this.cache.put(entity, lid || entityId, { ...body, id: lid || entityId, _syncStatus: 'pending' });
       if (op === 'DELETE' && entity && entityId) await this.cache.updateStatus(entity, entityId, 'deleted');
@@ -234,7 +295,7 @@
       document.body.appendChild(this._panel);
       this._el.addEventListener('click', () => { this._panel.style.display = this._panel.style.display === 'none' ? 'block' : 'none'; this._refresh(); });
       this.network.onChange(() => this._update());
-      this.sync.onStatus((s) => { this._update(); if (s.status === 'synced') this._toast(s.message); });
+      this.sync.onStatus((s) => { this._update(); if (s.status === 'synced' || s.status === 'failed' || s.status === 'error') this._toast(s.message); });
       document.addEventListener('click', (e) => { if (!this._el.contains(e.target) && !this._panel.contains(e.target)) this._panel.style.display = 'none'; });
       this._update();
     }

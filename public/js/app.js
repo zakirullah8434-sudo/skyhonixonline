@@ -6,11 +6,22 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v54';
+    const EXPECTED_PAGE_VERSION = 'v55';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
       location.reload();
+      return;
+    }
+    // Second guard: a stale service worker can serve an OLD HTML+JS pair that
+    // agrees with itself, so the check above never fires. Ask the server which
+    // version is live and hard-reload once if the app shell is behind.
+    if (!sessionStorage.getItem(healKey + '-srv')) {
+      sessionStorage.setItem(healKey + '-srv', '1');
+      fetch('/api/version', { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d && d.version !== EXPECTED_PAGE_VERSION) location.reload(); })
+        .catch(function () {});
     }
   } catch (e) { /* sessionStorage unavailable — skip healing */ }
 })();
@@ -485,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       // Network failure on mutation: queue via offline engine ONLY if not bypassing offline
       if (!bypassOffline && isMutation && window.SkyHonixOffline && window.SkyHonixOffline._initialized && err.message.includes('Failed to fetch')) {
-        return await window.SkyHonixOffline.offlineAPI._queueMutation(
+        return await window.SkyHonixOffline.offlineAPI._queueMut(
           endpoint, method, body, resolveEntity(endpoint), extractEntityId(endpoint, body)
         );
       }
@@ -2896,12 +2907,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Save student (Form POST/PUT)
+  let _studentSaving = false;
   formStudent.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const editId = document.getElementById('student-edit-id').value;
-    const isEdit = !!editId;
+    // Ignore taps while a save is in flight — repeated taps on a slow
+    // connection used to fire several POSTs (and several offline-queue
+    // entries) for the same student.
+    if (_studentSaving) return;
+    _studentSaving = true;
+    const saveBtn = document.getElementById('btn-save-student-profile');
+    const saveBtnText = saveBtn ? saveBtn.textContent : '';
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+    try {
+      const editId = document.getElementById('student-edit-id').value;
+      const isEdit = !!editId;
 
-    const formData = new FormData();
+      const formData = new FormData();
     formData.append('student_id', document.getElementById('stud-id').value);
     formData.append('admission_no', document.getElementById('stud-admno').value);
     formData.append('roll_no', document.getElementById('stud-roll').value);
@@ -2942,21 +2963,23 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    try {
-      const endpoint = isEdit ? `/students/${editId}` : '/students';
-      const method = isEdit ? 'PUT' : 'POST';
+    const endpoint = isEdit ? `/students/${editId}` : '/students';
+    const method = isEdit ? 'PUT' : 'POST';
 
-      const res = await apiCall(endpoint, method, formData, true);
-      showToast(res.message);
-      invalidateClassCache();
-      modalStudent.classList.remove('open');
-      loadStudentsList();
-      loadClassesList();
+    const res = await apiCall(endpoint, method, formData, true);
+    showToast(res.message);
+    invalidateClassCache();
+    modalStudent.classList.remove('open');
+    loadStudentsList();
+    loadClassesList();
     } catch (err) {
       console.error('[APP_ERROR]', err.message);
       // Surface server-side validation failures (duplicate admission no./roll no./student ID)
       // — the silent catch made a rejected save look like the form "did nothing".
       showToast(err.message || 'Failed to save student. Please check the details and try again.', true);
+    } finally {
+      _studentSaving = false;
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = saveBtnText || 'Save Student'; }
     }
   });
 

@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       // Network failure on mutation: queue via offline engine
       if (isMutation && window.SkyHonixOffline && window.SkyHonixOffline._initialized && err.message.includes('Failed to fetch')) {
-        return await window.SkyHonixOffline.offlineAPI._queueMutation(
+        return await window.SkyHonixOffline.offlineAPI._queueMut(
           endpoint, method, body, resolveEntity(endpoint), extractEntityId(endpoint, body)
         );
       }

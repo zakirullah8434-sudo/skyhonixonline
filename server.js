@@ -132,8 +132,14 @@ function apiCacheInvalidate(auth) {
 app.use('/api', (req, res, next) => {
   const auth = req.headers['authorization'] || null;
 
+  // Freshness-critical reads bypass the instant cache entirely (neither served
+  // from nor stored in it). The duplicate-student scan drives archive decisions
+  // and must see live DB state — an 8s-stale copy hides duplicates right after
+  // they appear (this was the v55 "scan finds nothing" bug).
+  const bypassCache = req.method === 'GET' && req.originalUrl.includes('duplicate-students');
+
   if (req.method === 'GET') {
-    if (auth) {
+    if (auth && !bypassCache) {
       const cached = apiCacheRead(auth, req.originalUrl);
       if (cached) {
         res.setHeader('Cache-Control', 'no-store');
@@ -141,13 +147,15 @@ app.use('/api', (req, res, next) => {
         return res.json(cached);
       }
     }
-    const sendJson = res.json.bind(res);
-    res.json = function (data) {
-      if (auth && res.statusCode >= 200 && res.statusCode < 300 && data && typeof data === 'object') {
-        try { apiCacheStore(auth, req.originalUrl, data); } catch (e) { /* never break the response */ }
-      }
-      return sendJson(data);
-    };
+    if (!bypassCache) {
+      const sendJson = res.json.bind(res);
+      res.json = function (data) {
+        if (auth && res.statusCode >= 200 && res.statusCode < 300 && data && typeof data === 'object') {
+          try { apiCacheStore(auth, req.originalUrl, data); } catch (e) { /* never break the response */ }
+        }
+        return sendJson(data);
+      };
+    }
     return next();
   }
 
@@ -398,7 +406,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
 // Keep in sync with ?v= query on js/app.js and SHELL_VERSION in public/sw.js.
 app.get('/api/version', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-  res.json({ version: 'v54' });
+  res.json({ version: 'v55' });
 });
 
 // Mount API routes
