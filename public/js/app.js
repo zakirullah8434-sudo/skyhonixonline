@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v53';
+    const EXPECTED_PAGE_VERSION = 'v54';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -2952,7 +2952,12 @@ document.addEventListener('DOMContentLoaded', () => {
       modalStudent.classList.remove('open');
       loadStudentsList();
       loadClassesList();
-    } catch (err) { console.error('[APP_ERROR]', err.message); }
+    } catch (err) {
+      console.error('[APP_ERROR]', err.message);
+      // Surface server-side validation failures (duplicate admission no./roll no./student ID)
+      // — the silent catch made a rejected save look like the form "did nothing".
+      showToast(err.message || 'Failed to save student. Please check the details and try again.', true);
+    }
   });
 
   // Table events linking — use event delegation to avoid memory leaks

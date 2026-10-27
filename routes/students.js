@@ -424,6 +424,70 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// ---- Uniqueness guards (permanent fix for duplicate student records) ----
+// Rules: admission_no -> unique across the whole school,
+//        roll_no      -> unique within the same class,
+//        student_id   -> never repeated inside a school.
+// Comparisons are trimmed + case-insensitive; empty values are ignored so
+// students without an admission/roll number are not blocked.
+async function findDuplicateStudent(schoolId, { admissionNo, rollNo, className }, excludeId = null) {
+  const excl = excludeId ? ' AND id != ?' : '';
+
+  const adm = String(admissionNo || '').trim();
+  if (adm) {
+    const row = await querySchoolOne(schoolId,
+      `SELECT id, name FROM students WHERE LOWER(TRIM(admission_no)) = LOWER(TRIM(?))${excl} LIMIT 1`,
+      excludeId ? [adm, excludeId] : [adm]);
+    if (row) return { field: 'admission_no', value: adm, row };
+  }
+
+  const roll = String(rollNo || '').trim();
+  const cls = String(className || '').trim();
+  if (roll && cls) {
+    const row = await querySchoolOne(schoolId,
+      `SELECT id, name FROM students WHERE LOWER(TRIM(roll_no)) = LOWER(TRIM(?)) AND LOWER(TRIM(class_name)) = LOWER(TRIM(?))${excl} LIMIT 1`,
+      excludeId ? [roll, cls, excludeId] : [roll, cls]);
+    if (row) return { field: 'roll_no', value: roll, className: cls, row };
+  }
+
+  return null;
+}
+
+// Generate ST-<year>-<n> codes that are guaranteed unused for this school.
+// The old COUNT(*)+1 scheme collided after deletes/duplicates; this walks
+// upward until an actually-free code is found (timestamp fallback).
+async function generateUniqueStudentId(schoolId) {
+  const year = new Date().getFullYear();
+  const countRow = await querySchoolOne(schoolId, 'SELECT COUNT(*) as count FROM students');
+  let n = (countRow && Number(countRow.count) ? Number(countRow.count) : 0) + 1;
+  for (let i = 0; i < 100000; i++) {
+    const candidate = `ST-${year}-${n}`;
+    const clash = await querySchoolOne(schoolId, 'SELECT id FROM students WHERE student_id = ? LIMIT 1', [candidate]);
+    if (!clash) return candidate;
+    n++;
+  }
+  return `ST-${year}-${Date.now()}`;
+}
+
+async function studentIdConflict(schoolId, studentIdCode, excludeId = null) {
+  const row = await querySchoolOne(schoolId, 'SELECT id, name FROM students WHERE student_id = ? LIMIT 1', [studentIdCode]);
+  if (!row) return null;
+  if (excludeId !== null && String(row.id) === String(excludeId)) return null;
+  return row;
+}
+
+// Per-school write lock: serializes duplicate-check -> generate-id -> insert so
+// two simultaneous saves (double-tap, second device, sync replay) can't both
+// pick the same generated student_id or slip a duplicate past the checks.
+const studentWriteChains = new Map();
+function withStudentWriteLock(schoolId, fn) {
+  const key = String(schoolId);
+  const prev = studentWriteChains.get(key) || Promise.resolve();
+  const run = prev.then(fn);
+  studentWriteChains.set(key, run.catch(() => {}));
+  return run;
+}
+
 // POST /students - Create a student
 router.post('/', authenticateToken, upload.single('photo'), async (req, res) => {
   const schoolId = req.user.schoolId;
@@ -432,58 +496,84 @@ router.post('/', authenticateToken, upload.single('photo'), async (req, res) => 
   const photoDataUri = fileToDataUri(req.file);
 
   try {
-    // Generate unique custom student_id if not provided
-    let studentIdCode = data.student_id;
-    if (!studentIdCode) {
-      const year = new Date().getFullYear();
-      const countRow = await querySchoolOne(schoolId, 'SELECT COUNT(*) as count FROM students');
-      studentIdCode = `ST-${year}-${countRow.count + 1}`;
-    }
+    const outcome = await withStudentWriteLock(schoolId, async () => {
+      // Reject duplicates BEFORE inserting: admission no. school-wide, roll no. per class
+      const dup = await findDuplicateStudent(schoolId, {
+        admissionNo: data.admission_no,
+        rollNo: data.roll_no,
+        className: data.class_name
+      });
+      if (dup && dup.field === 'admission_no') {
+        return { status: 409, body: {
+          error: `Admission No "${dup.value}" is already used by "${dup.row.name}". Admission numbers must be unique across the whole school — please use a different one.`
+        } };
+      }
+      if (dup && dup.field === 'roll_no') {
+        return { status: 409, body: {
+          error: `Roll No "${dup.value}" already exists in class ${dup.className} ("${dup.row.name}"). Roll numbers must be unique within the same class.`
+        } };
+      }
 
-    const result = await runSchool(
-      schoolId,
-      `INSERT INTO students (
-        student_id, admission_no, roll_no, name, father_name, class_name, section_name, phone,
-        dob, dob_words, admission_date, admission_class, slc_no, national_id, religion, gender,
-        status, discount_amount, discount_percent, is_free, transport_fee, photo, family_head_id,
-        address, previous_school, previous_school_contact, blood_group
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        studentIdCode,
-        data.admission_no || '',
-        data.roll_no || '',
-        data.name,
-        data.father_name || '',
-        data.class_name,
-        data.section_name || '',
-        data.phone || '',
-        data.dob || '',
-        data.dob_words || '',
-        data.admission_date || new Date().toISOString().split('T')[0],
-        data.admission_class || data.class_name,
-        data.slc_no || '',
-        data.national_id || '',
-        data.religion || 'Islam',
-        data.gender || 'Male',
-        data.status || 'Active',
-        parseFloat(data.discount_amount) || 0,
-        parseFloat(data.discount_percent) || 0,
-        parseInt(data.is_free) || 0,
-        parseFloat(data.transport_fee) || 0,
-        photoDataUri,
-        data.family_head_id ? parseInt(data.family_head_id) : null,
-        data.address || '',
-        data.previous_school || '',
-        data.previous_school_contact || '',
-        data.blood_group || ''
-      ]
-    );
+      // student_id: use the provided code only if free, otherwise auto-generate a guaranteed-unique one
+      let studentIdCode = String(data.student_id || '').trim();
+      if (studentIdCode) {
+        const clash = await studentIdConflict(schoolId, studentIdCode);
+        if (clash) {
+          return { status: 409, body: {
+            error: `Student ID "${studentIdCode}" is already assigned to "${clash.name}". Please use a different Student ID.`
+          } };
+        }
+      } else {
+        studentIdCode = await generateUniqueStudentId(schoolId);
+      }
 
-    res.status(201).json({
-      message: 'Student added successfully!',
-      id: result.id,
-      studentId: studentIdCode
+      const result = await runSchool(
+        schoolId,
+        `INSERT INTO students (
+          student_id, admission_no, roll_no, name, father_name, class_name, section_name, phone,
+          dob, dob_words, admission_date, admission_class, slc_no, national_id, religion, gender,
+          status, discount_amount, discount_percent, is_free, transport_fee, photo, family_head_id,
+          address, previous_school, previous_school_contact, blood_group
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          studentIdCode,
+          data.admission_no || '',
+          data.roll_no || '',
+          data.name,
+          data.father_name || '',
+          data.class_name,
+          data.section_name || '',
+          data.phone || '',
+          data.dob || '',
+          data.dob_words || '',
+          data.admission_date || new Date().toISOString().split('T')[0],
+          data.admission_class || data.class_name,
+          data.slc_no || '',
+          data.national_id || '',
+          data.religion || 'Islam',
+          data.gender || 'Male',
+          data.status || 'Active',
+          parseFloat(data.discount_amount) || 0,
+          parseFloat(data.discount_percent) || 0,
+          parseInt(data.is_free) || 0,
+          parseFloat(data.transport_fee) || 0,
+          photoDataUri,
+          data.family_head_id ? parseInt(data.family_head_id) : null,
+          data.address || '',
+          data.previous_school || '',
+          data.previous_school_contact || '',
+          data.blood_group || ''
+        ]
+      );
+
+      return { status: 201, body: {
+        message: 'Student added successfully!',
+        id: result.id,
+        studentId: studentIdCode
+      } };
     });
+
+    res.status(outcome.status).json(outcome.body);
   } catch (err) {
     console.error('Create student error:', err);
     res.status(500).json({ error: 'Failed to create student: ' + err.message });
@@ -497,58 +587,91 @@ router.put('/:id', authenticateToken, upload.single('photo'), async (req, res) =
   const data = req.body;
 
   try {
-    const existing = await querySchoolOne(schoolId, 'SELECT photo FROM students WHERE id = ?', [id]);
-    if (!existing) {
-      return res.status(404).json({ error: 'Student not found' });
-    }
+    const outcome = await withStudentWriteLock(schoolId, async () => {
+      const existing = await querySchoolOne(schoolId, 'SELECT photo FROM students WHERE id = ?', [id]);
+      if (!existing) {
+        return { status: 404, body: { error: 'Student not found' } };
+      }
 
-    let photoPath = existing.photo;
-    if (req.file) {
-      photoPath = fileToDataUri(req.file);
-    }
+      // Same uniqueness rules as create (excluding this student itself)
+      const dup = await findDuplicateStudent(schoolId, {
+        admissionNo: data.admission_no,
+        rollNo: data.roll_no,
+        className: data.class_name
+      }, id);
+      if (dup && dup.field === 'admission_no') {
+        return { status: 409, body: {
+          error: `Admission No "${dup.value}" is already used by "${dup.row.name}". Admission numbers must be unique across the whole school — please use a different one.`
+        } };
+      }
+      if (dup && dup.field === 'roll_no') {
+        return { status: 409, body: {
+          error: `Roll No "${dup.value}" already exists in class ${dup.className} ("${dup.row.name}"). Roll numbers must be unique within the same class.`
+        } };
+      }
 
-    await runSchool(
-      schoolId,
-      `UPDATE students SET
-        student_id = ?, admission_no = ?, roll_no = ?, name = ?, father_name = ?, class_name = ?,
-        section_name = ?, phone = ?, dob = ?, dob_words = ?, admission_date = ?, admission_class = ?,
-        slc_no = ?, national_id = ?, religion = ?, gender = ?, status = ?, discount_amount = ?,
-        discount_percent = ?, is_free = ?, transport_fee = ?, photo = ?, family_head_id = ?,
-        address = ?, previous_school = ?, previous_school_contact = ?, blood_group = ?
-      WHERE id = ?`,
-      [
-        data.student_id,
-        data.admission_no || '',
-        data.roll_no || '',
-        data.name,
-        data.father_name || '',
-        data.class_name,
-        data.section_name || '',
-        data.phone || '',
-        data.dob || '',
-        data.dob_words || '',
-        data.admission_date || '',
-        data.admission_class || '',
-        data.slc_no || '',
-        data.national_id || '',
-        data.religion || '',
-        data.gender || '',
-        data.status || 'Active',
-        parseFloat(data.discount_amount) || 0,
-        parseFloat(data.discount_percent) || 0,
-        parseInt(data.is_free) || 0,
-        parseFloat(data.transport_fee) || 0,
-        photoPath,
-        data.family_head_id ? parseInt(data.family_head_id) : null,
-        data.address || '',
-        data.previous_school || '',
-        data.previous_school_contact || '',
-        data.blood_group || '',
-        id
-      ]
-    );
+      let studentIdCode = String(data.student_id || '').trim();
+      if (!studentIdCode) {
+        studentIdCode = await generateUniqueStudentId(schoolId);
+      } else {
+        const clash = await studentIdConflict(schoolId, studentIdCode, id);
+        if (clash) {
+          return { status: 409, body: {
+            error: `Student ID "${studentIdCode}" is already assigned to "${clash.name}". Please use a different Student ID.`
+          } };
+        }
+      }
 
-    res.json({ message: 'Student details updated successfully!' });
+      let photoPath = existing.photo;
+      if (req.file) {
+        photoPath = fileToDataUri(req.file);
+      }
+
+      await runSchool(
+        schoolId,
+        `UPDATE students SET
+          student_id = ?, admission_no = ?, roll_no = ?, name = ?, father_name = ?, class_name = ?,
+          section_name = ?, phone = ?, dob = ?, dob_words = ?, admission_date = ?, admission_class = ?,
+          slc_no = ?, national_id = ?, religion = ?, gender = ?, status = ?, discount_amount = ?,
+          discount_percent = ?, is_free = ?, transport_fee = ?, photo = ?, family_head_id = ?,
+          address = ?, previous_school = ?, previous_school_contact = ?, blood_group = ?
+        WHERE id = ?`,
+        [
+          studentIdCode,
+          data.admission_no || '',
+          data.roll_no || '',
+          data.name,
+          data.father_name || '',
+          data.class_name,
+          data.section_name || '',
+          data.phone || '',
+          data.dob || '',
+          data.dob_words || '',
+          data.admission_date || '',
+          data.admission_class || '',
+          data.slc_no || '',
+          data.national_id || '',
+          data.religion || '',
+          data.gender || '',
+          data.status || 'Active',
+          parseFloat(data.discount_amount) || 0,
+          parseFloat(data.discount_percent) || 0,
+          parseInt(data.is_free) || 0,
+          parseFloat(data.transport_fee) || 0,
+          photoPath,
+          data.family_head_id ? parseInt(data.family_head_id) : null,
+          data.address || '',
+          data.previous_school || '',
+          data.previous_school_contact || '',
+          data.blood_group || '',
+          id
+        ]
+      );
+
+      return { status: 200, body: { message: 'Student details updated successfully!' } };
+    });
+
+    res.status(outcome.status).json(outcome.body);
   } catch (err) {
     console.error('Update student error:', err);
     res.status(500).json({ error: 'Failed to update student: ' + err.message });

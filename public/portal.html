@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=53" as="script">
+  <link rel="preload" href="js/app.js?v=54" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v53';
+    window.SKYHONIX_PAGE_VERSION = 'v54';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -5024,8 +5024,8 @@
     <div id="dash-scan-result" style="color:#fff; padding:16px; min-height:56px; font-size:0.95rem; text-align:center; background:rgba(255,255,255,0.08);">Point the camera at a student or teacher QR card…</div>
   </div>
 
-  <script src="js/vendor/jspdf.umd.min.js?v=53"></script>
-  <script src="js/vendor/html2canvas.min.js?v=53"></script>
-  <script src="js/app.js?v=53"></script>
+  <script src="js/vendor/jspdf.umd.min.js?v=54"></script>
+  <script src="js/vendor/html2canvas.min.js?v=54"></script>
+  <script src="js/app.js?v=54"></script>
 </body>
 </html>
