@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v56';
+    const EXPECTED_PAGE_VERSION = 'v57';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -765,8 +765,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (screenName === 'promotions') {
       loadPromotionsData();
       resetPromoPanels();
-    } else if (screenName === 'principal-management') {
-      loadPrincipalManagement();
     }
   }
 
@@ -1349,25 +1347,18 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================
-  // MODULE: PRINCIPAL MANAGEMENT
+  // MODULE: TOOLS & UTILITIES (moved from Principal Management into Admin Settings)
   // ==========================================
-  function loadPrincipalManagement() {
-    resetPMpanels();
-    loadPMTeachers();
-  }
 
   function resetPMpanels() {
-    const pmScreen = document.getElementById('screen-principal-management');
-    if (!pmScreen) return;
-    document.getElementById('pm-main-view').style.display = '';
-    pmScreen.querySelectorAll('.fee-option-panel').forEach(p => p.style.display = 'none');
-    document.getElementById('idcard-stu-info').style.display = 'none';
-    document.getElementById('idcard-stu-preview-container').style.display = 'none';
-    document.getElementById('idcard-teach-info').style.display = 'none';
-    document.getElementById('idcard-teach-preview-container').style.display = 'none';
-    document.getElementById('idcard-staff-preview-container').style.display = 'none';
-    document.getElementById('idcard-cw-info').style.display = 'none';
-    document.getElementById('idcard-cw-preview-container').style.display = 'none';
+    const adminScreen = document.getElementById('screen-admin-settings');
+    if (adminScreen) adminScreen.querySelectorAll('.fee-option-panel').forEach(p => p.style.display = 'none');
+    ['idcard-stu-info', 'idcard-stu-preview-container', 'idcard-teach-info',
+     'idcard-teach-preview-container', 'idcard-staff-preview-container',
+     'idcard-cw-info', 'idcard-cw-preview-container'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
   }
 
   async function loadPMTeachers() {
@@ -1384,15 +1375,19 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
-  // PM sub-panel navigation
+  // Tools & Utilities sub-panel navigation (cards now live inside Admin Settings)
   document.querySelectorAll('[data-opt^="pm-"]').forEach(card => {
     card.addEventListener('click', () => {
       if (card.style.opacity === '0.5') return; // Coming soon
       const opt = card.getAttribute('data-opt');
-      document.getElementById('pm-main-view').style.display = 'none';
+      const adminScreen = document.getElementById('screen-admin-settings');
+      if (adminScreen) {
+        adminScreen.querySelectorAll(':scope > .card, :scope > .grid-3').forEach(c => c.style.display = 'none');
+        adminScreen.querySelectorAll('.fee-option-panel').forEach(p => p.style.display = 'none');
+      }
       const panel = document.getElementById('pm-panel-' + opt.replace('pm-', ''));
       if (panel) panel.style.display = 'block';
-      if (opt === 'pm-idcard') loadPMIdCard();
+      if (opt === 'pm-idcard') { loadPMIdCard(); loadPMTeachers(); }
       if (opt === 'pm-transport') loadTransportData();
       if (opt === 'pm-salary') loadSalarySetup();
     });

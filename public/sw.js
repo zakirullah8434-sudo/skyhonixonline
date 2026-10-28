@@ -8,9 +8,9 @@
  *
  * Bump SHELL_VERSION whenever a cached asset is renamed/removed.
  */
-const SHELL_VERSION = 'skyhonix-shell-v56';
-const PAGE_CACHE = 'skyhonix-pages-v56';
-const ASSET_CACHE = 'skyhonix-assets-v56';
+const SHELL_VERSION = 'skyhonix-shell-v57';
+const PAGE_CACHE = 'skyhonix-pages-v57';
+const ASSET_CACHE = 'skyhonix-assets-v57';
 
 const SHELL_PAGES = [
   '/index.html',
@@ -23,7 +23,7 @@ const SHELL_PAGES = [
 
 const SHELL_ASSETS = [
   '/css/styles.css?v=7',
-  '/js/app.js?v=56',
+  '/js/app.js?v=57',
   '/js/teacher-portal.js?v=18',
   '/js/parent-portal.js?v=17',
   '/js/section-history.js?v=1',

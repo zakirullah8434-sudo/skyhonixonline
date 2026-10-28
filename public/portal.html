@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=56" as="script">
+  <link rel="preload" href="js/app.js?v=57" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v56';
+    window.SKYHONIX_PAGE_VERSION = 'v57';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -435,12 +435,6 @@
             Promote Students
           </a>
         </li>
-        <li class="sidebar-menu-item" data-screen="principal-management">
-          <a href="#" class="sidebar-menu-link">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
-            Principal Management
-          </a>
-        </li>
       </ul>
       
       <div class="sidebar-footer">
@@ -829,939 +823,6 @@
         </article>
 
         <!-- ==================== SCREEN: PRINCIPAL MANAGEMENT ==================== -->
-        <article class="screen-section" id="screen-principal-management" style="display: none;">
-          <h2 style="margin-bottom: 24px;">📋 Principal Management</h2>
-
-          <!-- Main "Other" Options Grid -->
-          <div id="pm-main-view">
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
-              Access advanced administrative tools for ID card generation, transport, salary, certificates, expenses, and analytics.
-            </p>
-            <div class="fees-dash-grid">
-              <div class="fees-dash-card card-green" data-opt="pm-idcard" style="cursor: pointer;">
-                <div class="fees-card-title">🪪 ID Card Generator</div>
-                <div class="fees-card-desc">Student, Teacher & Staff ID Cards</div>
-              </div>
-              <div class="fees-dash-card card-blue" data-opt="pm-transport" style="cursor: pointer;">
-                <div class="fees-card-title">🚌 Transport Management</div>
-                <div class="fees-card-desc">Vehicles, Drivers & Routes</div>
-              </div>
-      <div class="fees-dash-card card-orange" data-opt="pm-salary" style="cursor: pointer;">
-        <div class="fees-card-title">💸 Salary Management</div>
-        <div class="fees-card-desc">Teacher salaries & payments</div>
-      </div>
-              <div class="fees-dash-card card-purple" data-opt="pm-certificate" style="cursor: pointer;">
-                <div class="fees-card-title">📜 Certificate Generator</div>
-                <div class="fees-card-desc">Leave, Character & Sports</div>
-              </div>
-              <div class="fees-dash-card card-pink" data-opt="pm-expense" style="cursor: pointer; opacity: 0.5;">
-                <div class="fees-card-title">🧾 Expense Management</div>
-                <div class="fees-card-desc">Coming Soon</div>
-              </div>
-              <div class="fees-dash-card card-teal" data-opt="pm-analytics" style="cursor: pointer; opacity: 0.5;">
-                <div class="fees-card-title">📊 Analytics & Reports</div>
-                <div class="fees-card-desc">Coming Soon</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ========== Panel: ID Card Generator ========== -->
-          <div id="pm-panel-idcard" class="fee-option-panel" style="display: none;">
-            <div style="margin-bottom: 20px;">
-              <button class="btn btn-outline btn-sm btn-back-pm-dash">← Back to Principal Management</button>
-            </div>
-            <h2 style="margin-bottom: 24px;">🪪 ID Card Generator</h2>
-
-            <!-- Type Tabs -->
-            <div class="tab-container" style="margin-bottom: 20px;">
-              <button class="tab-btn active" data-tab="idcard-student">Student ID Card</button>
-              <button class="tab-btn" data-tab="idcard-teacher">Teacher ID Card</button>
-              <button class="tab-btn" data-tab="idcard-staff">Staff ID Card</button>
-              <button class="tab-btn" data-tab="idcard-classwise">Class-Wise Cards</button>
-            </div>
-
-            <!-- ===== Student ID Card Tab ===== -->
-            <div class="tab-content" id="tab-idcard-student">
-              <div class="card" style="margin-bottom: 20px;">
-                <h3>Generate Student ID Card</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
-                  📋 <strong>Complete Class</strong> is selected by default — it generates a card for every student in the selected class (or the whole school if no class is picked). Or pick a single student from the dropdown. QR / barcode use the admission record automatically.
-                </p>
-                <div class="grid-3" style="gap: 15px;">
-                  <div class="form-group">
-                    <label class="form-label">Select Class *</label>
-                    <select class="form-control" id="idcard-stu-class">
-                      <option value="">-- Select Class --</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Select Student *</label>
-                    <select class="form-control" id="idcard-stu-student" disabled>
-                      <option value="">-- Select Student --</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Card Design *</label>
-                    <select class="form-control" id="idcard-stu-design">
-                      <option value="design1">Design 1 - Lanyard Badge</option>
-                      <option value="classic">Classic Landscape</option>
-                      <option value="portrait">Portrait Vertical</option>
-                      <option value="badge">Badge / Lanyard</option>
-                      <option value="twosided">Two-Sided Card</option>
-                      <option value="smart">Smart Chip Card</option>
-                      <option value="pakistani">Pakistani Green</option>
-                      <option value="kids">Kids / Primary</option>
-                      <option value="corporate">Corporate Clean</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="grid-3" style="gap: 15px; margin-top: 12px;">
-                  <div class="form-group">
-                    <label class="form-label">Include QR Code</label>
-                    <select class="form-control" id="idcard-stu-qr">
-                      <option value="1">Yes</option>
-                      <option value="0">No</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Include Barcode</label>
-                    <select class="form-control" id="idcard-stu-barcode">
-                      <option value="1">Yes</option>
-                      <option value="0">No</option>
-                    </select>
-                  </div>
-                  <div class="form-group" style="display: flex; align-items: flex-end;">
-                    <button class="btn btn-primary" id="btn-idcard-stu-generate" style="width: 100%;" disabled>Generate ID Card</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Auto-filled Student Info -->
-              <div id="idcard-stu-info" class="card" style="display: none; margin-bottom: 20px;">
-                <h3 style="margin-bottom: 12px;">Auto-Filled Student Information</h3>
-                <div class="grid-3" style="gap: 10px;">
-                  <div><span style="color: var(--text-muted);">Name:</span> <strong id="idcard-stu-name">-</strong></div>
-                  <div><span style="color: var(--text-muted);">Father:</span> <strong id="idcard-stu-father">-</strong></div>
-                  <div><span style="color: var(--text-muted);">Student ID:</span> <strong id="idcard-stu-id">-</strong></div>
-                  <div><span style="color: var(--text-muted);">Class:</span> <strong id="idcard-stu-classname">-</strong></div>
-                  <div><span style="color: var(--text-muted);">Roll No:</span> <strong id="idcard-stu-roll">-</strong></div>
-                  <div><span style="color: var(--text-muted);">Phone:</span> <strong id="idcard-stu-phone">-</strong></div>
-                  <div><span style="color: var(--text-muted);">DOB:</span> <strong id="idcard-stu-dob">-</strong></div>
-                  <div><span style="color: var(--text-muted);">Gender:</span> <strong id="idcard-stu-gender">-</strong></div>
-                  <div><span style="color: var(--text-muted);">Admission No:</span> <strong id="idcard-stu-admno">-</strong></div>
-                </div>
-              </div>
-
-              <!-- ID Card Preview -->
-              <div id="idcard-stu-preview-container" style="display: none;">
-                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-                  <button class="btn btn-primary" id="btn-idcard-stu-print">🖨️ Print ID Card</button>
-                  <button class="btn btn-secondary" id="btn-idcard-stu-download">📥 Save as PDF</button>
-                </div>
-                <div id="idcard-stu-printable" style="display: flex; gap: 20px; flex-wrap: wrap;"></div>
-              </div>
-            </div>
-
-            <!-- ===== Teacher ID Card Tab ===== -->
-            <div class="tab-content" id="tab-idcard-teacher" style="display: none;">
-              <div class="card" style="margin-bottom: 20px;">
-                <h3>Generate Teacher ID Card</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
-                  Select a teacher and design template to generate a printable ID card.
-                </p>
-                <div class="grid-3" style="gap: 15px;">
-                  <div class="form-group">
-                    <label class="form-label">Select Teacher *</label>
-                    <select class="form-control" id="idcard-teach-teacher">
-                      <option value="">-- Select Teacher --</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Card Design *</label>
-                    <select class="form-control" id="idcard-teach-design">
-                      <option value="design1">Design 1 - Lanyard Badge</option>
-                      <option value="classic">Classic Landscape</option>
-                      <option value="portrait">Portrait Vertical</option>
-                      <option value="badge">Badge / Lanyard</option>
-                      <option value="twosided">Two-Sided Card</option>
-                      <option value="smart">Smart Chip Card</option>
-                      <option value="pakistani">Pakistani Green</option>
-                      <option value="kids">Kids / Primary</option>
-                      <option value="corporate">Corporate Clean</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Include QR Code</label>
-                    <select class="form-control" id="idcard-teach-qr">
-                      <option value="1">Yes</option>
-                      <option value="0">No</option>
-                    </select>
-                  </div>
-                </div>
-                <div style="margin-top: 12px; display: flex; gap: 10px;">
-                  <button class="btn btn-primary" id="btn-idcard-teach-generate" disabled>Generate ID Card</button>
-                </div>
-              </div>
-
-              <div id="idcard-teach-info" class="card" style="display: none; margin-bottom: 20px;">
-                <h3 style="margin-bottom: 12px;">Auto-Filled Teacher Information</h3>
-                <div class="grid-3" style="gap: 10px;">
-                  <div><span style="color: var(--text-muted);">Name:</span> <strong id="idcard-teach-name">-</strong></div>
-                  <div><span style="color: var(--text-muted);">Phone:</span> <strong id="idcard-teach-phone">-</strong></div>
-                  <div><span style="color: var(--text-muted);">Subject:</span> <strong id="idcard-teach-subject">-</strong></div>
-                  <div><span style="color: var(--text-muted);">Qualification:</span> <strong id="idcard-teach-qual">-</strong></div>
-                  <div><span style="color: var(--text-muted);">Status:</span> <strong id="idcard-teach-status">-</strong></div>
-                </div>
-              </div>
-
-              <div id="idcard-teach-preview-container" style="display: none;">
-                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-                  <button class="btn btn-primary" id="btn-idcard-teach-print">🖨️ Print ID Card</button>
-                  <button class="btn btn-secondary" id="btn-idcard-teach-download">📥 Save as PDF</button>
-                </div>
-                <div id="idcard-teach-printable" style="display: flex; gap: 20px; flex-wrap: wrap;"></div>
-              </div>
-            </div>
-
-            <!-- ===== Staff ID Card Tab ===== -->
-            <div class="tab-content" id="tab-idcard-staff" style="display: none;">
-              <div class="card" style="margin-bottom: 20px;">
-                <h3>Generate Staff ID Card</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
-                  Generate ID cards for non-teaching staff members.
-                </p>
-                <div class="grid-3" style="gap: 15px;">
-                  <div class="form-group">
-                    <label class="form-label">Staff Name *</label>
-                    <input type="text" class="form-control" id="idcard-staff-name" placeholder="e.g. Ahmed Khan">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Designation *</label>
-                    <input type="text" class="form-control" id="idcard-staff-desig" placeholder="e.g. Clerk, Peon, Guard">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Phone</label>
-                    <input type="text" class="form-control" id="idcard-staff-phone" placeholder="03001234567">
-                  </div>
-                </div>
-                <div class="grid-3" style="gap: 15px; margin-top: 12px;">
-                  <div class="form-group">
-                    <label class="form-label">CNIC</label>
-                    <input type="text" class="form-control" id="idcard-staff-cnic" placeholder="35202-1234567-1">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Card Design *</label>
-                    <select class="form-control" id="idcard-staff-design">
-                      <option value="design1">Design 1 - Lanyard Badge</option>
-                      <option value="classic">Classic Landscape</option>
-                      <option value="portrait">Portrait Vertical</option>
-                      <option value="badge">Badge / Lanyard</option>
-                      <option value="twosided">Two-Sided Card</option>
-                      <option value="smart">Smart Chip Card</option>
-                      <option value="pakistani">Pakistani Green</option>
-                      <option value="kids">Kids / Primary</option>
-                      <option value="corporate">Corporate Clean</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Include QR Code</label>
-                    <select class="form-control" id="idcard-staff-qr">
-                      <option value="1">Yes</option>
-                      <option value="0">No</option>
-                    </select>
-                  </div>
-                </div>
-                <div style="margin-top: 12px;">
-                  <button class="btn btn-primary" id="btn-idcard-staff-generate">Generate ID Card</button>
-                </div>
-              </div>
-
-              <div id="idcard-staff-preview-container" style="display: none;">
-                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-                  <button class="btn btn-primary" id="btn-idcard-staff-print">🖨️ Print ID Card</button>
-                </div>
-                <div id="idcard-staff-printable" style="display: flex; gap: 20px; flex-wrap: wrap;"></div>
-              </div>
-            </div>
-
-            <!-- ===== Class-Wise Batch ID Card Tab ===== -->
-            <div class="tab-content" id="tab-idcard-classwise" style="display: none;">
-              <div class="card" style="margin-bottom: 20px;">
-                <h3>Generate All Student ID Cards for a Class</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
-                  Select a class to auto-generate printable ID cards for every student in that class at once.
-                </p>
-                <div class="grid-3" style="gap: 15px;">
-                  <div class="form-group">
-                    <label class="form-label">Select Class *</label>
-                    <select class="form-control" id="idcard-cw-class">
-                      <option value="">-- Select Class --</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Card Design *</label>
-                    <select class="form-control" id="idcard-cw-design">
-                      <option value="design1">Design 1 - Lanyard Badge</option>
-                      <option value="classic">Classic Landscape</option>
-                      <option value="portrait">Portrait Vertical</option>
-                      <option value="badge">Badge / Lanyard</option>
-                      <option value="twosided">Two-Sided Card</option>
-                      <option value="smart">Smart Chip Card</option>
-                      <option value="pakistani">Pakistani Green</option>
-                      <option value="kids">Kids / Primary</option>
-                      <option value="corporate">Corporate Clean</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Include QR Code</label>
-                    <select class="form-control" id="idcard-cw-qr">
-                      <option value="1">Yes</option>
-                      <option value="0">No</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="grid-3" style="gap: 15px; margin-top: 12px;">
-                  <div class="form-group">
-                    <label class="form-label">Include Barcode</label>
-                    <select class="form-control" id="idcard-cw-barcode">
-                      <option value="1">Yes</option>
-                      <option value="0">No</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Cards Per Row (Print)</label>
-                    <select class="form-control" id="idcard-cw-layout">
-                      <option value="2">2 Cards Per Row</option>
-                      <option value="3" selected>3 Cards Per Row</option>
-                    </select>
-                  </div>
-                  <div class="form-group" style="display: flex; align-items: flex-end;">
-                    <button class="btn btn-primary" id="btn-idcard-cw-generate" style="width: 100%;" disabled>Generate All Cards</button>
-                  </div>
-                </div>
-              </div>
-
-              <div id="idcard-cw-info" class="card" style="display: none; margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <div>
-                    <h3>Class Preview</h3>
-                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Found <strong id="idcard-cw-count">0</strong> students in <strong id="idcard-cw-classname">-</strong></p>
-                  </div>
-                </div>
-              </div>
-
-              <div id="idcard-cw-preview-container" style="display: none;">
-                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-                  <button class="btn btn-primary" id="btn-idcard-cw-print">🖨️ Print All ID Cards</button>
-                  <button class="btn btn-secondary" id="btn-idcard-cw-download">📥 Download as PDF</button>
-                </div>
-                <div id="idcard-cw-printable" style="display: flex; gap: 15px; flex-wrap: wrap; padding: 10px; background: #f1f5f9; border-radius: 12px;"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ========== Panel: Certificate Generator ========== -->
-          <div id="pm-panel-certificate" class="fee-option-panel" style="display: none;">
-            <div style="margin-bottom: 20px;">
-              <button class="btn btn-outline btn-sm btn-back-pm-dash">&larr; Back to Principal Management</button>
-            </div>
-            <h2 style="margin-bottom: 24px;">📜 Certificate Generator</h2>
-
-            <!-- Student Search -->
-            <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-              <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label">Search Student</label>
-                <div style="display:flex; gap:8px;">
-                  <input type="text" class="form-control" id="cert-student-search" placeholder="Type student name, roll no, or ID..." style="flex:1;">
-                  <button class="btn btn-secondary" id="cert-student-search-btn">Search</button>
-                </div>
-                <div id="cert-student-results" style="display:none; margin-top:8px; max-height:200px; overflow-y:auto;"></div>
-              </div>
-              <div id="cert-student-info" style="display:none; margin-top:12px; padding:12px; background: var(--bg-secondary); border-radius:8px;">
-                <div style="display:flex; gap:12px; align-items:center;">
-                  <img id="cert-student-photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%236366f1'/%3E%3Ctext x='50' y='62' font-size='40' font-family='Arial,sans-serif' fill='white' text-anchor='middle'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E" style="width:50px; height:50px; border-radius:8px; object-fit:cover;">
-                  <div>
-                    <div style="font-weight:700; font-size:0.9rem;" id="cert-student-name">-</div>
-                    <div style="font-size:0.75rem; color:var(--text-muted);" id="cert-student-class">-</div>
-                    <div style="font-size:0.75rem; color:var(--text-muted);" id="cert-student-id">-</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Certificate Type Tabs -->
-            <div class="tab-container" style="margin-bottom: 20px;">
-              <button class="tab-btn active" data-tab="cert-leave">Leave Certificate</button>
-              <button class="tab-btn" data-tab="cert-character">Character Certificate</button>
-              <button class="tab-btn" data-tab="cert-sports">Sports Certificate</button>
-            </div>
-
-            <!-- Leave Certificate Tab -->
-            <div id="tab-cert-leave" class="tab-content" style="display:block;">
-              <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
-                <div class="grid-3">
-                  <div class="form-group">
-                    <label class="form-label">Leave Start Date</label>
-                    <input type="date" class="form-control" id="cert-leave-start">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Leave End Date</label>
-                    <input type="date" class="form-control" id="cert-leave-end">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Reason for Leave</label>
-                    <input type="text" class="form-control" id="cert-leave-reason" placeholder="e.g., Family function, Medical">
-                  </div>
-                </div>
-                <button class="btn btn-primary" id="cert-leave-generate" style="margin-top:12px; width:100%;">Generate Leave Certificate</button>
-              </div>
-            </div>
-
-            <!-- Character Certificate Tab -->
-            <div id="tab-cert-character" class="tab-content" style="display:none;">
-              <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
-                <div class="form-group">
-                  <label class="form-label">Academic Session</label>
-                  <input type="text" class="form-control" id="cert-char-session" placeholder="e.g., 2025-2026" value="">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Conduct Description</label>
-                  <textarea class="form-control" id="cert-char-conduct" rows="3" placeholder="Student's conduct description...">The above named student has been a regular and sincere student of this school during the academic session. His/Her conduct and behavior has been satisfactory throughout the session. He/She is respectful, disciplined, and hardworking.</textarea>
-                </div>
-                <button class="btn btn-primary" id="cert-char-generate" style="margin-top:12px; width:100%;">Generate Character Certificate</button>
-              </div>
-            </div>
-
-            <!-- Sports Certificate Tab -->
-            <div id="tab-cert-sports" class="tab-content" style="display:none;">
-              <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
-                <div class="grid-3">
-                  <div class="form-group">
-                    <label class="form-label">Event / Competition Name</label>
-                    <input type="text" class="form-control" id="cert-sports-event" placeholder="e.g., Annual Sports Day">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Achievement / Position</label>
-                    <input type="text" class="form-control" id="cert-sports-achievement" placeholder="e.g., 1st Position in 100m Race">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Event Date</label>
-                    <input type="date" class="form-control" id="cert-sports-date">
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Additional Details</label>
-                  <textarea class="form-control" id="cert-sports-details" rows="2" placeholder="Any additional details..."></textarea>
-                </div>
-                <button class="btn btn-primary" id="cert-sports-generate" style="margin-top:12px; width:100%;">Generate Sports Certificate</button>
-              </div>
-            </div>
-
-            <!-- Preview Area -->
-            <div id="cert-preview-container" style="display:none; margin-top:24px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <h3>Certificate Preview</h3>
-                <div style="display:flex; gap:8px;">
-                  <button class="btn btn-primary" id="cert-print">🖨️ Print</button>
-                  <button class="btn btn-outline" id="cert-download">📥 Download PDF</button>
-                </div>
-              </div>
-              <div id="cert-printable" style="background:#f1f5f9; padding:20px; border-radius:12px; display:flex; justify-content:center;"></div>
-            </div>
-          </div>
-
-          <!-- ========== Panel: Transport Management ========== -->
-          <div id="pm-panel-transport" class="fee-option-panel" style="display: none;">
-            <div style="margin-bottom: 20px;">
-              <button class="btn btn-outline btn-sm btn-back-pm-dash">&larr; Back to Principal Management</button>
-            </div>
-            <h2 style="margin-bottom: 24px;">🚌 Transport Management</h2>
-
-            <!-- Transport Dashboard Stats -->
-            <div class="fees-dash-grid" style="margin-bottom: 24px;">
-              <div class="fees-dash-card card-blue" style="cursor: default;">
-                <div class="fees-card-title" id="ts-total-vehicles">0</div>
-                <div class="fees-card-desc">Vehicles</div>
-              </div>
-              <div class="fees-dash-card card-green" style="cursor: default;">
-                <div class="fees-card-title" id="ts-total-drivers">0</div>
-                <div class="fees-card-desc">Drivers</div>
-              </div>
-              <div class="fees-dash-card card-orange" style="cursor: default;">
-                <div class="fees-card-title" id="ts-total-routes">0</div>
-                <div class="fees-card-desc">Routes</div>
-              </div>
-              <div class="fees-dash-card card-purple" style="cursor: default;">
-                <div class="fees-card-title" id="ts-total-students">0</div>
-                <div class="fees-card-desc">Students Assigned</div>
-              </div>
-              <div class="fees-dash-card card-teal" style="cursor: default;">
-                <div class="fees-card-title" id="ts-monthly-revenue">Rs 0</div>
-                <div class="fees-card-desc">Monthly Revenue</div>
-              </div>
-            </div>
-
-            <!-- Sub-Tabs -->
-            <div class="tab-container" style="margin-bottom: 20px;">
-              <button class="tab-btn active" data-tab="transport-vehicles">🚐 Vehicles</button>
-              <button class="tab-btn" data-tab="transport-drivers">🧑‍✈️ Drivers</button>
-              <button class="tab-btn" data-tab="transport-routes">🗺️ Routes</button>
-              <button class="tab-btn" data-tab="transport-assign">👨‍🎓 Assign Students</button>
-              <button class="tab-btn" data-tab="transport-fees">💰 Fees</button>
-            </div>
-
-            <!-- ===== Tab: Vehicles ===== -->
-            <div class="tab-content" id="tab-transport-vehicles">
-              <div class="card">
-                <h3>Add / Edit Vehicle</h3>
-                <form id="form-vehicle">
-                  <input type="hidden" id="vehicle-edit-id" value="">
-                  <div class="grid-3" style="gap: 12px;">
-                    <div class="form-group">
-                      <label class="form-label">Vehicle Name</label>
-                      <input type="text" class="form-control" id="vehicle-name" placeholder="e.g. School Bus 1" required>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Plate Number</label>
-                      <input type="text" class="form-control" id="vehicle-plate" placeholder="e.g. ABC-1234" required>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Type</label>
-                      <select class="form-control" id="vehicle-type">
-                        <option>Bus</option><option>Van</option><option>Coaster</option><option>Other</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div class="grid-3" style="gap: 12px;">
-                    <div class="form-group">
-                      <label class="form-label">Capacity (Seats)</label>
-                      <input type="number" class="form-control" id="vehicle-capacity" placeholder="e.g. 40" value="0">
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Monthly Fee (Rs)</label>
-                      <input type="number" class="form-control" id="vehicle-fee" placeholder="e.g. 2000" value="0">
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Status</label>
-                      <select class="form-control" id="vehicle-status">
-                        <option>Active</option><option>Inactive</option><option>Maintenance</option>
-                      </select>
-                    </div>
-                  </div>
-                  <button type="submit" class="btn btn-secondary" id="btn-save-vehicle" style="margin-top: 10px; width: 100%;">Save Vehicle</button>
-                </form>
-              </div>
-              <div class="card" style="margin-top: 16px;">
-                <h3>All Vehicles</h3>
-                <div style="overflow-x: auto;">
-                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
-                    <thead>
-                      <tr>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Name</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Plate</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Type</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Capacity</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Fee (Rs)</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Status</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody id="table-vehicles"></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <!-- ===== Tab: Drivers ===== -->
-            <div class="tab-content" id="tab-transport-drivers" style="display: none;">
-              <div class="card">
-                <h3>Add / Edit Driver</h3>
-                <form id="form-driver">
-                  <input type="hidden" id="driver-edit-id" value="">
-                  <div class="grid-3" style="gap: 12px;">
-                    <div class="form-group">
-                      <label class="form-label">Driver Name</label>
-                      <input type="text" class="form-control" id="driver-name" placeholder="Full name" required>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Phone Number</label>
-                      <input type="text" class="form-control" id="driver-phone" placeholder="e.g. 0300-1234567" required>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">License Number</label>
-                      <input type="text" class="form-control" id="driver-license" placeholder="e.g. JL-12345">
-                    </div>
-                  </div>
-                  <div class="grid-3" style="gap: 12px;">
-                    <div class="form-group">
-                      <label class="form-label">Assign Vehicle</label>
-                      <select class="form-control" id="driver-vehicle">
-                        <option value="">-- No Vehicle --</option>
-                      </select>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Address</label>
-                      <input type="text" class="form-control" id="driver-address" placeholder="Home address">
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Status</label>
-                      <select class="form-control" id="driver-status">
-                        <option>Active</option><option>Inactive</option>
-                      </select>
-                    </div>
-                  </div>
-                  <button type="submit" class="btn btn-secondary" id="btn-save-driver" style="margin-top: 10px; width: 100%;">Save Driver</button>
-                </form>
-              </div>
-              <div class="card" style="margin-top: 16px;">
-                <h3>All Drivers</h3>
-                <div style="overflow-x: auto;">
-                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
-                    <thead>
-                      <tr>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Name</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Phone</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">License</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Vehicle</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Status</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody id="table-drivers"></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <!-- ===== Tab: Routes ===== -->
-            <div class="tab-content" id="tab-transport-routes" style="display: none;">
-              <div class="card">
-                <h3>Add / Edit Route</h3>
-                <form id="form-route">
-                  <input type="hidden" id="route-edit-id" value="">
-                  <div class="grid-2" style="gap: 12px;">
-                    <div class="form-group">
-                      <label class="form-label">Route Name</label>
-                      <input type="text" class="form-control" id="route-name" placeholder="e.g. Route A - Main Road" required>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Assign Vehicle</label>
-                      <select class="form-control" id="route-vehicle">
-                        <option value="">-- Select Vehicle --</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div class="grid-2" style="gap: 12px;">
-                    <div class="form-group">
-                      <label class="form-label">Monthly Fee (Rs)</label>
-                      <input type="number" class="form-control" id="route-fee" placeholder="e.g. 1500" value="0">
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Status</label>
-                      <select class="form-control" id="route-status">
-                        <option>Active</option><option>Inactive</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Pickup Locations</label>
-                    <div id="route-pickup-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
-                    <button type="button" class="btn btn-outline btn-sm" id="btn-add-pickup" style="margin-top: 8px;">+ Add Pickup Point</button>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Drop Locations</label>
-                    <div id="route-drop-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
-                    <button type="button" class="btn btn-outline btn-sm" id="btn-add-drop" style="margin-top: 8px;">+ Add Drop Point</button>
-                  </div>
-                  <button type="submit" class="btn btn-secondary" id="btn-save-route" style="margin-top: 10px; width: 100%;">Save Route</button>
-                </form>
-              </div>
-              <div class="card" style="margin-top: 16px;">
-                <h3>All Routes</h3>
-                <div style="overflow-x: auto;">
-                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
-                    <thead>
-                      <tr>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Route</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Vehicle</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Pickup Points</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Drop Points</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Fee (Rs)</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody id="table-routes"></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <!-- ===== Tab: Assign Students ===== -->
-            <div class="tab-content" id="tab-transport-assign" style="display: none;">
-              <div class="card">
-                <h3>Assign Student to Transport</h3>
-                <form id="form-transport-assign">
-                  <div class="grid-3" style="gap: 12px;">
-                    <div class="form-group">
-                      <label class="form-label">Select Student</label>
-                      <select class="form-control" id="assign-student" required></select>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Select Vehicle</label>
-                      <select class="form-control" id="assign-vehicle" required></select>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Select Route</label>
-                      <select class="form-control" id="assign-route"></select>
-                    </div>
-                  </div>
-                  <div class="grid-3" style="gap: 12px;">
-                    <div class="form-group">
-                      <label class="form-label">Pickup Point</label>
-                      <select class="form-control" id="assign-pickup"></select>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Drop Point</label>
-                      <select class="form-control" id="assign-drop"></select>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Monthly Fee (Rs)</label>
-                      <input type="number" class="form-control" id="assign-fee" value="0">
-                    </div>
-                  </div>
-                  <button type="submit" class="btn btn-secondary" style="margin-top: 10px; width: 100%;">Assign Student</button>
-                </form>
-              </div>
-              <div class="card" style="margin-top: 16px;">
-                <h3>Current Assignments</h3>
-                <div style="overflow-x: auto;">
-                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
-                    <thead>
-                      <tr>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Student</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Class</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Vehicle</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Route</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Pickup</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Fee (Rs)</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Status</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody id="table-assignments"></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <!-- ===== Tab: Fees ===== -->
-            <div class="tab-content" id="tab-transport-fees" style="display: none;">
-              <div class="card">
-                <h3>Transport Fee Summary</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
-                  Overview of all transport fee assignments and monthly revenue.
-                </p>
-                <div class="grid-3" style="gap: 12px; margin-bottom: 20px;">
-                  <div style="padding: 16px; background: var(--primary-light); border-radius: var(--border-radius); text-align: center;">
-                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--primary);" id="tf-total-assigned">0</div>
-                    <div style="font-size: 0.85rem; color: var(--text-muted);">Active Students</div>
-                  </div>
-                  <div style="padding: 16px; background: var(--success-light); border-radius: var(--border-radius); text-align: center;">
-                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--success);" id="tf-total-revenue">Rs 0</div>
-                    <div style="font-size: 0.85rem; color: var(--text-muted);">Monthly Revenue</div>
-                  </div>
-                  <div style="padding: 16px; background: var(--secondary-light); border-radius: var(--border-radius); text-align: center;">
-                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--secondary);" id="tf-avg-fee">Rs 0</div>
-                    <div style="font-size: 0.85rem; color: var(--text-muted);">Avg Fee / Student</div>
-                  </div>
-                </div>
-                <div style="overflow-x: auto;">
-                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
-                    <thead>
-                      <tr>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Student</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Class</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Vehicle</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Monthly Fee</th>
-                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody id="table-transport-fees"></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <!-- SALARY PANEL -->
-          <div id="pm-panel-salary" class="fee-option-panel" style="display: none;">
-            <button class="back-btn" onclick="document.getElementById('pm-panel-salary').style.display='none'; document.getElementById('pm-main-view').style.display='block';">⬅ Back to Principal Management</button>
-            <h2 style="margin-bottom: 20px;">Salary Management</h2>
-
-            <div class="fees-dash-grid" style="margin-bottom: 20px;">
-              <div class="fees-dash-card card-blue">
-                <div class="fees-card-title" id="sal-total-teachers">0</div>
-                <div class="fees-card-desc">Active Teachers</div>
-              </div>
-              <div class="fees-dash-card card-green">
-                <div class="fees-card-title" id="sal-configured">0</div>
-                <div class="fees-card-desc">Salary Configured</div>
-              </div>
-              <div class="fees-dash-card card-orange">
-                <div class="fees-card-title" id="sal-total-paid">Rs. 0</div>
-                <div class="fees-card-desc">Paid This Month</div>
-              </div>
-              <div class="fees-dash-card card-red">
-                <div class="fees-card-title" id="sal-pending-count">0</div>
-                <div class="fees-card-desc">Pending Payments</div>
-              </div>
-            </div>
-
-            <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
-              <button class="btn btn-primary btn-sm sal-tab-btn active" data-saltab="sal-setup">Salary Setup</button>
-              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-pay">Pay Salary</button>
-              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-history">Payment History</button>
-              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-summary">Monthly Summary</button>
-            </div>
-
-            <div id="sal-setup" class="sal-tab-content">
-              <div class="card">
-                <h3 style="margin-bottom: 12px;">Configure Teacher Salary</h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Set basic salary and allowances for each teacher</p>
-                <div style="overflow-x: auto;">
-                  <table class="data-table" style="width: 100%;">
-                    <thead>
-                      <tr>
-                        <th>Teacher Name</th><th>Subject</th><th>Phone</th><th>Qualification</th>
-                        <th>Basic Salary</th><th>House</th><th>Medical</th><th>Transport</th>
-                        <th>Other</th><th>Deductions</th><th>Tax</th><th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody id="sal-setup-body">
-                      <tr><td colspan="12" class="sp-no-records-row">Loading teachers...</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <div id="sal-pay" class="sal-tab-content" style="display: none;">
-              <div class="card">
-                <h3 style="margin-bottom: 12px;">Pay Teacher Salary</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 700px;">
-                  <div class="form-group">
-                    <label class="form-label">Select Teacher</label>
-                    <select class="form-control" id="sal-pay-teacher"></select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Month</label>
-                    <select class="form-control" id="sal-pay-month">
-                      <option value="January">January</option><option value="February">February</option>
-                      <option value="March">March</option><option value="April">April</option>
-                      <option value="May">May</option><option value="June">June</option>
-                      <option value="July">July</option><option value="August">August</option>
-                      <option value="September">September</option><option value="October">October</option>
-                      <option value="November">November</option><option value="December">December</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Year</label>
-                    <input type="number" class="form-control" id="sal-pay-year" value="">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Payment Method</label>
-                    <select class="form-control" id="sal-pay-method">
-                      <option value="Cash">Cash</option><option value="Bank Transfer">Bank Transfer</option>
-                      <option value="Cheque">Cheque</option><option value="JazzCash">JazzCash</option>
-                      <option value="EasyPaisa">EasyPaisa</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Reference No (optional)</label>
-                    <input type="text" class="form-control" id="sal-pay-ref" placeholder="Cheque/Transaction ID">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Remarks (optional)</label>
-                    <input type="text" class="form-control" id="sal-pay-remarks">
-                  </div>
-                </div>
-                <div id="sal-pay-preview" style="margin: 16px 0; padding: 16px; background: var(--bg-secondary); border-radius: 8px; display: none;">
-                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 0.9rem;">
-                    <div><strong>Basic:</strong> <span id="sal-preview-basic">0</span></div>
-                    <div><strong>Allowances:</strong> <span id="sal-preview-allow">0</span></div>
-                    <div><strong>Deductions:</strong> <span id="sal-preview-ded">0</span></div>
-                    <div><strong>Tax:</strong> <span id="sal-preview-tax">0</span></div>
-                    <div style="grid-column: span 2;"><strong style="font-size: 1.1rem; color: var(--success);">Net Salary: Rs. <span id="sal-preview-net">0</span></strong></div>
-                  </div>
-                </div>
-                <button class="btn btn-primary" id="sal-pay-btn">Pay Salary</button>
-              </div>
-            </div>
-
-            <div id="sal-history" class="sal-tab-content" style="display: none;">
-              <div class="card">
-                <h3 style="margin-bottom: 12px;">Payment History</h3>
-                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                  <select class="form-control" id="sal-hist-teacher" style="max-width: 300px;"></select>
-                </div>
-                <div style="overflow-x: auto;">
-                  <table class="data-table" style="width: 100%;">
-                    <thead>
-                      <tr>
-                        <th>Month</th><th>Year</th><th>Basic</th><th>Allowances</th>
-                        <th>Deductions</th><th>Tax</th><th>Net Paid</th><th>Date</th><th>Method</th><th>Paid By</th>
-                      </tr>
-                    </thead>
-                    <tbody id="sal-history-body">
-                      <tr><td colspan="10" class="sp-no-records-row">Select a teacher to view history</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <div id="sal-summary" class="sal-tab-content" style="display: none;">
-              <div class="card">
-                <h3 style="margin-bottom: 12px;">Monthly Salary Summary</h3>
-                <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-end;">
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Month</label>
-                    <select class="form-control" id="sal-sum-month">
-                      <option value="January">January</option><option value="February">February</option>
-                      <option value="March">March</option><option value="April">April</option>
-                      <option value="May">May</option><option value="June">June</option>
-                      <option value="July">July</option><option value="August">August</option>
-                      <option value="September">September</option><option value="October">October</option>
-                      <option value="November">November</option><option value="December">December</option>
-                    </select>
-                  </div>
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Year</label>
-                    <input type="number" class="form-control" id="sal-sum-year" value="">
-                  </div>
-                  <button class="btn btn-primary btn-sm" id="sal-sum-load">Load Summary</button>
-                </div>
-                <div id="sal-summary-stats" style="display: flex; gap: 12px; margin-bottom: 16px;"></div>
-                <div style="overflow-x: auto;">
-                  <table class="data-table" style="width: 100%;">
-                    <thead>
-                      <tr>
-                        <th>Teacher</th><th>Subject</th><th>Phone</th><th>Basic</th>
-                        <th>Allowances</th><th>Deductions</th><th>Net Paid</th><th>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody id="sal-summary-body">
-                      <tr><td colspan="8" class="sp-no-records-row">Select month and click Load</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-        </article>
         <article class="screen-section" id="screen-admin-settings" style="display: none;">
           <h2 style="margin-bottom: 24px;">Admin Settings</h2>
 
@@ -1798,6 +859,40 @@
                 <div class="fees-card-desc">Post & manage school announcements</div>
               </div>
             </div>
+          </div>
+
+          <!-- Tools & Utilities Card (moved from Principal Management) -->
+          <div class="card" style="margin-bottom: 24px;">
+            <h3>Tools & Utilities</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+              Access advanced administrative tools for ID card generation, transport, salary, certificates, expenses, and analytics.
+            </p>
+              <div class="fees-dash-grid">
+                <div class="fees-dash-card card-green" data-opt="pm-idcard" style="cursor: pointer;">
+                  <div class="fees-card-title">🪪 ID Card Generator</div>
+                  <div class="fees-card-desc">Student, Teacher & Staff ID Cards</div>
+                </div>
+                <div class="fees-dash-card card-blue" data-opt="pm-transport" style="cursor: pointer;">
+                  <div class="fees-card-title">🚌 Transport Management</div>
+                  <div class="fees-card-desc">Vehicles, Drivers & Routes</div>
+                </div>
+        <div class="fees-dash-card card-orange" data-opt="pm-salary" style="cursor: pointer;">
+          <div class="fees-card-title">💸 Salary Management</div>
+          <div class="fees-card-desc">Teacher salaries & payments</div>
+        </div>
+                <div class="fees-dash-card card-purple" data-opt="pm-certificate" style="cursor: pointer;">
+                  <div class="fees-card-title">📜 Certificate Generator</div>
+                  <div class="fees-card-desc">Leave, Character & Sports</div>
+                </div>
+                <div class="fees-dash-card card-pink" data-opt="pm-expense" style="cursor: pointer; opacity: 0.5;">
+                  <div class="fees-card-title">🧾 Expense Management</div>
+                  <div class="fees-card-desc">Coming Soon</div>
+                </div>
+                <div class="fees-dash-card card-teal" data-opt="pm-analytics" style="cursor: pointer; opacity: 0.5;">
+                  <div class="fees-card-title">📊 Analytics & Reports</div>
+                  <div class="fees-card-desc">Coming Soon</div>
+                </div>
+              </div>
           </div>
 
           <!-- Teachers Panel -->
@@ -2149,6 +1244,902 @@
             </div>
           </div>
 
+
+          <!-- ========== Panel: ID Card Generator ========== -->
+          <div id="pm-panel-idcard" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-settings btn-back-pm-dash">← Back to Admin Settings</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">🪪 ID Card Generator</h2>
+
+            <!-- Type Tabs -->
+            <div class="tab-container" style="margin-bottom: 20px;">
+              <button class="tab-btn active" data-tab="idcard-student">Student ID Card</button>
+              <button class="tab-btn" data-tab="idcard-teacher">Teacher ID Card</button>
+              <button class="tab-btn" data-tab="idcard-staff">Staff ID Card</button>
+              <button class="tab-btn" data-tab="idcard-classwise">Class-Wise Cards</button>
+            </div>
+
+            <!-- ===== Student ID Card Tab ===== -->
+            <div class="tab-content" id="tab-idcard-student">
+              <div class="card" style="margin-bottom: 20px;">
+                <h3>Generate Student ID Card</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                  📋 <strong>Complete Class</strong> is selected by default — it generates a card for every student in the selected class (or the whole school if no class is picked). Or pick a single student from the dropdown. QR / barcode use the admission record automatically.
+                </p>
+                <div class="grid-3" style="gap: 15px;">
+                  <div class="form-group">
+                    <label class="form-label">Select Class *</label>
+                    <select class="form-control" id="idcard-stu-class">
+                      <option value="">-- Select Class --</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Select Student *</label>
+                    <select class="form-control" id="idcard-stu-student" disabled>
+                      <option value="">-- Select Student --</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Card Design *</label>
+                    <select class="form-control" id="idcard-stu-design">
+                      <option value="design1">Design 1 - Lanyard Badge</option>
+                      <option value="classic">Classic Landscape</option>
+                      <option value="portrait">Portrait Vertical</option>
+                      <option value="badge">Badge / Lanyard</option>
+                      <option value="twosided">Two-Sided Card</option>
+                      <option value="smart">Smart Chip Card</option>
+                      <option value="pakistani">Pakistani Green</option>
+                      <option value="kids">Kids / Primary</option>
+                      <option value="corporate">Corporate Clean</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="grid-3" style="gap: 15px; margin-top: 12px;">
+                  <div class="form-group">
+                    <label class="form-label">Include QR Code</label>
+                    <select class="form-control" id="idcard-stu-qr">
+                      <option value="1">Yes</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Include Barcode</label>
+                    <select class="form-control" id="idcard-stu-barcode">
+                      <option value="1">Yes</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="display: flex; align-items: flex-end;">
+                    <button class="btn btn-primary" id="btn-idcard-stu-generate" style="width: 100%;" disabled>Generate ID Card</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Auto-filled Student Info -->
+              <div id="idcard-stu-info" class="card" style="display: none; margin-bottom: 20px;">
+                <h3 style="margin-bottom: 12px;">Auto-Filled Student Information</h3>
+                <div class="grid-3" style="gap: 10px;">
+                  <div><span style="color: var(--text-muted);">Name:</span> <strong id="idcard-stu-name">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Father:</span> <strong id="idcard-stu-father">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Student ID:</span> <strong id="idcard-stu-id">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Class:</span> <strong id="idcard-stu-classname">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Roll No:</span> <strong id="idcard-stu-roll">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Phone:</span> <strong id="idcard-stu-phone">-</strong></div>
+                  <div><span style="color: var(--text-muted);">DOB:</span> <strong id="idcard-stu-dob">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Gender:</span> <strong id="idcard-stu-gender">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Admission No:</span> <strong id="idcard-stu-admno">-</strong></div>
+                </div>
+              </div>
+
+              <!-- ID Card Preview -->
+              <div id="idcard-stu-preview-container" style="display: none;">
+                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                  <button class="btn btn-primary" id="btn-idcard-stu-print">🖨️ Print ID Card</button>
+                  <button class="btn btn-secondary" id="btn-idcard-stu-download">📥 Save as PDF</button>
+                </div>
+                <div id="idcard-stu-printable" style="display: flex; gap: 20px; flex-wrap: wrap;"></div>
+              </div>
+            </div>
+
+            <!-- ===== Teacher ID Card Tab ===== -->
+            <div class="tab-content" id="tab-idcard-teacher" style="display: none;">
+              <div class="card" style="margin-bottom: 20px;">
+                <h3>Generate Teacher ID Card</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                  Select a teacher and design template to generate a printable ID card.
+                </p>
+                <div class="grid-3" style="gap: 15px;">
+                  <div class="form-group">
+                    <label class="form-label">Select Teacher *</label>
+                    <select class="form-control" id="idcard-teach-teacher">
+                      <option value="">-- Select Teacher --</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Card Design *</label>
+                    <select class="form-control" id="idcard-teach-design">
+                      <option value="design1">Design 1 - Lanyard Badge</option>
+                      <option value="classic">Classic Landscape</option>
+                      <option value="portrait">Portrait Vertical</option>
+                      <option value="badge">Badge / Lanyard</option>
+                      <option value="twosided">Two-Sided Card</option>
+                      <option value="smart">Smart Chip Card</option>
+                      <option value="pakistani">Pakistani Green</option>
+                      <option value="kids">Kids / Primary</option>
+                      <option value="corporate">Corporate Clean</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Include QR Code</label>
+                    <select class="form-control" id="idcard-teach-qr">
+                      <option value="1">Yes</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                </div>
+                <div style="margin-top: 12px; display: flex; gap: 10px;">
+                  <button class="btn btn-primary" id="btn-idcard-teach-generate" disabled>Generate ID Card</button>
+                </div>
+              </div>
+
+              <div id="idcard-teach-info" class="card" style="display: none; margin-bottom: 20px;">
+                <h3 style="margin-bottom: 12px;">Auto-Filled Teacher Information</h3>
+                <div class="grid-3" style="gap: 10px;">
+                  <div><span style="color: var(--text-muted);">Name:</span> <strong id="idcard-teach-name">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Phone:</span> <strong id="idcard-teach-phone">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Subject:</span> <strong id="idcard-teach-subject">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Qualification:</span> <strong id="idcard-teach-qual">-</strong></div>
+                  <div><span style="color: var(--text-muted);">Status:</span> <strong id="idcard-teach-status">-</strong></div>
+                </div>
+              </div>
+
+              <div id="idcard-teach-preview-container" style="display: none;">
+                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                  <button class="btn btn-primary" id="btn-idcard-teach-print">🖨️ Print ID Card</button>
+                  <button class="btn btn-secondary" id="btn-idcard-teach-download">📥 Save as PDF</button>
+                </div>
+                <div id="idcard-teach-printable" style="display: flex; gap: 20px; flex-wrap: wrap;"></div>
+              </div>
+            </div>
+
+            <!-- ===== Staff ID Card Tab ===== -->
+            <div class="tab-content" id="tab-idcard-staff" style="display: none;">
+              <div class="card" style="margin-bottom: 20px;">
+                <h3>Generate Staff ID Card</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                  Generate ID cards for non-teaching staff members.
+                </p>
+                <div class="grid-3" style="gap: 15px;">
+                  <div class="form-group">
+                    <label class="form-label">Staff Name *</label>
+                    <input type="text" class="form-control" id="idcard-staff-name" placeholder="e.g. Ahmed Khan">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Designation *</label>
+                    <input type="text" class="form-control" id="idcard-staff-desig" placeholder="e.g. Clerk, Peon, Guard">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <input type="text" class="form-control" id="idcard-staff-phone" placeholder="03001234567">
+                  </div>
+                </div>
+                <div class="grid-3" style="gap: 15px; margin-top: 12px;">
+                  <div class="form-group">
+                    <label class="form-label">CNIC</label>
+                    <input type="text" class="form-control" id="idcard-staff-cnic" placeholder="35202-1234567-1">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Card Design *</label>
+                    <select class="form-control" id="idcard-staff-design">
+                      <option value="design1">Design 1 - Lanyard Badge</option>
+                      <option value="classic">Classic Landscape</option>
+                      <option value="portrait">Portrait Vertical</option>
+                      <option value="badge">Badge / Lanyard</option>
+                      <option value="twosided">Two-Sided Card</option>
+                      <option value="smart">Smart Chip Card</option>
+                      <option value="pakistani">Pakistani Green</option>
+                      <option value="kids">Kids / Primary</option>
+                      <option value="corporate">Corporate Clean</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Include QR Code</label>
+                    <select class="form-control" id="idcard-staff-qr">
+                      <option value="1">Yes</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                </div>
+                <div style="margin-top: 12px;">
+                  <button class="btn btn-primary" id="btn-idcard-staff-generate">Generate ID Card</button>
+                </div>
+              </div>
+
+              <div id="idcard-staff-preview-container" style="display: none;">
+                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                  <button class="btn btn-primary" id="btn-idcard-staff-print">🖨️ Print ID Card</button>
+                </div>
+                <div id="idcard-staff-printable" style="display: flex; gap: 20px; flex-wrap: wrap;"></div>
+              </div>
+            </div>
+
+            <!-- ===== Class-Wise Batch ID Card Tab ===== -->
+            <div class="tab-content" id="tab-idcard-classwise" style="display: none;">
+              <div class="card" style="margin-bottom: 20px;">
+                <h3>Generate All Student ID Cards for a Class</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                  Select a class to auto-generate printable ID cards for every student in that class at once.
+                </p>
+                <div class="grid-3" style="gap: 15px;">
+                  <div class="form-group">
+                    <label class="form-label">Select Class *</label>
+                    <select class="form-control" id="idcard-cw-class">
+                      <option value="">-- Select Class --</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Card Design *</label>
+                    <select class="form-control" id="idcard-cw-design">
+                      <option value="design1">Design 1 - Lanyard Badge</option>
+                      <option value="classic">Classic Landscape</option>
+                      <option value="portrait">Portrait Vertical</option>
+                      <option value="badge">Badge / Lanyard</option>
+                      <option value="twosided">Two-Sided Card</option>
+                      <option value="smart">Smart Chip Card</option>
+                      <option value="pakistani">Pakistani Green</option>
+                      <option value="kids">Kids / Primary</option>
+                      <option value="corporate">Corporate Clean</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Include QR Code</label>
+                    <select class="form-control" id="idcard-cw-qr">
+                      <option value="1">Yes</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="grid-3" style="gap: 15px; margin-top: 12px;">
+                  <div class="form-group">
+                    <label class="form-label">Include Barcode</label>
+                    <select class="form-control" id="idcard-cw-barcode">
+                      <option value="1">Yes</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Cards Per Row (Print)</label>
+                    <select class="form-control" id="idcard-cw-layout">
+                      <option value="2">2 Cards Per Row</option>
+                      <option value="3" selected>3 Cards Per Row</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="display: flex; align-items: flex-end;">
+                    <button class="btn btn-primary" id="btn-idcard-cw-generate" style="width: 100%;" disabled>Generate All Cards</button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="idcard-cw-info" class="card" style="display: none; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <h3>Class Preview</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Found <strong id="idcard-cw-count">0</strong> students in <strong id="idcard-cw-classname">-</strong></p>
+                  </div>
+                </div>
+              </div>
+
+              <div id="idcard-cw-preview-container" style="display: none;">
+                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                  <button class="btn btn-primary" id="btn-idcard-cw-print">🖨️ Print All ID Cards</button>
+                  <button class="btn btn-secondary" id="btn-idcard-cw-download">📥 Download as PDF</button>
+                </div>
+                <div id="idcard-cw-printable" style="display: flex; gap: 15px; flex-wrap: wrap; padding: 10px; background: #f1f5f9; border-radius: 12px;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========== Panel: Certificate Generator ========== -->
+          <div id="pm-panel-certificate" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-settings btn-back-pm-dash">&larr; Back to Admin Settings</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">📜 Certificate Generator</h2>
+
+            <!-- Student Search -->
+            <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Search Student</label>
+                <div style="display:flex; gap:8px;">
+                  <input type="text" class="form-control" id="cert-student-search" placeholder="Type student name, roll no, or ID..." style="flex:1;">
+                  <button class="btn btn-secondary" id="cert-student-search-btn">Search</button>
+                </div>
+                <div id="cert-student-results" style="display:none; margin-top:8px; max-height:200px; overflow-y:auto;"></div>
+              </div>
+              <div id="cert-student-info" style="display:none; margin-top:12px; padding:12px; background: var(--bg-secondary); border-radius:8px;">
+                <div style="display:flex; gap:12px; align-items:center;">
+                  <img id="cert-student-photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%236366f1'/%3E%3Ctext x='50' y='62' font-size='40' font-family='Arial,sans-serif' fill='white' text-anchor='middle'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E" style="width:50px; height:50px; border-radius:8px; object-fit:cover;">
+                  <div>
+                    <div style="font-weight:700; font-size:0.9rem;" id="cert-student-name">-</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted);" id="cert-student-class">-</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted);" id="cert-student-id">-</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Certificate Type Tabs -->
+            <div class="tab-container" style="margin-bottom: 20px;">
+              <button class="tab-btn active" data-tab="cert-leave">Leave Certificate</button>
+              <button class="tab-btn" data-tab="cert-character">Character Certificate</button>
+              <button class="tab-btn" data-tab="cert-sports">Sports Certificate</button>
+            </div>
+
+            <!-- Leave Certificate Tab -->
+            <div id="tab-cert-leave" class="tab-content" style="display:block;">
+              <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
+                <div class="grid-3">
+                  <div class="form-group">
+                    <label class="form-label">Leave Start Date</label>
+                    <input type="date" class="form-control" id="cert-leave-start">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Leave End Date</label>
+                    <input type="date" class="form-control" id="cert-leave-end">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Reason for Leave</label>
+                    <input type="text" class="form-control" id="cert-leave-reason" placeholder="e.g., Family function, Medical">
+                  </div>
+                </div>
+                <button class="btn btn-primary" id="cert-leave-generate" style="margin-top:12px; width:100%;">Generate Leave Certificate</button>
+              </div>
+            </div>
+
+            <!-- Character Certificate Tab -->
+            <div id="tab-cert-character" class="tab-content" style="display:none;">
+              <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
+                <div class="form-group">
+                  <label class="form-label">Academic Session</label>
+                  <input type="text" class="form-control" id="cert-char-session" placeholder="e.g., 2025-2026" value="">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Conduct Description</label>
+                  <textarea class="form-control" id="cert-char-conduct" rows="3" placeholder="Student's conduct description...">The above named student has been a regular and sincere student of this school during the academic session. His/Her conduct and behavior has been satisfactory throughout the session. He/She is respectful, disciplined, and hardworking.</textarea>
+                </div>
+                <button class="btn btn-primary" id="cert-char-generate" style="margin-top:12px; width:100%;">Generate Character Certificate</button>
+              </div>
+            </div>
+
+            <!-- Sports Certificate Tab -->
+            <div id="tab-cert-sports" class="tab-content" style="display:none;">
+              <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
+                <div class="grid-3">
+                  <div class="form-group">
+                    <label class="form-label">Event / Competition Name</label>
+                    <input type="text" class="form-control" id="cert-sports-event" placeholder="e.g., Annual Sports Day">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Achievement / Position</label>
+                    <input type="text" class="form-control" id="cert-sports-achievement" placeholder="e.g., 1st Position in 100m Race">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Event Date</label>
+                    <input type="date" class="form-control" id="cert-sports-date">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Additional Details</label>
+                  <textarea class="form-control" id="cert-sports-details" rows="2" placeholder="Any additional details..."></textarea>
+                </div>
+                <button class="btn btn-primary" id="cert-sports-generate" style="margin-top:12px; width:100%;">Generate Sports Certificate</button>
+              </div>
+            </div>
+
+            <!-- Preview Area -->
+            <div id="cert-preview-container" style="display:none; margin-top:24px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3>Certificate Preview</h3>
+                <div style="display:flex; gap:8px;">
+                  <button class="btn btn-primary" id="cert-print">🖨️ Print</button>
+                  <button class="btn btn-outline" id="cert-download">📥 Download PDF</button>
+                </div>
+              </div>
+              <div id="cert-printable" style="background:#f1f5f9; padding:20px; border-radius:12px; display:flex; justify-content:center;"></div>
+            </div>
+          </div>
+
+          <!-- ========== Panel: Transport Management ========== -->
+          <div id="pm-panel-transport" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-settings btn-back-pm-dash">&larr; Back to Admin Settings</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">🚌 Transport Management</h2>
+
+            <!-- Transport Dashboard Stats -->
+            <div class="fees-dash-grid" style="margin-bottom: 24px;">
+              <div class="fees-dash-card card-blue" style="cursor: default;">
+                <div class="fees-card-title" id="ts-total-vehicles">0</div>
+                <div class="fees-card-desc">Vehicles</div>
+              </div>
+              <div class="fees-dash-card card-green" style="cursor: default;">
+                <div class="fees-card-title" id="ts-total-drivers">0</div>
+                <div class="fees-card-desc">Drivers</div>
+              </div>
+              <div class="fees-dash-card card-orange" style="cursor: default;">
+                <div class="fees-card-title" id="ts-total-routes">0</div>
+                <div class="fees-card-desc">Routes</div>
+              </div>
+              <div class="fees-dash-card card-purple" style="cursor: default;">
+                <div class="fees-card-title" id="ts-total-students">0</div>
+                <div class="fees-card-desc">Students Assigned</div>
+              </div>
+              <div class="fees-dash-card card-teal" style="cursor: default;">
+                <div class="fees-card-title" id="ts-monthly-revenue">Rs 0</div>
+                <div class="fees-card-desc">Monthly Revenue</div>
+              </div>
+            </div>
+
+            <!-- Sub-Tabs -->
+            <div class="tab-container" style="margin-bottom: 20px;">
+              <button class="tab-btn active" data-tab="transport-vehicles">🚐 Vehicles</button>
+              <button class="tab-btn" data-tab="transport-drivers">🧑‍✈️ Drivers</button>
+              <button class="tab-btn" data-tab="transport-routes">🗺️ Routes</button>
+              <button class="tab-btn" data-tab="transport-assign">👨‍🎓 Assign Students</button>
+              <button class="tab-btn" data-tab="transport-fees">💰 Fees</button>
+            </div>
+
+            <!-- ===== Tab: Vehicles ===== -->
+            <div class="tab-content" id="tab-transport-vehicles">
+              <div class="card">
+                <h3>Add / Edit Vehicle</h3>
+                <form id="form-vehicle">
+                  <input type="hidden" id="vehicle-edit-id" value="">
+                  <div class="grid-3" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Vehicle Name</label>
+                      <input type="text" class="form-control" id="vehicle-name" placeholder="e.g. School Bus 1" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Plate Number</label>
+                      <input type="text" class="form-control" id="vehicle-plate" placeholder="e.g. ABC-1234" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Type</label>
+                      <select class="form-control" id="vehicle-type">
+                        <option>Bus</option><option>Van</option><option>Coaster</option><option>Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="grid-3" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Capacity (Seats)</label>
+                      <input type="number" class="form-control" id="vehicle-capacity" placeholder="e.g. 40" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Monthly Fee (Rs)</label>
+                      <input type="number" class="form-control" id="vehicle-fee" placeholder="e.g. 2000" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Status</label>
+                      <select class="form-control" id="vehicle-status">
+                        <option>Active</option><option>Inactive</option><option>Maintenance</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-secondary" id="btn-save-vehicle" style="margin-top: 10px; width: 100%;">Save Vehicle</button>
+                </form>
+              </div>
+              <div class="card" style="margin-top: 16px;">
+                <h3>All Vehicles</h3>
+                <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+                    <thead>
+                      <tr>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Name</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Plate</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Type</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Capacity</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Fee (Rs)</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Status</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-vehicles"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== Tab: Drivers ===== -->
+            <div class="tab-content" id="tab-transport-drivers" style="display: none;">
+              <div class="card">
+                <h3>Add / Edit Driver</h3>
+                <form id="form-driver">
+                  <input type="hidden" id="driver-edit-id" value="">
+                  <div class="grid-3" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Driver Name</label>
+                      <input type="text" class="form-control" id="driver-name" placeholder="Full name" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Phone Number</label>
+                      <input type="text" class="form-control" id="driver-phone" placeholder="e.g. 0300-1234567" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">License Number</label>
+                      <input type="text" class="form-control" id="driver-license" placeholder="e.g. JL-12345">
+                    </div>
+                  </div>
+                  <div class="grid-3" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Assign Vehicle</label>
+                      <select class="form-control" id="driver-vehicle">
+                        <option value="">-- No Vehicle --</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Address</label>
+                      <input type="text" class="form-control" id="driver-address" placeholder="Home address">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Status</label>
+                      <select class="form-control" id="driver-status">
+                        <option>Active</option><option>Inactive</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-secondary" id="btn-save-driver" style="margin-top: 10px; width: 100%;">Save Driver</button>
+                </form>
+              </div>
+              <div class="card" style="margin-top: 16px;">
+                <h3>All Drivers</h3>
+                <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+                    <thead>
+                      <tr>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Name</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Phone</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">License</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Vehicle</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Status</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-drivers"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== Tab: Routes ===== -->
+            <div class="tab-content" id="tab-transport-routes" style="display: none;">
+              <div class="card">
+                <h3>Add / Edit Route</h3>
+                <form id="form-route">
+                  <input type="hidden" id="route-edit-id" value="">
+                  <div class="grid-2" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Route Name</label>
+                      <input type="text" class="form-control" id="route-name" placeholder="e.g. Route A - Main Road" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Assign Vehicle</label>
+                      <select class="form-control" id="route-vehicle">
+                        <option value="">-- Select Vehicle --</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="grid-2" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Monthly Fee (Rs)</label>
+                      <input type="number" class="form-control" id="route-fee" placeholder="e.g. 1500" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Status</label>
+                      <select class="form-control" id="route-status">
+                        <option>Active</option><option>Inactive</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Pickup Locations</label>
+                    <div id="route-pickup-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                    <button type="button" class="btn btn-outline btn-sm" id="btn-add-pickup" style="margin-top: 8px;">+ Add Pickup Point</button>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Drop Locations</label>
+                    <div id="route-drop-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                    <button type="button" class="btn btn-outline btn-sm" id="btn-add-drop" style="margin-top: 8px;">+ Add Drop Point</button>
+                  </div>
+                  <button type="submit" class="btn btn-secondary" id="btn-save-route" style="margin-top: 10px; width: 100%;">Save Route</button>
+                </form>
+              </div>
+              <div class="card" style="margin-top: 16px;">
+                <h3>All Routes</h3>
+                <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+                    <thead>
+                      <tr>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Route</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Vehicle</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Pickup Points</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Drop Points</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Fee (Rs)</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-routes"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== Tab: Assign Students ===== -->
+            <div class="tab-content" id="tab-transport-assign" style="display: none;">
+              <div class="card">
+                <h3>Assign Student to Transport</h3>
+                <form id="form-transport-assign">
+                  <div class="grid-3" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Select Student</label>
+                      <select class="form-control" id="assign-student" required></select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Select Vehicle</label>
+                      <select class="form-control" id="assign-vehicle" required></select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Select Route</label>
+                      <select class="form-control" id="assign-route"></select>
+                    </div>
+                  </div>
+                  <div class="grid-3" style="gap: 12px;">
+                    <div class="form-group">
+                      <label class="form-label">Pickup Point</label>
+                      <select class="form-control" id="assign-pickup"></select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Drop Point</label>
+                      <select class="form-control" id="assign-drop"></select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Monthly Fee (Rs)</label>
+                      <input type="number" class="form-control" id="assign-fee" value="0">
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-secondary" style="margin-top: 10px; width: 100%;">Assign Student</button>
+                </form>
+              </div>
+              <div class="card" style="margin-top: 16px;">
+                <h3>Current Assignments</h3>
+                <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+                    <thead>
+                      <tr>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Student</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Class</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Vehicle</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Route</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Pickup</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Fee (Rs)</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Status</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-assignments"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== Tab: Fees ===== -->
+            <div class="tab-content" id="tab-transport-fees" style="display: none;">
+              <div class="card">
+                <h3>Transport Fee Summary</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 20px;">
+                  Overview of all transport fee assignments and monthly revenue.
+                </p>
+                <div class="grid-3" style="gap: 12px; margin-bottom: 20px;">
+                  <div style="padding: 16px; background: var(--primary-light); border-radius: var(--border-radius); text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--primary);" id="tf-total-assigned">0</div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">Active Students</div>
+                  </div>
+                  <div style="padding: 16px; background: var(--success-light); border-radius: var(--border-radius); text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--success);" id="tf-total-revenue">Rs 0</div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">Monthly Revenue</div>
+                  </div>
+                  <div style="padding: 16px; background: var(--secondary-light); border-radius: var(--border-radius); text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--secondary);" id="tf-avg-fee">Rs 0</div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">Avg Fee / Student</div>
+                  </div>
+                </div>
+                <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+                    <thead>
+                      <tr>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Student</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Class</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Vehicle</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Monthly Fee</th>
+                        <th style="border: 1px solid var(--border-color); padding: 10px; text-align: left; background: var(--bg-main);">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-transport-fees"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- SALARY PANEL -->
+          <div id="pm-panel-salary" class="fee-option-panel" style="display: none;">
+            <button class="btn btn-outline btn-sm btn-back-settings btn-back-pm-dash">⬅ Back to Admin Settings</button>
+            <h2 style="margin-bottom: 20px;">Salary Management</h2>
+
+            <div class="fees-dash-grid" style="margin-bottom: 20px;">
+              <div class="fees-dash-card card-blue">
+                <div class="fees-card-title" id="sal-total-teachers">0</div>
+                <div class="fees-card-desc">Active Teachers</div>
+              </div>
+              <div class="fees-dash-card card-green">
+                <div class="fees-card-title" id="sal-configured">0</div>
+                <div class="fees-card-desc">Salary Configured</div>
+              </div>
+              <div class="fees-dash-card card-orange">
+                <div class="fees-card-title" id="sal-total-paid">Rs. 0</div>
+                <div class="fees-card-desc">Paid This Month</div>
+              </div>
+              <div class="fees-dash-card card-red">
+                <div class="fees-card-title" id="sal-pending-count">0</div>
+                <div class="fees-card-desc">Pending Payments</div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
+              <button class="btn btn-primary btn-sm sal-tab-btn active" data-saltab="sal-setup">Salary Setup</button>
+              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-pay">Pay Salary</button>
+              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-history">Payment History</button>
+              <button class="btn btn-sm sal-tab-btn" data-saltab="sal-summary">Monthly Summary</button>
+            </div>
+
+            <div id="sal-setup" class="sal-tab-content">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">Configure Teacher Salary</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Set basic salary and allowances for each teacher</p>
+                <div style="overflow-x: auto;">
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Teacher Name</th><th>Subject</th><th>Phone</th><th>Qualification</th>
+                        <th>Basic Salary</th><th>House</th><th>Medical</th><th>Transport</th>
+                        <th>Other</th><th>Deductions</th><th>Tax</th><th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sal-setup-body">
+                      <tr><td colspan="12" class="sp-no-records-row">Loading teachers...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div id="sal-pay" class="sal-tab-content" style="display: none;">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">Pay Teacher Salary</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 700px;">
+                  <div class="form-group">
+                    <label class="form-label">Select Teacher</label>
+                    <select class="form-control" id="sal-pay-teacher"></select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Month</label>
+                    <select class="form-control" id="sal-pay-month">
+                      <option value="January">January</option><option value="February">February</option>
+                      <option value="March">March</option><option value="April">April</option>
+                      <option value="May">May</option><option value="June">June</option>
+                      <option value="July">July</option><option value="August">August</option>
+                      <option value="September">September</option><option value="October">October</option>
+                      <option value="November">November</option><option value="December">December</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Year</label>
+                    <input type="number" class="form-control" id="sal-pay-year" value="">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Payment Method</label>
+                    <select class="form-control" id="sal-pay-method">
+                      <option value="Cash">Cash</option><option value="Bank Transfer">Bank Transfer</option>
+                      <option value="Cheque">Cheque</option><option value="JazzCash">JazzCash</option>
+                      <option value="EasyPaisa">EasyPaisa</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Reference No (optional)</label>
+                    <input type="text" class="form-control" id="sal-pay-ref" placeholder="Cheque/Transaction ID">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Remarks (optional)</label>
+                    <input type="text" class="form-control" id="sal-pay-remarks">
+                  </div>
+                </div>
+                <div id="sal-pay-preview" style="margin: 16px 0; padding: 16px; background: var(--bg-secondary); border-radius: 8px; display: none;">
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 0.9rem;">
+                    <div><strong>Basic:</strong> <span id="sal-preview-basic">0</span></div>
+                    <div><strong>Allowances:</strong> <span id="sal-preview-allow">0</span></div>
+                    <div><strong>Deductions:</strong> <span id="sal-preview-ded">0</span></div>
+                    <div><strong>Tax:</strong> <span id="sal-preview-tax">0</span></div>
+                    <div style="grid-column: span 2;"><strong style="font-size: 1.1rem; color: var(--success);">Net Salary: Rs. <span id="sal-preview-net">0</span></strong></div>
+                  </div>
+                </div>
+                <button class="btn btn-primary" id="sal-pay-btn">Pay Salary</button>
+              </div>
+            </div>
+
+            <div id="sal-history" class="sal-tab-content" style="display: none;">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">Payment History</h3>
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                  <select class="form-control" id="sal-hist-teacher" style="max-width: 300px;"></select>
+                </div>
+                <div style="overflow-x: auto;">
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Month</th><th>Year</th><th>Basic</th><th>Allowances</th>
+                        <th>Deductions</th><th>Tax</th><th>Net Paid</th><th>Date</th><th>Method</th><th>Paid By</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sal-history-body">
+                      <tr><td colspan="10" class="sp-no-records-row">Select a teacher to view history</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div id="sal-summary" class="sal-tab-content" style="display: none;">
+              <div class="card">
+                <h3 style="margin-bottom: 12px;">Monthly Salary Summary</h3>
+                <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-end;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Month</label>
+                    <select class="form-control" id="sal-sum-month">
+                      <option value="January">January</option><option value="February">February</option>
+                      <option value="March">March</option><option value="April">April</option>
+                      <option value="May">May</option><option value="June">June</option>
+                      <option value="July">July</option><option value="August">August</option>
+                      <option value="September">September</option><option value="October">October</option>
+                      <option value="November">November</option><option value="December">December</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Year</label>
+                    <input type="number" class="form-control" id="sal-sum-year" value="">
+                  </div>
+                  <button class="btn btn-primary btn-sm" id="sal-sum-load">Load Summary</button>
+                </div>
+                <div id="sal-summary-stats" style="display: flex; gap: 12px; margin-bottom: 16px;"></div>
+                <div style="overflow-x: auto;">
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Teacher</th><th>Subject</th><th>Phone</th><th>Basic</th>
+                        <th>Allowances</th><th>Deductions</th><th>Net Paid</th><th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sal-summary-body">
+                      <tr><td colspan="8" class="sp-no-records-row">Select month and click Load</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div>
         </article>
         <article class="screen-section" id="screen-students" style="display: none;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px;">
@@ -5024,8 +5015,8 @@
     <div id="dash-scan-result" style="color:#fff; padding:16px; min-height:56px; font-size:0.95rem; text-align:center; background:rgba(255,255,255,0.08);">Point the camera at a student or teacher QR card…</div>
   </div>
 
-  <script src="js/vendor/jspdf.umd.min.js?v=56"></script>
-  <script src="js/vendor/html2canvas.min.js?v=56"></script>
-  <script src="js/app.js?v=56"></script>
+  <script src="js/vendor/jspdf.umd.min.js?v=57"></script>
+  <script src="js/vendor/html2canvas.min.js?v=57"></script>
+  <script src="js/app.js?v=57"></script>
 </body>
 </html>
