@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=57" as="script">
+  <link rel="preload" href="js/app.js?v=58" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v57';
+    window.SKYHONIX_PAGE_VERSION = 'v58';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -955,12 +955,17 @@
             </div>
 
             <div class="card">
-              <h3 style="margin-bottom: 12px;">Teachers List</h3>
+              <h3 style="margin-bottom: 12px;">Teachers &amp; Staff List</h3>
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: -6px; margin-bottom: 12px;">
+                Includes everyone added from <strong>Admissions → Staff Entry</strong> (Principal, Vice Principal, Director, Class 4, Accountant, etc.).
+              </p>
               <div class="table-container">
                 <table class="data-table" id="table-teachers">
                   <thead>
                     <tr>
                       <th>Name</th>
+                      <th>Role</th>
+                      <th>ID Card No</th>
                       <th>Phone</th>
                       <th>Assigned Class</th>
                       <th>Fee Access</th>
@@ -969,7 +974,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No teachers added yet.</td></tr>
+                    <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No teachers added yet.</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -2146,6 +2151,7 @@
             <h2>Admissions</h2>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
               <button class="btn btn-outline" id="btn-create-classes">Create Classes</button>
+              <button class="btn btn-outline" id="btn-staff-entry">👤 Staff Entry</button>
               <button class="btn btn-primary" id="btn-add-student">Add New Student</button>
             </div>
           </div>
@@ -2195,6 +2201,119 @@
                 <tr><td colspan="9" style="text-align: center; color: var(--text-muted);">Select filters or search directory...</td></tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- ===== Staff Entry Panel ===== -->
+          <div id="panel-staff-entry" class="fee-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm" id="btn-staff-entry-back">← Back to Admissions</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">👤 Staff Entry</h2>
+
+            <div class="card" style="margin-bottom: 20px; background: var(--success-light); border: 1px dashed var(--success);">
+              <p style="font-size: 0.9rem; color: var(--text-primary); margin: 0;">
+                <strong>One register for all staff:</strong> Add Teachers, Principal, Vice Principal, Director, Class-4 staff, Accountants and more.
+                Every entry here also appears in <strong>Assign Teachers</strong>, <strong>Teacher Attendance</strong>, <strong>Salary Management</strong> and the <strong>ID Card Generator</strong>.
+                Teachers created with a phone number &amp; password can login to the Teacher Portal.
+              </p>
+            </div>
+
+            <div class="card" style="margin-bottom: 20px;">
+              <h3 id="staff-form-title">Add Staff Member</h3>
+              <form id="form-staff-entry" style="margin-top: 15px;">
+                <input type="hidden" id="staff-edit-id" value="">
+                <div class="grid-3" style="gap: 15px;">
+                  <div class="form-group">
+                    <label class="form-label">Staff Person Name *</label>
+                    <input type="text" class="form-control" id="staff-name" required placeholder="e.g. Ahmed Khan">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">ID Card No</label>
+                    <input type="text" class="form-control" id="staff-id-card" placeholder="e.g. STF-001">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Role / Designation *</label>
+                    <select class="form-control" id="staff-role" required>
+                      <option value="Teacher">Teacher</option>
+                      <option value="Principal">Principal</option>
+                      <option value="Vice Principal">Vice Principal</option>
+                      <option value="Director">Director</option>
+                      <option value="Class 4">Class 4 (Class-IV Staff)</option>
+                      <option value="Accountant">Accountant</option>
+                      <option value="Librarian">Librarian</option>
+                      <option value="Coordinator">Coordinator</option>
+                      <option value="Support Staff">Support Staff</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="grid-3" style="gap: 15px;">
+                  <div class="form-group">
+                    <label class="form-label">Salary / Month (Rs)</label>
+                    <input type="number" class="form-control" id="staff-salary" min="0" step="1" placeholder="e.g. 25000">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Phone (for portal login)</label>
+                    <input type="text" class="form-control" id="staff-phone" placeholder="e.g. 03001234567">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Password (for portal login)</label>
+                    <input type="password" class="form-control" id="staff-password" placeholder="Min 6 characters (optional)">
+                  </div>
+                </div>
+                <div class="grid-3" style="gap: 15px;">
+                  <div class="form-group">
+                    <label class="form-label">Subject (Teachers)</label>
+                    <input type="text" class="form-control" id="staff-subject" placeholder="e.g. Mathematics">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Qualification</label>
+                    <input type="text" class="form-control" id="staff-qualification" placeholder="e.g. M.Sc, B.Ed">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Assigned Class (Teachers)</label>
+                    <select class="form-control" id="staff-assigned-class">
+                      <option value="">-- No Class Assigned --</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="grid-3" style="gap: 15px;">
+                  <div class="form-group" style="display: flex; align-items: flex-end; gap: 10px;">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px 0;">
+                      <input type="checkbox" id="staff-can-collect-fees" style="width:18px; height:18px;">
+                      <span style="font-size:0.85rem;">Allow Fee Collection</span>
+                    </label>
+                  </div>
+                  <div class="form-group" style="display: flex; align-items: flex-end; gap: 10px;">
+                    <button type="submit" class="btn btn-primary" id="btn-staff-submit" style="flex: 1;">Add Staff</button>
+                    <button type="button" class="btn btn-outline" id="btn-staff-cancel" style="display: none;">Cancel</button>
+                  </div>
+                </div>
+                <p id="staff-feedback" style="margin-top: 10px; display: none;"></p>
+              </form>
+            </div>
+
+            <div class="card">
+              <h3 style="margin-bottom: 12px;">All Staff Members</h3>
+              <div class="table-container">
+                <table class="data-table" id="table-staff-list">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>ID Card No</th>
+                      <th>Role</th>
+                      <th>Phone</th>
+                      <th>Salary (/month)</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No staff members added yet.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </article>
 
@@ -5015,8 +5134,8 @@
     <div id="dash-scan-result" style="color:#fff; padding:16px; min-height:56px; font-size:0.95rem; text-align:center; background:rgba(255,255,255,0.08);">Point the camera at a student or teacher QR card…</div>
   </div>
 
-  <script src="js/vendor/jspdf.umd.min.js?v=57"></script>
-  <script src="js/vendor/html2canvas.min.js?v=57"></script>
-  <script src="js/app.js?v=57"></script>
+  <script src="js/vendor/jspdf.umd.min.js?v=58"></script>
+  <script src="js/vendor/html2canvas.min.js?v=58"></script>
+  <script src="js/app.js?v=58"></script>
 </body>
 </html>

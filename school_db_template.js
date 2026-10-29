@@ -391,7 +391,10 @@ function createSchoolDatabaseSchema(db) {
           school_id INTEGER,
           created_at TEXT,
           assigned_class TEXT DEFAULT '',
-          can_collect_fees INTEGER DEFAULT 0
+          can_collect_fees INTEGER DEFAULT 0,
+          role TEXT DEFAULT 'Teacher',
+          staff_id TEXT DEFAULT '',
+          salary REAL DEFAULT 0
         )
       `);
 
@@ -579,6 +582,27 @@ function createSchoolDatabaseSchema(db) {
             db.run("ALTER TABLE teachers ADD COLUMN can_collect_fees INTEGER DEFAULT 0", (e) => {
               if (e) console.error('Migration: failed to add can_collect_fees to teachers:', e.message);
               else console.log('Migration: added can_collect_fees to teachers table');
+            });
+          }
+          const hasRole = columns.some(c => c.name === 'role');
+          if (!hasRole) {
+            db.run("ALTER TABLE teachers ADD COLUMN role TEXT DEFAULT 'Teacher'", (e) => {
+              if (e) console.error('Migration: failed to add role to teachers:', e.message);
+              else console.log('Migration: added role to teachers table');
+            });
+          }
+          const hasStaffId = columns.some(c => c.name === 'staff_id');
+          if (!hasStaffId) {
+            db.run("ALTER TABLE teachers ADD COLUMN staff_id TEXT DEFAULT ''", (e) => {
+              if (e) console.error('Migration: failed to add staff_id to teachers:', e.message);
+              else console.log('Migration: added staff_id to teachers table');
+            });
+          }
+          const hasSalary = columns.some(c => c.name === 'salary');
+          if (!hasSalary) {
+            db.run("ALTER TABLE teachers ADD COLUMN salary REAL DEFAULT 0", (e) => {
+              if (e) console.error('Migration: failed to add salary to teachers:', e.message);
+              else console.log('Migration: added salary to teachers table');
             });
           }
         }

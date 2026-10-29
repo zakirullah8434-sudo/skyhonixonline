@@ -4,6 +4,51 @@ const bcrypt = require('bcryptjs');
 const { authenticateToken } = require('./auth');
 const { querySchool, querySchoolOne, runSchool } = require('../database_manager');
 
+// Lazy migration: add Staff Entry columns (role, staff_id, salary) to teachers
+let staffColumnsEnsured = false;
+async function ensureStaffColumns(schoolId) {
+  if (staffColumnsEnsured) return;
+  for (const ddl of [
+    `ALTER TABLE teachers ADD COLUMN role TEXT DEFAULT 'Teacher'`,
+    `ALTER TABLE teachers ADD COLUMN staff_id TEXT DEFAULT ''`,
+    `ALTER TABLE teachers ADD COLUMN salary REAL DEFAULT 0`
+  ]) {
+    try { await runSchool(schoolId, ddl); } catch (e) { /* column already exists */ }
+  }
+  staffColumnsEnsured = true;
+}
+
+// Ensure salary structure table exists so staff salary connects to Salary Management
+async function ensureSalaryTable(schoolId) {
+  try {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS teacher_salaries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, teacher_id INTEGER NOT NULL, basic_salary REAL DEFAULT 0,
+      house_allowance REAL DEFAULT 0, medical_allowance REAL DEFAULT 0, transport_allowance REAL DEFAULT 0,
+      other_allowances REAL DEFAULT 0, deductions REAL DEFAULT 0, tax REAL DEFAULT 0,
+      effective_date TEXT, school_id INTEGER, created_at TEXT DEFAULT (datetime('now'))
+    )`);
+  } catch (e) { /* ignore */ }
+}
+
+// Sync the staff monthly salary into teacher_salaries so Salary Management shows it
+async function syncSalaryToSetup(schoolId, teacherId, salary) {
+  if (!teacherId || salary === undefined || salary === null || isNaN(Number(salary))) return;
+  try {
+    await ensureSalaryTable(schoolId);
+    const existing = await querySchoolOne(schoolId, 'SELECT id FROM teacher_salaries WHERE teacher_id = ?', [teacherId]);
+    if (existing) {
+      await runSchool(schoolId,
+        `UPDATE teacher_salaries SET basic_salary=?, effective_date=datetime('now') WHERE teacher_id=?`,
+        [Number(salary) || 0, teacherId]);
+    } else {
+      await runSchool(schoolId,
+        `INSERT INTO teacher_salaries (teacher_id, basic_salary, effective_date, school_id)
+         VALUES (?, ?, datetime('now'), ?)`,
+        [teacherId, Number(salary) || 0, schoolId]);
+    }
+  } catch (e) { console.error('[STAFF_SALARY_SYNC]', e.message); }
+}
+
 // ==========================================
 // TEACHERS CRUD
 // ==========================================
@@ -11,10 +56,11 @@ const { querySchool, querySchoolOne, runSchool } = require('../database_manager'
 // GET /staff/teachers - List all teachers with their timetable assignments (single query, no N+1)
 router.get('/teachers', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
+  await ensureStaffColumns(schoolId);
   if (req.query.lite === 'true') {
     try {
       const teachers = await querySchool(schoolId,
-        `SELECT id, name, phone, subject, qualification, status, assigned_class, can_collect_fees FROM teachers WHERE (school_id = ? OR school_id IS NULL) ORDER BY name`,
+        `SELECT id, name, phone, subject, qualification, status, assigned_class, can_collect_fees, role, staff_id, salary FROM teachers WHERE (school_id = ? OR school_id IS NULL) ORDER BY name`,
         [schoolId]
       );
       return res.json(teachers);
@@ -25,6 +71,7 @@ router.get('/teachers', authenticateToken, async (req, res) => {
   try {
     const rows = await querySchool(schoolId,
       `SELECT t.id, t.name, t.phone, t.subject, t.qualification, t.status, t.created_at, t.assigned_class, t.can_collect_fees,
+              t.role, t.staff_id, t.salary,
               tm.class_name, tm.section_name, tm.subject as tm_subject, tm.day, tm.start_time, tm.end_time
        FROM teachers t
        LEFT JOIN timetable tm ON tm.teacher_id = t.id
@@ -39,6 +86,7 @@ router.get('/teachers', authenticateToken, async (req, res) => {
           id: row.id, name: row.name, phone: row.phone, subject: row.subject,
           qualification: row.qualification, status: row.status, created_at: row.created_at,
           assigned_class: row.assigned_class, can_collect_fees: row.can_collect_fees,
+          role: row.role, staff_id: row.staff_id, salary: row.salary,
           assignments: []
         });
       }
@@ -56,29 +104,47 @@ router.get('/teachers', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /staff/teachers - Create a new teacher
+// POST /staff/teachers - Create a new teacher/staff member
 router.post('/teachers', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
-  const { name, phone, password, subject, qualification, assigned_class, can_collect_fees } = req.body;
+  const { name, phone, password, subject, qualification, assigned_class, can_collect_fees, role, staff_id, salary } = req.body;
 
-  if (!name || !phone || !password) {
-    return res.status(400).json({ error: 'Name, phone, and password are required' });
+  if (!name) {
+    return res.status(400).json({ error: 'Staff name is required' });
   }
 
   try {
-    const existing = await querySchoolOne(schoolId, 'SELECT id FROM teachers WHERE phone = ?', [phone]);
-    if (existing) {
-      return res.status(409).json({ error: 'A teacher with this phone number already exists' });
+    await ensureStaffColumns(schoolId);
+
+    // Phone is optional for non-teaching staff (Principal, Accountant, Class 4, etc.)
+    // Generate a unique placeholder so the UNIQUE NOT NULL constraint holds and
+    // they simply cannot log in to the teacher portal unless a real phone is set.
+    let finalPhone = (phone || '').trim();
+    if (!finalPhone) {
+      finalPhone = 'staff-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+    } else {
+      const existing = await querySchoolOne(schoolId, 'SELECT id FROM teachers WHERE phone = ?', [finalPhone]);
+      if (existing) {
+        return res.status(409).json({ error: 'A staff member with this phone number already exists' });
+      }
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const finalRole = (role || 'Teacher').trim();
+    // Non-teaching staff don't get portal login unless a password is supplied
+    const hashedPassword = await bcrypt.hash(password || ('nopass-' + Date.now()), 10);
     const result = await runSchool(schoolId,
-      `INSERT INTO teachers (name, phone, password, subject, qualification, status, school_id, created_at, assigned_class, can_collect_fees)
-       VALUES (?, ?, ?, ?, ?, 'Active', ?, ?, ?, ?)`,
-      [name, phone, hashedPassword, subject || '', qualification || '', schoolId, new Date().toISOString().slice(0, 19).replace('T', ' '), assigned_class || '', can_collect_fees ? 1 : 0]
+      `INSERT INTO teachers (name, phone, password, subject, qualification, status, school_id, created_at, assigned_class, can_collect_fees, role, staff_id, salary)
+       VALUES (?, ?, ?, ?, ?, 'Active', ?, ?, ?, ?, ?, ?, ?)`,
+      [name, finalPhone, hashedPassword, subject || '', qualification || '', schoolId, new Date().toISOString().slice(0, 19).replace('T', ' '),
+       assigned_class || '', can_collect_fees ? 1 : 0, finalRole, (staff_id || '').trim(), Number(salary) || 0]
     );
 
-    res.json({ id: result.id, message: 'Teacher created successfully' });
+    // Connect salary to Salary Management so it appears in salary setup & payments
+    if (Number(salary) > 0) {
+      await syncSalaryToSetup(schoolId, result.id, salary);
+    }
+
+    res.json({ id: result.id, message: finalRole + ' added successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -88,11 +154,28 @@ router.post('/teachers', authenticateToken, async (req, res) => {
 router.put('/teachers/:id', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { id } = req.params;
-  const { name, phone, subject, qualification, status, password, assigned_class, can_collect_fees } = req.body;
+  const { name, phone, subject, qualification, status, password, assigned_class, can_collect_fees, role, staff_id, salary } = req.body;
 
   try {
-    let query = `UPDATE teachers SET name=?, phone=?, subject=?, qualification=?, status=?, assigned_class=?, can_collect_fees=?`;
-    let params = [name, phone, subject || '', qualification || '', status || 'Active', assigned_class || '', can_collect_fees ? 1 : 0];
+    await ensureStaffColumns(schoolId);
+
+    // Preserve existing role/staff_id/salary when the caller (e.g. Assign
+    // Teachers form) doesn't send them, so staff metadata isn't wiped.
+    let preservedRole = 'Teacher', preservedStaffId = '', preservedSalary = 0;
+    if (role === undefined || staff_id === undefined || salary === undefined) {
+      const cur = await querySchoolOne(schoolId, 'SELECT role, staff_id, salary FROM teachers WHERE id = ?', [id]);
+      if (cur) {
+        preservedRole = cur.role || 'Teacher';
+        preservedStaffId = cur.staff_id || '';
+        preservedSalary = cur.salary || 0;
+      }
+    }
+
+    let query = `UPDATE teachers SET name=?, phone=?, subject=?, qualification=?, status=?, assigned_class=?, can_collect_fees=?, role=?, staff_id=?, salary=?`;
+    let params = [name, phone, subject || '', qualification || '', status || 'Active', assigned_class || '', can_collect_fees ? 1 : 0,
+                  (role !== undefined ? role : preservedRole) || 'Teacher',
+                  (staff_id !== undefined ? staff_id : preservedStaffId) || '',
+                  Number(salary !== undefined ? salary : preservedSalary) || 0];
 
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -104,7 +187,13 @@ router.put('/teachers/:id', authenticateToken, async (req, res) => {
     params.push(id);
 
     await runSchool(schoolId, query, params);
-    res.json({ message: 'Teacher updated successfully' });
+
+    // Keep Salary Management in sync when salary is edited
+    if (salary !== undefined) {
+      await syncSalaryToSetup(schoolId, id, salary);
+    }
+
+    res.json({ message: 'Staff updated successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

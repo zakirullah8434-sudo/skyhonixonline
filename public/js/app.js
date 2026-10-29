@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v57';
+    const EXPECTED_PAGE_VERSION = 'v58';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -2737,6 +2737,173 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   btnCloseStudentModal.addEventListener('click', () => modalStudent.classList.remove('open'));
+
+  // ==========================================
+  // MODULE: STAFF ENTRY (Admissions section)
+  // Adds teachers & non-teaching staff (Principal, Vice Principal, Director,
+  // Class 4, Accountant, etc.) into the shared teachers register so they flow
+  // into Assign Teachers, Teacher Attendance, Salary Management & ID Cards.
+  // ==========================================
+  (function setupStaffEntry() {
+    const btnOpen = document.getElementById('btn-staff-entry');
+    const panel = document.getElementById('panel-staff-entry');
+    if (!btnOpen || !panel) return;
+
+    const studentsScreen = document.getElementById('screen-students');
+    const form = document.getElementById('form-staff-entry');
+    const feedback = document.getElementById('staff-feedback');
+    let classOptionsLoaded = false;
+
+    function showFeedback(msg, isError) {
+      if (!feedback) return;
+      feedback.style.display = 'block';
+      feedback.style.color = isError ? 'var(--danger)' : 'var(--success)';
+      feedback.textContent = msg;
+    }
+
+    async function populateStaffClassDropdown() {
+      if (classOptionsLoaded) return;
+      const sel = document.getElementById('staff-assigned-class');
+      if (!sel) return;
+      try {
+        const classes = await getCachedClasses(apiCall);
+        const opts = ['<option value="">-- No Class Assigned --</option>'];
+        classes.forEach(c => {
+          const name = typeof c === 'object' ? c.class_name : c;
+          opts.push(`<option value="${esc(name)}">${esc(name)}</option>`);
+        });
+        sel.innerHTML = opts.join('');
+        classOptionsLoaded = true;
+      } catch (e) { console.error('[APP_ERROR]', e.message); }
+    }
+
+    async function loadStaffList() {
+      const tbody = document.querySelector('#table-staff-list tbody');
+      if (!tbody) return;
+      try {
+        const staff = await apiCall('/staff/teachers?lite=true');
+        if (!staff.length) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No staff members added yet.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = staff.map(s => {
+          const role = s.role || 'Teacher';
+          const roleColors = { 'Principal': 'badge-blue', 'Vice Principal': 'badge-blue', 'Director': 'badge-purple', 'Accountant': 'badge-green' };
+          const roleBadge = roleColors[role] ? `<span class="badge ${roleColors[role]}">${esc(role)}</span>` : `<span class="badge badge-gray">${esc(role)}</span>`;
+          const salary = Number(s.salary) > 0 ? `Rs ${Number(s.salary).toLocaleString()}` : '<span style="color:var(--text-muted);">—</span>';
+          const phone = (s.phone && !s.phone.startsWith('staff-')) ? esc(s.phone) : '<span style="color:var(--text-muted);">Not set</span>';
+          return `
+          <tr>
+            <td><strong>${esc(s.name)}</strong></td>
+            <td>${s.staff_id ? esc(s.staff_id) : '<span style="color:var(--text-muted);">—</span>'}</td>
+            <td>${roleBadge}</td>
+            <td>${phone}</td>
+            <td>${salary}</td>
+            <td><span class="badge ${s.status === 'Active' ? 'badge-green' : 'badge-red'}">${esc(s.status || 'Active')}</span></td>
+            <td>
+              <button class="btn btn-outline btn-sm btn-edit-staff" data-id="${s.id}" data-name="${esc(s.name)}" data-staff-id="${esc(s.staff_id || '')}" data-role="${esc(role)}" data-salary="${s.salary || 0}" data-phone="${esc((s.phone && !s.phone.startsWith('staff-')) ? s.phone : '')}" data-subject="${esc(s.subject || '')}" data-qualification="${esc(s.qualification || '')}" data-assigned-class="${esc(s.assigned_class || '')}" data-can-collect-fees="${s.can_collect_fees || 0}">Edit</button>
+              <button class="btn btn-danger btn-sm btn-delete-staff" data-id="${s.id}" data-name="${esc(s.name)}">Delete</button>
+            </td>
+          </tr>`;
+        }).join('');
+      } catch (e) { console.error('[APP_ERROR]', e.message); }
+    }
+
+    function resetStaffForm() {
+      form.reset();
+      document.getElementById('staff-edit-id').value = '';
+      document.getElementById('staff-form-title').textContent = 'Add Staff Member';
+      document.getElementById('btn-staff-submit').textContent = 'Add Staff';
+      document.getElementById('btn-staff-cancel').style.display = 'none';
+      if (feedback) feedback.style.display = 'none';
+    }
+
+    btnOpen.addEventListener('click', () => {
+      // Hide the admissions filter card + directory table, show the staff panel
+      studentsScreen.querySelectorAll(':scope > .card, :scope > .table-container').forEach(c => c.style.display = 'none');
+      panel.style.display = 'block';
+      resetStaffForm();
+      loadStaffList();
+      populateStaffClassDropdown();
+    });
+
+    document.getElementById('btn-staff-entry-back').addEventListener('click', () => {
+      panel.style.display = 'none';
+      studentsScreen.querySelectorAll(':scope > .card, :scope > .table-container').forEach(c => c.style.display = '');
+    });
+
+    document.getElementById('btn-staff-cancel').addEventListener('click', resetStaffForm);
+
+    // Row actions (event delegation — rows re-render on every load)
+    document.querySelector('#table-staff-list tbody').addEventListener('click', (e) => {
+      const editBtn = e.target.closest('.btn-edit-staff');
+      if (editBtn) {
+        document.getElementById('staff-edit-id').value = editBtn.dataset.id;
+        document.getElementById('staff-name').value = editBtn.dataset.name;
+        document.getElementById('staff-id-card').value = editBtn.dataset.staffId;
+        document.getElementById('staff-role').value = editBtn.dataset.role;
+        document.getElementById('staff-salary').value = editBtn.dataset.salary;
+        document.getElementById('staff-phone').value = editBtn.dataset.phone;
+        document.getElementById('staff-password').value = '';
+        document.getElementById('staff-subject').value = editBtn.dataset.subject;
+        document.getElementById('staff-qualification').value = editBtn.dataset.qualification;
+        document.getElementById('staff-assigned-class').value = editBtn.dataset.assignedClass;
+        document.getElementById('staff-can-collect-fees').checked = editBtn.dataset.canCollectFees === '1';
+        document.getElementById('staff-form-title').textContent = 'Edit Staff Member';
+        document.getElementById('btn-staff-submit').textContent = 'Update Staff';
+        document.getElementById('btn-staff-cancel').style.display = 'inline-block';
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      const deleteBtn = e.target.closest('.btn-delete-staff');
+      if (deleteBtn) {
+        if (!confirm(`Delete staff member "${deleteBtn.dataset.name}"?`)) return;
+        apiCall(`/staff/teachers/${deleteBtn.dataset.id}`, 'DELETE').then(() => {
+          showToast('Staff member deleted');
+          loadStaffList();
+        }).catch(err => showToast(err.message, true));
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const editId = document.getElementById('staff-edit-id').value;
+      const payload = {
+        name: document.getElementById('staff-name').value.trim(),
+        staff_id: document.getElementById('staff-id-card').value.trim(),
+        role: document.getElementById('staff-role').value,
+        salary: Number(document.getElementById('staff-salary').value) || 0,
+        phone: document.getElementById('staff-phone').value.trim(),
+        password: document.getElementById('staff-password').value,
+        subject: document.getElementById('staff-subject').value.trim(),
+        qualification: document.getElementById('staff-qualification').value.trim(),
+        assigned_class: document.getElementById('staff-assigned-class').value,
+        can_collect_fees: document.getElementById('staff-can-collect-fees').checked
+      };
+      try {
+        const btn = document.getElementById('btn-staff-submit');
+        btn.disabled = true;
+        if (editId) {
+          payload.status = 'Active';
+          await apiCall(`/staff/teachers/${editId}`, 'PUT', payload);
+          showToast(`${payload.role} updated successfully`);
+        } else {
+          await apiCall('/staff/teachers', 'POST', payload);
+          showToast(`${payload.role} added successfully`);
+        }
+        resetStaffForm();
+        loadStaffList();
+        // Keep the Assign Teachers list in sync if it was loaded earlier
+        if (document.querySelector('#table-teachers tbody')) loadTeachersList();
+      } catch (err) {
+        showFeedback(err.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // Initial load in case the panel is opened via deep-link
+    loadStaffList();
+  })();
 
   // ==========================================
   // MODULE: CREATE / MANAGE CLASSES
@@ -9449,21 +9616,26 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (teachers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No teachers added yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No teachers added yet.</td></tr>';
         return;
       }
       tbody.innerHTML = teachers.map(t => {
         const assignedClass = t.assigned_class || '<span style="color:var(--text-muted);">None</span>';
         const feeAccess = t.can_collect_fees ? '<span class="badge badge-green">Yes</span>' : '<span class="badge badge-red">No</span>';
+        const role = t.role || 'Teacher';
+        const roleColors = { 'Principal': 'badge-blue', 'Vice Principal': 'badge-blue', 'Director': 'badge-purple', 'Accountant': 'badge-green' };
+        const roleBadge = roleColors[role] ? `<span class="badge ${roleColors[role]}">${role}</span>` : `<span class="badge badge-gray">${role}</span>`;
         return `
         <tr>
           <td><strong>${t.name}</strong></td>
+          <td>${roleBadge}</td>
+          <td>${t.staff_id || '<span style="color:var(--text-muted);">—</span>'}</td>
           <td>${t.phone}</td>
           <td>${assignedClass}</td>
           <td>${feeAccess}</td>
           <td><span class="badge ${t.status === 'Active' ? 'badge-green' : 'badge-red'}">${t.status}</span></td>
           <td>
-            <button class="btn btn-outline btn-sm btn-edit-teacher" data-id="${t.id}" data-name="${t.name}" data-phone="${t.phone}" data-qualification="${t.qualification || ''}" data-status="${t.status}" data-assigned-class="${t.assigned_class || ''}" data-can-collect-fees="${t.can_collect_fees || 0}">Edit</button>
+            <button class="btn btn-outline btn-sm btn-edit-teacher" data-id="${t.id}" data-name="${t.name}" data-phone="${t.phone}" data-qualification="${t.qualification || ''}" data-status="${t.status}" data-assigned-class="${t.assigned_class || ''}" data-can-collect-fees="${t.can_collect_fees || 0}" data-role="${role}" data-staff-id="${t.staff_id || ''}" data-salary="${t.salary || 0}">Edit</button>
             <button class="btn btn-danger btn-sm btn-delete-teacher" data-id="${t.id}">Delete</button>
           </td>
         </tr>`;

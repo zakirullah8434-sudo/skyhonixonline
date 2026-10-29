@@ -523,6 +523,9 @@ async function initSchoolTablesTurso(client) {
     qualification TEXT,
     status TEXT DEFAULT 'Active',
     created_at TEXT,
+    role TEXT DEFAULT 'Teacher',
+    staff_id TEXT DEFAULT '',
+    salary REAL DEFAULT 0,
     UNIQUE(school_id, phone)
   )`);
 
