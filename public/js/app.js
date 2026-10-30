@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v59';
+    const EXPECTED_PAGE_VERSION = 'v60';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -826,8 +826,12 @@ document.addEventListener('DOMContentLoaded', () => {
       totalAttLogs += s.count;
     });
 
-    const rate = totalAttLogs > 0 ? Math.round((presentCount / totalAttLogs) * 100) : 0;
-    document.getElementById('stat-attendance-rate').innerText = totalAttLogs > 0 ? `${rate}%` : '0%';
+    // Real school attendance rate: present students today ÷ total enrolled
+    // students (NOT present ÷ logged rows — that shows 100% when only 1-2
+    // of many students have been scanned).
+    const totalStudents = stats.totalStudents || 0;
+    const rate = totalStudents > 0 ? Math.min(100, Math.round((presentCount / totalStudents) * 100)) : 0;
+    document.getElementById('stat-attendance-rate').innerText = `${rate}%`;
 
     document.getElementById('stat-month-fees').innerText = `${(stats.monthCollected || 0).toLocaleString()} PKR`;
     document.getElementById('stat-pending-dues').innerText = `${(stats.pendingDues || 0).toLocaleString()} PKR`;
@@ -3855,11 +3859,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const scanValue = (decodedText || '').trim();
     if (!scanValue) return;
 
-    // Prevent duplicate rapid scans of the same code within 2 seconds
+    // "Still in view" tracking: while the SAME code keeps decoding continuously
+    // (camera held on the card), do NOT call the API again — so a successful
+    // scan's banner is never replaced by an "already marked" error. When the
+    // code leaves the camera (no decode for >= 2s) and later returns, it is
+    // processed again and the already-marked warning may show that day.
+    // The in-flight flag also blocks re-entry while a slow request for the
+    // same code is still pending.
     const now = Date.now();
-    if (window._lastScanValue === scanValue && (now - (window._lastScanTime || 0)) < 2000) return;
-    window._lastScanValue = scanValue;
-    window._lastScanTime = now;
+    const SCAN_STILL_IN_VIEW_MS = 2000;
+    if (window._scanActiveValue === scanValue) {
+      if (window._scanInFlight || (now - (window._scanActiveSeenAt || 0)) < SCAN_STILL_IN_VIEW_MS) {
+        window._scanActiveSeenAt = now; // refresh — still pointing at the same card
+        return;
+      }
+    }
+    window._scanActiveValue = scanValue;
+    window._scanActiveSeenAt = now;
+    window._scanInFlight = true;
 
     const setDash = (text, isError) => {
       if (!dashResultEl) return;
@@ -3868,21 +3885,30 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Persistent success/warning banner inside the scan feedback card —
-    // the toast is too easy to miss while the camera is running.
-    const setScanBanner = (text, kind) => {
+    // the toast is too easy to miss while the camera is running. Large,
+    // professional two-line layout: big headline + detail line.
+    const setScanBanner = (headline, detail, kind) => {
       const el = document.getElementById('scan-success-msg');
       if (!el) return;
       el.style.display = 'block';
-      el.textContent = text;
-      if (kind === 'ok') {
-        el.style.background = 'var(--success-light)';
-        el.style.color = 'var(--success)';
-        el.style.border = '1.5px solid var(--success)';
-      } else {
-        el.style.background = 'var(--warning-light)';
-        el.style.color = 'var(--warning)';
-        el.style.border = '1.5px solid var(--warning)';
-      }
+      el.innerHTML =
+        `<span class="scan-banner-icon">${kind === 'ok' ? '✅' : '⚠️'}</span>` +
+        `<span class="scan-banner-head">${esc(headline)}</span>` +
+        (detail ? `<span class="scan-banner-detail">${esc(detail)}</span>` : '');
+      el.classList.remove('scan-banner-ok', 'scan-banner-warn');
+      el.classList.add(kind === 'ok' ? 'scan-banner-ok' : 'scan-banner-warn');
+    };
+
+    // Voice the result (student/teacher name + outcome) via Web Speech API.
+    const speakResult = (text) => {
+      try {
+        if (!('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.rate = 1.0; u.pitch = 1.0; u.volume = 1.0;
+        u.lang = 'en-US';
+        window.speechSynthesis.speak(u);
+      } catch (e) { /* voice is best-effort */ }
     };
 
     try {
@@ -3907,17 +3933,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
 
+          const whoName = isTeacherResult ? result.teacher.name : result.student.name;
+          const whoKind = isTeacherResult ? 'Teacher' : 'Student';
+
           if (result.alreadyMarked) {
             playBeep('fail');
             showToast(result.message, true);
             setDash(result.message, true);
-            setScanBanner('⚠️ ' + result.message, 'warn');
+            setScanBanner('Attendance Already Marked', result.message, 'warn');
+            speakResult(result.message);
           } else {
             playBeep('success');
             showToast(result.message);
-            const okMsg = isTeacherResult ? 'Teacher' : 'Student';
-            setDash(`✅ ${okMsg} Attendance Successfully taken. — ${result.message}`, false);
-            setScanBanner(`✅ ${okMsg} Attendance Successfully taken.`, 'ok');
+            setDash(`✅ ${whoKind} Attendance Successfully taken. — ${result.message}`, false);
+            setScanBanner(
+              `${whoKind} Attendance Successfully Taken`,
+              `${whoName} · ${isTeacherResult ? (result.teacher.subject ? result.teacher.subject + ' · ' : '') : (result.student.roll_no ? 'Roll No: ' + result.student.roll_no + ' · ' : '')}${isTeacherResult ? result.teacher.time : result.student.time}`,
+              'ok'
+            );
+            speakResult(`${whoName}. ${whoKind} attendance marked successfully.`);
           }
 
           if (isTeacherResult) {
@@ -3969,6 +4003,8 @@ document.addEventListener('DOMContentLoaded', () => {
       playBeep('fail');
       showToast(`Scan failed: ${err.message}`, true);
       setDash(`Scan failed: ${err.message}`, true);
+    } finally {
+      window._scanInFlight = false;
     }
   }
 
@@ -3985,6 +4021,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     html5QrcodeScanner = new Html5Qrcode('reader');
+    window._scanActiveValue = null; window._scanActiveSeenAt = 0; window._scanInFlight = false;
 
     html5QrcodeScanner.start(
       { facingMode: currentFacing },
@@ -4060,6 +4097,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window._qrCombinedMode = true;
     dashHtml5Scanner = new Html5Qrcode('dash-reader');
+    window._scanActiveValue = null; window._scanActiveSeenAt = 0; window._scanInFlight = false;
     dashHtml5Scanner.start(
       { facingMode: dashFacing },
       { fps: 10, qrbox: { width: 250, height: 250 } },
@@ -4344,6 +4382,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       tHtml5QrcodeScanner = new Html5Qrcode('tatt-reader');
+      window._tScanActiveValue = null; window._tScanActiveSeenAt = 0; window._tScanInFlight = false;
 
       tHtml5QrcodeScanner.start(
         { facingMode: tCurrentFacing },
@@ -4351,10 +4390,22 @@ document.addEventListener('DOMContentLoaded', () => {
         async (decodedText) => {
           const scanValue = (decodedText || '').trim();
           if (!scanValue) return;
+          // "Still in view" tracking (same as the student scanner): while the
+          // same card stays in front of the camera, don't re-hit the API — the
+          // success banner stays put. Re-processes when the card leaves the
+          // camera (>= 2s no decode) and returns, so the already-marked
+          // warning only appears on a deliberate re-scan later that day.
           const now = Date.now();
-          if (window._tLastScanValue === scanValue && (now - (window._tLastScanTime || 0)) < 2000) return;
-          window._tLastScanValue = scanValue;
-          window._tLastScanTime = now;
+          const SCAN_STILL_IN_VIEW_MS = 2000;
+          if (window._tScanActiveValue === scanValue) {
+            if (window._tScanInFlight || (now - (window._tScanActiveSeenAt || 0)) < SCAN_STILL_IN_VIEW_MS) {
+              window._tScanActiveSeenAt = now;
+              return;
+            }
+          }
+          window._tScanActiveValue = scanValue;
+          window._tScanActiveSeenAt = now;
+          window._tScanInFlight = true;
 
           try {
             const dateStr = new Date().toISOString().split('T')[0];
@@ -4373,17 +4424,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const tBanner = document.getElementById('tatt-scan-success-msg');
             if (tBanner) {
               tBanner.style.display = 'block';
-              tBanner.textContent = result.alreadyMarked ? ('⚠️ ' + result.message) : '✅ Teacher Attendance Successfully taken.';
               if (result.alreadyMarked) {
-                tBanner.style.background = 'var(--warning-light)';
-                tBanner.style.color = 'var(--warning)';
-                tBanner.style.border = '1.5px solid var(--warning)';
+                tBanner.classList.remove('scan-banner-ok');
+                tBanner.classList.add('scan-banner-warn');
+                tBanner.innerHTML =
+                  '<span class="scan-banner-icon">⚠️</span>' +
+                  `<span class="scan-banner-head">Attendance Already Marked</span>` +
+                  `<span class="scan-banner-detail">${esc(result.message)}</span>`;
               } else {
-                tBanner.style.background = 'var(--success-light)';
-                tBanner.style.color = 'var(--success)';
-                tBanner.style.border = '1.5px solid var(--success)';
+                tBanner.classList.remove('scan-banner-warn');
+                tBanner.classList.add('scan-banner-ok');
+                tBanner.innerHTML =
+                  '<span class="scan-banner-icon">✅</span>' +
+                  '<span class="scan-banner-head">Teacher Attendance Successfully Taken</span>' +
+                  `<span class="scan-banner-detail">${esc(result.teacher.name)}${result.teacher.subject ? ' · ' + esc(result.teacher.subject) : ''} · ${esc(result.teacher.time)}</span>`;
               }
             }
+
+            // Voice the outcome with the teacher's name
+            try {
+              if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(
+                  result.alreadyMarked
+                    ? result.message
+                    : `${result.teacher.name}. Teacher attendance marked successfully.`
+                );
+                u.rate = 1.0; u.pitch = 1.0; u.volume = 1.0; u.lang = 'en-US';
+                window.speechSynthesis.speak(u);
+              }
+            } catch (e) { /* voice is best-effort */ }
 
             document.getElementById('tatt-scan-name').innerText = result.teacher.name;
             document.getElementById('tatt-scan-subject').innerText = `Subject: ${result.teacher.subject || '-'}`;
@@ -4405,6 +4475,8 @@ document.addEventListener('DOMContentLoaded', () => {
           } catch (err) {
             playBeep('fail');
             showToast(`Scan failed: ${err.message}`, true);
+          } finally {
+            window._tScanInFlight = false;
           }
         },
         () => {}
