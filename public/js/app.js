@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v58';
+    const EXPECTED_PAGE_VERSION = 'v59';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -2879,8 +2879,8 @@ document.addEventListener('DOMContentLoaded', () => {
         assigned_class: document.getElementById('staff-assigned-class').value,
         can_collect_fees: document.getElementById('staff-can-collect-fees').checked
       };
+      const btn = document.getElementById('btn-staff-submit');
       try {
-        const btn = document.getElementById('btn-staff-submit');
         btn.disabled = true;
         if (editId) {
           payload.status = 'Active';
@@ -3867,6 +3867,24 @@ document.addEventListener('DOMContentLoaded', () => {
       dashResultEl.style.color = isError ? '#ff8f8f' : '#fff';
     };
 
+    // Persistent success/warning banner inside the scan feedback card —
+    // the toast is too easy to miss while the camera is running.
+    const setScanBanner = (text, kind) => {
+      const el = document.getElementById('scan-success-msg');
+      if (!el) return;
+      el.style.display = 'block';
+      el.textContent = text;
+      if (kind === 'ok') {
+        el.style.background = 'var(--success-light)';
+        el.style.color = 'var(--success)';
+        el.style.border = '1.5px solid var(--success)';
+      } else {
+        el.style.background = 'var(--warning-light)';
+        el.style.color = 'var(--warning)';
+        el.style.border = '1.5px solid var(--warning)';
+      }
+    };
+
     try {
           const dateStr = new Date().toISOString().split('T')[0];
           const clientTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
@@ -3893,10 +3911,13 @@ document.addEventListener('DOMContentLoaded', () => {
             playBeep('fail');
             showToast(result.message, true);
             setDash(result.message, true);
+            setScanBanner('⚠️ ' + result.message, 'warn');
           } else {
             playBeep('success');
             showToast(result.message);
-            setDash(result.message, false);
+            const okMsg = isTeacherResult ? 'Teacher' : 'Student';
+            setDash(`✅ ${okMsg} Attendance Successfully taken. — ${result.message}`, false);
+            setScanBanner(`✅ ${okMsg} Attendance Successfully taken.`, 'ok');
           }
 
           if (isTeacherResult) {
@@ -3955,6 +3976,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (html5QrcodeScanner) return;
 
     scanFeedback.style.display = 'none';
+    const scanBanner = document.getElementById('scan-success-msg');
+    if (scanBanner) scanBanner.style.display = 'none';
     try {
       await loadQrLibrary();
     } catch (err) {
@@ -4312,6 +4335,8 @@ document.addEventListener('DOMContentLoaded', () => {
     btnTattStart.addEventListener('click', async () => {
       if (tHtml5QrcodeScanner) return;
       tScanFeedback.style.display = 'none';
+      const tBannerStart = document.getElementById('tatt-scan-success-msg');
+      if (tBannerStart) tBannerStart.style.display = 'none';
       try {
         await loadQrLibrary();
       } catch (err) {
@@ -4342,6 +4367,22 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
               playBeep('success');
               showToast(result.message);
+            }
+
+            // Persistent success/warning banner (the toast is easy to miss)
+            const tBanner = document.getElementById('tatt-scan-success-msg');
+            if (tBanner) {
+              tBanner.style.display = 'block';
+              tBanner.textContent = result.alreadyMarked ? ('⚠️ ' + result.message) : '✅ Teacher Attendance Successfully taken.';
+              if (result.alreadyMarked) {
+                tBanner.style.background = 'var(--warning-light)';
+                tBanner.style.color = 'var(--warning)';
+                tBanner.style.border = '1.5px solid var(--warning)';
+              } else {
+                tBanner.style.background = 'var(--success-light)';
+                tBanner.style.color = 'var(--success)';
+                tBanner.style.border = '1.5px solid var(--success)';
+              }
             }
 
             document.getElementById('tatt-scan-name').innerText = result.teacher.name;
