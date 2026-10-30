@@ -18,8 +18,8 @@
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"></noscript>
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
-  <link rel="preload" href="css/styles.css?v=7" as="style">
-  <link rel="preload" href="js/app.js?v=61" as="script">
+  <link rel="preload" href="css/styles.css?v=8" as="style">
+  <link rel="preload" href="js/app.js?v=62" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v61';
+    window.SKYHONIX_PAGE_VERSION = 'v62';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -279,7 +279,7 @@
   </style>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/styles.css?v=7">
+  <link rel="stylesheet" href="css/styles.css?v=8">
   <!-- HTML5 QR Code Scanner Library is lazy-loaded on demand (see js/app.js) -->
   <!-- Chart.js CDN -->
   <script>
@@ -3998,20 +3998,27 @@
               </div>
               <div id="marks-subject-info" style="display: none; margin-bottom: 12px; padding: 10px 15px; border-radius: 8px; background: var(--primary-light); border-left: 4px solid var(--primary); font-size: 0.9rem; color: var(--text-primary);">
               </div>
-              <div class="table-container" style="overflow-x: auto;">
+              <div class="table-container" id="marks-grid-wrap" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
                 <table class="data-table" id="table-marks-grid">
+                  <colgroup>
+                    <col style="width: 38px;">
+                    <col>
+                  </colgroup>
                   <thead id="marks-grid-head">
                     <tr>
-                      <th>Roll No</th>
-                      <th>Student Name</th>
-                      <th>Class / Section</th>
+                      <th class="ms-pin ms-pin-roll">Roll No</th>
+                      <th class="ms-pin ms-pin-name">Student Name</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Please configure parameters above...</td></tr>
+                    <tr><td colspan="2" style="text-align: center; color: var(--text-muted);">Please configure parameters above...</td></tr>
                   </tbody>
                 </table>
               </div>
+              <p id="marks-grid-hint" style="display: none; margin: -16px 0 18px; font-size: 0.76rem; line-height: 1.55; color: var(--text-muted); text-align: center;">
+                Swipe left / right to reach more subjects &mdash; Roll No &amp; Student Name stay pinned.
+                Tap any <strong>Max</strong> chip to change that subject's full marks.
+              </p>
               <div style="text-align: right; display: none;" id="marks-grid-actions">
                 <button class="btn btn-secondary" id="btn-save-marks">Save All Marks</button>
               </div>
@@ -5122,8 +5129,8 @@
     <div id="dash-scan-result" style="color:#fff; padding:16px; min-height:56px; font-size:0.95rem; text-align:center; background:rgba(255,255,255,0.08);">Point the camera at a student or teacher QR card…</div>
   </div>
 
-  <script src="js/vendor/jspdf.umd.min.js?v=61"></script>
-  <script src="js/vendor/html2canvas.min.js?v=61"></script>
-  <script src="js/app.js?v=61"></script>
+  <script src="js/vendor/jspdf.umd.min.js?v=62"></script>
+  <script src="js/vendor/html2canvas.min.js?v=62"></script>
+  <script src="js/app.js?v=62"></script>
 </body>
 </html>

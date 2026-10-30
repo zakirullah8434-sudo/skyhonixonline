@@ -110,6 +110,49 @@ router.post('/subjects', authenticateToken, async (req, res) => {
   }
 });
 
+// PUT /exams/subjects/max-marks - Change Max Marks straight from the
+// All-Subjects spreadsheet (tap a "Max" chip). Upserts every subject of the
+// loaded class/term so the displayed subject set stays complete on reload -
+// exam_subjects is the first source GET /marks/spreadsheet reads.
+router.put('/subjects/max-marks', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { exam_id, class_name, term, subjects } = req.body;
+
+  if (!exam_id || !class_name || !term || !Array.isArray(subjects) || subjects.length === 0) {
+    return res.status(400).json({ error: 'exam_id, class_name, term and subjects are required' });
+  }
+
+  let saved = 0;
+  try {
+    for (const s of subjects) {
+      const subject = String((s && s.subject) || '').trim();
+      const max = parseInt(s && s.max_marks, 10);
+      if (!subject || isNaN(max) || max < 1 || max > 999) continue;
+
+      const upd = await runSchool(
+        schoolId,
+        'UPDATE exam_subjects SET max_marks = ? WHERE exam_id = ? AND class = ? AND term = ? AND UPPER(subject) = UPPER(?)',
+        [max, parseInt(exam_id), class_name, term, subject]
+      );
+      if (!upd.changes) {
+        await runSchool(
+          schoolId,
+          'INSERT INTO exam_subjects (exam_id, class, subject, max_marks, term) VALUES (?, ?, ?, ?, ?)',
+          [parseInt(exam_id), class_name, subject, max, term]
+        );
+      }
+      saved++;
+    }
+
+    if (!saved) {
+      return res.status(400).json({ error: 'No valid subject/max_marks pair supplied' });
+    }
+    res.json({ message: 'Max marks updated for ' + saved + ' subject(s)' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /exams/subjects/:id - Delete an exam subject
 router.delete('/subjects/:id', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;

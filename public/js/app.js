@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v61';
+    const EXPECTED_PAGE_VERSION = 'v62';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -7532,6 +7532,237 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { console.error('[EXAMS_DROPDOWN]', e.message); }
   }
 
+  // ==========================================
+  // ALL SUBJECTS MARKS SPREADSHEET
+  // ==========================================
+  // Layout contract (mobile-first):
+  //   * Roll No + Student Name are PINNED (position: sticky) to the scroll
+  //     container, so swiping the subject columns can never slide the student
+  //     name over the marks boxes. The old build hard-coded left:80px while
+  //     the roll-no column was a different width -> gap + overlap.
+  //   * The pin offset is MEASURED from the live layout (--ms-roll-w) instead
+  //     of guessed, so the two pinned columns can never drift apart.
+  //   * Column widths are FITTED to the container (msFit) instead of fixed:
+  //     roll no + name + EVERY marks box share one phone screen for a normal
+  //     (4-6 subject) class; only an extreme subject count scrolls.
+  const MS_ROLL_W = 38;      // roll-no column (fixed)
+  const MS_SUBJ_MIN = 36;    // subject column floor (fits "100")
+  const MS_SUBJ_COMFORT = 44;
+  const MS_SUBJ_MAX = 56;    // preferred when there is room
+  const MS_SUBJ_WIDE = 72;   // desktop give-back
+  const MS_NAME_MIN = 76;    // name column floor (ellipsis + section tag)
+  const MS_NAME_COMFORT = 120;
+  const MS_NAME_MAX = 170;
+  const MS_NAME_WIDE = 240;  // desktop give-back
+
+  let msSubjects = [];      // last loaded subjects (max marks editable in place)
+  let msSectionFilter = '';
+
+  // Adaptive column widths -> roll no + name + EVERY marks box share one
+  // screen whenever the subject count allows. Widths are written as explicit
+  // px on a fixed-layout table so the sticky offset can be measured exactly.
+  function msFit(n) {
+    const wrap = document.getElementById('marks-grid-wrap');
+    const table = document.getElementById('table-marks-grid');
+    if (!wrap || !table || !n || n < 1) return;
+    let avail = wrap.clientWidth;
+    if (!avail || avail < 200) avail = 340;
+
+    let name = MS_NAME_MIN;
+    let subj = MS_SUBJ_MIN;
+    let room = avail - MS_ROLL_W - name - n * subj;
+    const growSubj = (target) => {
+      if (room <= 0) return;
+      const g = Math.min(Math.floor(room / n), target - subj);
+      if (g > 0) { subj += g; room -= g * n; }
+    };
+    const growName = (target) => {
+      if (room <= 0) return;
+      const g = Math.min(room, target - name);
+      if (g > 0) { name += g; room -= g; }
+    };
+
+    growSubj(MS_SUBJ_COMFORT);  // 1. comfortable marks boxes first
+    growName(MS_NAME_COMFORT);  // 2. then a readable name
+    growSubj(MS_SUBJ_MAX);
+    growName(MS_NAME_MAX);
+    growName(MS_NAME_WIDE);
+    growSubj(MS_SUBJ_WIDE);
+
+    name = Math.max(MS_NAME_MIN, Math.floor(name));
+    subj = Math.max(MS_SUBJ_MIN, Math.floor(subj));
+
+    let cg = table.querySelector('colgroup');
+    if (!cg) { cg = document.createElement('colgroup'); table.insertBefore(cg, table.firstChild); }
+    cg.innerHTML = '<col style="width:' + MS_ROLL_W + 'px">' +
+      '<col style="width:' + name + 'px">' +
+      Array.from({ length: n }, () => '<col style="width:' + subj + 'px">').join('');
+
+    table.style.width = (MS_ROLL_W + name + n * subj) + 'px';
+    table.style.minWidth = '';
+    table.style.maxWidth = '';
+  }
+
+  function msEsc(v) {
+    return String(v === undefined || v === null ? '' : v).replace(/[&<>"']/g, c => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
+
+  function msChipHtml(idx) {
+    return '<button type="button" class="ms-max-chip" data-ms-idx="' + idx +
+      '" title="Tap to change Max Marks">Max ' + msSubjects[idx].max_marks + '</button>';
+  }
+
+  function msMakeChip(idx) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ms-max-chip';
+    b.setAttribute('data-ms-idx', String(idx));
+    b.title = 'Tap to change Max Marks';
+    b.textContent = 'Max ' + msSubjects[idx].max_marks;
+    return b;
+  }
+
+  // Info strip: subject names + clickable "Max" chips
+  function msRenderInfo() {
+    const infoBox = document.getElementById('marks-subject-info');
+    if (!infoBox || msSubjects.length === 0) return;
+    const chips = msSubjects.map((s, i) =>
+      '<span class="ms-subj-chip">' + msEsc(s.subject) + ' ' + msChipHtml(i) + '</span>'
+    ).join('');
+    infoBox.innerHTML =
+      '<strong>' + msSubjects.length + ' subject(s):</strong> ' +
+      '<span style="color: var(--text-muted); font-size: 0.82rem;">Tap Max to change full marks</span>' +
+      '<span class="ms-chip-row">' + chips + '</span>';
+  }
+
+  // Update both instances of a chip (info strip + column header) IN PLACE so an
+  // open editor is never ripped out of the DOM mid-typing.
+  function msSyncChips(idx) {
+    const s = msSubjects[idx];
+    document.querySelectorAll('#tab-marks-spreadsheet .ms-max-chip[data-ms-idx="' + idx + '"]')
+      .forEach(btn => { btn.textContent = 'Max ' + s.max_marks; });
+  }
+
+  // Re-point every marks input of a subject at the new max
+  function msSyncInputs(idx) {
+    const s = msSubjects[idx];
+    document.querySelectorAll('#table-marks-grid .marks-cell').forEach(inp => {
+      if (inp.getAttribute('data-subject') !== s.subject) return;
+      inp.setAttribute('data-max', String(s.max_marks));
+      inp.setAttribute('max', String(s.max_marks));
+      msFlagOver(inp);
+    });
+  }
+
+  function msFlagOver(inp) {
+    const max = parseInt(inp.getAttribute('max'), 10);
+    const v = parseInt(inp.value, 10);
+    const over = inp.value !== '' && !isNaN(v) && !isNaN(max) && v > max;
+    inp.classList.toggle('ms-over', over);
+  }
+
+  // Pin offset = measured width of the roll-no column (never hard-coded)
+  function msSyncPin() {
+    const table = document.getElementById('table-marks-grid');
+    if (!table) return;
+    const first = table.querySelector('thead th');
+    if (!first) return;
+    const w = first.getBoundingClientRect().width;
+    if (w > 1) table.style.setProperty('--ms-roll-w', w.toFixed(2) + 'px');
+  }
+  window.addEventListener('resize', () => {
+    clearTimeout(window.__msPinT);
+    window.__msPinT = setTimeout(() => {
+      if (msSubjects.length) msFit(msSubjects.length);
+      msSyncPin();
+    }, 120);
+  });
+
+  // --- editable Max marks -------------------------------------------------
+  function msStartMaxEdit(chip) {
+    const idx = parseInt(chip.getAttribute('data-ms-idx'), 10);
+    const sub = msSubjects[idx];
+    if (!sub || !chip.isConnected) return;
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'ms-max-input';
+    input.min = '1';
+    input.max = '999';
+    input.value = sub.max_marks;
+    input.setAttribute('aria-label', 'Max marks for ' + sub.subject);
+    chip.replaceWith(input);
+    input.focus();
+    try { input.select(); } catch (e) {}
+
+    let closed = false;
+    const close = (apply) => {
+      if (closed) return;
+      closed = true;
+      const val = parseInt(input.value, 10);
+      const changed = apply && !isNaN(val) && val >= 1 && val <= 999 && val !== sub.max_marks;
+      const prev = sub.max_marks;
+      if (changed) sub.max_marks = val;
+      if (input.isConnected) input.replaceWith(msMakeChip(idx));
+      if (!changed) return;
+      msSyncChips(idx);
+      msSyncInputs(idx);
+      msSaveMaxMarks().then(ok => {
+        if (!ok) { sub.max_marks = prev; msSyncChips(idx); msSyncInputs(idx); }
+      });
+    };
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); close(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); close(false); }
+    });
+    input.addEventListener('blur', () => close(true));
+  }
+
+  async function msSaveMaxMarks() {
+    try {
+      const exam_id = document.getElementById('marks-select-exam').value;
+      const class_name = document.getElementById('marks-select-class').value;
+      const term = document.getElementById('marks-select-term').value;
+      if (!exam_id || !class_name || !term) {
+        showToast('Load the spreadsheet before changing Max Marks', true);
+        return false;
+      }
+      // Whole subject list is sent so the class/term subject set is frozen
+      // exactly as displayed (exam_subjects is what GET reads first).
+      const res = await apiCall('/exams/subjects/max-marks', 'PUT', {
+        exam_id: parseInt(exam_id),
+        class_name,
+        term,
+        subjects: msSubjects.map(s => ({ subject: s.subject, max_marks: s.max_marks }))
+      }, false, true);
+      showToast(res && res.message ? res.message : 'Max marks updated');
+      return true;
+    } catch (err) {
+      showToast('Failed to update Max Marks: ' + (err && err.message ? err.message : 'network error'), true);
+      return false;
+    }
+  }
+
+  // Tap any "Max" chip (info strip or column header) -> edit full marks
+  const msTabEl = document.getElementById('tab-marks-spreadsheet');
+  if (msTabEl) {
+    msTabEl.addEventListener('click', e => {
+      const chip = e.target.closest ? e.target.closest('.ms-max-chip') : null;
+      if (chip) { e.preventDefault(); msStartMaxEdit(chip); }
+    });
+  }
+
+  // Highlight marks typed above the (possibly just edited) max
+  const msTableEl = document.getElementById('table-marks-grid');
+  if (msTableEl) {
+    msTableEl.addEventListener('input', e => {
+      if (e.target.classList && e.target.classList.contains('marks-cell')) msFlagOver(e.target);
+    });
+  }
+
   // Marks Spreadsheet loader - fetches all subjects for class
   document.getElementById('btn-load-marks-grid').addEventListener('click', async () => {
     const exam_id = document.getElementById('marks-select-exam').value;
@@ -7549,50 +7780,74 @@ document.addEventListener('DOMContentLoaded', () => {
       const subjects = data.subjects || [];
       const grid = data.grid || [];
 
+      msSubjects = subjects;
+      msSectionFilter = section_name || '';
+
+      const table = document.getElementById('table-marks-grid');
       const thead = document.getElementById('marks-grid-head');
       const tbody = document.querySelector('#table-marks-grid tbody');
+      const hint = document.getElementById('marks-grid-hint');
+      const infoBox = document.getElementById('marks-subject-info');
+      const actions = document.getElementById('marks-grid-actions');
       tbody.innerHTML = '';
 
-      const infoBox = document.getElementById('marks-subject-info');
       if (subjects.length === 0) {
         infoBox.style.display = 'block';
         infoBox.innerHTML = '<strong>No subjects found.</strong> Add subjects to the Timetable for this class, or set up subjects in "Exam Setup".';
-        thead.innerHTML = '<tr><th>Roll No</th><th>Student Name</th><th>Class / Section</th></tr>';
-        document.getElementById('marks-grid-actions').style.display = 'none';
+        thead.innerHTML = '<tr><th class="ms-pin ms-pin-roll">Roll No</th><th class="ms-pin ms-pin-name">Student Name</th></tr>';
+        table.style.width = '';
+        table.style.minWidth = '';
+        table.style.maxWidth = '';
+        actions.style.display = 'none';
+        if (hint) hint.style.display = 'none';
         return;
       }
 
       infoBox.style.display = 'block';
-      infoBox.innerHTML = '<strong>' + subjects.length + ' subject(s) from timetable:</strong> ' + subjects.map(s => s.subject + ' (Max: ' + s.max_marks + ')').join(', ');
+      msRenderInfo();
 
-      let headerHtml = '<tr><th style="position:sticky;left:0;background:var(--bg-secondary);z-index:1;">Roll No</th><th style="position:sticky;left:80px;background:var(--bg-secondary);z-index:1;">Student Name</th><th>Class / Section</th>';
-      subjects.forEach(sub => {
-        headerHtml += '<th style="min-width:90px;">' + sub.subject + '<br><span style="font-size:0.7rem;font-weight:400;color:var(--text-muted);">(Max: ' + sub.max_marks + ')</span></th>';
+      // Fit columns to the available width (one-screen when possible)
+      msFit(subjects.length);
+
+      let headerHtml = '<tr><th class="ms-pin ms-pin-roll">Roll No</th><th class="ms-pin ms-pin-name">Student Name</th>';
+      subjects.forEach((sub, i) => {
+        headerHtml += '<th class="ms-subj-head">' + msEsc(sub.subject) + '<br>' + msChipHtml(i) + '</th>';
       });
-      headerHtml += '</tr>';
-      thead.innerHTML = headerHtml;
+      thead.innerHTML = headerHtml + '</tr>';
 
       if (grid.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No students found in this class</td></tr>';
-        document.getElementById('marks-grid-actions').style.display = 'none';
+        tbody.innerHTML = '<tr><td colspan="' + (2 + subjects.length) + '" style="text-align: center;">No students found in this class</td></tr>';
+        actions.style.display = 'none';
+        if (hint) hint.style.display = 'none';
         return;
       }
 
+      // The old Class / Section column is gone: the class is picked above and
+      // the section now rides as a small tag next to the name. That frees
+      // ~100px so roll no + name + all marks boxes share one screen.
+      const showSection = !msSectionFilter || msSectionFilter === 'All Sections';
       const rows = grid.map(s => {
+        const nameCell = msEsc(s.name) +
+          (showSection && s.section_name ? ' <span class="ms-sec-tag">' + msEsc(s.section_name) + '</span>' : '');
         let rowHtml = '<tr data-student-id="' + s.id + '">';
-        rowHtml += '<td style="position:sticky;left:0;background:var(--bg-primary);z-index:1;"><strong>' + (s.roll_no || '-') + '</strong></td>';
-        rowHtml += '<td style="position:sticky;left:80px;background:var(--bg-primary);z-index:1;"><strong>' + s.name + '</strong></td>';
-        rowHtml += '<td>' + s.class_name + ' - ' + (s.section_name || 'N/A') + '</td>';
+        rowHtml += '<td class="ms-pin ms-pin-roll"><strong>' + msEsc(s.roll_no || '-') + '</strong></td>';
+        rowHtml += '<td class="ms-pin ms-pin-name" title="' + msEsc(s.name) + '">' + nameCell + '</td>';
         subjects.forEach(sub => {
           const val = s.marks[sub.subject] !== undefined ? s.marks[sub.subject] : '';
-          rowHtml += '<td><input type="number" class="marks-input marks-cell" data-subject="' + sub.subject + '" data-max="' + sub.max_marks + '" value="' + val + '" min="0" max="' + sub.max_marks + '" placeholder="0"></td>';
+          rowHtml += '<td><input type="number" inputmode="numeric" class="marks-input marks-cell" data-subject="' +
+            msEsc(sub.subject) + '" data-max="' + sub.max_marks + '" value="' + msEsc(val) +
+            '" min="0" max="' + sub.max_marks + '" placeholder="0"></td>';
         });
         rowHtml += '</tr>';
         return rowHtml;
       });
       tbody.innerHTML = rows.join('');
 
-      document.getElementById('marks-grid-actions').style.display = 'block';
+      actions.style.display = 'block';
+      if (hint) hint.style.display = 'block';
+      document.querySelectorAll('#table-marks-grid .marks-cell').forEach(msFlagOver);
+      requestAnimationFrame(msSyncPin);
+      setTimeout(msSyncPin, 250);
     } catch (e) {
       showToast('Failed to load marks spreadsheet', true);
     }
@@ -7610,6 +7865,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const rows = document.querySelectorAll('#table-marks-grid tbody tr[data-student-id]');
     const marksData = [];
+    let overCount = 0;
 
     rows.forEach(row => {
       const student_id = parseInt(row.getAttribute('data-student-id'));
@@ -7617,7 +7873,12 @@ document.addEventListener('DOMContentLoaded', () => {
       row.querySelectorAll('.marks-cell').forEach(cell => {
         const subject = cell.getAttribute('data-subject');
         const val = cell.value;
-        marks[subject] = val === '' ? null : parseInt(val);
+        const num = val === '' ? null : parseInt(val);
+        if (num !== null) {
+          const max = parseInt(cell.getAttribute('max'), 10);
+          if (!isNaN(max) && num > max) overCount++;
+        }
+        marks[subject] = num;
       });
       marksData.push({ student_id, marks });
     });
@@ -7629,7 +7890,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const res = await apiCall('/exams/marks/spreadsheet', 'POST', { exam_id, term, marksData });
-      showToast(res.message);
+      if (overCount > 0) {
+        showToast('Saved - but ' + overCount + ' value(s) are above the Max Marks', true);
+      } else {
+        showToast(res.message);
+      }
     } catch (err) {
       showToast('Failed to save marks', true);
     }

@@ -2624,3 +2624,197 @@ nav {
   text-align: center;
   overflow-wrap: anywhere;
 }
+
+/* ==========================================================================
+   All-Subjects Marks Spreadsheet
+   Pinned identity columns (Roll No / Student Name) + compact subject columns
+   so roll no, name and every marks box share one screen, and swiping never
+   drags the student name under the entry boxes.
+   ========================================================================== */
+#marks-grid-wrap {
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+/* Undo the global mobile "table -> display:block" scroll hack: this table
+   needs a real table box so position:sticky cells line up on exact columns. */
+#table-marks-grid {
+  display: table !important;
+  overflow: visible !important;
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  --ms-roll-w: 38px;
+}
+
+#table-marks-grid th,
+#table-marks-grid td {
+  box-sizing: border-box;
+  padding: 6px 2px !important;
+  white-space: normal !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  text-align: center;
+  line-height: 1.3;
+  background: var(--bg-main);
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+}
+
+#table-marks-grid th {
+  font-size: 0.63rem !important;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 7px 2px !important;
+  border-bottom: 2px solid var(--border-color);
+  overflow-wrap: anywhere;
+}
+
+#table-marks-grid td { font-size: 0.78rem; }
+#table-marks-grid th:last-child,
+#table-marks-grid td:last-child { border-right: none; }
+
+/* --- Pinned identity columns -------------------------------------------- */
+#table-marks-grid .ms-pin { position: sticky; }
+#table-marks-grid th.ms-pin { z-index: 5; }
+#table-marks-grid td.ms-pin { z-index: 3; }
+#table-marks-grid .ms-pin-roll { left: 0; }
+#table-marks-grid .ms-pin-name { left: var(--ms-roll-w); }
+#table-marks-grid th.ms-pin-name {
+  box-shadow: 6px 0 7px -6px rgba(15, 23, 42, 0.5);
+  text-align: left;
+}
+#table-marks-grid td.ms-pin-name {
+  box-shadow: 6px 0 7px -6px rgba(15, 23, 42, 0.4);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap !important;
+  text-overflow: ellipsis;
+}
+#table-marks-grid .ms-pin-roll strong { font-size: 0.78rem; }
+
+.ms-sec-tag {
+  display: inline-block;
+  margin-left: 3px;
+  padding: 0 4px;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: 0.6rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+/* --- Marks entry cells --------------------------------------------------- */
+#table-marks-grid .marks-cell {
+  width: 100% !important;
+  min-width: 0;
+  margin: 0;
+  padding: 6px 1px !important;
+  text-align: center;
+  font-size: 0.78rem !important;
+  font-weight: 600;
+  border-radius: 6px;
+  background: #fff;
+  -moz-appearance: textfield;
+}
+#table-marks-grid .marks-cell::-webkit-outer-spin-button,
+#table-marks-grid .marks-cell::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+#table-marks-grid .marks-cell.ms-over {
+  border-color: #DC2626 !important;
+  background: #FEF2F2 !important;
+  color: #B91C1C;
+}
+
+/* --- Editable "Max" chips (tap to change full marks) --------------------- */
+.ms-subj-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 3px 5px 0 0;
+  padding: 3px 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 50px;
+  background: var(--bg-main);
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ms-chip-row { display: block; margin-top: 7px; }
+
+.ms-max-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border: 1.5px dashed var(--primary);
+  border-radius: 50px;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  text-transform: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ms-subj-chip .ms-max-chip { margin-top: 0; }
+.ms-max-chip:hover,
+.ms-max-chip:focus {
+  background: var(--primary);
+  color: #fff;
+  outline: none;
+}
+.ms-max-chip:active { transform: scale(0.96); }
+
+/* Inside the grid the chip lives in a 36-56px column: shrink it, let it
+   wrap and stretch so it stays perfectly tappable without clipping. */
+#table-marks-grid .ms-max-chip {
+  display: flex;
+  width: 100%;
+  margin-top: 3px;
+  padding: 2px 2px;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+  line-height: 1.25;
+  border-radius: 6px;
+  font-size: 0.6rem;
+  overflow-wrap: anywhere;
+}
+#table-marks-grid .ms-max-input {
+  width: 100% !important;
+  min-width: 0;
+  margin-top: 3px !important;
+  padding: 3px 1px !important;
+  font-size: 0.68rem !important;
+}
+
+.ms-max-input {
+  width: 58px !important;
+  margin-top: 4px !important;
+  padding: 3px 4px !important;
+  border: 1.5px solid var(--primary) !important;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.74rem !important;
+  font-weight: 700;
+  text-align: center;
+}
