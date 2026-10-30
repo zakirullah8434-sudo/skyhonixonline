@@ -1111,7 +1111,7 @@ router.post('/datesheets/generate-pdf', authenticateToken, async (req, res) => {
       .text('DATE SHEET', MARGIN, headerY, { width: CONTENT_W, align: 'center' });
     headerY += 24;
     doc.font('Helvetica').fontSize(10).fill('#374151')
-      .text('Exam: ' + examLabel + '    |    Term: ' + (t.term || '-') + '    |    Template: ' + tplRow.name, MARGIN, headerY, { width: CONTENT_W, align: 'center' });
+      .text('Exam Term: ' + examLabel + '    |    Template: ' + tplRow.name, MARGIN, headerY, { width: CONTENT_W, align: 'center' });
     headerY += 30;
 
     // Matrix table — auto-fit so the whole sheet stays on ONE A4 landscape page
@@ -1428,13 +1428,13 @@ router.post('/rollno-slips/generate-pdf', authenticateToken, async (req, res) =>
     }
     const includeLogo = String(t.include_logo === undefined ? '1' : t.include_logo) !== '0';
 
-    // Exam label (same wording as the on-screen slips)
+    // Exam label (same wording as the on-screen slips — exam dropdown text once)
     let examLabel = '';
     if (exam_id) {
       const ex = await querySchoolOne(schoolId, 'SELECT exam_name, year FROM exams WHERE id = ?', [parseInt(exam_id)]);
-      if (ex) examLabel = t.term ? t.term + ' ' + ex.exam_name + ' ' + ex.year : ex.exam_name + ' Exam ' + ex.year;
+      if (ex) examLabel = ex.exam_name + ' ' + ex.year;
     }
-    if (!examLabel) examLabel = t.term || 'Exam';
+    if (!examLabel) examLabel = 'Exam';
 
     // Students — class filter mirrors the frontend generate handler
     let students;

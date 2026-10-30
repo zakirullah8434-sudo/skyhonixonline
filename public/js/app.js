@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v60';
+    const EXPECTED_PAGE_VERSION = 'v61';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -8289,14 +8289,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // Set term
-      const termSel = document.getElementById('datesheet-term-select');
-      if (t.term) {
-        for (let i = 0; i < termSel.options.length; i++) {
-          if (termSel.options[i].value === t.term) { termSel.selectedIndex = i; break; }
-        }
-      }
-
       // Clear and rebuild rows
       const container = document.getElementById('datesheet-rows-container');
       container.innerHTML = '';
@@ -8498,7 +8490,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = document.getElementById('datesheet-template-name').value.trim();
       const exam_name = document.getElementById('datesheet-exam-name').value;
       const year = parseInt(document.getElementById('datesheet-exam-year').value);
-      const term = document.getElementById('datesheet-term-select').value;
 
       const rows = document.querySelectorAll('#datesheet-rows-container [id^="datesheet-row-"]');
       if (rows.length === 0) {
@@ -8520,7 +8511,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       // Always save as a NEW template (the loaded/edited template is never overwritten)
-      const template = { exam_name, year, term, subjects };
+      const template = { exam_name, year, subjects };
 
       try {
         const res = await apiCall('/exams/datesheets', 'POST', { name, template_json: JSON.stringify(template) }, false, true);
@@ -8608,8 +8599,7 @@ document.addEventListener('DOMContentLoaded', () => {
             '</div>' +
             '<div style="border-top:3px solid #1e293b; margin:15px auto; width:60%;"></div>' +
             '<p style="margin:8px 0; color:#333; font-size:1rem;">' +
-              '<strong>Exam:</strong> ' + (exam ? exam.exam_name + ' ' + exam.year : '-') +
-              ' &nbsp;&nbsp;|&nbsp;&nbsp; <strong>Term:</strong> ' + (t.term || '-') +
+              '<strong>Exam Term:</strong> ' + (exam ? exam.exam_name + ' ' + exam.year : ((t.exam_name || '-') + ' ' + (t.year || ''))) +
             '</p>' +
           '</div>' +
           '<table style="width:100%; border-collapse:collapse; margin-top:15px; font-size:0.95rem;">' +
@@ -8815,7 +8805,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tinfo = t.template || {};
         const classMark = tinfo.class_name ? tinfo.class_name : 'All Classes';
         return `<div style="display:flex; align-items:center; gap:10px; padding:8px 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border-color); border-radius: 8px;">
-          <span style="flex:1; font-size:0.9rem;">${t.name}${dupMark} <span style="color: var(--text-muted); font-size:0.8rem;">— ${classMark}${tinfo.term ? ' · ' + tinfo.term : ''}</span></span>
+          <span style="flex:1; font-size:0.9rem;">${t.name}${dupMark} <span style="color: var(--text-muted); font-size:0.8rem;">— ${classMark}</span></span>
           <button type="button" class="btn btn-outline btn-sm rn-load-tpl-btn" data-id="${t.id}">Load</button>
           <button type="button" class="btn btn-danger btn-sm rn-del-tpl-btn" data-id="${t.id}" title="Delete Template">&#128465;</button>
         </div>`;
@@ -8869,7 +8859,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (!found) classSel.value = 'All Classes';
       }
-      if (t.term) document.getElementById('rollno-term-select').value = t.term;
       if (t.include_logo !== undefined) document.getElementById('rollno-include-logo').value = String(t.include_logo);
       if (t.include_qr !== undefined) document.getElementById('rollno-include-qr').value = String(t.include_qr);
       if (t.per_page) document.getElementById('rollno-per-page').value = String(t.per_page);
@@ -8920,7 +8909,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = document.getElementById('rollno-template-name').value.trim();
       const exam_id = document.getElementById('rollno-exam-select').value;
       const class_name = document.getElementById('rollno-class-select').value;
-      const term = document.getElementById('rollno-term-select').value;
       const include_logo = document.getElementById('rollno-include-logo').value;
       const include_qr = document.getElementById('rollno-include-qr').value;
       const per_page = document.getElementById('rollno-per-page').value;
@@ -8942,7 +8930,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
-      const template = { exam_id, class_name, term, include_logo, include_qr, per_page, instructions, principal_sign };
+      const template = { exam_id, class_name, include_logo, include_qr, per_page, instructions, principal_sign };
 
       try {
         const res = await apiCall('/exams/rollno-templates', 'POST', { name, template_json: JSON.stringify(template) });
@@ -8993,7 +8981,7 @@ document.addEventListener('DOMContentLoaded', () => {
           apiCall('/exams/rollno-templates').catch(() => [])
         ]);
 
-        let settings = {}, activeDatesheet = null, principal_sign = null, templateInstructions = null, templateTerm = '';
+        let settings = {}, activeDatesheet = null, principal_sign = null, templateInstructions = null;
         const exam = examsRaw.find(e => e.id == exam_id);
         settings = settingsRaw;
         activeDatesheet = activeDatesheetRaw;
@@ -9010,7 +8998,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tmplObj) {
           principal_sign = tmplObj.principal_sign || null;
           templateInstructions = tmplObj.instructions || null;
-          templateTerm = tmplObj.term || '';
         }
         const logoUrl = imgSrc(settings.logo_path, PLACEHOLDER_IMG);
 
@@ -9062,9 +9049,8 @@ document.addEventListener('DOMContentLoaded', () => {
             slipsHtml += '<div class="rollno-page">';
           }
 
-          const examName = templateTerm
-            ? templateTerm + ' ' + (exam ? exam.exam_name + ' ' + exam.year : '')
-            : (exam ? exam.exam_name + ' Exam ' + exam.year : '');
+          // Exam dropdown already reads e.g. "1st Term (2026)" — print it once as "1st Term 2026"
+          const examName = exam ? exam.exam_name + ' ' + exam.year : 'Exam';
 
           slipsHtml +=
             '<div class="rollno-slip" style="width:100%; display:flex; flex-direction:column; padding:2% 15px; font-family:Arial,sans-serif; box-sizing:border-box; overflow:hidden;">' +
