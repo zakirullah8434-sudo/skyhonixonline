@@ -2818,3 +2818,140 @@ nav {
   font-weight: 700;
   text-align: center;
 }
+
+/* ==========================================================================
+   QR ATTENDANCE - LARGE FULLSCREEN SUCCESS CONFIRMATION (v63)
+   Big, professional mobile-screen confirmation shown after a successful
+   QR attendance scan: animated check + "Attendance Marked Successfully".
+   ========================================================================== */
+.qr-success-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10500; /* above the dashboard camera overlay (9999) */
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(160deg, rgba(4, 76, 58, 0.97) 0%, rgba(10, 126, 78, 0.96) 55%, rgba(16, 163, 74, 0.95) 100%);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.qr-success-overlay.qr-success-show {
+  opacity: 1;
+}
+
+.qr-success-card {
+  width: min(560px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  text-align: center;
+  color: #fff;
+  animation: qrSuccessCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes qrSuccessCardIn {
+  from { transform: translateY(28px) scale(0.94); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Big animated check circle */
+.qr-success-check {
+  position: relative;
+  width: clamp(112px, 32vw, 172px);
+  height: clamp(112px, 32vw, 172px);
+  margin: 0 auto 20px;
+}
+.qr-success-check::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  animation: qrSuccessRing 1.7s ease-out 2;
+  pointer-events: none;
+}
+@keyframes qrSuccessRing {
+  0%   { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+.qr-success-check svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.25));
+}
+.qr-check-circle {
+  fill: rgba(255, 255, 255, 0.16);
+  stroke: #ffffff;
+  stroke-width: 3.4;
+  stroke-dasharray: 151;
+  stroke-dashoffset: 151;
+  animation: qrCheckDraw 0.55s ease-out 0.12s forwards;
+}
+.qr-check-mark {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 34;
+  stroke-dashoffset: 34;
+  animation: qrCheckDraw 0.4s ease-out 0.5s forwards;
+}
+@keyframes qrCheckDraw {
+  to { stroke-dashoffset: 0; }
+}
+
+.qr-success-title {
+  font-size: clamp(1.75rem, 7.6vw, 3rem);
+  font-weight: 900;
+  line-height: 1.14;
+  letter-spacing: 0.3px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
+  margin-bottom: 14px;
+}
+.qr-success-kind {
+  display: inline-block;
+  padding: 6px 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  font-weight: 700;
+  font-size: clamp(0.9rem, 3.4vw, 1.1rem);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.qr-success-name {
+  font-size: clamp(1.45rem, 5.8vw, 2.3rem);
+  font-weight: 800;
+  margin-top: 16px;
+  overflow-wrap: anywhere;
+}
+.qr-success-meta {
+  font-size: clamp(0.95rem, 3.8vw, 1.15rem);
+  font-weight: 600;
+  opacity: 0.94;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+.qr-success-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 9px 20px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: clamp(0.9rem, 3.6vw, 1.05rem);
+}
+.qr-success-hint {
+  margin-top: 26px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  opacity: 0.72;
+}

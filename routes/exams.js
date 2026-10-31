@@ -1047,26 +1047,43 @@ router.put('/datesheets/:id/activate', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /exams/datesheets/generate-pdf - Generate a date sheet PDF (A4 landscape matrix)
-router.post('/datesheets/generate-pdf', authenticateToken, async (req, res) => {
-  const schoolId = req.user.schoolId;
-  const { template_id } = req.body;
-
+// ==========================================
+// DATE SHEET PDF GENERATOR (A4 landscape matrix)
+// Shared by the generate + download routes — see generateRollNoSlipsPdf below
+// for why: on serverless hosts (Vercel) os.tmpdir() is private per lambda
+// instance, so the download request often lands on an instance that never
+// wrote the file and the client would otherwise save a 404 JSON body as ".pdf".
+// ==========================================
+const pendingDatesheetPdfs = new Map();
+async function generateDatesheetPdf(schoolId, opts, desiredFileName) {
+  const { template_id } = opts || {};
   if (!template_id) {
-    return res.status(400).json({ error: 'template_id is required' });
+    throw Object.assign(new Error('template_id is required'), { status: 400 });
   }
 
+  const fileName = desiredFileName || `datesheet_${Date.now()}.pdf`;
+  const filePath = path.join(pdfStorageDir('datesheets'), fileName);
+  const inflight = pendingDatesheetPdfs.get(filePath);
+  if (inflight) return inflight;
+  const work = buildDatesheetPdf();
+  pendingDatesheetPdfs.set(filePath, work);
   try {
+    return await work;
+  } finally {
+    pendingDatesheetPdfs.delete(filePath);
+  }
+
+  async function buildDatesheetPdf() {
     const tplRow = await querySchoolOne(schoolId, 'SELECT id, name, template_json FROM date_sheet_templates WHERE id = ?', [parseInt(template_id)]);
     if (!tplRow) {
-      return res.status(404).json({ error: 'Date sheet template not found' });
+      throw Object.assign(new Error('Date sheet template not found'), { status: 404 });
     }
 
     let t = {};
     try { t = JSON.parse(tplRow.template_json || '{}'); } catch (e) { t = {}; }
     const subjects = Array.isArray(t.subjects) ? t.subjects : [];
     if (subjects.length === 0) {
-      return res.status(400).json({ error: 'This template has no subject rows' });
+      throw Object.assign(new Error('This template has no subject rows'), { status: 400 });
     }
 
     // Exam label: prefer exam_name/year from the template; fall back to linked exam
@@ -1122,9 +1139,8 @@ router.post('/datesheets/generate-pdf', authenticateToken, async (req, res) => {
     };
 
     const PDFDocument = require('pdfkit');
-    const uploadsDir = pdfStorageDir('datesheets');
-    const fileName = `datesheet_${Date.now()}.pdf`;
-    const filePath = path.join(uploadsDir, fileName);
+    // fileName/filePath come from the outer generateDatesheetPdf scope so the
+    // download route can rebuild a missing file under its ORIGINAL name.
 
     // compress:false keeps the single-page sheet tiny (~KBs) and content verifiable
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', bufferPages: true, compress: false });
@@ -1218,23 +1234,33 @@ router.post('/datesheets/generate-pdf', authenticateToken, async (req, res) => {
 
     doc.end();
 
-    stream.on('finish', () => {
-      res.json({
-        message: 'Date sheet PDF generated successfully',
-        file_name: fileName,
-        file_path: `/api/exams/datesheets/download/${fileName}`,
-        class_count: sortedClasses.length,
-        date_count: sortedDates.length
-      });
+    await new Promise((resolve, reject) => {
+      stream.on('finish', resolve);
+      stream.on('error', (err) => reject(Object.assign(new Error('Failed to generate PDF: ' + err.message), { status: 500 })));
     });
 
-    stream.on('error', (err) => {
-      res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
-    });
+    return { fileName, classCount: sortedClasses.length, dateCount: sortedDates.length };
+  }
+}
 
+// POST /exams/datesheets/generate-pdf - build the PDF, return its download link.
+// file_path echoes the generation params so the download route can rebuild the
+// file on any instance (see generateDatesheetPdf above).
+router.post('/datesheets/generate-pdf', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { template_id } = req.body || {};
+  try {
+    const { fileName, classCount, dateCount } = await generateDatesheetPdf(schoolId, { template_id });
+    res.json({
+      message: 'Date sheet PDF generated successfully',
+      file_name: fileName,
+      file_path: `/api/exams/datesheets/download/${fileName}?template_id=${encodeURIComponent(template_id || '')}`,
+      class_count: classCount,
+      date_count: dateCount
+    });
   } catch (err) {
     console.error('Datesheet PDF generation error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -1247,11 +1273,25 @@ router.get('/datesheets/download/:filename', pdfDownloadAuth, async (req, res) =
 
   const filePath = path.join(pdfStorageDir('datesheets'), filename);
 
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'File not found' });
+  if (fs.existsSync(filePath)) {
+    return res.download(filePath, filename);
   }
 
-  res.download(filePath, filename);
+  // Not in this instance's private temp dir - rebuild from the params the
+  // client echoed back (schoolId always comes from the verified JWT).
+  try {
+    const { fileName } = await generateDatesheetPdf(req.user.schoolId, {
+      template_id: req.query.template_id || null
+    }, /\.pdf$/i.test(filename) ? filename : undefined);
+    const rebuilt = path.join(pdfStorageDir('datesheets'), fileName);
+    if (!fs.existsSync(rebuilt)) {
+      return res.status(500).json({ error: 'PDF could not be rebuilt' });
+    }
+    return res.download(rebuilt, fileName);
+  } catch (err) {
+    console.error('Datesheet PDF rebuild error:', err);
+    return res.status(err.status || 500).json({ error: err.message });
+  }
 });
 
 // GET /exams/marks/spreadsheet - Get multi-subject marks spreadsheet
@@ -1456,12 +1496,35 @@ router.delete('/rollno-templates/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /exams/rollno-slips/generate-pdf - Server-side roll no slips PDF (A4 landscape, template per_page)
-router.post('/rollno-slips/generate-pdf', authenticateToken, async (req, res) => {
-  const schoolId = req.user.schoolId;
-  const { template_id, class_name, exam_id } = req.body;
+// ==========================================
+// ROLL NO SLIPS PDF GENERATOR (A4 landscape, template per_page)
+// Shared by the generate + download routes.
+//
+// On serverless hosts (Vercel) os.tmpdir() is private to EACH lambda
+// instance: the file written while serving the generate request is usually
+// missing when the follow-up download request lands on another instance
+// (measured 5/6 misses in testing). The client then saved the 404 JSON body
+// as ".pdf" - a file Android refused to open ("pdf can't open"). The download
+// route therefore rebuilds the PDF on demand with the exact same parameters.
+// Concurrent rebuilds of one target file share a single in-flight promise.
+// ==========================================
+const pendingRollnoPdfs = new Map();
+async function generateRollNoSlipsPdf(schoolId, opts, desiredFileName) {
+  const { template_id, class_name, exam_id } = opts || {};
 
+  const fileName = desiredFileName || `rollno_slips_${Date.now()}.pdf`;
+  const filePath = path.join(pdfStorageDir('rollno'), fileName);
+  const inflight = pendingRollnoPdfs.get(filePath);
+  if (inflight) return inflight;
+  const work = buildRollnoPdf();
+  pendingRollnoPdfs.set(filePath, work);
   try {
+    return await work;
+  } finally {
+    pendingRollnoPdfs.delete(filePath);
+  }
+
+  async function buildRollnoPdf() {
     let t = {};
     if (template_id) {
       const tplRow = await querySchoolOne(schoolId, 'SELECT name, template_json FROM roll_slip_templates WHERE id = ?', [parseInt(template_id)]);
@@ -1489,7 +1552,7 @@ router.post('/rollno-slips/generate-pdf', authenticateToken, async (req, res) =>
       students = await querySchool(schoolId, studentCols + ' AND class_name = ? ORDER BY CAST(roll_no AS INTEGER), name', [cls]);
     }
     if (!students || students.length === 0) {
-      return res.status(400).json({ error: 'No students found for the selected class' });
+      throw Object.assign(new Error('No students found for the selected class'), { status: 400 });
     }
 
     // Subject rows from the active date sheet (same source as the on-screen slips)
@@ -1565,9 +1628,8 @@ router.post('/rollno-slips/generate-pdf', authenticateToken, async (req, res) =>
       : ['All Students Must be Uniformed.', 'Students Must come on time.', 'Dues Must be cleared.'];
 
     const PDFDocument = require('pdfkit');
-    const uploadsDir = pdfStorageDir('rollno');
-    const fileName = `rollno_slips_${Date.now()}.pdf`;
-    const filePath = path.join(uploadsDir, fileName);
+    // fileName/filePath come from the outer generateRollNoSlipsPdf scope so the
+    // download route can rebuild a missing file under its ORIGINAL name.
 
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', bufferPages: true, compress: false });
     const stream = fs.createWriteStream(filePath);
@@ -1732,22 +1794,36 @@ router.post('/rollno-slips/generate-pdf', authenticateToken, async (req, res) =>
 
     doc.end();
 
-    stream.on('finish', () => {
-      res.json({
-        message: 'Roll no slips PDF generated successfully',
-        file_name: fileName,
-        file_path: `/api/exams/rollno-slips/download/${fileName}`,
-        slip_count: students.length
-      });
+    await new Promise((resolve, reject) => {
+      stream.on('finish', resolve);
+      stream.on('error', (err) => reject(Object.assign(new Error('Failed to generate PDF: ' + err.message), { status: 500 })));
     });
 
-    stream.on('error', (err) => {
-      res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
-    });
+    return { fileName, slipCount: students.length };
+  }
+}
 
+// POST /exams/rollno-slips/generate-pdf - build the PDF, return its download link.
+// file_path echoes the generation params as a query string so the download route
+// can rebuild the file on any instance (see generateRollNoSlipsPdf above).
+router.post('/rollno-slips/generate-pdf', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { template_id, class_name, exam_id } = req.body || {};
+  try {
+    const { fileName, slipCount } = await generateRollNoSlipsPdf(schoolId, { template_id, class_name, exam_id });
+    const qs = new URLSearchParams();
+    if (exam_id) qs.set('exam_id', String(exam_id));
+    qs.set('class_name', (class_name || '').trim() || 'All Classes');
+    if (template_id) qs.set('template_id', String(template_id));
+    res.json({
+      message: 'Roll no slips PDF generated successfully',
+      file_name: fileName,
+      file_path: `/api/exams/rollno-slips/download/${fileName}?${qs.toString()}`,
+      slip_count: slipCount
+    });
   } catch (err) {
     console.error('Roll no slips PDF generation error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -1760,35 +1836,69 @@ router.get('/rollno-slips/download/:filename', pdfDownloadAuth, async (req, res)
 
   const filePath = path.join(pdfStorageDir('rollno'), filename);
 
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'File not found' });
+  if (fs.existsSync(filePath)) {
+    return res.download(filePath, filename);
   }
 
-  res.download(filePath, filename);
+  // This instance's private temp dir does not have the file (written on another
+  // serverless instance) - rebuild it from the params the client echoed back in
+  // the URL. schoolId always comes from the verified JWT, never the query string.
+  try {
+    const { fileName } = await generateRollNoSlipsPdf(req.user.schoolId, {
+      template_id: req.query.template_id || null,
+      class_name: req.query.class_name || '',
+      exam_id: req.query.exam_id || null
+    }, /\.pdf$/i.test(filename) ? filename : undefined);
+    const rebuilt = path.join(pdfStorageDir('rollno'), fileName);
+    if (!fs.existsSync(rebuilt)) {
+      return res.status(500).json({ error: 'PDF could not be rebuilt' });
+    }
+    return res.download(rebuilt, fileName);
+  } catch (err) {
+    console.error('Roll no slips PDF rebuild error:', err);
+    return res.status(err.status || 500).json({ error: err.message });
+  }
 });
 
 // ==========================================
 // DMC PDF GENERATOR (server-side; window.print() is unsupported in the APK WebView)
 // ==========================================
-router.post('/dmc/generate-pdf', authenticateToken, async (req, res) => {
-  const schoolId = req.user.schoolId;
-  const { exam_id, term, student_id, class_name, section_name } = req.body || {};
+// ==========================================
+// DMC PDF GENERATOR (shared by the generate + download routes)
+// Same serverless /tmp caveat as the other two PDF generators above:
+// downloads rebuild the file on the instance that serves them.
+// ==========================================
+const pendingDmcPdfs = new Map();
+async function generateDmcPdf(schoolId, opts, desiredFileName) {
+  const { exam_id, term, student_id, class_name, section_name } = opts || {};
 
   if (!exam_id || !term) {
-    return res.status(400).json({ error: 'exam_id and term are required' });
+    throw Object.assign(new Error('exam_id and term are required'), { status: 400 });
   }
   if (!!student_id === !!class_name) {
-    return res.status(400).json({ error: 'Provide exactly one of student_id or class_name' });
+    throw Object.assign(new Error('Provide exactly one of student_id or class_name'), { status: 400 });
   }
 
+  const fileName = desiredFileName || `dmc_${Date.now()}.pdf`;
+  const filePath = path.join(pdfStorageDir('dmc'), fileName);
+  const inflight = pendingDmcPdfs.get(filePath);
+  if (inflight) return inflight;
+  const work = buildDmcPdf();
+  pendingDmcPdfs.set(filePath, work);
   try {
+    return await work;
+  } finally {
+    pendingDmcPdfs.delete(filePath);
+  }
+
+  async function buildDmcPdf() {
     const entries = [];
     if (student_id) {
       entries.push(await buildSingleDmc(schoolId, parseInt(student_id), parseInt(exam_id), term));
     } else {
       const list = await buildClassDmcs(schoolId, class_name, parseInt(exam_id), term, section_name);
       if (list.length === 0) {
-        return res.status(400).json({ error: 'No students found for the selected class/section' });
+        throw Object.assign(new Error('No students found for the selected class/section'), { status: 400 });
       }
       entries.push(...list);
     }
@@ -1840,9 +1950,8 @@ router.post('/dmc/generate-pdf', authenticateToken, async (req, res) => {
     }
 
     const PDFDocument = require('pdfkit');
-    const uploadsDir = pdfStorageDir('dmc');
-    const fileName = `dmc_${Date.now()}.pdf`;
-    const filePath = path.join(uploadsDir, fileName);
+    // fileName/filePath come from the outer generateDmcPdf scope so the
+    // download route can rebuild a missing file under its ORIGINAL name.
 
     const doc = new PDFDocument({ size: 'A4', bufferPages: true, compress: false });
     const stream = fs.createWriteStream(filePath);
@@ -2058,19 +2167,35 @@ router.post('/dmc/generate-pdf', authenticateToken, async (req, res) => {
     });
     doc.end();
 
-    stream.on('finish', () => {
-      res.json({
-        message: 'DMC PDF generated successfully',
-        file_name: fileName,
-        file_path: `/api/exams/dmc/download/${fileName}`,
-        student_count: entries.length
-      });
+    await new Promise((resolve, reject) => {
+      stream.on('finish', resolve);
+      stream.on('error', (err) => reject(Object.assign(new Error('Failed to generate PDF: ' + err.message), { status: 500 })));
     });
 
-    stream.on('error', (err) => {
-      res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
-    });
+    return { fileName, studentCount: entries.length };
+  }
+}
 
+// POST /exams/dmc/generate-pdf - build the PDF, return its download link.
+// file_path echoes the generation params so the download route can rebuild the
+// file on any instance (see generateDmcPdf above).
+router.post('/dmc/generate-pdf', authenticateToken, async (req, res) => {
+  const schoolId = req.user.schoolId;
+  const { exam_id, term, student_id, class_name, section_name } = req.body || {};
+  try {
+    const { fileName, studentCount } = await generateDmcPdf(schoolId, { exam_id, term, student_id, class_name, section_name });
+    const qs = new URLSearchParams();
+    if (exam_id) qs.set('exam_id', String(exam_id));
+    if (term) qs.set('term', String(term));
+    if (student_id) qs.set('student_id', String(student_id));
+    if (class_name) qs.set('class_name', String(class_name));
+    if (section_name) qs.set('section_name', String(section_name));
+    res.json({
+      message: 'DMC PDF generated successfully',
+      file_name: fileName,
+      file_path: `/api/exams/dmc/download/${fileName}?${qs.toString()}`,
+      student_count: studentCount
+    });
   } catch (err) {
     console.error('DMC PDF generation error:', err);
     res.status(err.status || 500).json({ error: err.message });
@@ -2086,11 +2211,29 @@ router.get('/dmc/download/:filename', pdfDownloadAuth, async (req, res) => {
 
   const filePath = path.join(pdfStorageDir('dmc'), filename);
 
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'File not found' });
+  if (fs.existsSync(filePath)) {
+    return res.download(filePath, filename);
   }
 
-  res.download(filePath, filename);
+  // Not in this instance's private temp dir - rebuild from the params the
+  // client echoed back (schoolId always comes from the verified JWT).
+  try {
+    const { fileName } = await generateDmcPdf(req.user.schoolId, {
+      exam_id: req.query.exam_id || null,
+      term: req.query.term || null,
+      student_id: req.query.student_id || null,
+      class_name: req.query.class_name || '',
+      section_name: req.query.section_name || ''
+    }, /\.pdf$/i.test(filename) ? filename : undefined);
+    const rebuilt = path.join(pdfStorageDir('dmc'), fileName);
+    if (!fs.existsSync(rebuilt)) {
+      return res.status(500).json({ error: 'PDF could not be rebuilt' });
+    }
+    return res.download(rebuilt, fileName);
+  } catch (err) {
+    console.error('DMC PDF rebuild error:', err);
+    return res.status(err.status || 500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

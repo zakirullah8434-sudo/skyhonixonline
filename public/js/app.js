@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v62';
+    const EXPECTED_PAGE_VERSION = 'v63';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -28,6 +28,37 @@
 
 function debounce(fn, ms) { let t; return function(...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); }; }
 function esc(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+
+// QR attendance: LARGE fullscreen success confirmation shown after every
+// successful scan (attendance screen, dashboard camera overlay, and the
+// teacher attendance module). Big animated check + "Attendance Marked
+// Successfully" headline that fills the mobile screen, name/roll/time detail,
+// auto-dismiss after a few seconds (tap anywhere closes it instantly).
+function showQrSuccessOverlay(opts) {
+  const overlay = document.getElementById('qr-success-overlay');
+  if (!overlay) return;
+  const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text || ''; };
+  set('qr-success-kind', ((opts && opts.kind) || 'Student') + ' Attendance');
+  set('qr-success-name', (opts && opts.name) || '');
+  set('qr-success-meta', (opts && opts.meta) || '');
+  set('qr-success-time', (opts && opts.time) ? 'Checked in: ' + opts.time : '');
+
+  overlay.style.display = 'flex';
+  overlay.classList.remove('qr-success-show');
+  void overlay.offsetWidth; // force reflow so the entry animations restart
+  overlay.classList.add('qr-success-show');
+
+  const hide = () => {
+    clearTimeout(window._qrSuccessHideTimer);
+    overlay.classList.remove('qr-success-show');
+    setTimeout(() => {
+      if (!overlay.classList.contains('qr-success-show')) overlay.style.display = 'none';
+    }, 260);
+  };
+  clearTimeout(window._qrSuccessHideTimer);
+  window._qrSuccessHideTimer = setTimeout(hide, 3400);
+  overlay.onclick = hide;
+}
 
 let _classCache = null, _classCacheTime = 0;
 async function getCachedClasses(apiCall) {
@@ -3952,6 +3983,15 @@ document.addEventListener('DOMContentLoaded', () => {
               'ok'
             );
             speakResult(`${whoName}. ${whoKind} attendance marked successfully.`);
+            // Big professional fullscreen confirmation ("Attendance Marked Successfully")
+            showQrSuccessOverlay({
+              kind: whoKind,
+              name: whoName,
+              meta: isTeacherResult
+                ? (result.teacher.subject ? 'Subject: ' + result.teacher.subject : 'Teacher · QR card')
+                : `Roll No: ${result.student.roll_no || '-'} · Class: ${result.student.class_name}`,
+              time: isTeacherResult ? result.teacher.time : result.student.time
+            });
           }
 
           if (isTeacherResult) {
@@ -4418,6 +4458,13 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
               playBeep('success');
               showToast(result.message);
+              // Big professional fullscreen confirmation ("Attendance Marked Successfully")
+              showQrSuccessOverlay({
+                kind: 'Teacher',
+                name: result.teacher.name,
+                meta: result.teacher.subject ? 'Subject: ' + result.teacher.subject : 'Teacher · QR card',
+                time: result.teacher.time
+              });
             }
 
             // Persistent success/warning banner (the toast is easy to miss)
