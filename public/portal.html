@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=9" as="style">
-  <link rel="preload" href="js/app.js?v=63" as="script">
+  <link rel="preload" href="js/app.js?v=64" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v63';
+    window.SKYHONIX_PAGE_VERSION = 'v64';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -3598,103 +3598,9 @@
               <button class="btn btn-outline btn-sm btn-back-fee-dash">← Back to Fee Dashboard</button>
             </div>
 
-            <div class="tab-container" style="margin-bottom: 20px;">
-              <button class="tab-btn active" data-tab="reminder-form">Fee Reminders</button>
-              <button class="tab-btn" data-tab="slip-form">Fee Slips</button>
-            </div>
+            <h2 style="margin-bottom: 24px;">Fee Slips</h2>
 
-            <!-- Tab: Fee Reminders -->
-            <div class="tab-content" id="tab-reminder-form">
-              <div class="card" style="margin-bottom: 20px;">
-                <div class="grid-3" style="grid-template-columns: 2fr 1fr 1fr; gap: 15px; align-items: flex-end;">
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Select Class</label>
-                    <select class="form-control" id="reminder-filter-class">
-                      <option value="">-- Select Class --</option>
-                    </select>
-                  </div>
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Section</label>
-                    <select class="form-control" id="reminder-filter-section">
-                      <option value="">-- All Sections --</option>
-                    </select>
-                  </div>
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Year</label>
-                    <select class="form-control" id="reminder-filter-year"></select>
-                  </div>
-                </div>
-                <div style="margin-top: 15px; display: flex; gap: 10px;">
-                  <button class="btn btn-primary" id="btn-load-reminders">Load Unpaid Students</button>
-                  <button class="btn btn-outline" id="btn-select-all-reminders">Select All</button>
-                  <button class="btn btn-outline" id="btn-deselect-all-reminders">Deselect All</button>
-                </div>
-              </div>
-
-              <div class="card" style="margin-bottom: 20px;">
-                <div class="table-container">
-                  <table class="data-table" id="table-reminder-students">
-                    <thead>
-                      <tr>
-                        <th style="width: 40px;"><input type="checkbox" id="reminder-check-all"></th>
-                        <th>Roll No</th>
-                        <th>Name</th>
-                        <th>Class</th>
-                        <th>Father Name</th>
-                        <th>Unpaid Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Select a class and click Load to see students with unpaid fees.</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div style="margin-top: 15px;">
-                  <button class="btn btn-primary" id="btn-generate-reminders" style="padding: 12px 30px; font-weight: 700; font-size: 1rem;">Generate Fee Reminders (4 per page)</button>
-                </div>
-              </div>
-
-              <!-- Reminder Preview & Print -->
-              <div id="reminder-preview-container" style="display: none;">
-                <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                  <button class="btn btn-primary" id="btn-print-reminders">Print Reminders (4 per page)</button>
-                  <button class="btn btn-secondary" id="btn-save-pdf-reminders">Save as PDF</button>
-                  <button class="btn btn-secondary" id="btn-save-reminders">Save Reminder</button>
-                  <button class="btn btn-outline" id="btn-back-reminder-list">Back to List</button>
-                  <span id="reminder-save-status" style="margin-left: 10px; color: var(--success);"></span>
-                </div>
-                <div id="reminder-printable">
-                  <div class="a4-page" id="reminder-a4-page"></div>
-                </div>
-              </div>
-
-              <!-- Saved Reminders List -->
-              <div class="card" style="margin-top: 20px;">
-                <h3 style="margin-bottom: 12px;">Saved Reminders</h3>
-                <div class="table-container">
-                  <table class="data-table" id="table-saved-reminders">
-                    <thead>
-                      <tr>
-                        <th>Title</th>
-                        <th>Class</th>
-                        <th>Year</th>
-                        <th>Students</th>
-                        <th>Total Amount</th>
-                        <th>Created</th>
-                        <th>Printed</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No saved reminders yet.</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <!-- Tab: Fee Slips -->
-            <div class="tab-content" id="tab-slip-form" style="display: none;">
+            <div class="tab-content" id="tab-slip-form">
               <div class="card" style="margin-bottom: 20px;">
                 <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; align-items: flex-end;">
                   <div class="form-group" style="margin-bottom: 0;">
@@ -3972,9 +3878,9 @@
             <!-- Tab: All Subjects Spreadsheet -->
             <div class="tab-content" id="tab-marks-spreadsheet">
               <div class="card" style="margin-bottom: 24px;">
-                <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr;">
                   <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Exam Registry</label>
+                    <label class="form-label">Exam Term</label>
                     <select class="form-control" id="marks-select-exam"></select>
                   </div>
                   <div class="form-group" style="margin-bottom: 0;">
@@ -3985,12 +3891,6 @@
                     <label class="form-label">Section</label>
                     <select class="form-control" id="marks-select-sec"></select>
                   </div>
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Term</label>
-                    <select class="form-control" id="marks-select-term">
-                        <option>1st Term</option><option>2nd Term</option><option>Final</option>
-                      </select>
-                    </div>
                 </div>
                 <div style="margin-top: 20px; display: flex; gap: 15px;">
                   <button class="btn btn-primary" id="btn-load-marks-grid">Load Marks Spreadsheet</button>
@@ -4027,9 +3927,9 @@
             <!-- Tab: Single Subject Entry -->
             <div class="tab-content" id="tab-marks-single" style="display: none;">
               <div class="card" style="margin-bottom: 24px;">
-                <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr;">
                   <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Exam Registry</label>
+                    <label class="form-label">Exam Term</label>
                     <select class="form-control" id="ss-marks-exam"></select>
                   </div>
                   <div class="form-group" style="margin-bottom: 0;">
@@ -4039,12 +3939,6 @@
                   <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label">Section</label>
                     <select class="form-control" id="ss-marks-sec"></select>
-                  </div>
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label">Term</label>
-                    <select class="form-control" id="ss-marks-term">
-                        <option>1st Term</option><option>2nd Term</option><option>Final</option>
-                      </select>
                   </div>
                 </div>
                 <div class="grid-3" style="grid-template-columns: 1fr 1fr; margin-top: 15px;">
@@ -5147,8 +5041,8 @@
     </div>
   </div>
 
-  <script src="js/vendor/jspdf.umd.min.js?v=63"></script>
-  <script src="js/vendor/html2canvas.min.js?v=63"></script>
-  <script src="js/app.js?v=63"></script>
+  <script src="js/vendor/jspdf.umd.min.js?v=64"></script>
+  <script src="js/vendor/html2canvas.min.js?v=64"></script>
+  <script src="js/app.js?v=64"></script>
 </body>
 </html>

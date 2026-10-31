@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v63';
+    const EXPECTED_PAGE_VERSION = 'v64';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -2571,7 +2571,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const calcClassSelect = document.getElementById('calc-class-select');
       const historyFilterClass = document.getElementById('history-filter-class');
       const studentFeeClass = document.getElementById('student-fee-class');
-      const reminderFilterClass = document.getElementById('reminder-filter-class');
       const slipClassSelect = document.getElementById('slip-class');
       const datesheetClassSelect = document.getElementById('datesheet-class-select');
       const rollnoClassSelect = document.getElementById('rollno-class-select');
@@ -2582,7 +2581,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const selects = [
         filterClass, attClassSelect, attHistoryClass, attTotalClass, ledgerFilterClass,
         marksSelectClass, ssMarksSelectClass, calcClassSelect,
-        historyFilterClass, studentFeeClass, reminderFilterClass,
+        historyFilterClass, studentFeeClass,
         slipClassSelect, datesheetClassSelect, rollnoClassSelect, rollnoGenClass, feePayClass,
         feeSetupClass
       ];
@@ -2593,7 +2592,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!sel) return;
         const currentVal = sel.value;
         const isAllClasses = ['student-filter-class', 'history-filter-class', 'student-fee-class', 'datesheet-class-select', 'rollno-class-select', 'rollno-gen-class', 'att-total-class', 'fee-pay-class'].includes(sel.id);
-        const isSelectPlaceholder = ['reminder-filter-class', 'slip-class', 'fee-setup-class'].includes(sel.id);
+        const isSelectPlaceholder = ['slip-class', 'fee-setup-class'].includes(sel.id);
         
         if (isAllClasses) {
           // Roll No Slip designer submits class_name to the backend — 'All Classes'
@@ -5183,12 +5182,6 @@ document.addEventListener('DOMContentLoaded', () => {
       updateSectionDropdown('student-fee-class', 'student-fee-section', true);
     });
   }
-  const remindFilterClass = document.getElementById('reminder-filter-class');
-  if (remindFilterClass) {
-    remindFilterClass.addEventListener('change', () => {
-      updateSectionDropdown('reminder-filter-class', 'reminder-filter-section', false);
-    });
-  }
   const marksFilterClass = document.getElementById('marks-select-class');
   if (marksFilterClass) {
     marksFilterClass.addEventListener('change', () => {
@@ -5298,16 +5291,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loadStudentFeeList();
     }
     else if (opt === 'generate-reminder') {
-      // Initialize reminder year
-      const reminderYearSelect = document.getElementById('reminder-filter-year');
-      if (reminderYearSelect) {
-        const opts = [];
-        for (let y = currentYear; y >= currentYear - 5; y--) {
-          opts.push(`<option value="${y}">${y}</option>`);
-        }
-        reminderYearSelect.innerHTML = opts.join('');
-      }
-      // Initialize slip year (inside same panel)
+      // Initialize slip year
       const slipYearSelect = document.getElementById('slip-year');
       if (slipYearSelect) {
         const opts = [];
@@ -5327,13 +5311,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (listContainer) listContainer.style.display = 'block';
       const previewContainer = document.getElementById('slip-preview-container');
       if (previewContainer) previewContainer.style.display = 'none';
-      // Reset reminder preview
-      const reminderPreview = document.getElementById('reminder-preview-container');
-      if (reminderPreview) reminderPreview.style.display = 'none';
-      const reminderCards = document.querySelectorAll('#tab-reminder-form .card');
-      if (reminderCards.length) reminderCards.forEach(c => c.style.display = '');
-      // Load saved reminders
-      loadSavedReminders();
     }
     else if (opt === 'fee-analytics') {
       // Setup analytics filters
@@ -5972,369 +5949,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnLoadStudentFeeList = document.getElementById('btn-load-student-fee-list');
   if (btnLoadStudentFeeList) {
     btnLoadStudentFeeList.addEventListener('click', loadStudentFeeList);
-  }
-
-  // ==========================================
-  // FEE REMINDER LOGIC (Option 5)
-  // ==========================================
-  let reminderStudentsData = [];
-
-  const btnLoadReminders = document.getElementById('btn-load-reminders');
-  if (btnLoadReminders) {
-    btnLoadReminders.addEventListener('click', async () => {
-      const cls = document.getElementById('reminder-filter-class').value;
-      const sec = document.getElementById('reminder-filter-section').value;
-      const year = document.getElementById('reminder-filter-year').value;
-
-      if (!year) { showToast('Select a year first', true); return; }
-
-      try {
-        let url = `/fees/unpaid-students?year=${year}`;
-        if (cls) url += `&class_name=${encodeURIComponent(cls)}`;
-        if (sec) url += `&section_name=${encodeURIComponent(sec)}`;
-
-        reminderStudentsData = await apiCall(url);
-        const tbody = document.querySelector('#table-reminder-students tbody');
-        if (!tbody) return;
-
-        if (reminderStudentsData.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No students found for this selection.</td></tr>';
-          return;
-        }
-
-        tbody.innerHTML = reminderStudentsData.map(s => {
-          const hasLedger = s.ledger_entries > 0;
-          const unpaidAmount = s.total_unpaid || 0;
-          const statusBadge = hasLedger
-            ? (unpaidAmount > 0 ? '<span class="badge badge-red">Unpaid</span>' : '<span class="badge badge-green">Paid</span>')
-            : '<span class="badge badge-yellow">No Ledger</span>';
-
-          return `
-            <tr style="${!hasLedger ? 'opacity: 0.6;' : ''}">
-              <td><input type="checkbox" class="reminder-check" data-id="${s.id}" ${hasLedger && unpaidAmount > 0 ? 'checked' : ''}></td>
-              <td>${s.roll_no || 'N/A'}</td>
-              <td><strong>${s.name}</strong></td>
-              <td>${s.class_name} ${s.section_name ? '(' + s.section_name + ')' : ''}</td>
-              <td>${s.father_name || '-'}</td>
-              <td>${statusBadge} <strong>${unpaidAmount > 0 ? unpaidAmount.toLocaleString() : ''}</strong></td>
-            </tr>
-          `;
-        }).join('');
-      } catch (e) {
-        showToast('Failed to load students: ' + e.message, true);
-      }
-    });
-  }
-
-  document.getElementById('reminder-check-all')?.addEventListener('change', (e) => {
-    document.querySelectorAll('.reminder-check').forEach(cb => { cb.checked = e.target.checked; });
-  });
-
-  document.getElementById('btn-select-all-reminders')?.addEventListener('click', () => {
-    document.querySelectorAll('.reminder-check').forEach(cb => { cb.checked = true; });
-  });
-
-  document.getElementById('btn-deselect-all-reminders')?.addEventListener('click', () => {
-    document.querySelectorAll('.reminder-check').forEach(cb => { cb.checked = false; });
-  });
-
-  function buildReminderHTML(studentData, schoolData, year) {
-    const allMonths = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
-    const d = studentData;
-    const studentPhoto = imgSrc(d.student.photo, '');
-
-    // Only include months that have actual ledger data (not null)
-    const activeMonths = allMonths.filter(m => d.monthlyFee[m] !== null && d.monthlyFee[m] !== undefined);
-
-    if (activeMonths.length === 0) {
-      return `
-        <div class="fee-slip">
-          <div class="slip-header">
-            <img src="${imgSrc(schoolData.logo, PLACEHOLDER_IMG)}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
-            <div class="slip-header-text">
-              <h2>${schoolData.name || 'School Name'}</h2>
-              <p>Contact: ${schoolData.phone || '-'} | Reg No: ${schoolData.reg || '-'}</p>
-            </div>
-          </div>
-          <div class="slip-student-row">
-            ${studentPhoto ? `<img src="${studentPhoto}" style="width:45px; height:55px; border-radius:4px; object-fit:cover; border:1px solid #ccc;" onerror="this.style.display='none'">` : ''}
-            <div class="slip-student-info">
-              <div><strong>Name:</strong> ${d.student.name}</div>
-              <div><strong>F-Name:</strong> ${d.student.father_name || '-'}</div>
-              <div><strong>Class:</strong> ${d.student.class_name}${d.student.section_name ? ' (' + d.student.section_name + ')' : ''}</div>
-            </div>
-            <div class="slip-student-info">
-              <div><strong>Roll No:</strong> ${d.student.roll_no || '-'}</div>
-              <div><strong>ID:</strong> ${d.student.admission_no || d.student.id}</div>
-            </div>
-            <div class="slip-badge">FEE REMINDER ${year}-${parseInt(year)+1}</div>
-          </div>
-          <div style="text-align: center; padding: 20px; color: #666;">No fee ledger data found for this year.</div>
-        </div>
-      `;
-    }
-
-    let tableRows = '';
-    const rows = [
-      { label: 'Mnth Fee', data: d.monthlyFee },
-      { label: 'Transport', data: d.transportFee },
-      { label: 'Due', data: d.due },
-      { label: 'Total', data: d.total },
-      { label: 'Paid', data: d.paid },
-      { label: 'Unpaid', data: d.unpaid }
-    ];
-
-    rows.forEach(row => {
-      let tr = `<tr><td>${row.label}</td>`;
-      activeMonths.forEach(m => {
-        const val = row.data[m];
-        tr += `<td>${val !== null && val !== undefined ? val.toLocaleString() : '-'}</td>`;
-      });
-      tr += '</tr>';
-      tableRows += tr;
-    });
-
-    return `
-      <div class="fee-slip">
-        <div class="slip-header">
-          <img src="${imgSrc(schoolData.logo, PLACEHOLDER_IMG)}" class="slip-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%236366f1%22/><text x=%2218%22 y=%2224%22 font-size=%2216%22 fill=%22white%22 text-anchor=%22middle%22>SS</text></svg>'">
-          <div class="slip-header-text">
-            <h2>${schoolData.name || 'School Name'}</h2>
-            <p>Contact: ${schoolData.phone || '-'} | Reg No: ${schoolData.reg || '-'}</p>
-          </div>
-        </div>
-        <div class="slip-student-row">
-          ${studentPhoto ? `<img src="${studentPhoto}" style="width:45px; height:55px; border-radius:4px; object-fit:cover; border:1px solid #ccc;" onerror="this.style.display='none'">` : ''}
-          <div class="slip-student-info">
-            <div><strong>Name:</strong> ${d.student.name}</div>
-            <div><strong>F-Name:</strong> ${d.student.father_name || '-'}</div>
-            <div><strong>Class:</strong> ${d.student.class_name}${d.student.section_name ? ' (' + d.student.section_name + ')' : ''}</div>
-          </div>
-          <div class="slip-student-info">
-            <div><strong>Roll No:</strong> ${d.student.roll_no || '-'}</div>
-            <div><strong>ID:</strong> ${d.student.admission_no || d.student.id}</div>
-          </div>
-          <div class="slip-badge">FEE REMINDER ${year}-${parseInt(year)+1}</div>
-        </div>
-        <div class="table-container" style="border: 2px solid #000; background: #fff;">
-          <table class="data-table" style="color: #000;">
-            <thead>
-              <tr style="background: #f0f0f0;">
-                <th></th>
-                ${activeMonths.map(m => `<th>${m}</th>`).join('')}
-              </tr>
-            </thead>
-            <tbody style="color: #000;">${tableRows}</tbody>
-          </table>
-        </div>
-        <div class="slip-footer">
-          <div class="slip-sign">Principal Sign: _______________</div>
-          <div class="slip-net-total">NET TOTAL: ${d.netTotal.toLocaleString()}</div>
-        </div>
-      </div>
-    `;
-  }
-
-  const btnGenerateReminders = document.getElementById('btn-generate-reminders');
-  if (btnGenerateReminders) {
-    btnGenerateReminders.addEventListener('click', async () => {
-      const year = document.getElementById('reminder-filter-year').value;
-      const selectedIds = [];
-      document.querySelectorAll('.reminder-check:checked').forEach(cb => {
-        selectedIds.push(parseInt(cb.dataset.id));
-      });
-
-      if (selectedIds.length === 0) {
-        showToast('Select at least one student', true);
-        return;
-      }
-
-      const a4Page = document.getElementById('reminder-a4-page');
-      a4Page.innerHTML = '';
-
-      try {
-        const allData = await Promise.all(
-          selectedIds.map(id => apiCall(`/fees/slip/${id}?year=${year}`))
-        );
-
-        const SLIPS_PER_PAGE = 4;
-        for (let i = 0; i < allData.length; i += SLIPS_PER_PAGE) {
-          const pageData = allData.slice(i, i + SLIPS_PER_PAGE);
-          let slipsHtml = '';
-          pageData.forEach(data => {
-            slipsHtml += buildReminderHTML(data, data.school, year);
-          });
-          const remaining = SLIPS_PER_PAGE - pageData.length;
-          for (let j = 0; j < remaining; j++) {
-            slipsHtml += '<div class="fee-slip" style="border: 2px solid #000;"></div>';
-          }
-          const pageDiv = document.createElement('div');
-          pageDiv.className = 'a4-page';
-          pageDiv.innerHTML = slipsHtml;
-          a4Page.appendChild(pageDiv);
-        }
-
-        document.querySelector('#tab-reminder-form .card').style.display = 'none';
-        document.getElementById('reminder-preview-container').style.display = 'block';
-      } catch (e) {
-        showToast('Failed to generate reminders: ' + e.message, true);
-      }
-    });
-  }
-
-  document.getElementById('btn-back-reminder-list')?.addEventListener('click', () => {
-    document.querySelector('#tab-reminder-form .card').style.display = '';
-    document.getElementById('reminder-preview-container').style.display = 'none';
-  });
-
-  document.getElementById('btn-print-reminders')?.addEventListener('click', async () => {
-    const a4Page = document.getElementById('reminder-a4-page');
-    if (!a4Page || !a4Page.innerHTML.trim()) {
-      showToast('Generate reminders first', true);
-      return;
-    }
-    showToast('Opening print dialog — choose "Save as PDF" as the destination.');
-    printViaIframe(a4Page.innerHTML, 'Fee Reminders');
-  });
-
-  // Save reminders
-  let currentReminderData = null;
-
-  // Save as PDF
-  document.getElementById('btn-save-pdf-reminders')?.addEventListener('click', async () => {
-    const year = document.getElementById('reminder-filter-year').value;
-    const cls = document.getElementById('reminder-filter-class').value;
-    const selectedIds = [];
-    document.querySelectorAll('.reminder-check:checked').forEach(cb => {
-      selectedIds.push(parseInt(cb.dataset.id));
-    });
-
-    if (selectedIds.length === 0) {
-      showToast('No students selected', true);
-      return;
-    }
-
-    const statusEl = document.getElementById('reminder-save-status');
-    statusEl.textContent = 'Generating PDF...';
-    statusEl.style.color = 'var(--accent)';
-
-    try {
-      const result = await apiCall('/fees/reminders/generate-pdf', 'POST', {
-        student_ids: selectedIds,
-        year: parseInt(year),
-        title: `Fee Reminder - ${cls || 'All'} - ${year}`
-      });
-
-      await downloadPdfWithAuth(result.file_path, result.file_name);
-      statusEl.innerHTML = 'PDF is downloading...';
-      showToast(`PDF for ${result.student_count} students is downloading - find it in Files app > Downloads > SkyHonix`);
-    } catch (err) {
-      statusEl.textContent = 'Failed to generate PDF';
-      statusEl.style.color = 'var(--danger)';
-      showToast('Failed: ' + err.message, true);
-    }
-  });
-
-  document.getElementById('btn-save-reminders')?.addEventListener('click', async () => {
-    const cls = document.getElementById('reminder-filter-class').value;
-    const sec = document.getElementById('reminder-filter-section').value;
-    const year = document.getElementById('reminder-filter-year').value;
-    const selectedIds = [];
-    let totalAmount = 0;
-    document.querySelectorAll('.reminder-check:checked').forEach(cb => {
-      selectedIds.push(parseInt(cb.dataset.id));
-      const student = reminderStudentsData.find(s => s.id == cb.dataset.id);
-      if (student) totalAmount += student.total_unpaid;
-    });
-
-    if (selectedIds.length === 0) {
-      showToast('No students selected', true);
-      return;
-    }
-
-    try {
-      const result = await apiCall('/fees/reminders', 'POST', {
-        title: `Fee Reminder - ${cls || 'All Classes'} - ${year}`,
-        class_name: cls,
-        section_name: sec,
-        year: parseInt(year),
-        student_ids: selectedIds,
-        total_amount: totalAmount,
-        student_count: selectedIds.length
-      });
-      showToast('Reminder saved successfully');
-      document.getElementById('reminder-save-status').textContent = 'Saved!';
-      setTimeout(() => { document.getElementById('reminder-save-status').textContent = ''; }, 3000);
-      loadSavedReminders();
-    } catch (err) {
-      showToast('Failed to save: ' + err.message, true);
-    }
-  });
-
-  async function loadSavedReminders() {
-    try {
-      const reminders = await apiCall('/fees/reminders');
-      const tbody = document.querySelector('#table-saved-reminders tbody');
-      if (!tbody) return;
-
-      if (reminders.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No saved reminders yet.</td></tr>';
-        return;
-      }
-
-      tbody.innerHTML = reminders.map(r => `
-        <tr>
-          <td><strong>${r.title || 'Untitled'}</strong></td>
-          <td>${r.class_name || 'All'}</td>
-          <td>${r.year}</td>
-          <td>${r.student_count}</td>
-          <td>${r.total_amount ? r.total_amount.toLocaleString() : '0'}</td>
-          <td>${r.created_at ? new Date(r.created_at).toLocaleDateString() : '-'}</td>
-          <td>${r.printed_at ? new Date(r.printed_at).toLocaleDateString() : 'Not printed'}</td>
-          <td>
-            <button class="btn btn-outline btn-sm btn-view-reminder" data-id="${r.id}" data-student-ids='${r.student_ids}' data-year="${r.year}">View</button>
-            <button class="btn btn-danger btn-sm btn-delete-reminder" data-id="${r.id}">Delete</button>
-          </td>
-        </tr>
-      `).join('');
-
-      tbody.querySelectorAll('.btn-view-reminder').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const studentIds = JSON.parse(btn.dataset.studentIds || '[]');
-          const year = btn.dataset.year;
-          if (studentIds.length === 0) { showToast('No students in this reminder', true); return; }
-
-          const a4Page = document.getElementById('reminder-a4-page');
-
-          try {
-            const allData = await Promise.all(
-              studentIds.map(id => apiCall(`/fees/slip/${id}?year=${year}`))
-            );
-            const htmlParts = allData.map(data => buildReminderHTML(data, data.school, year));
-            a4Page.innerHTML = htmlParts.join('');
-
-            document.querySelector('#tab-reminder-form .card').style.display = 'none';
-            document.getElementById('reminder-preview-container').style.display = 'block';
-
-            await apiCall(`/fees/reminders/${btn.dataset.id}/print`, 'PUT');
-            loadSavedReminders();
-          } catch (e) {
-            showToast('Failed to load reminder: ' + e.message, true);
-          }
-        });
-      });
-
-      tbody.querySelectorAll('.btn-delete-reminder').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          if (!confirm('Delete this saved reminder?')) return;
-          try {
-            await apiCall(`/fees/reminders/${btn.dataset.id}`, 'DELETE');
-            showToast('Reminder deleted');
-            loadSavedReminders();
-          } catch (e) { showToast(e.message, true); }
-        });
-      });
-    } catch (e) { console.error('[APP_ERROR]', e.message); }
   }
 
   // ==========================================
@@ -7545,6 +7159,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Load exams into select dropdown inputs (including new datesheet/rollno selects)
+  // Exam-id -> exam_name map (populated by loadExamsDropdowns). The old
+  // "Term" dropdown was removed from Marks Entry; the term is now derived from
+  // the selected Exam, whose exam_name IS the term (e.g. "1st Term").
+  const examNameById = {};
+  function getExamTerm(selectId) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return '';
+    return examNameById[sel.value] || '';
+  }
+
   async function loadExamsDropdowns() {
     try {
       const exams = await apiCall('/exams');
@@ -7564,6 +7188,10 @@ document.addEventListener('DOMContentLoaded', () => {
         seen.add(ex.id);
         return true;
       });
+
+      // Refresh the id -> exam_name lookup used by getExamTerm()
+      Object.keys(examNameById).forEach(k => { delete examNameById[k]; });
+      uniqueExams.forEach(ex => { examNameById[ex.id] = ex.exam_name; });
 
       selectors.forEach(sel => {
         if (!sel) return;
@@ -7772,7 +7400,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const exam_id = document.getElementById('marks-select-exam').value;
       const class_name = document.getElementById('marks-select-class').value;
-      const term = document.getElementById('marks-select-term').value;
+      const term = getExamTerm('marks-select-exam');
       if (!exam_id || !class_name || !term) {
         showToast('Load the spreadsheet before changing Max Marks', true);
         return false;
@@ -7815,7 +7443,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const exam_id = document.getElementById('marks-select-exam').value;
     const class_name = document.getElementById('marks-select-class').value;
     const section_name = document.getElementById('marks-select-sec').value;
-    const term = document.getElementById('marks-select-term').value;
+    const term = getExamTerm('marks-select-exam');
 
     if (!exam_id || !class_name) {
       showToast('Exam and Class are required', true);
@@ -7903,7 +7531,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Save Marks Spreadsheet - all subjects at once
   document.getElementById('btn-save-marks').addEventListener('click', async () => {
     const exam_id = document.getElementById('marks-select-exam').value;
-    const term = document.getElementById('marks-select-term').value;
+    const term = getExamTerm('marks-select-exam');
 
     if (!exam_id || !term) {
       showToast('Exam and Term are required', true);
@@ -7983,13 +7611,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  const ssMarksTermEl = document.getElementById('ss-marks-term');
-  if (ssMarksTermEl) {
-    ssMarksTermEl.addEventListener('change', () => {
-      if (ssMarksClassEl && ssMarksClassEl.value) loadSSSubjects();
-    });
-  }
-
   const ssMarksSubjectEl = document.getElementById('ss-marks-subject');
   if (ssMarksSubjectEl) {
     ssMarksSubjectEl.addEventListener('focus', () => {
@@ -8005,7 +7626,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-load-ss-marks').addEventListener('click', async () => {
     const examId = document.getElementById('ss-marks-exam').value;
-    const term = document.getElementById('ss-marks-term').value;
+    const term = getExamTerm('ss-marks-exam');
     const className = document.getElementById('ss-marks-class').value;
     const subject = document.getElementById('ss-marks-subject').value;
     const section = document.getElementById('ss-marks-sec').value;
@@ -8065,7 +7686,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-save-ss-marks').addEventListener('click', async () => {
     const examId = document.getElementById('ss-marks-exam').value;
-    const term = document.getElementById('ss-marks-term').value;
+    const term = getExamTerm('ss-marks-exam');
     const className = document.getElementById('ss-marks-class').value;
     const subject = document.getElementById('ss-marks-subject').value;
     const maxMarks = parseInt(document.getElementById('ss-marks-max').value) || 100;
