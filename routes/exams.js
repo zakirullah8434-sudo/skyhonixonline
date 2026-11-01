@@ -288,6 +288,50 @@ function getRemarks(percentage) {
   return 'Not good More hardwork to pass';
 }
 
+// Shared subject resolution for a class + exam term. The order mirrors the
+// marks spreadsheet EXACTLY so calculation, the Result sheet and DMCs always
+// see the same subject set the school entered marks against:
+//   1) exam_subjects  (manual setup / Max chips / datesheet activation)
+//   2) date_sheet_templates (designer templates linked to exam/class/term)
+//   3) timetable subjects    (last fallback, max marks = 100)
+// Without step 2, classes whose subjects live only in a datesheet template
+// were silently skipped by /calculate ("success" with zero results).
+async function getSubjectsForClassTerm(schoolId, examId, className, term) {
+  const fromRegistry = await querySchool(
+    schoolId,
+    'SELECT subject, max_marks FROM exam_subjects WHERE exam_id = ? AND class = ? AND term = ? ORDER BY subject',
+    [parseInt(examId), className, term]
+  );
+  if (fromRegistry.length > 0) return fromRegistry;
+
+  try {
+    const templates = await querySchool(schoolId, 'SELECT template_json FROM date_sheet_templates');
+    const fromDatesheet = [];
+    const seen = new Set();
+    for (const tpl of templates) {
+      try {
+        const parsed = JSON.parse(tpl.template_json || '{}');
+        if (parsed.exam_id && parsed.exam_id != parseInt(examId)) continue;
+        if (parsed.term && parsed.term !== term) continue;
+        const tplSubjects = parsed.subjects || [];
+        for (const s of tplSubjects) {
+          if (s.subject && (s.class === className || s.class === 'All Classes') && !seen.has(s.subject.toUpperCase())) {
+            seen.add(s.subject.toUpperCase());
+            fromDatesheet.push({ subject: s.subject, max_marks: s.max_marks || 100 });
+          }
+        }
+      } catch (e) { /* skip malformed template */ }
+    }
+    if (fromDatesheet.length > 0) return fromDatesheet.sort((a, b) => a.subject.localeCompare(b.subject));
+  } catch (e) { /* fall through to timetable */ }
+
+  return querySchool(
+    schoolId,
+    `SELECT DISTINCT subject, 100 as max_marks FROM timetable WHERE class_name = ? AND subject IS NOT NULL AND subject != '' ORDER BY subject`,
+    [className]
+  );
+}
+
 // POST /exams/calculate - Calculate term results & positions (Dense Ranking)
 router.post('/calculate', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
@@ -340,12 +384,9 @@ router.post('/calculate', authenticateToken, async (req, res) => {
         const students = await querySchool(schoolId, studentsQuery, studentsParams);
         if (students.length === 0) continue;
 
-        // Fetch subjects for this class/term
-        const subjects = await querySchool(
-          schoolId,
-          'SELECT subject, max_marks FROM exam_subjects WHERE exam_id = ? AND class = ? AND term = ?',
-          [parseInt(exam_id), cls, term]
-        );
+        // Fetch subjects for this class/term (shared resolution — same
+        // subject set the marks spreadsheet uses, incl. datesheet fallback)
+        const subjects = await getSubjectsForClassTerm(schoolId, exam_id, cls, term);
         if (subjects.length === 0) continue;
 
         const totalMarks = subjects.reduce((sum, s) => sum + s.max_marks, 0);
@@ -573,19 +614,9 @@ async function buildSingleDmc(schoolId, studentId, exam_id, term) {
     const student = await querySchoolOne(schoolId, 'SELECT * FROM students WHERE id = ?', [studentId]);
     if (!student) { const e = new Error('Student not found'); e.status = 404; throw e; }
 
-    // 2. Get list of subjects (try exam_subjects first, fallback to timetable)
-    let subjects = await querySchool(
-      schoolId,
-      'SELECT subject, max_marks FROM exam_subjects WHERE exam_id = ? AND class = ? AND term = ? ORDER BY subject',
-      [parseInt(exam_id), student.class_name, term]
-    );
-    if (subjects.length === 0) {
-      subjects = await querySchool(
-        schoolId,
-        `SELECT DISTINCT subject, 100 as max_marks FROM timetable WHERE class_name = ? AND subject IS NOT NULL AND subject != '' ORDER BY subject`,
-        [student.class_name]
-      );
-    }
+    // 2. Get list of subjects (shared resolution: exam_subjects ->
+    //    date_sheet_templates -> timetable, identical to the marks grid)
+    const subjects = await getSubjectsForClassTerm(schoolId, exam_id, student.class_name, term);
 
     // 3. Get student's individual marks per subject
     const marks = await querySchool(
@@ -700,19 +731,9 @@ async function buildClassDmcs(schoolId, className, exam_id, term, section_name) 
     const students = await querySchool(schoolId, studentsQuery, params);
     if (students.length === 0) return [];
 
-    // Get subjects for this class (from timetable as fallback)
-    let subjects = await querySchool(
-      schoolId,
-      'SELECT subject, max_marks FROM exam_subjects WHERE exam_id = ? AND class = ? AND term = ? ORDER BY subject',
-      [parseInt(exam_id), className, term]
-    );
-    if (subjects.length === 0) {
-      subjects = await querySchool(
-        schoolId,
-        `SELECT DISTINCT subject, 100 as max_marks FROM timetable WHERE class_name = ? AND subject IS NOT NULL AND subject != '' ORDER BY subject`,
-        [className]
-      );
-    }
+    // Get subjects for this class (shared resolution: exam_subjects ->
+    // date_sheet_templates -> timetable, identical to the marks grid)
+    const subjects = await getSubjectsForClassTerm(schoolId, exam_id, className, term);
 
     // Bulk pre-fetch: all results and marks for all students in this class
     const studentIds = students.map(s => s.id);
@@ -1318,48 +1339,10 @@ router.get('/marks/spreadsheet', authenticateToken, async (req, res) => {
     studentsQuery += " ORDER BY CAST(roll_no AS INTEGER), name";
     const students = await querySchool(schoolId, studentsQuery, studentsParams);
 
-    // First try exam_subjects table (manual setup)
-    let subjects = await querySchool(
-      schoolId,
-      'SELECT subject, max_marks FROM exam_subjects WHERE exam_id = ? AND class = ? AND term = ? ORDER BY subject',
-      [parseInt(exam_id), class_name, term]
-    );
-
-    // If no exam_subjects, fetch from datesheet templates for this exam/class
-    if (subjects.length === 0) {
-      try {
-        const templates = await querySchool(schoolId, 'SELECT template_json FROM date_sheet_templates');
-        const datesheetSubjects = [];
-        const seen = new Set();
-        for (const tpl of templates) {
-          try {
-            const parsed = JSON.parse(tpl.template_json || '{}');
-            if (parsed.exam_id && parsed.exam_id != parseInt(exam_id)) continue;
-            if (parsed.term && parsed.term !== term) continue;
-            const tplSubjects = parsed.subjects || [];
-            for (const s of tplSubjects) {
-              if (s.subject && (s.class === class_name || s.class === 'All Classes') && !seen.has(s.subject.toUpperCase())) {
-                seen.add(s.subject.toUpperCase());
-                datesheetSubjects.push({ subject: s.subject, max_marks: s.max_marks || 100 });
-              }
-            }
-          } catch (e) {}
-        }
-        if (datesheetSubjects.length > 0) {
-          subjects = datesheetSubjects.sort((a, b) => a.subject.localeCompare(b.subject));
-        }
-      } catch (e) {}
-    }
-
-    // If still no subjects, fetch from timetable for this class (last fallback)
-    if (subjects.length === 0) {
-      const timetableSubjects = await querySchool(
-        schoolId,
-        `SELECT DISTINCT subject, 100 as max_marks FROM timetable WHERE class_name = ? AND subject IS NOT NULL AND subject != '' ORDER BY subject`,
-        [class_name]
-      );
-      subjects = timetableSubjects;
-    }
+    // Shared subject resolution (exam_subjects -> date_sheet_templates ->
+    // timetable) — the exact same chain used by /calculate and the DMC/
+    // Result builders, so all four views always agree on the subject set.
+    const subjects = await getSubjectsForClassTerm(schoolId, exam_id, class_name, term);
 
     const allMarks = await querySchool(
       schoolId,

@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v65';
+    const EXPECTED_PAGE_VERSION = 'v66';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -2638,6 +2638,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const marksSelectClass = document.getElementById('marks-select-class');
       const ssMarksSelectClass = document.getElementById('ss-marks-class');
       const calcClassSelect = document.getElementById('calc-class-select');
+      const resClassSelect = document.getElementById('res-class-select');
       const historyFilterClass = document.getElementById('history-filter-class');
       const studentFeeClass = document.getElementById('student-fee-class');
       const slipClassSelect = document.getElementById('slip-class');
@@ -2649,7 +2650,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const selects = [
         filterClass, attClassSelect, attHistoryClass, attTotalClass, ledgerFilterClass,
-        marksSelectClass, ssMarksSelectClass, calcClassSelect,
+        marksSelectClass, ssMarksSelectClass, calcClassSelect, resClassSelect,
         historyFilterClass, studentFeeClass,
         slipClassSelect, datesheetClassSelect, rollnoClassSelect, rollnoGenClass, feePayClass,
         feeSetupClass
@@ -7210,6 +7211,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (opt === 'exam-resultcard') {
       loadDmcClassFilter();
       loadDmcStudents();
+    } else if (opt === 'exam-result') {
+      initResultPanel();
     }
   }
 
@@ -7249,11 +7252,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const marksSelectExam = document.getElementById('marks-select-exam');
       const ssMarksSelectExam = document.getElementById('ss-marks-exam');
       const calcExamSelect = document.getElementById('calc-exam-select');
+      const resExamSelect = document.getElementById('res-exam-select');
       const dmcSelectExam = document.getElementById('dmc-select-exam');
       const rollnoExamSelect = document.getElementById('rollno-exam-select');
       const rollnoGenExam = document.getElementById('rollno-gen-exam');
 
-      const selectors = [marksSelectExam, ssMarksSelectExam, calcExamSelect, dmcSelectExam, rollnoExamSelect, rollnoGenExam];
+      const selectors = [marksSelectExam, ssMarksSelectExam, calcExamSelect, resExamSelect, dmcSelectExam, rollnoExamSelect, rollnoGenExam];
 
       // Deduplicate exams by id
       const seen = new Set();
@@ -7807,7 +7811,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const exam_id = document.getElementById('calc-exam-select').value;
     const class_name = document.getElementById('calc-class-select').value;
     const section_name = document.getElementById('calc-sec-select').value;
-    const term = document.getElementById('calc-term-select').value;
+    // Term is DERIVED from the selected Exam (its exam_name IS the term),
+    // matching how Marks Entry stores marks. The separate "Exam Term"
+    // dropdown was removed — one source of truth, no mismatch possible.
+    const term = getExamTerm('calc-exam-select');
+    if (!exam_id || !term) {
+      feedback.innerText = 'Select an Exam Term first.';
+      feedback.style.display = 'block';
+      return;
+    }
 
     try {
       const body = { exam_id, class_name, term };
@@ -7821,6 +7833,167 @@ document.addEventListener('DOMContentLoaded', () => {
       feedback.innerText = 'Calculation failed: ' + err.message;
     }
   });
+
+  // ==========================================
+  // MODULE: RESULT (class-wise complete result sheet)
+  // Exam > Result card. Shows every student of a class after (and before)
+  // Calculate Result runs:
+  //   Roll No | Name | subject marks (per subject) | obtained marks |
+  //   position | percentage | grade | remarks
+  // plus a compact class summary (students / pass / fail / average).
+  // Data source: GET /exams/dmc/class/:class — merges the calculated
+  // results table (position, remarks) with live marks, and falls back to
+  // on-the-fly ranking when results have not been calculated yet.
+  // ==========================================
+  let resultLoadSeq = 0; // guards against out-of-order (stale) renders
+
+  async function loadResultSections() {
+    const cls = document.getElementById('res-class-select').value;
+    const secSel = document.getElementById('res-sec-select');
+    if (!secSel) return;
+    secSel.innerHTML = '<option value="">All Sections</option>';
+    if (!cls) return;
+    try {
+      const sections = await apiCall(`/students/sections/${encodeURIComponent(cls)}`);
+      const opts = ['<option value="">All Sections</option>'];
+      sections.forEach(s => { opts.push(`<option value="${esc(s.section_name)}">${esc(s.section_name)}</option>`); });
+      secSel.innerHTML = opts.join('');
+    } catch (e) { console.error('[RESULT_SECTIONS]', e.message); }
+  }
+
+  // Populate dropdowns, sections and auto-load the first class's result so
+  // the panel always opens with data on screen.
+  async function initResultPanel() {
+    try { await Promise.all([loadClassesList(), loadExamsDropdowns()]); } catch (e) {}
+    await loadResultSections();
+    loadClassResult();
+  }
+
+  async function loadClassResult() {
+    const examId = document.getElementById('res-exam-select').value;
+    const cls = document.getElementById('res-class-select').value;
+    const sec = document.getElementById('res-sec-select').value;
+    const term = getExamTerm('res-exam-select');
+    const wrap = document.getElementById('result-table-wrap');
+    const summaryEl = document.getElementById('result-summary');
+    const empty = document.getElementById('result-empty');
+    if (!wrap || !empty) return;
+
+    if (!examId || !term || !cls) {
+      wrap.style.display = 'none';
+      if (summaryEl) summaryEl.style.display = 'none';
+      empty.style.display = 'block';
+      empty.innerText = 'Select an Exam Term and class, then click Load Result.';
+      return;
+    }
+
+    const seq = ++resultLoadSeq;
+    empty.style.display = 'block';
+    empty.innerText = 'Loading result...';
+
+    try {
+      let url = `/exams/dmc/class/${encodeURIComponent(cls)}?exam_id=${examId}&term=${encodeURIComponent(term)}`;
+      if (sec) url += `&section_name=${encodeURIComponent(sec)}`;
+      const data = await apiCall(url);
+      if (seq !== resultLoadSeq) return; // a newer load superseded this one
+      renderClassResult(data || [], cls, sec, term);
+    } catch (err) {
+      if (seq !== resultLoadSeq) return;
+      wrap.style.display = 'none';
+      if (summaryEl) summaryEl.style.display = 'none';
+      empty.style.display = 'block';
+      empty.innerText = 'Failed to load result: ' + err.message;
+    }
+  }
+
+  function renderClassResult(rows, cls, sec, term) {
+    const thead = document.getElementById('result-thead');
+    const tbody = document.getElementById('result-tbody');
+    const wrap = document.getElementById('result-table-wrap');
+    const summaryEl = document.getElementById('result-summary');
+    const empty = document.getElementById('result-empty');
+
+    if (!rows.length) {
+      wrap.style.display = 'none';
+      if (summaryEl) summaryEl.style.display = 'none';
+      empty.style.display = 'block';
+      empty.innerText = 'No result data found. Check your filters, enter marks and calculate results first.';
+      return;
+    }
+
+    // One shared subject list for the class (first student's report drives
+    // the columns; every student in a class has the same subject set).
+    const subjects = [];
+    const seen = new Set();
+    rows.forEach(r => (r.reportDetails || []).forEach(d => {
+      const key = (d.subject || '').toUpperCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      subjects.push(d);
+    }));
+
+    // Header: Roll No, Name, per-subject marks, then the summary columns
+    thead.innerHTML = `<tr>
+      <th>Roll No</th>
+      <th>Name</th>
+      ${subjects.map(s => `<th style="white-space: nowrap;">${esc(s.subject)}<br><span style="font-weight: 400; font-size: 0.72rem;">(/${parseInt(s.max_marks) || 0})</span></th>`).join('')}
+      <th style="white-space: nowrap;">Subject Marks</th>
+      <th style="white-space: nowrap;">Obtained Marks</th>
+      <th>Position</th>
+      <th>Percentage</th>
+      <th>Grade</th>
+      <th>Remarks</th>
+    </tr>`;
+
+    let pass = 0, fail = 0, pctSum = 0;
+    tbody.innerHTML = rows.map(r => {
+      const st = r.student || {};
+      const su = r.summary || {};
+      const pct = parseFloat(su.percentage) || 0;
+      const passed = pct >= 33;
+      if (passed) pass++; else fail++;
+      pctSum += pct;
+
+      const markBySubject = {};
+      (r.reportDetails || []).forEach(d => { markBySubject[(d.subject || '').toUpperCase()] = d; });
+
+      const subjectCells = subjects.map(s => {
+        const d = markBySubject[(s.subject || '').toUpperCase()];
+        const ob = d ? (parseFloat(d.obtained_marks) || 0) : 0;
+        const isFail = d && d.status === 'Fail';
+        return `<td${isFail ? ' style="color: var(--danger); font-weight: 600;"' : ''}>${ob}</td>`;
+      }).join('');
+
+      return `<tr>
+        <td>${esc(st.roll_no || '-')}</td>
+        <td style="white-space: nowrap;">${esc(st.name || '-')}</td>
+        ${subjectCells}
+        <td>${parseFloat(su.total) || 0}</td>
+        <td style="font-weight: 600;">${parseFloat(su.obtained) || 0}</td>
+        <td style="font-weight: 700; color: var(--accent);">${esc(String(su.position != null ? su.position : '-'))}</td>
+        <td>${pct.toFixed(1)}%</td>
+        <td><span class="badge ${pct >= 50 ? 'badge-green' : 'badge-red'}">${esc(su.grade || '-')}</span></td>
+        <td style="white-space: nowrap;">${esc(su.remarks || '-')}</td>
+      </tr>`;
+    }).join('');
+
+    const avg = pctSum / rows.length;
+    if (summaryEl) {
+      summaryEl.innerHTML = `<strong>${esc(cls)}</strong>${sec ? ' &middot; ' + esc(sec) : ''} &middot; ${esc(term)} &nbsp;|&nbsp; Students: <strong>${rows.length}</strong> &nbsp;|&nbsp; Pass: <strong style="color: #16a34a;">${pass}</strong> &nbsp;|&nbsp; Fail: <strong style="color: var(--danger);">${fail}</strong> &nbsp;|&nbsp; Class Average: <strong>${avg.toFixed(1)}%</strong>`;
+      summaryEl.style.display = 'block';
+    }
+    empty.style.display = 'none';
+    wrap.style.display = 'block';
+  }
+
+  // Result panel wiring: explicit load + reload on any filter change
+  document.getElementById('btn-load-result')?.addEventListener('click', () => loadClassResult());
+  document.getElementById('res-exam-select')?.addEventListener('change', () => loadClassResult());
+  document.getElementById('res-class-select')?.addEventListener('change', async () => {
+    await loadResultSections();
+    loadClassResult();
+  });
+  document.getElementById('res-sec-select')?.addEventListener('change', () => loadClassResult());
 
   // DMC Portal - Class filter, section filter, load students, and search
 

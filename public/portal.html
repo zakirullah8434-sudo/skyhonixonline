@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=9" as="style">
-  <link rel="preload" href="js/app.js?v=65" as="script">
+  <link rel="preload" href="js/app.js?v=66" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v65';
+    window.SKYHONIX_PAGE_VERSION = 'v66';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -3877,7 +3877,13 @@
                 <div class="fees-card-desc">Grade & Rank Students</div>
               </div>
 
-              <!-- Card 5: Result Card -->
+              <!-- Card 5: Result (class-wise complete result sheet) -->
+              <div class="fees-dash-card card-green" data-opt="exam-result">
+                <div class="fees-card-title">Result</div>
+                <div class="fees-card-desc">Class-wise Complete Result</div>
+              </div>
+
+              <!-- Card 6: Result Card -->
               <div class="fees-dash-card card-teal" data-opt="exam-resultcard">
                 <div class="fees-card-title">Result Card</div>
                 <div class="fees-card-desc">View & Print DMC</div>
@@ -4242,7 +4248,7 @@
               <form id="form-result-calculate">
                 <div class="grid-2">
                   <div class="form-group">
-                    <label class="form-label">Target Exam</label>
+                    <label class="form-label">Exam Term</label>
                     <select class="form-control" id="calc-exam-select" required></select>
                   </div>
                   <div class="form-group">
@@ -4258,12 +4264,6 @@
                       <option value="No Section">No Section</option>
                     </select>
                   </div>
-                  <div class="form-group">
-                    <label class="form-label">Exam Term</label>
-                    <select class="form-control" id="calc-term-select" required>
-                      <option>1st Term</option><option>2nd Term</option><option>Final</option>
-                    </select>
-                  </div>
                 </div>
                 
                 <div style="margin-top: 20px;">
@@ -4272,6 +4272,51 @@
                 <p id="calc-feedback" style="margin-top: 15px; color: var(--success); display: none; text-align: center;"></p>
               </form>
             </div>
+          </div>
+
+          <!-- ========== Option Panel: Result (class-wise complete result sheet) ========== -->
+          <div id="exam-panel-exam-result" class="exam-option-panel" style="display: none;">
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-outline btn-sm btn-back-exam-dash">&larr; Back to Exam Dashboard</button>
+            </div>
+            <h2 style="margin-bottom: 24px;">Result</h2>
+
+            <div class="card" style="margin-bottom: 20px;">
+              <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Exam Term</label>
+                  <select class="form-control" id="res-exam-select"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Class</label>
+                  <select class="form-control" id="res-class-select"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Section</label>
+                  <select class="form-control" id="res-sec-select">
+                    <option value="">All Sections</option>
+                  </select>
+                </div>
+              </div>
+              <div style="margin-top: 20px; display: flex; gap: 15px; flex-wrap: wrap;">
+                <button class="btn btn-primary" id="btn-load-result">Load Result</button>
+              </div>
+            </div>
+
+            <!-- Class summary strip (students / pass / fail / average) -->
+            <div id="result-summary" style="display: none; margin-bottom: 14px; padding: 10px 15px; border-radius: 8px; background: var(--primary-light); border-left: 4px solid var(--primary); font-size: 0.9rem; color: var(--text-primary);"></div>
+
+            <!-- Class-wise complete result table: Roll No, Name, subject marks,
+                 obtained marks, position, percentage, grade, remarks -->
+            <div class="table-container" id="result-table-wrap" style="display: none; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+              <table class="data-table" id="table-class-result">
+                <thead id="result-thead"></thead>
+                <tbody id="result-tbody"></tbody>
+              </table>
+            </div>
+            <p id="result-empty" style="text-align: center; color: var(--text-muted); padding: 30px 0;">
+              Select an Exam Term and class, then click Load Result.
+            </p>
           </div>
 
           <!-- ========== Option Panel: Result Card (DMC) ========== -->
@@ -5071,8 +5116,8 @@
     </div>
   </div>
 
-  <script src="js/vendor/jspdf.umd.min.js?v=65"></script>
-  <script src="js/vendor/html2canvas.min.js?v=65"></script>
-  <script src="js/app.js?v=65"></script>
+  <script src="js/vendor/jspdf.umd.min.js?v=66"></script>
+  <script src="js/vendor/html2canvas.min.js?v=66"></script>
+  <script src="js/app.js?v=66"></script>
 </body>
 </html>
