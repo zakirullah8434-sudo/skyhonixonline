@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v64';
+    const EXPECTED_PAGE_VERSION = 'v65';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -649,12 +649,20 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Load screen specific content
-    loadScreenData(targetScreen);
-
-    // Close mobile sidebar on navigation
+    // Close mobile sidebar BEFORE loading data — a load error must never
+    // leave the drawer covering the screen.
     if (window.innerWidth <= 992) {
       closeSidebar();
+    }
+
+    // Load screen specific content (isolated: errors here must not break
+    // navigation — the screen switch above has already happened)
+    try { loadScreenData(targetScreen); } catch (e) { console.error('[APP_ERROR]', e.message); }
+
+    // Record the visit in browser history so the Android back button can
+    // retrace it (skipped while restoring an entry — see applyNavState)
+    if (!navApplying && window.SkyHonixSectionHistory) {
+      try { window.SkyHonixSectionHistory.visit(targetScreen); } catch (e) {}
     }
   }
 
@@ -669,29 +677,77 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Section history — makes the Android back button walk through the sections
-  // the user visited instead of leaving the portal (which looked like a logout).
+  // AND subsections (option panels) the user visited, one level per press:
+  //
+  //   dashboard -> section -> subsection   (back) -> subsection closed
+  //              (back) -> section         (back) -> dashboard
+  //              (back) -> exit the app (no logout)
+  //
+  // The portal records every navigation explicitly (sidebar taps, panel
+  // cards, back buttons) instead of watching the DOM, so history always
+  // matches what the user actually did.
+  let navApplying = false; // true while a history entry is being restored
+
+  // Re-open a subsection (option panel) during history restore. The section's
+  // own card is clicked so the normal handlers (panel display + data load)
+  // run exactly as on a real tap.
+  function openSectionSub(section, sub) {
+    if (!sub) return false;
+    try {
+      if (section === 'fees' || section === 'exams') {
+        const card = document.querySelector(`#screen-${section} .fees-dash-card[data-opt="${sub}"]`);
+        if (card) { card.click(); return true; }
+      } else if (section === 'promotions') {
+        const card = document.getElementById(sub);
+        if (card && card.closest('#screen-promotions')) { card.click(); return true; }
+      } else if (section === 'admin-settings') {
+        const card = document.querySelector(`#screen-admin-settings [data-opt="${sub}"]`);
+        if (card) { card.click(); return true; }
+      } else if (section === 'students' && sub === 'staff-entry') {
+        const btn = document.getElementById('btn-staff-entry');
+        if (btn) { btn.click(); return true; }
+      }
+    } catch (e) { console.error('[NAV_RESTORE]', e.message); }
+    return false;
+  }
+
+  function applyNavState(state) {
+    navApplying = true;
+    try {
+      activateScreen((state && state.section) || 'dashboard');
+      if (state && state.sub) openSectionSub(state.section, state.sub);
+    } catch (e) { console.error('[NAV_RESTORE]', e.message); }
+    // Release on the next tick so the synchronous card-click side effects
+    // (which call subvisit) are covered and never push a new entry.
+    setTimeout(() => { navApplying = false; }, 0);
+  }
+
   if (window.SkyHonixSectionHistory) {
-    const navKeys = new Set();
-    sidebarItems.forEach(item => {
-      const key = item.getAttribute('data-screen');
-      if (key) navKeys.add(key);
-    });
-    // 'attendance' is no longer a sidebar item (it opens via the QR menu
-    // buttons) — register it so Android back can navigate into/out of it.
-    navKeys.add('attendance');
     window.SkyHonixSectionHistory.init({
-      getActive: () => {
-        for (const screen of screens) {
-          if (screen.style.display === 'none') continue;
-          const key = screen.id.indexOf('screen-') === 0 ? screen.id.slice(7) : screen.id;
-          if (navKeys.has(key)) return key;
-        }
-        return null;
-      },
-      setActive: (key) => activateScreen(key),
-      initial: () => 'dashboard'
+      apply: (state) => applyNavState(state),
+      home: 'dashboard'
     });
   }
+
+  // Record that a subsection (option panel) opened inside the current section
+  // so the Android back button can close it before leaving the section.
+  function navVisitSub(sub) {
+    if (navApplying || !window.SkyHonixSectionHistory) return;
+    try { window.SkyHonixSectionHistory.subvisit(sub); } catch (e) {}
+  }
+
+  // "Back" inside a subsection: pop the pushed entry (history.back) so the
+  // stack stays honest; falls back to a direct reset when no entry exists.
+  function navBack(fallback) {
+    const sh = window.SkyHonixSectionHistory;
+    if (sh && typeof sh.back === 'function' && sh.back() === true) return;
+    if (typeof fallback === 'function') fallback();
+  }
+
+  // "← Back to Dashboard" buttons at the top of every main section
+  document.querySelectorAll('.btn-back-to-dashboard').forEach(btn => {
+    btn.addEventListener('click', () => activateScreen('dashboard'));
+  });
 
   // Mobile sidebar toggle
   const btnSidebarToggle = document.getElementById('btn-sidebar-toggle');
@@ -773,6 +829,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (screenName === 'dashboard') {
       loadDashboardStats();
     } else if (screenName === 'students') {
+      // Re-entering the section must land on the directory view — close the
+      // Staff Entry panel if a history restore brought us back to the section.
+      const staffPanel = document.getElementById('panel-staff-entry');
+      if (staffPanel) {
+        staffPanel.style.display = 'none';
+        const stuScreen = document.getElementById('screen-students');
+        if (stuScreen) stuScreen.querySelectorAll(':scope > .card, :scope > .table-container').forEach(c => c.style.display = '');
+      }
       Promise.all([loadClassesList(), loadStudentsList()]).catch(() => {});
     } else if (screenName === 'attendance') {
       loadAttendanceFilters();
@@ -947,7 +1011,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('qr-menu-student')?.addEventListener('click', () => openAttendanceView('student'));
   document.getElementById('qr-menu-teacher')?.addEventListener('click', () => openAttendanceView('teacher'));
   // Back button in the attendance screen header → return to the QR menu
-  document.getElementById('att-back-btn')?.addEventListener('click', () => activateScreen('qr-menu'));
+  // (pops the history entry pushed when the attendance view was opened)
+  document.getElementById('att-back-btn')?.addEventListener('click', () => navBack(() => activateScreen('qr-menu')));
 
   const dashBtnFees = document.getElementById('dash-btn-fees');
   if (dashBtnFees) dashBtnFees.addEventListener('click', () => {
@@ -1115,9 +1180,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('promo-panel-class-wise').style.display = 'none';
     document.getElementById('promo-panel-leave').style.display = 'none';
     document.getElementById('promo-school-preview-container').style.display = 'none';
-    document.getElementById('promo-school-execute').style.display = 'none';
+    document.getElementById('btn-promo-school-execute').style.display = 'none';
     document.getElementById('promo-class-preview-container').style.display = 'none';
-    document.getElementById('promo-class-execute').style.display = 'none';
+    document.getElementById('btn-promo-class-execute').style.display = 'none';
   }
 
   // Navigation: Promotion dash cards
@@ -1127,8 +1192,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('promo-panel-class-wise').style.display = 'none';
     document.getElementById('promo-panel-leave').style.display = 'none';
     document.getElementById('promo-school-preview-container').style.display = 'none';
-    document.getElementById('promo-school-execute').style.display = 'none';
+    document.getElementById('btn-promo-school-execute').style.display = 'none';
     loadPromoExams();
+    navVisitSub('promo-school-wise');
   });
 
   document.getElementById('promo-class-wise').addEventListener('click', () => {
@@ -1137,8 +1203,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('promo-panel-school-wide').style.display = 'none';
     document.getElementById('promo-panel-leave').style.display = 'none';
     document.getElementById('promo-class-preview-container').style.display = 'none';
-    document.getElementById('promo-class-execute').style.display = 'none';
+    document.getElementById('btn-promo-class-execute').style.display = 'none';
     loadPromoExams();
+    navVisitSub('promo-class-wise');
   });
 
   document.getElementById('promo-leave-students').addEventListener('click', () => {
@@ -1147,12 +1214,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('promo-panel-school-wide').style.display = 'none';
     document.getElementById('promo-panel-class-wise').style.display = 'none';
     loadPromoClasses();
+    navVisitSub('promo-leave-students');
   });
 
   // Back buttons
   document.querySelectorAll('.btn-back-promo-dash').forEach(btn => {
     btn.addEventListener('click', () => {
-      resetPromoPanels();
+      navBack(resetPromoPanels);
     });
   });
 
@@ -1205,7 +1273,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
       tbody.innerHTML = rows || '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No students found.</td></tr>';
       document.getElementById('promo-school-preview-container').style.display = 'block';
-      document.getElementById('promo-school-execute').style.display = 'inline-block';
+      document.getElementById('btn-promo-school-execute').style.display = 'inline-block';
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
@@ -1225,7 +1293,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       showToast(res.message);
       document.getElementById('promo-school-preview-container').style.display = 'none';
-      document.getElementById('promo-school-execute').style.display = 'none';
+      document.getElementById('btn-promo-school-execute').style.display = 'none';
       loadPromoHistory();
       loadClassesList();
     } catch (e) { console.error('[APP_ERROR]', e.message); }
@@ -1285,7 +1353,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
       tbody.innerHTML = rows || '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No students found.</td></tr>';
       document.getElementById('promo-class-preview-container').style.display = 'block';
-      document.getElementById('promo-class-execute').style.display = 'inline-block';
+      document.getElementById('btn-promo-class-execute').style.display = 'inline-block';
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
@@ -1307,7 +1375,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       showToast(res.message);
       document.getElementById('promo-class-preview-container').style.display = 'none';
-      document.getElementById('promo-class-execute').style.display = 'none';
+      document.getElementById('btn-promo-class-execute').style.display = 'none';
       loadPromoHistory();
       loadClassesList();
     } catch (e) { console.error('[APP_ERROR]', e.message); }
@@ -1425,6 +1493,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (opt === 'pm-idcard') { loadPMIdCard(); loadPMTeachers(); }
       if (opt === 'pm-transport') loadTransportData();
       if (opt === 'pm-salary') loadSalarySetup();
+      navVisitSub(opt);
     });
   });
 
@@ -2859,11 +2928,14 @@ document.addEventListener('DOMContentLoaded', () => {
       resetStaffForm();
       loadStaffList();
       populateStaffClassDropdown();
+      navVisitSub('staff-entry');
     });
 
     document.getElementById('btn-staff-entry-back').addEventListener('click', () => {
-      panel.style.display = 'none';
-      studentsScreen.querySelectorAll(':scope > .card, :scope > .table-container').forEach(c => c.style.display = '');
+      navBack(() => {
+        panel.style.display = 'none';
+        studentsScreen.querySelectorAll(':scope > .card, :scope > .table-container').forEach(c => c.style.display = '');
+      });
     });
 
     document.getElementById('btn-staff-cancel').addEventListener('click', resetStaffForm);
@@ -5157,6 +5229,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (targetPanel) {
         targetPanel.style.display = 'block';
         loadFeePanelData(targetOpt);
+        navVisitSub(targetOpt);
       }
     });
   });
@@ -5165,7 +5238,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.btn-back-fee-dash').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      resetFeePanels();
+      navBack(resetFeePanels);
     });
   });
 
@@ -7111,6 +7184,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (targetPanel) {
         targetPanel.style.display = 'block';
         loadExamPanelData(targetOpt);
+        navVisitSub(targetOpt);
       }
     });
   });
@@ -7119,7 +7193,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.btn-back-exam-dash').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      resetExamPanels();
+      navBack(resetExamPanels);
     });
   });
 
@@ -9584,6 +9658,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (opt === 'manage-parents') { loadParentsList(); }
         if (opt === 'manage-timetable') { populateTimetableDropdowns(); }
         if (opt === 'manage-announcements') { loadAnnouncementsList(); }
+        navVisitSub(opt);
         return;
       }
 
@@ -9591,8 +9666,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const backBtn = e.target.closest('.btn-back-settings');
       if (backBtn) {
         e.stopPropagation();
-        adminSettingsScreen.querySelectorAll('.fee-option-panel').forEach(p => p.style.display = 'none');
-        adminSettingsScreen.querySelectorAll(':scope > .card, :scope > .grid-3').forEach(c => c.style.display = '');
+        navBack(() => {
+          adminSettingsScreen.querySelectorAll('.fee-option-panel').forEach(p => p.style.display = 'none');
+          adminSettingsScreen.querySelectorAll(':scope > .card, :scope > .grid-3').forEach(c => c.style.display = '');
+        });
       }
     });
   }
