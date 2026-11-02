@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v66';
+    const EXPECTED_PAGE_VERSION = 'v67';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -28,6 +28,19 @@
 
 function debounce(fn, ms) { let t; return function(...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); }; }
 function esc(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+
+// Ordinal position label for results: 1 -> "1st", 2 -> "2nd", 3 -> "3rd",
+// 4 -> "4th", 11 -> "11th", 21 -> "21st", 102 -> "102nd".
+// Used by the Result Card (DMC) renderers and the class-wise Result sheet;
+// mirrored server-side in routes/exams.js (ordinalPosition) for the PDF.
+function ordinal(n) {
+  const num = parseInt(n, 10);
+  if (isNaN(num)) return (n == null || n === '') ? '-' : String(n);
+  const rem100 = num % 100;
+  const suffix = (rem100 >= 11 && rem100 <= 13) ? 'th'
+    : (num % 10 === 1 ? 'st' : (num % 10 === 2 ? 'nd' : (num % 10 === 3 ? 'rd' : 'th')));
+  return num + suffix;
+}
 
 // QR attendance: LARGE fullscreen success confirmation shown after every
 // successful scan (attendance screen, dashboard camera overlay, and the
@@ -7970,7 +7983,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ${subjectCells}
         <td>${parseFloat(su.total) || 0}</td>
         <td style="font-weight: 600;">${parseFloat(su.obtained) || 0}</td>
-        <td style="font-weight: 700; color: var(--accent);">${esc(String(su.position != null ? su.position : '-'))}</td>
+        <td style="font-weight: 700; color: var(--accent);">${esc(su.position != null && su.position !== '' ? ordinal(su.position) : '-')}</td>
         <td>${pct.toFixed(1)}%</td>
         <td><span class="badge ${pct >= 50 ? 'badge-green' : 'badge-red'}">${esc(su.grade || '-')}</span></td>
         <td style="white-space: nowrap;">${esc(su.remarks || '-')}</td>
@@ -8084,12 +8097,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load detailed DMC report card (single student or whole class)
   document.getElementById('btn-load-dmc-report').addEventListener('click', async () => {
     const exam_id = document.getElementById('dmc-select-exam').value;
-    const term = document.getElementById('dmc-select-term').value;
+    // Term is DERIVED from the selected Exam (exam_name IS the term) — the
+    // separate "1st Term" dropdown was removed in v67 as a duplicate.
+    const term = getExamTerm('dmc-select-exam');
     const cls = document.getElementById('dmc-filter-class').value;
     const sec = document.getElementById('dmc-filter-section').value;
 
     if (!exam_id || !term) {
-      showToast('Select exam and term first', true);
+      showToast('Select an exam first', true);
       return;
     }
 
@@ -8116,25 +8131,65 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  function renderSingleDmc(res) {
-    const examEl = document.getElementById('dmc-select-exam');
-    const examText = examEl.options[examEl.selectedIndex] ? examEl.options[examEl.selectedIndex].text : '';
-    const term = document.getElementById('dmc-select-term').value;
-    const s = res.student;
-    const sum = res.summary;
-    const details = res.reportDetails || [];
-        const photoUrl = imgSrc(s.photo, '');
+  // ==========================================
+  // RESULT CARD (DMC) SHEET - shared builder (v67)
+  // Both renderers (single student / whole class) go through ONE builder
+  // so these fixes can never diverge between the two views:
+  //   * Position renders as an ordinal: 1st, 2nd, 3rd, 4th, 5th ...
+  //   * Name / Father Name / Roll No / Class fill the empty gap beside the
+  //     photo with a bordered 2x2 field grid (stretches to photo height)
+  //   * "Principal" is written exactly ONCE at the bottom; the signature
+  //     image uploaded in Roll No Slip Design sits above the rule
+  //   * term is derived from the exam select (duplicate term dropdown
+  //     "1st Term/2nd Term/Final" was removed in portal.html)
+  // ==========================================
 
+  // Principal signature - same source certificates use: the newest Roll No
+  // Slip Design template that has an uploaded signature
+  // (rollno-principal-sign -> roll_slip_templates.principal_sign).
+  async function fetchDmcPrincipalSign() {
+    try {
+      const templates = await apiCall('/exams/rollno-templates');
+      if (Array.isArray(templates)) {
+        for (const t of templates) {
+          const sign = t && t.template && t.template.principal_sign;
+          if (sign) return sign;
+        }
+      }
+    } catch (e) { console.error('[DMC] principal sign fetch failed: ' + e.message); }
+    return null;
+  }
+
+  // Settings + signature + header strings shared by every sheet
+  async function loadDmcSheetContext(term) {
+    const [set, principalSign] = await Promise.all([
+      getCachedSettings(apiCall),
+      fetchDmcPrincipalSign()
+    ]);
+    return {
+      term,
+      set,
+      principalSign,
+      schoolLogo: imgSrc(set.logo_path, PLACEHOLDER_IMG),
+      schoolDisplayName: set.school_name || currentUser.schoolName,
+      today: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    };
+  }
+
+  function buildDmcSheetHtml(dmc, ctx) {
+    const s = dmc.student || {};
+    const sum = dmc.summary || {};
+    const details = dmc.reportDetails || [];
+    const photoUrl = imgSrc(s.photo, '');
     let totalMax = 0, totalObt = 0;
     details.forEach(r => { totalMax += r.max_marks; totalObt += r.obtained_marks; });
+    const posLabel = sum.position && sum.position !== '-' ? ordinal(sum.position) : '-';
+    const { term, schoolLogo, schoolDisplayName, today, set, principalSign } = ctx;
+    const signBlock = principalSign
+      ? `<img src="${principalSign}" alt="" style="max-height: 34px; max-width: 130px; object-fit: contain;" onerror="this.style.display='none'">`
+      : '';
 
-    getCachedSettings(apiCall).then(set => {
-      const schoolLogo = imgSrc(set.logo_path, PLACEHOLDER_IMG);
-      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const posLabel = sum.position && sum.position !== '-' ? sum.position : '-';
-      const schoolDisplayName = set.school_name || currentUser.schoolName;
-
-      const html = `
+    return `
         <div style="font-family: Arial, Helvetica, sans-serif; color: #111; padding: 30px; background: white;">
           <div style="text-align: center; margin-bottom: 16px;">
             <img src="${schoolLogo}" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; margin-bottom: 8px;" onerror="this.style.display='none'">
@@ -8143,10 +8198,24 @@ document.addEventListener('DOMContentLoaded', () => {
             <p style="margin: 5px 0 0; font-size: 0.95rem; color: #333;">${term} Examination ${new Date().getFullYear()}</p>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; font-size: 0.95rem;">
-            <div style="flex: 1;">
-              <p style="margin: 4px 0;"><strong>Name:</strong> ${s.name} &nbsp;&nbsp;&nbsp; <strong>Father Name:</strong> ${s.father_name || '-'}</p>
-              <p style="margin: 4px 0;"><strong>Roll No:</strong> ${s.roll_no || '-'} &nbsp;&nbsp;&nbsp; <strong>Class:</strong> ${s.class_name}${s.section_name ? ' - ' + s.section_name : ''}</p>
+          <div style="display: flex; justify-content: space-between; align-items: stretch; margin-bottom: 16px; font-size: 0.95rem;">
+            <div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #111; border-radius: 4px; overflow: hidden; min-height: 100px;">
+              <div style="padding: 9px 11px; border-right: 1px solid #d5d5d5; border-bottom: 1px solid #d5d5d5;">
+                <div style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #777;">Name</div>
+                <div style="font-size: 0.97rem; font-weight: 700; color: #111; margin-top: 3px; overflow-wrap: anywhere;">${esc(s.name || '-')}</div>
+              </div>
+              <div style="padding: 9px 11px; border-bottom: 1px solid #d5d5d5;">
+                <div style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #777;">Father Name</div>
+                <div style="font-size: 0.97rem; font-weight: 700; color: #111; margin-top: 3px; overflow-wrap: anywhere;">${esc(s.father_name || '-')}</div>
+              </div>
+              <div style="padding: 9px 11px; border-right: 1px solid #d5d5d5;">
+                <div style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #777;">Roll No</div>
+                <div style="font-size: 0.97rem; font-weight: 700; color: #111; margin-top: 3px; overflow-wrap: anywhere;">${esc(s.roll_no || '-')}</div>
+              </div>
+              <div style="padding: 9px 11px;">
+                <div style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #777;">Class</div>
+                <div style="font-size: 0.97rem; font-weight: 700; color: #111; margin-top: 3px; overflow-wrap: anywhere;">${esc(s.class_name || '-')}${s.section_name ? ' - ' + esc(s.section_name) : ''}</div>
+              </div>
             </div>
             <div style="text-align: right; flex-shrink: 0; margin-left: 20px;">
               ${photoUrl ? `<img src="${photoUrl}" style="width: 80px; height: 100px; border: 1px solid #ccc; object-fit: cover;">` : '<div style="width: 80px; height: 100px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #999;">No Photo</div>'}
@@ -8204,7 +8273,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Parent</div>
             </div>
             <div style="text-align: center;">
-              <div style="margin-bottom: 8px; font-size: 0.85rem;">Principal Sign: _______________</div>
+              <div style="height: 38px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 3px;">${signBlock}</div>
               <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Principal</div>
             </div>
           </div>
@@ -8215,126 +8284,41 @@ document.addEventListener('DOMContentLoaded', () => {
             <p style="margin: 2px 0;">Contact: ${set.phone || 'N/A'}</p>
           </div>
         </div>`;
-
-      document.getElementById('dmc-printable-sheet').innerHTML = html;
-      document.getElementById('dmc-printable-sheet').style.display = 'block';
-      document.getElementById('btn-print-dmc').style.display = 'block';
-      document.getElementById('btn-dmc-pdf').style.display = 'block';
-    });
   }
 
-  function renderClassDmcs(allDmcs, cls, sec) {
-    const container = document.getElementById('dmc-printable-sheet');
-    const examEl = document.getElementById('dmc-select-exam');
-    const examText = examEl.options[examEl.selectedIndex] ? examEl.options[examEl.selectedIndex].text : '';
-    const term = document.getElementById('dmc-select-term').value;
+  async function renderSingleDmc(res) {
+    const term = getExamTerm('dmc-select-exam');
+    try {
+      const html = buildDmcSheetHtml(res, await loadDmcSheetContext(term));
+      const sheet = document.getElementById('dmc-printable-sheet');
+      sheet.innerHTML = html;
+      sheet.style.display = 'block';
+      document.getElementById('btn-print-dmc').style.display = 'block';
+      document.getElementById('btn-dmc-pdf').style.display = 'block';
+    } catch (err) {
+      console.error('[DMC] render failed: ' + err.message);
+      showToast('Failed to render result card: ' + err.message, true);
+    }
+  }
 
-    getCachedSettings(apiCall).then(set => {
-      const schoolLogo = imgSrc(set.logo_path, PLACEHOLDER_IMG);
-      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const schoolDisplayName = set.school_name || currentUser.schoolName;
+  async function renderClassDmcs(allDmcs, cls, sec) {
+    try {
+      const ctx = await loadDmcSheetContext(getExamTerm('dmc-select-exam'));
       let html = '';
-
       allDmcs.forEach((dmc, idx) => {
-        const s = dmc.student;
-        const sum = dmc.summary;
-        const details = dmc.reportDetails || [];
-    const photoUrl = imgSrc(s.photo, '');
-        let totalMax = 0, totalObt = 0;
-        details.forEach(r => { totalMax += r.max_marks; totalObt += r.obtained_marks; });
-        const posLabel = sum.position && sum.position !== '-' ? sum.position : '-';
-
         if (idx > 0) html += '<div style="page-break-after: always; break-after: page;"></div>';
-
-        html += `
-          <div style="font-family: Arial, Helvetica, sans-serif; color: #111; padding: 30px; background: white;">
-            <div style="text-align: center; margin-bottom: 16px;">
-              <img src="${schoolLogo}" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; margin-bottom: 8px;" onerror="this.style.display='none'">
-              <h1 style="margin: 0; font-size: 1.5rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">${schoolDisplayName}</h1>
-              <h2 style="margin: 6px 0 0; font-size: 1.1rem; font-weight: 700; text-transform: uppercase;">DETAILED MARKS CERTIFICATE</h2>
-              <p style="margin: 5px 0 0; font-size: 0.95rem; color: #333;">${term} Examination ${new Date().getFullYear()}</p>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; font-size: 0.95rem;">
-              <div style="flex: 1;">
-                <p style="margin: 4px 0;"><strong>Name:</strong> ${s.name} &nbsp;&nbsp;&nbsp; <strong>Father Name:</strong> ${s.father_name || '-'}</p>
-                <p style="margin: 4px 0;"><strong>Roll No:</strong> ${s.roll_no || '-'} &nbsp;&nbsp;&nbsp; <strong>Class:</strong> ${s.class_name}${s.section_name ? ' - ' + s.section_name : ''}</p>
-              </div>
-              <div style="text-align: right; flex-shrink: 0; margin-left: 20px;">
-                ${photoUrl ? `<img src="${photoUrl}" style="width: 80px; height: 100px; border: 1px solid #ccc; object-fit: cover;">` : '<div style="width: 80px; height: 100px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #999;">No Photo</div>'}
-              </div>
-            </div>
-
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.9rem;">
-              <thead>
-                <tr style="background: #f0f0f0;">
-                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center; width: 6%;">No</th>
-                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: left;">Subject</th>
-                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center;">Total Marks</th>
-                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center;">Obtained Marks</th>
-                  <th style="border: 1px solid #111; padding: 8px 10px; text-align: center;">Remarks</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${details.map((r, i) => `<tr>
-                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${i + 1}</td>
-                  <td style="border: 1px solid #111; padding: 8px 10px;">${r.subject}</td>
-                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.max_marks}</td>
-                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.obtained_marks}</td>
-                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${r.status || '-'}</td>
-                </tr>`).join('')}
-                <tr style="font-weight: 700; background: #f9f9f9;">
-                  <td style="border: 1px solid #111; padding: 8px 10px;" colspan="2">Total</td>
-                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${totalMax}</td>
-                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${totalObt}</td>
-                  <td style="border: 1px solid #111; padding: 8px 10px; text-align: center;">${sum.remarks || '-'}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div style="display: flex; gap: 0; margin-bottom: 25px; border: 2px solid #111; border-radius: 6px; overflow: hidden;">
-              <div style="flex: 1; padding: 12px 10px; text-align: center; border-right: 2px solid #111; background: #f9f9f9;">
-                <span style="font-size: 0.85rem; font-weight: 700;">Percentage:</span>
-                <span style="font-size: 1.1rem; font-weight: 900; color: #111;"> ${sum.percentage}%</span>
-              </div>
-              <div style="flex: 1; padding: 12px 10px; text-align: center; border-right: 2px solid #111; background: #f9f9f9;">
-                <span style="font-size: 0.85rem; font-weight: 700;">Grade:</span>
-                <span style="font-size: 1.1rem; font-weight: 900; color: #111;"> ${sum.grade}</span>
-              </div>
-              <div style="flex: 1; padding: 12px 10px; text-align: center; background: #f9f9f9;">
-                <span style="font-size: 0.85rem; font-weight: 700;">Position:</span>
-                <span style="font-size: 1.1rem; font-weight: 900; color: #111;"> ${posLabel}</span>
-              </div>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; font-size: 0.85rem; color: #333;">
-              <div style="text-align: center;">
-                <div style="margin-bottom: 35px; font-size: 0.85rem;">Signatures of:</div>
-                <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Teacher incharge</div>
-              </div>
-              <div style="text-align: center;">
-                <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Parent</div>
-              </div>
-              <div style="text-align: center;">
-                <div style="margin-bottom: 8px; font-size: 0.85rem;">Principal Sign: _______________</div>
-                <div style="border-top: 1px solid #111; width: 150px; padding-top: 5px;">Principal</div>
-              </div>
-            </div>
-
-            <div style="border-top: 1px solid #ccc; padding-top: 10px; font-size: 0.78rem; color: #555;">
-              <p style="margin: 2px 0;">Result Declaration Date: ${today}</p>
-              <p style="margin: 2px 0;">Note: Error and omission can be accepted within three days. This result is computer generated by SkyHonix Digital.</p>
-              <p style="margin: 2px 0;">Contact: ${set.phone || 'N/A'}</p>
-            </div>
-          </div>`;
+        html += buildDmcSheetHtml(dmc, ctx);
       });
-
+      const container = document.getElementById('dmc-printable-sheet');
       container.innerHTML = html;
       container.style.display = 'block';
       document.getElementById('btn-print-dmc').style.display = 'block';
       document.getElementById('btn-dmc-pdf').style.display = 'block';
       showToast(`${allDmcs.length} result card(s) loaded`);
-    });
+    } catch (err) {
+      console.error('[DMC] render failed: ' + err.message);
+      showToast('Failed to render result cards: ' + err.message, true);
+    }
   }
 
   // Print DMC Sheet Trigger
@@ -8352,12 +8336,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Save DMC(s) as PDF via server-side generator (window.print() is unsupported in the APK WebView)
   document.getElementById('btn-dmc-pdf').addEventListener('click', async () => {
     const exam_id = document.getElementById('dmc-select-exam').value;
-    const term = document.getElementById('dmc-select-term').value;
+    // Term derived from the exam select (duplicate term dropdown removed v67)
+    const term = getExamTerm('dmc-select-exam');
     const cls = document.getElementById('dmc-filter-class').value;
     const sec = document.getElementById('dmc-filter-section').value;
 
     if (!exam_id || !term) {
-      showToast('Select exam and term first', true);
+      showToast('Select an exam first', true);
       return;
     }
 

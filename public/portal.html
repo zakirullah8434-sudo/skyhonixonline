@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=9" as="style">
-  <link rel="preload" href="js/app.js?v=66" as="script">
+  <link rel="preload" href="js/app.js?v=67" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v66';
+    window.SKYHONIX_PAGE_VERSION = 'v67';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -4370,11 +4370,11 @@
                   </div>
                 </div>
 
+                <!-- v67: duplicate "1st Term" dropdown removed — the exam
+                     select already shows the term ("1st Term (2026)"); the
+                     term is now derived from it in app.js (getExamTerm). -->
                 <div class="form-group" style="max-width: 400px; display: flex; gap: 15px;">
                   <select class="form-control" id="dmc-select-exam"></select>
-                  <select class="form-control" id="dmc-select-term">
-                    <option>1st Term</option><option>2nd Term</option><option>Final</option>
-                  </select>
                   <button class="btn btn-primary btn-sm" id="btn-load-dmc-report">Load Result Card</button>
                 </div>
 
@@ -5116,8 +5116,8 @@
     </div>
   </div>
 
-  <script src="js/vendor/jspdf.umd.min.js?v=66"></script>
-  <script src="js/vendor/html2canvas.min.js?v=66"></script>
-  <script src="js/app.js?v=66"></script>
+  <script src="js/vendor/jspdf.umd.min.js?v=67"></script>
+  <script src="js/vendor/html2canvas.min.js?v=67"></script>
+  <script src="js/app.js?v=67"></script>
 </body>
 </html>

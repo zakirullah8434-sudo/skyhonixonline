@@ -288,6 +288,18 @@ function getRemarks(percentage) {
   return 'Not good More hardwork to pass';
 }
 
+// Ordinal position for the DMC PDF: 1 -> '1st', 2 -> '2nd', 3 -> '3rd',
+// 4 -> '4th', 11 -> '11th', 21 -> '21st' (mirrors ordinal() in app.js).
+function ordinalPosition(pos) {
+  if (pos == null || pos === '' || pos === '-') return '-';
+  const n = parseInt(pos, 10);
+  if (isNaN(n)) return String(pos);
+  const rem100 = n % 100;
+  const suffix = (rem100 >= 11 && rem100 <= 13) ? 'th'
+    : (n % 10 === 1 ? 'st' : (n % 10 === 2 ? 'nd' : (n % 10 === 3 ? 'rd' : 'th')));
+  return n + suffix;
+}
+
 // Shared subject resolution for a class + exam term. The order mirrors the
 // marks spreadsheet EXACTLY so calculation, the Result sheet and DMCs always
 // see the same subject set the school entered marks against:
@@ -1889,6 +1901,20 @@ async function generateDmcPdf(schoolId, opts, desiredFileName) {
     const settings = await querySchoolOne(schoolId, 'SELECT * FROM fee_settings LIMIT 1');
     const schoolName = settings ? settings.school_name : 'School Name';
 
+    // Principal signature = the image uploaded in Roll No Slip Design
+    // (roll_slip_templates.template_json.principal_sign) — newest template
+    // first, the same source fetchCertSettings() reads on the frontend.
+    let principalSign = null;
+    try {
+      const signRows = await querySchool(schoolId, 'SELECT template_json FROM roll_slip_templates ORDER BY id DESC');
+      for (const row of signRows) {
+        try {
+          const t = JSON.parse(row.template_json || '{}');
+          if (t.principal_sign) { principalSign = t.principal_sign; break; }
+        } catch (e) { /* skip malformed template */ }
+      }
+    } catch (e) { /* table not created yet for this school */ }
+
     // Cache decoded image refs per request (logo repeats for every card; photos dedupe by value)
     const imgCache = new Map();
     function imageBuffer(value) {
@@ -1985,22 +2011,32 @@ async function generateDmcPdf(schoolId, opts, desiredFileName) {
         .text(`${term} Examination ${year}`, M, y, { width: CW, align: 'center', lineBreak: false, ellipsis: true });
       y += 22;
 
-      // Info block (left) + photo box (right)
+      // Info block (left) + photo box (right). The four fields sit in a
+      // bordered 2x2 grid sized to the photo (100pt), so the area beside
+      // the photo is a deliberate Name / Father / Roll / Class block
+      // instead of empty space — mirrors the HTML result card exactly.
       const infoTop = y;
       const photoX = M + CW - 80;
       const photoY = infoTop;
       const infoW = CW - 80 - 24;
-      const infoLines = [
-        ['Name:', s.name || '-'],
-        ['Father Name:', s.father_name || '-'],
-        ['Roll No:', String(s.roll_no || s.id || '-')],
-        ['Class:', `${s.class_name || '-'} - ${s.section_name || '-'}`]
+      const boxX = M, boxY = infoTop, boxW = infoW + 4, boxH = 100;
+      const cellW = boxW / 2, cellH = boxH / 2;
+      const fields = [
+        ['Name', s.name || '-'],
+        ['Father Name', s.father_name || '-'],
+        ['Roll No', String(s.roll_no || s.id || '-')],
+        ['Class', `${s.class_name || '-'}${s.section_name ? ' - ' + s.section_name : ''}`]
       ];
-      infoLines.forEach(([label, value], i) => {
-        const yy = infoTop + i * 22;
-        doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000').text(label, M, yy, { lineBreak: false });
-        const lw = doc.widthOfString(label) + 6;
-        doc.font('Helvetica').text(String(value), M + lw, yy, { width: infoW - lw, ellipsis: true, lineBreak: false });
+      doc.rect(boxX, boxY, boxW, boxH).lineWidth(0.8).stroke('#111111');
+      doc.moveTo(boxX + cellW, boxY).lineTo(boxX + cellW, boxY + boxH).lineWidth(0.6).stroke('#cccccc');
+      doc.moveTo(boxX, boxY + cellH).lineTo(boxX + boxW, boxY + cellH).lineWidth(0.6).stroke('#cccccc');
+      fields.forEach(([label, value], i) => {
+        const cx = boxX + (i % 2) * cellW + 8;
+        const cy = boxY + Math.floor(i / 2) * cellH;
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#777777')
+          .text(String(label).toUpperCase(), cx, cy + 9, { width: cellW - 16, ellipsis: true, lineBreak: false });
+        doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000')
+          .text(String(value), cx, cy + 22, { width: cellW - 16, height: 16, ellipsis: true });
       });
 
       // Photo (cover-crop into an 80x100 box)
@@ -2111,7 +2147,7 @@ async function generateDmcPdf(schoolId, opts, desiredFileName) {
       const strip = [
         ['Percentage:', sum.percentage != null ? sum.percentage + '%' : '-'],
         ['Grade:', sum.grade || '-'],
-        ['Position:', sum.position || '-']
+        ['Position:', ordinalPosition(sum.position)]
       ];
       strip.forEach(([label, value], i) => {
         const sx = M + segW * i;
@@ -2120,13 +2156,25 @@ async function generateDmcPdf(schoolId, opts, desiredFileName) {
         doc.fontSize(13).text(String(value), sx, stripY + 21, { width: segW, align: 'center', lineBreak: false, ellipsis: true });
       });
 
-      // Signature block
+      // Signature block — "Principal" appears exactly ONCE (the duplicate
+      // "Principal Sign: ____" line is gone); the signature image uploaded
+      // in Roll No Slip Design sits above the principal rule.
       doc.font('Helvetica').fontSize(8.5).fillColor('#000000');
       doc.text('Signatures of:', M, SIG_Y, { width: CW, align: 'center', lineBreak: false });
-      doc.text('Principal Sign: _______________', M, SIG_Y + 13, { width: CW, align: 'right', lineBreak: false });
       const lineY = SIG_Y + 30;
       const sigCenters = [M + CW * 0.165, M + CW * 0.5, M + CW * 0.835];
       const sigCaps = ['Teacher incharge', 'Parent', 'Principal'];
+      const principalBuf = imageBuffer(principalSign);
+      if (principalBuf) {
+        try {
+          const dim = getImageSize(principalBuf);
+          if (dim && dim.w && dim.h) {
+            const scale = Math.min(130 / dim.w, 24 / dim.h);
+            const dw = dim.w * scale, dh = dim.h * scale;
+            doc.image(principalBuf, sigCenters[2] - dw / 2, lineY - dh - 4, { width: dw, height: dh });
+          }
+        } catch (e) { /* unsupported image format */ }
+      }
       sigCenters.forEach((cx) => {
         doc.moveTo(cx - 75, lineY).lineTo(cx + 75, lineY).lineWidth(0.8).stroke('#000000');
       });
