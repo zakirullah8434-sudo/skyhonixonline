@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=9" as="style">
-  <link rel="preload" href="js/app.js?v=67" as="script">
+  <link rel="preload" href="js/app.js?v=68" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v67';
+    window.SKYHONIX_PAGE_VERSION = 'v68';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -591,9 +591,6 @@
 
         <!-- ==================== SCREEN: PROMOTIONS ==================== -->
         <article class="screen-section" id="screen-promotions" style="display: none;">
-          <div style="margin-bottom: 16px;">
-            <button class="btn btn-outline btn-sm btn-back-to-dashboard">&larr; Back to Dashboard</button>
-          </div>
           <h2 style="margin-bottom: 24px;">🚀 Promote Students</h2>
 
           <!-- Main Options -->
@@ -827,9 +824,6 @@
 
         <!-- ==================== SCREEN: PRINCIPAL MANAGEMENT ==================== -->
         <article class="screen-section" id="screen-admin-settings" style="display: none;">
-          <div style="margin-bottom: 16px;">
-            <button class="btn btn-outline btn-sm btn-back-to-dashboard">&larr; Back to Dashboard</button>
-          </div>
           <h2 style="margin-bottom: 24px;">Admin Settings</h2>
 
           <div class="card" style="margin-bottom: 24px;">
@@ -2153,9 +2147,6 @@
           </div>
         </article>
         <article class="screen-section" id="screen-students" style="display: none;">
-          <div style="margin-bottom: 16px;">
-            <button class="btn btn-outline btn-sm btn-back-to-dashboard">&larr; Back to Dashboard</button>
-          </div>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px;">
             <h2>Admissions</h2>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -2328,9 +2319,6 @@
 
         <!-- ==================== SCREEN: STUDENT PROFILE ==================== -->
         <article class="screen-section" id="screen-student-profile" style="display: none;">
-          <div style="margin-bottom: 16px;">
-            <button class="btn btn-outline btn-sm btn-back-to-dashboard">&larr; Back to Dashboard</button>
-          </div>
           <h2 style="margin-bottom: 24px;">🎓 Student Profile</h2>
 
           <!-- Student Selector -->
@@ -2681,9 +2669,6 @@
         </article>
         <!-- ==================== SCREEN: QR ATTENDANCE MENU ==================== -->
         <article class="screen-section" id="screen-qr-menu" style="display: none;">
-          <div style="margin-bottom: 16px;">
-            <button class="btn btn-outline btn-sm btn-back-to-dashboard">&larr; Back to Dashboard</button>
-          </div>
           <h2 style="margin-bottom: 24px;">QR Attendance</h2>
           <div class="card" style="max-width: 720px; margin: 0 auto; text-align: center; padding: 40px 24px;">
             <p style="color: var(--text-muted); margin: 0 0 28px; font-size: 0.95rem;">Select an attendance register to open. Each view shows only its own records.</p>
@@ -3317,9 +3302,6 @@
 
         <!-- ==================== SCREEN: FEES ==================== -->
         <article class="screen-section" id="screen-fees" style="display: none;">
-          <div style="margin-bottom: 16px;">
-            <button class="btn btn-outline btn-sm btn-back-to-dashboard">&larr; Back to Dashboard</button>
-          </div>
           <!-- Fee Dashboard Main View -->
           <div id="fees-dashboard-view">
             <h1 style="text-align: center; color: var(--primary); font-family: var(--font-heading); margin-bottom: 35px; font-size: 2rem; font-weight: 700;">Fees Management</h1>
@@ -3845,9 +3827,6 @@
 
         <!-- ==================== SCREEN: EXAMS ==================== -->
         <article class="screen-section" id="screen-exams" style="display: none;">
-          <div style="margin-bottom: 16px;">
-            <button class="btn btn-outline btn-sm btn-back-to-dashboard">&larr; Back to Dashboard</button>
-          </div>
           <!-- Exam Dashboard Main View -->
           <div id="exam-dashboard-view">
             <h1 style="text-align: center; color: #4b6cb7; font-family: var(--font-heading); margin-bottom: 35px; font-size: 2.4rem; font-weight: 700; letter-spacing: 0.5px;">Exam Management</h1>
@@ -4441,9 +4420,6 @@
 
         <!-- ==================== SCREEN: SETTINGS ==================== -->
         <article class="screen-section" id="screen-settings" style="display: none;">
-          <div style="margin-bottom: 16px;">
-            <button class="btn btn-outline btn-sm btn-back-to-dashboard">&larr; Back to Dashboard</button>
-          </div>
           <h2 style="margin-bottom: 24px;">Workspace Configurations</h2>
 
           <div class="grid-2">
@@ -4547,9 +4523,6 @@
 
         <!-- ==================== SCREEN: SUBSCRIPTION ==================== -->
         <article class="screen-section" id="screen-subscription" style="display: none;">
-          <div style="margin-bottom: 16px;">
-            <button class="btn btn-outline btn-sm btn-back-to-dashboard">&larr; Back to Dashboard</button>
-          </div>
           <h2 style="margin-bottom: 24px;">Billing & Subscription Management</h2>
 
           <div class="grid-2">
@@ -4645,9 +4618,6 @@
 
         <!-- ==================== SCREEN: POST CREATOR ==================== -->
         <article class="screen-section" id="screen-post-creator" style="display: none;">
-          <div style="margin-bottom: 16px;">
-            <button class="btn btn-outline btn-sm btn-back-to-dashboard">&larr; Back to Dashboard</button>
-          </div>
           <h2 style="margin-bottom: 24px;">Post Creator</h2>
 
           <!-- Sub-tabs -->
@@ -5116,8 +5086,8 @@
     </div>
   </div>
 
-  <script src="js/vendor/jspdf.umd.min.js?v=67"></script>
-  <script src="js/vendor/html2canvas.min.js?v=67"></script>
-  <script src="js/app.js?v=67"></script>
+  <script src="js/vendor/jspdf.umd.min.js?v=68"></script>
+  <script src="js/vendor/html2canvas.min.js?v=68"></script>
+  <script src="js/app.js?v=68"></script>
 </body>
 </html>

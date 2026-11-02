@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v67';
+    const EXPECTED_PAGE_VERSION = 'v68';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -757,10 +757,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof fallback === 'function') fallback();
   }
 
-  // "← Back to Dashboard" buttons at the top of every main section
-  document.querySelectorAll('.btn-back-to-dashboard').forEach(btn => {
-    btn.addEventListener('click', () => activateScreen('dashboard'));
-  });
+  // NOTE: the old "← Back to Dashboard" buttons were removed in v68 — the
+  // Android back button (MainActivity.onBackPressed -> WebView.goBack) and
+  // the sidebar both walk back to the dashboard, and every subsection keeps
+  // its own "← Back to <section>" button.
 
   // Mobile sidebar toggle
   const btnSidebarToggle = document.getElementById('btn-sidebar-toggle');

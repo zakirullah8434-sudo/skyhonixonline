@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.webkit.WebView;
 import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
@@ -39,6 +40,39 @@ public class MainActivity extends BridgeActivity {
         getBridge().getWebView().setDownloadListener(
                 (url, userAgent, contentDisposition, mimeType, contentLength) ->
                         handleDownload(url, userAgent, contentDisposition, mimeType));
+    }
+
+    // ---------------------------------------------------------------
+    // Android hardware / gesture BACK button
+    // ---------------------------------------------------------------
+    // Capacitor ships no back handling at all, so without this override
+    // EVERY back press finished the Activity and the app closed — even in
+    // the middle of a section or a subsection.
+    //
+    // The portal records its own navigation stack with history.pushState()
+    // (public/js/section-history.js): dashboard -> section -> subsection,
+    // one history entry per level. The WebView's history therefore IS the
+    // app's navigation stack:
+    //   * canGoBack() -> hand the press to the WebView; it fires popstate
+    //     and the portal re-renders the previous section / subsection.
+    //   * nothing left (the dashboard is the first entry) -> fall through
+    //     to the default behaviour and close the app (never a logout).
+    // ---------------------------------------------------------------
+    @SuppressWarnings("deprecation")
+    @Override
+    public void onBackPressed() {
+        try {
+            if (getBridge() != null) {
+                WebView webView = getBridge().getWebView();
+                if (webView != null && webView.canGoBack()) {
+                    webView.goBack();
+                    return;
+                }
+            }
+        } catch (Exception ignored) {
+            // A missing/broken WebView must never swallow the back press.
+        }
+        super.onBackPressed();
     }
 
     private void handleDownload(String url, String userAgent, String contentDisposition,
