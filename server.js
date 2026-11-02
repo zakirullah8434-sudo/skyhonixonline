@@ -372,9 +372,9 @@ app.get('/api/dashboard/stats', async (req, res) => {
       querySchoolRawDb(schoolId,
         `SELECT status, COUNT(*) as count FROM attendance WHERE (school_id = ? OR school_id IS NULL) AND date = ? GROUP BY status`, [schoolId, today]),
       querySchoolRawOneDb(schoolId,
-        `SELECT SUM(total_payable - paid_amount) as pending_dues,
+        `SELECT SUM(CASE WHEN month = ? AND year = ? THEN total_payable - paid_amount ELSE 0 END) as pending_dues,
                 SUM(CASE WHEN month = ? AND year = ? THEN paid_amount ELSE 0 END) as month_collected
-         FROM fee_ledger WHERE (school_id = ? OR school_id IS NULL)`, [currentMonth, currentYear, schoolId]),
+         FROM fee_ledger WHERE (school_id = ? OR school_id IS NULL)`, [currentMonth, currentYear, currentMonth, currentYear, schoolId]),
       querySchoolRawOneDb(schoolId, 'SELECT school_name, logo_path, phone, registration_number FROM fee_settings WHERE (school_id = ? OR school_id IS NULL) LIMIT 1', [schoolId])
     ]);
 
@@ -406,7 +406,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
 // Keep in sync with ?v= query on js/app.js and SHELL_VERSION in public/sw.js.
 app.get('/api/version', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-  res.json({ version: 'v68' });
+  res.json({ version: 'v69' });
 });
 
 // Mount API routes

@@ -441,26 +441,23 @@ router.post('/pay', authenticateToken, async (req, res) => {
       [ledger.student_id, ledger.class_name, ledger.month, ledger.year, parsedAmount, payDate, parsedLedgerId, schoolId]
     );
 
-    // Step 4: Verify the write persisted
-    const verify = await querySchoolRawOne(
-      schoolId,
-      'SELECT id, paid_amount, status FROM fee_ledger WHERE id = ?',
-      [parsedLedgerId]
-    );
+    // Step 4 is gone on purpose: runSchoolRaw only reports rowsAffected once the
+    // statement has committed, and the UPDATE already proved it matched a row
+    // (the changes === 0 path above handles the miss). The read-back round trip
+    // that used to sit between the write and the response bought nothing but
+    // latency, so the client now gets its confirmation as soon as the two
+    // writes are durable.
 
-    if (!verify || verify.paid_amount !== newPaidAmount || verify.status !== newStatus) {
-      console.error(`[FEE_PAY] WRITE VERIFICATION FAILED for ledger ${parsedLedgerId}. Expected paid=${newPaidAmount} status=${newStatus}, got`, verify);
-      return res.status(500).json({ error: 'Payment could not be verified. The database did not persist the change.' });
-    }
+    console.log(`[FEE_PAY] Success: ledger ${parsedLedgerId} paid_amount=${newPaidAmount} status=${newStatus}`);
 
-    console.log(`[FEE_PAY] Success: ledger ${parsedLedgerId} paid_amount=${verify.paid_amount} status=${verify.status}`);
-
-    // SYNC: Emit fee payment event
-    try {
-      await syncManager.onFeePaymentRecorded(schoolId, parsedLedgerId, parsedAmount, ledger.student_id);
-    } catch (syncErr) {
-      console.error('[FEE_PAY] Sync event failed (non-blocking):', syncErr.message);
-    }
+    // SYNC: notify analytics/dashboard listeners in the background. Their extra
+    // queries (ledger read + class stats + emits) used to be awaited before
+    // res.json(), which added ~2 round trips to every click on "Pay". Nothing
+    // they do writes back to fee_ledger, so deferring them cannot change what
+    // the next GET returns.
+    syncManager
+      .onFeePaymentRecorded(schoolId, parsedLedgerId, parsedAmount, ledger.student_id)
+      .catch((syncErr) => console.error('[FEE_PAY] Sync event failed (non-blocking):', syncErr.message));
 
     res.json({
       message: 'Payment recorded successfully!',

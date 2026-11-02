@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v68';
+    const EXPECTED_PAGE_VERSION = 'v69';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -3144,10 +3144,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Compress image to target KB using Canvas with quality scaling
+  // Compress image to target KB using Canvas with quality scaling.
+  // Two speedups over the old loop:
+  //  1) If the picked file already fits the budget, we skip decode + every
+  //     canvas encode entirely (the common case for screenshots/WhatsApp
+  //     images) — that alone removed the bulk of the "Save is slow" wait.
+  //  2) When encoding is needed, quality steps by 0.12 instead of 0.05 and is
+  //     capped at 5 encodes (was up to 16), so worst case is ~3x faster.
   function compressImage(file, maxKB) {
+    maxKB = maxKB || 100;
+    if (file.size <= maxKB * 1024) return Promise.resolve(file);
+
     return new Promise((resolve, reject) => {
-      maxKB = maxKB || 100;
       const reader = new FileReader();
       reader.onload = function(e) {
         const img = new Image();
@@ -3165,16 +3173,17 @@ document.addEventListener('DOMContentLoaded', () => {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
-          // Start with high quality, reduce incrementally
           let quality = 0.85;
+          let encodes = 0;
           const tryCompress = () => {
             canvas.toBlob(function(blob) {
               if (!blob) { reject(new Error('Canvas compression failed')); return; }
-              if (blob.size > maxKB * 1024 && quality > 0.1) {
-                quality -= 0.05;
-                tryCompress();
-              } else {
+              encodes++;
+              if (blob.size <= maxKB * 1024 || quality <= 0.1 || encodes >= 5) {
                 resolve(blob);
+              } else {
+                quality = Math.max(0.1, quality - 0.12);
+                tryCompress();
               }
             }, 'image/jpeg', quality);
           };
@@ -3231,14 +3240,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fileInput = document.getElementById('stud-photo-file');
     if (fileInput.files[0]) {
+      // compressImage passes an already-small file through untouched, so the
+      // uploaded bytes may still be PNG/WebP. The server derives the data-URI
+      // MIME from the filename extension — labelling everything photo.jpg
+      // would declare image/jpeg over PNG bytes. Name it after the real type.
+      const photoName = (blob) => {
+        const type = (blob && blob.type || '').toLowerCase();
+        const ext = type.startsWith('image/') ? type.slice(6) : 'jpeg';
+        return 'photo.' + (ext === 'jpeg' ? 'jpg' : ext.replace('+xml', ''));
+      };
       try {
         const compressed = await compressImage(fileInput.files[0], 100);
-        formData.append('photo', compressed, 'photo.jpg');
+        formData.append('photo', compressed, photoName(compressed));
       } catch (e) {
         // Fallback: try with 200KB limit
         try {
           const compressed = await compressImage(fileInput.files[0], 200);
-          formData.append('photo', compressed, 'photo.jpg');
+          formData.append('photo', compressed, photoName(compressed));
         } catch (e2) {
           formData.append('photo', fileInput.files[0]);
         }
@@ -5469,7 +5487,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Search Pending Invoices (Pay Fee)
   const FEE_MONTH_ORDER = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  // Monotonic token for the pay-ledger table. Several callers fire
+  // searchPayLedger() close together (after a pay, from refreshAllFeeViews,
+  // from the Search button, on panel open) and responses can arrive out of
+  // order — an older in-flight GET resolving last used to repaint the table
+  // with pre-payment rows, making a just-paid student show as unpaid again.
+  // Only the most recently issued request is allowed to render.
+  let _payLedgerSeq = 0;
   async function searchPayLedger() {
+    const seq = ++_payLedgerSeq;
     const search = document.getElementById('fee-pay-search').value.trim();
     const status = document.getElementById('fee-pay-filter-status').value;
     const cls = document.getElementById('fee-pay-class').value;
@@ -5486,6 +5512,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const ledgers = await apiCall(endpoint);
+      // A newer search started while this one was in flight — drop this stale
+      // payload instead of overwriting fresher rows.
+      if (seq !== _payLedgerSeq) return;
       const tbody = document.querySelector('#table-unpaid-ledgers tbody');
       if (!tbody) return;
       tbody.innerHTML = '';
@@ -5670,17 +5699,25 @@ document.addEventListener('DOMContentLoaded', () => {
       btnFpmPay.disabled = true;
       btnFpmPay.textContent = 'Processing...';
       try {
-        let paidCount = 0;
-        for (const p of payments) {
-          await apiCall('/fees/pay', 'POST', { ledger_id: p.ledger_id, amount_paid: p.amount_paid, payment_date: payDate }, false, true);
-          paidCount++;
-        }
+        // Each payment touches a different ledger row, so firing them together
+        // is safe and turns an N-round-trip wait into a single one. The server
+        // responds as soon as its writes are durable (sync runs in background),
+        // so the first click now records the fee immediately.
+        const results = await Promise.allSettled(payments.map(p =>
+          apiCall('/fees/pay', 'POST', { ledger_id: p.ledger_id, amount_paid: p.amount_paid, payment_date: payDate }, false, true)
+        ));
+        const paidCount = results.filter(r => r.status === 'fulfilled').length;
+        const firstErr = results.find(r => r.status === 'rejected');
+        if (paidCount === 0) throw (firstErr && firstErr.reason) || new Error('Payment failed');
+
         showToast(paidCount > 1
           ? 'Payment recorded for ' + paidCount + ' months (' + amount.toLocaleString() + ' Rs)'
           : 'Fee payment recorded successfully!');
         document.getElementById('modal-fee-payment').classList.remove('open');
-        searchPayLedger().catch(() => {});
+        // Refresh once — refreshAllFeeViews() itself runs searchPayLedger(), so a
+        // second standalone call only created a duplicate request that could race.
         refreshAllFeeViews().catch(() => {});
+        if (firstErr) showToast('Some months failed: ' + (firstErr.reason && firstErr.reason.message), true);
       } catch (err) {
         console.error('[APP_ERROR]', err.message);
         showToast('Payment failed: ' + err.message, true);
@@ -5731,7 +5768,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Helper: Refresh all fee-related views after any change
   async function refreshAllFeeViews() {
-    await new Promise(r => setTimeout(r, 500));
+    // No artificial delay: the mutation has already been acknowledged by the
+    // server before this runs, so waiting 500ms only delayed the repaint and
+    // widened the window in which a stale response could land.
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const promises = [loadDashboardStats(), searchPayLedger(), refreshFeeAnalytics()];

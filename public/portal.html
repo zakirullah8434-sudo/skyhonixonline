@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=9" as="style">
-  <link rel="preload" href="js/app.js?v=68" as="script">
+  <link rel="preload" href="js/app.js?v=69" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v68';
+    window.SKYHONIX_PAGE_VERSION = 'v69';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -514,7 +514,7 @@
               <div class="stat-icon">⚠️</div>
               <div class="stat-info">
                 <h3 id="stat-pending-dues">-</h3>
-                <p>Total Outstanding Dues</p>
+                <p>Outstanding Dues (Current Month)</p>
               </div>
             </div>
           </div>
@@ -5086,8 +5086,8 @@
     </div>
   </div>
 
-  <script src="js/vendor/jspdf.umd.min.js?v=68"></script>
-  <script src="js/vendor/html2canvas.min.js?v=68"></script>
-  <script src="js/app.js?v=68"></script>
+  <script src="js/vendor/jspdf.umd.min.js?v=69"></script>
+  <script src="js/vendor/html2canvas.min.js?v=69"></script>
+  <script src="js/app.js?v=69"></script>
 </body>
 </html>

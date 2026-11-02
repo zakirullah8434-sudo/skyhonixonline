@@ -434,22 +434,28 @@ async function findDuplicateStudent(schoolId, { admissionNo, rollNo, className }
   const excl = excludeId ? ' AND id != ?' : '';
 
   const adm = String(admissionNo || '').trim();
-  if (adm) {
-    const row = await querySchoolOne(schoolId,
-      `SELECT id, name FROM students WHERE LOWER(TRIM(admission_no)) = LOWER(TRIM(?))${excl} LIMIT 1`,
-      excludeId ? [adm, excludeId] : [adm]);
-    if (row) return { field: 'admission_no', value: adm, row };
-  }
-
   const roll = String(rollNo || '').trim();
   const cls = String(className || '').trim();
-  if (roll && cls) {
-    const row = await querySchoolOne(schoolId,
-      `SELECT id, name FROM students WHERE LOWER(TRIM(roll_no)) = LOWER(TRIM(?)) AND LOWER(TRIM(class_name)) = LOWER(TRIM(?))${excl} LIMIT 1`,
-      excludeId ? [roll, cls, excludeId] : [roll, cls]);
-    if (row) return { field: 'roll_no', value: roll, className: cls, row };
-  }
 
+  // Both uniqueness checks are independent reads — run them together so a
+  // save pays one round trip instead of two (on Turso each round trip is a
+  // network hop, which showed up as "Save takes time" in Admission).
+  const [admRes, rollRes] = await Promise.all([
+    adm
+      ? querySchoolOne(schoolId,
+          `SELECT id, name FROM students WHERE LOWER(TRIM(admission_no)) = LOWER(TRIM(?))${excl} LIMIT 1`,
+          excludeId ? [adm, excludeId] : [adm]).then(row => ({ field: 'admission_no', value: adm, row }))
+      : Promise.resolve(null),
+    (roll && cls)
+      ? querySchoolOne(schoolId,
+          `SELECT id, name FROM students WHERE LOWER(TRIM(roll_no)) = LOWER(TRIM(?)) AND LOWER(TRIM(class_name)) = LOWER(TRIM(?))${excl} LIMIT 1`,
+          excludeId ? [roll, cls, excludeId] : [roll, cls]).then(row => ({ field: 'roll_no', value: roll, className: cls, row }))
+      : Promise.resolve(null)
+  ]);
+
+  // admission_no collision keeps precedence (matches the old sequential order)
+  if (admRes && admRes.row) return admRes;
+  if (rollRes && rollRes.row) return rollRes;
   return null;
 }
 
@@ -498,11 +504,17 @@ router.post('/', authenticateToken, upload.single('photo'), async (req, res) => 
   try {
     const outcome = await withStudentWriteLock(schoolId, async () => {
       // Reject duplicates BEFORE inserting: admission no. school-wide, roll no. per class
-      const dup = await findDuplicateStudent(schoolId, {
-        admissionNo: data.admission_no,
-        rollNo: data.roll_no,
-        className: data.class_name
-      });
+      const providedId = String(data.student_id || '').trim();
+      // The admission/roll check and the student_id check don't depend on each
+      // other, so they run together — one round trip instead of two.
+      const [dup, clash] = await Promise.all([
+        findDuplicateStudent(schoolId, {
+          admissionNo: data.admission_no,
+          rollNo: data.roll_no,
+          className: data.class_name
+        }),
+        providedId ? studentIdConflict(schoolId, providedId) : Promise.resolve(null)
+      ]);
       if (dup && dup.field === 'admission_no') {
         return { status: 409, body: {
           error: `Admission No "${dup.value}" is already used by "${dup.row.name}". Admission numbers must be unique across the whole school — please use a different one.`
@@ -513,17 +525,15 @@ router.post('/', authenticateToken, upload.single('photo'), async (req, res) => 
           error: `Roll No "${dup.value}" already exists in class ${dup.className} ("${dup.row.name}"). Roll numbers must be unique within the same class.`
         } };
       }
+      if (clash) {
+        return { status: 409, body: {
+          error: `Student ID "${providedId}" is already assigned to "${clash.name}". Please use a different Student ID.`
+        } };
+      }
 
       // student_id: use the provided code only if free, otherwise auto-generate a guaranteed-unique one
-      let studentIdCode = String(data.student_id || '').trim();
-      if (studentIdCode) {
-        const clash = await studentIdConflict(schoolId, studentIdCode);
-        if (clash) {
-          return { status: 409, body: {
-            error: `Student ID "${studentIdCode}" is already assigned to "${clash.name}". Please use a different Student ID.`
-          } };
-        }
-      } else {
+      let studentIdCode = providedId;
+      if (!studentIdCode) {
         studentIdCode = await generateUniqueStudentId(schoolId);
       }
 
