@@ -348,6 +348,57 @@ router.get('/exams', authenticateTeacherToken, async (req, res) => {
   }
 });
 
+// GET /api/teachers/active-exam - The exam term currently ACTIVE in the
+// school app. The school activates a date sheet template (is_active = 1);
+// its template_json carries exam_id (legacy) and/or exam_name + year (new
+// templates), where exam_name IS the term ("1st Term" / "2nd Term" /
+// "Final"). Returns { id, exam_name, year } or null when nothing is active.
+// Used by the teacher portal to auto-select the Exam Term dropdown.
+router.get('/active-exam', authenticateTeacherToken, async (req, res) => {
+  const schoolId = req.teacher.schoolId;
+  try {
+    await runSchool(schoolId, `CREATE TABLE IF NOT EXISTS date_sheet_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      template_json TEXT,
+      is_active INTEGER DEFAULT 0
+    )`);
+    const tpl = await querySchoolOne(schoolId, 'SELECT template_json FROM date_sheet_templates WHERE is_active = 1');
+    if (!tpl) return res.json(null);
+
+    let parsed = {};
+    try { parsed = JSON.parse(tpl.template_json || '{}'); } catch (e) { parsed = {}; }
+
+    let examId = parsed.exam_id ? parseInt(parsed.exam_id) : null;
+    let examName = parsed.exam_name || null;
+    let examYear = parsed.year ? parseInt(parsed.year) : null;
+
+    // Legacy templates only carry exam_id — resolve name/year from exams.
+    if (examId && (!examName || !examYear)) {
+      const ex = await querySchoolOne(schoolId, 'SELECT id, exam_name, year FROM exams WHERE id = ?', [examId]);
+      if (ex) {
+        examName = examName || ex.exam_name;
+        examYear = examYear || parseInt(ex.year);
+      }
+    }
+    // New templates carry exam_name + year — resolve the running exam's id.
+    if (!examId && examName) {
+      const ex = await querySchoolOne(
+        schoolId,
+        'SELECT id FROM exams WHERE exam_name = ? AND year = ? ORDER BY id DESC LIMIT 1',
+        [examName, examYear || new Date().getFullYear()]
+      );
+      if (ex) examId = ex.id;
+    }
+
+    if (!examId && !examName) return res.json(null);
+    res.json({ id: examId, exam_name: examName, year: examYear });
+  } catch (err) {
+    console.error('Error fetching active exam:', err);
+    res.status(500).json({ error: 'Failed to load active exam' });
+  }
+});
+
 // GET /api/teachers/exam-subjects - Fetch subjects for an exam that the teacher is assigned to
 router.get('/exam-subjects', authenticateTeacherToken, async (req, res) => {
   const schoolId = req.teacher.schoolId;

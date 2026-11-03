@@ -201,7 +201,16 @@ document.addEventListener('DOMContentLoaded', () => {
       if (p.id === 'panel-' + key) p.classList.add('active');
       else p.classList.remove('active');
     });
-    sidebar.classList.remove('open');
+    // v71 FIX: closeSidebar() instead of only sidebar.classList.remove('open').
+    // The old code closed the drawer but LEFT the 40% black overlay on screen,
+    // so every freshly-clicked section sat behind a dim/blurry layer until the
+    // next tap (which hit the overlay and finally cleared it). closeSidebar()
+    // clears the overlay too, so the section shows perfectly immediately.
+    closeSidebar();
+    // Refresh the Exam Term list every time Marks Entry opens so the exam
+    // term that is ACTIVE in the school app is auto-selected (and new exams
+    // created by the school appear without a reload).
+    if (key === 'marks-entry') loadMarksFilters();
   }
 
   document.querySelectorAll('.nav-item').forEach(btn => {
@@ -380,20 +389,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ==================== MARKS ENTRY ====================
   let assignedClasses = [];
+  // v71: exam_id -> exam_name. The exam_name IS the term ("1st Term" /
+  // "2nd Term" / "Final") — the exact string the school app passes as `term`
+  // everywhere (getExamTerm), so teacher marks always load/save under the
+  // same term the school app wrote. The standalone Term dropdown is gone.
+  const examNameById = {};
+  // The exam term currently ACTIVE in the school app (its activated date
+  // sheet template) — used to auto-select the Exam Term dropdown.
+  let activeExamTerm = null;
 
   async function loadMarksFilters() {
     try {
-      const [exams, assignedClassesData] = await Promise.all([
+      const [exams, assignedClassesData, activeExam] = await Promise.all([
         apiCall('/api/teachers/exams'),
-        apiCall('/api/teachers/my-classes')
+        apiCall('/api/teachers/my-classes'),
+        // Graceful: an older server without this endpoint just means no auto-select.
+        apiCall('/api/teachers/active-exam').catch(() => null)
       ]);
       assignedClasses = assignedClassesData;
+      activeExamTerm = activeExam || null;
 
-      const examOpts = ['<option value="">-- Select Exam --</option>'];
-      exams.forEach(ex => {
+      // Deduplicate exams by id (the endpoint can repeat rows)
+      const seen = new Set();
+      const uniqueExams = exams.filter(ex => {
+        if (seen.has(ex.id)) return false;
+        seen.add(ex.id);
+        return true;
+      });
+
+      Object.keys(examNameById).forEach(k => { delete examNameById[k]; });
+      const examOpts = ['<option value="">-- Select Exam Term --</option>'];
+      uniqueExams.forEach(ex => {
+        examNameById[ex.id] = ex.exam_name;
         examOpts.push(`<option value="${ex.id}">${esc(ex.exam_name)} (${ex.year})</option>`);
       });
-      document.getElementById('marks-exam-select').innerHTML = examOpts.join('');
+
+      // v71: auto-select the exam term that is ACTIVE in the school app.
+      // If the active exam was filtered out of this teacher's list (or the
+      // list is empty), append it so the active term is always present.
+      let activeId = null;
+      if (activeExam) {
+        if (activeExam.id) {
+          activeId = String(activeExam.id);
+        } else if (activeExam.exam_name) {
+          const byName = uniqueExams.find(e => e.exam_name === activeExam.exam_name &&
+            (!activeExam.year || Number(e.year) === Number(activeExam.year))) ||
+            uniqueExams.find(e => e.exam_name === activeExam.exam_name);
+          if (byName) activeId = String(byName.id);
+        }
+        if (activeId && !uniqueExams.some(e => String(e.id) === activeId)) {
+          examOpts.push(`<option value="${activeId}">${esc(activeExam.exam_name || 'Active Exam')}${activeExam.year ? ' (' + activeExam.year + ')' : ''}</option>`);
+        }
+      }
+
+      const examSelect = document.getElementById('marks-exam-select');
+      examSelect.innerHTML = examOpts.join('');
+      if (activeId && examSelect.querySelector(`option[value="${activeId}"]`)) {
+        examSelect.value = activeId;
+      }
 
       const classOpts = ['<option value="">-- Select Class --</option>'];
       const uniqueClasses = [...new Set(assignedClasses.map(c => c.class_name))];
@@ -404,6 +457,16 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       showToast('Failed to load filters: ' + err.message, true);
     }
+  }
+
+  // The term for the selected Exam Term (= its exam_name). Falls back to the
+  // active-exam payload for an option that only exists because it is active.
+  function selectedExamTerm() {
+    const examId = document.getElementById('marks-exam-select').value;
+    if (!examId) return '';
+    if (examNameById[examId]) return examNameById[examId];
+    if (activeExamTerm && String(activeExamTerm.id) === String(examId)) return activeExamTerm.exam_name || '';
+    return '';
   }
 
   document.getElementById('marks-class-select').addEventListener('change', function() {
@@ -420,12 +483,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-load-marks').addEventListener('click', async () => {
     const examId = document.getElementById('marks-exam-select').value;
-    const term = document.getElementById('marks-term-select').value;
+    // v71: term DERIVED from the selected Exam Term (exam_name IS the term);
+    // the separate marks-term-select dropdown was removed.
+    const term = selectedExamTerm();
     const className = document.getElementById('marks-class-select').value;
     const subject = document.getElementById('marks-subject-select').value;
 
     if (!examId || !term || !className || !subject) {
-      showToast('Please select all filters first', true);
+      showToast('Please select Exam Term, Class and Subject first', true);
       return;
     }
 
@@ -474,10 +539,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-save-marks').addEventListener('click', async () => {
     const examId = document.getElementById('marks-exam-select').value;
-    const term = document.getElementById('marks-term-select').value;
+    // v71: term derived from the Exam Term selection (was marks-term-select)
+    const term = selectedExamTerm();
     const className = document.getElementById('marks-class-select').value;
     const subject = document.getElementById('marks-subject-select').value;
     const maxMarks = parseInt(document.getElementById('marks-max-input').value) || 100;
+
+    if (!examId || !term || !className || !subject) {
+      showToast('Please select Exam Term, Class and Subject first', true);
+      return;
+    }
 
     const marksList = [];
     document.querySelectorAll('#marks-grid-body input[type="number"]').forEach(input => {
@@ -955,9 +1026,16 @@ document.addEventListener('DOMContentLoaded', () => {
   initFeeCollection();
 
   // Lazy-load sections on nav click
-  document.querySelector('[data-opt="my-subjects"]').addEventListener('click', () => { loadMySubjects(); }, { once: true });
-  document.querySelector('[data-opt="marks"]').addEventListener('click', () => { loadMarksFilters(); }, { once: true });
-  document.querySelector('[data-opt="announcements"]').addEventListener('click', () => { loadAnnouncements(); }, { once: true });
+  // v71 FIX: the marks listener below targeted a NON-EXISTENT [data-opt="marks"]
+  // (the button is data-opt="marks-entry"), so querySelector returned null,
+  // threw a TypeError on every page load, and killed the announcements binding
+  // after it. The Exam Term dropdown was therefore NEVER populated ("selecting
+  // exam didn't show anything"). Marks Entry now refreshes its filters from
+  // activatePanel() on every open; the remaining bindings are null-guarded.
+  const mySubjectsNav = document.querySelector('[data-opt="my-subjects"]');
+  if (mySubjectsNav) mySubjectsNav.addEventListener('click', () => { loadMySubjects(); }, { once: true });
+  const announcementsNav = document.querySelector('[data-opt="announcements"]');
+  if (announcementsNav) announcementsNav.addEventListener('click', () => { loadAnnouncements(); }, { once: true });
 });
 
 // ==================== FEE COLLECTION ====================

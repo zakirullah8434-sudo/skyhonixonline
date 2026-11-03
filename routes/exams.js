@@ -1047,8 +1047,13 @@ router.put('/datesheets/:id/activate', authenticateToken, async (req, res) => {
       examId = exam.id;
     }
 
-    // Seed exam_subjects from the template (deduped) so marks entry / result flows see them
-    const term = parsed.term || '1st Term';
+    // Seed exam_subjects from the template (deduped) so marks entry / result flows see them.
+    // v71: exam_name IS the term everywhere else (the school app's getExamTerm
+    // passes exam_name as `term` to /exams/subjects, /exams/marks and
+    // /exams/calculate, and the teacher app does the same), so seed with it —
+    // the old hardcoded '1st Term' fallback left 2nd Term / Final exams'
+    // subjects unreachable by every term-scoped lookup.
+    const term = parsed.term || examName;
     for (const s of subjects) {
       const subj = (s.subject || '').trim();
       if (!subj) continue;

@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v70';
+    const EXPECTED_PAGE_VERSION = 'v71';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -1680,7 +1680,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
-  // ID Card design themes (v70: design1 + five new Pakistani-style designs;
+  // ID Card design themes (v71: design1 + five new Pakistani-style designs;
   // the eight legacy themes were removed along with their card branches)
   const idCardThemes = {
     design1:   { bg: '#1565c0', headerBg: '#0d47a1', accent: '#ffc107', label: 'Design 1 - Lanyard Badge' },
@@ -1692,7 +1692,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // ==========================================
-  // v70: GENDER-AWARE RELATION LABELS
+  // v71: GENDER-AWARE RELATION LABELS
   // students.gender comes from the admission form (Male / Female), so girls
   // print "D/O" (daughter of) and boys print "S/O" (son of) everywhere a card
   // or certificate is generated. Unknown/blank gender stays "S/O".
@@ -1714,7 +1714,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function generateIdCardHtml(student, design, schoolName, logoPath, includeQr, includeBarcode, principalSign) {
-    // v70: only the six current designs exist (design1..design6). Anything
+    // v71: only the six current designs exist (design1..design6). Anything
     // else — stale dropdown value, old bookmark — falls back to design1 so a
     // card ALWAYS renders instead of showing an empty preview.
     const d = design || 'design1';
@@ -1726,15 +1726,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const cls = s.class_name || '-';
     const barcode = includeBarcode ? `<div style="text-align:center;margin-top:4px;"><div style="font-family:monospace;font-size:0.65rem;letter-spacing:2px;background:#fff;padding:3px 8px;border-radius:3px;color:#000;display:inline-block;border:1px solid #ddd;">║║ ${s.student_id||s.id||'00000'} ║║</div></div>` : '';
     const qr = includeQr ? `<div style="margin-top:6px;"><img src="${qrUrl}" style="width:65px;height:65px;border-radius:4px;" onerror="this.style.display='none'"></div>` : '';
-    // v70: compact QR at a chosen pixel size (used by the new designs so
+    // v71: compact QR at a chosen pixel size (used by the new designs so
     // cards never overflow their fixed card height and clip content).
     const qrAt = (size) => includeQr ? `<img src="${qrUrl}" style="width:${size}px;height:${size}px;border-radius:4px;background:#fff;" onerror="this.style.display='none'">` : '';
     const principalSignImg = principalSign ? `<img src="${principalSign}" style="height:28px;max-width:80px;object-fit:contain;" onerror="this.style.display='none'">` : '';
 
     // ==========================================
-    // v70: five NEW designs modelled on the best Pakistani school ID cards.
+    // v71: five NEW designs modelled on the best Pakistani school ID cards.
     // The eight legacy designs (classic/portrait/badge/twosided/smart/
-    // pakistani/kids/corporate) were removed in v70 — only Design 1 plus the
+    // pakistani/kids/corporate) were removed in v71 — only Design 1 plus the
     // five below remain, and every card renders from these blocks (unknown
     // design values fall back to design1 instead of showing an empty card).
     // ==========================================
@@ -2016,7 +2016,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
     }
 
-    // v70: unknown design value -> render Design 1 (never an empty card)
+    // v71: unknown design value -> render Design 1 (never an empty card)
     return generateIdCardHtml(student, 'design1', schoolName, logoPath, includeQr, includeBarcode, principalSign);
   }
 
@@ -2179,7 +2179,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // v70: CERTIFICATE EXPORT — SAVE AS PDF (same jsPDF + html2canvas path the
+  // v71: CERTIFICATE EXPORT — SAVE AS PDF (same jsPDF + html2canvas path the
   // ID cards use). Certificates are a single 8.5x11in node in #cert-printable
   // (no box-shadow wrapper like the cards), so the node itself is rendered and
   // handed to saveGeneratedPdf, which writes to Downloads/SkyHonix in the APK.
@@ -2411,7 +2411,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // MODULE: CERTIFICATE GENERATOR
   // ==========================================
   let certSelectedStudent = null;
-  // v70: which certificate is currently in the preview ('leave' | 'character'
+  // v71: which certificate is currently in the preview ('leave' | 'character'
   // | 'sports') — the leave certificate uses it to offer the "has the student
   // left school?" follow-up right after Save as PDF.
   let certCurrentType = null;
@@ -2428,7 +2428,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const q = document.getElementById('cert-student-search').value.trim();
     if (!q) return;
     try {
-      // v70 fix: /students/all filters on `search` (it never read `q`), so the
+      // v71 fix: /students/all filters on `search` (it never read `q`), so the
       // results were always the first students regardless of what was typed.
       const students = await apiCall(`/students/all?search=${encodeURIComponent(q)}`);
       const resultsDiv = document.getElementById('cert-student-results');
@@ -2666,7 +2666,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => { printWindow.print(); }, 500);
   });
 
-  // Certificate Download — v70: actually SAVES a PDF file (was only a tip
+  // Certificate Download — v71: actually SAVES a PDF file (was only a tip
   // toast before). Uses the same native/browser save path as the ID cards, so
   // the file lands in Downloads/SkyHonix on Android like every other option.
   document.getElementById('cert-download').addEventListener('click', async function() {
@@ -3596,7 +3596,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStudentProfileList();
   });
 
-  // v70: Record Type toggle — Active Students (default; students who left are
+  // v71: Record Type toggle — Active Students (default; students who left are
   // hidden here) vs Left Students (complete historic record: fees, exams,
   // attendance, documents, history).
   document.getElementById('sp-record-type').addEventListener('change', function() {
@@ -3687,7 +3687,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('sp-class-info').innerText = `Class: ${s.class_name || '-'}${s.section_name ? ' - ' + s.section_name : ''}`;
       document.getElementById('sp-roll-info').innerText = `Roll No: ${s.roll_no || '-'}`;
       document.getElementById('sp-father-info').innerText = `Father: ${s.father_name || '-'}`;
-      // v70: status badge reflects reality — Left students show a red badge
+      // v71: status badge reflects reality — Left students show a red badge
       // plus a banner pointing at the complete historic record below.
       const statusBadge = document.getElementById('sp-status-badge');
       statusBadge.innerText = s.status || 'Active';

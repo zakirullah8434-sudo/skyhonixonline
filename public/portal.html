@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=9" as="style">
-  <link rel="preload" href="js/app.js?v=70" as="script">
+  <link rel="preload" href="js/app.js?v=71" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v70';
+    window.SKYHONIX_PAGE_VERSION = 'v71';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -1640,7 +1640,7 @@
                 </div>
               </div>
 
-              <!-- v70: leave-certificate follow-up (shown after Save as PDF) -->
+              <!-- v71: leave-certificate follow-up (shown after Save as PDF) -->
               <div id="cert-left-prompt" style="display:none; margin-bottom:16px; padding:16px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.35); border-radius: 12px;">
                 <div style="font-weight: 800; font-size: 1rem; margin-bottom: 4px;">🚪 Has this student left school?</div>
                 <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
@@ -2326,7 +2326,7 @@
 
           <!-- Student Selector -->
           <div class="card" style="margin-bottom: 24px;">
-            <!-- v70: Active vs Left record switch -->
+            <!-- v71: Active vs Left record switch -->
             <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 15px;">
               <div class="form-group" style="margin-bottom: 0; min-width: 240px;">
                 <label class="form-label">Record Type</label>
@@ -2371,7 +2371,7 @@
           <!-- Profile Content (hidden until student selected) -->
           <div id="sp-profile-container" style="display: none;">
 
-            <!-- v70: banner shown when the opened student has left the school -->
+            <!-- v71: banner shown when the opened student has left the school -->
             <div id="sp-left-banner" style="display:none; align-items:center; gap:10px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.35); color:#ef4444; padding:12px 16px; border-radius:12px; margin-bottom:16px; font-weight:700;">
               🚪 LEFT STUDENT — this student has left the school. The complete record below (fees, exams, attendance, documents &amp; history) is kept for the school file.
             </div>
@@ -5107,8 +5107,8 @@
     </div>
   </div>
 
-  <script src="js/vendor/jspdf.umd.min.js?v=70"></script>
-  <script src="js/vendor/html2canvas.min.js?v=70"></script>
-  <script src="js/app.js?v=70"></script>
+  <script src="js/vendor/jspdf.umd.min.js?v=71"></script>
+  <script src="js/vendor/html2canvas.min.js?v=71"></script>
+  <script src="js/app.js?v=71"></script>
 </body>
 </html>

@@ -14,14 +14,14 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
   <link rel="preload" href="css/styles.css?v=9" as="style">
-  <link rel="preload" href="js/teacher-portal.js?v=18" as="script">
+  <link rel="preload" href="js/teacher-portal.js?v=19" as="script">
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/service-worker.js').catch(function () {});
     }
   </script>
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v70';
+    window.SKYHONIX_PAGE_VERSION = 'v71';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -56,8 +56,13 @@
     .sidebar-brand small { display: block; font-size: 0.72rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
     .main-content { margin-left: 240px; margin-top: 64px; padding: 28px 32px; min-height: calc(100vh - 64px); background: #F8FAFC; }
     .content-panel { display: none; }
+    /* v71: opacity-only fade. The old keyframes animated `transform:
+       translateY(6px)` which left the freshly-switched panel rasterized
+       BLURRY on Android WebView until something forced a repaint (a tap on
+       the screen). With no transform the text is crisp the instant the
+       section appears. */
     .content-panel.active { display: block; animation: panelFadeIn 0.25s ease; }
-    @keyframes panelFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes panelFadeIn { from { opacity: 0; } to { opacity: 1; } }
     .news-ticker { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; overflow: hidden; color: #fff; box-shadow: 0 2px 8px rgba(79,70,229,0.25); }
     .ticker-badge { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; white-space: nowrap; backdrop-filter: blur(4px); }
     @media (max-width: 900px) {
@@ -199,23 +204,17 @@
       <p class="text-muted" style="margin-bottom:20px;">Enter marks for your assigned subjects.</p>
 
       <!-- Filters -->
+      <!-- v71: the separate "Term" dropdown was REMOVED — the exam_name IS
+           the term ("1st Term" / "2nd Term" / "Final"), the same single
+           source of truth the school app uses, so marks always load/save
+           under the exact term the school app wrote. The Exam Term list
+           auto-selects the exam term that is ACTIVE in the school app. -->
       <div class="card" style="padding:20px; margin-bottom:20px;">
-        <div class="grid-2" style="gap:15px;">
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Exam</label>
-            <select class="form-control" id="marks-exam-select">
-              <option value="">-- Select Exam --</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Term</label>
-            <select class="form-control" id="marks-term-select">
-              <option value="">-- Select Term --</option>
-              <option value="1st Term">1st Term</option>
-              <option value="2nd Term">2nd Term</option>
-              <option value="Final">Final</option>
-            </select>
-          </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Exam Term</label>
+          <select class="form-control" id="marks-exam-select">
+            <option value="">-- Select Exam Term --</option>
+          </select>
         </div>
         <div class="grid-2" style="gap:15px; margin-top:15px;">
           <div class="form-group" style="margin-bottom:0;">
@@ -502,6 +501,6 @@
     })();
   </script>
   <script src="js/section-history.js?v=2"></script>
-  <script src="js/teacher-portal.js?v=18" defer></script>
+  <script src="js/teacher-portal.js?v=19" defer></script>
 </body>
 </html>
