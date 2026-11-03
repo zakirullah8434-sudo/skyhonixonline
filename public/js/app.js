@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v69';
+    const EXPECTED_PAGE_VERSION = 'v70';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -1680,21 +1680,44 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { console.error('[APP_ERROR]', e.message); }
   });
 
-  // ID Card design themes
+  // ID Card design themes (v70: design1 + five new Pakistani-style designs;
+  // the eight legacy themes were removed along with their card branches)
   const idCardThemes = {
-    design1:   { bg: '#1565c0', headerBg: '#0d47a1', accent: '#ffc107', label: 'Lanyard Badge (Design 1)' },
-    classic:    { bg: '#1e3a8a', headerBg: '#1e40af', accent: '#60a5fa', label: 'Classic Landscape' },
-    portrait:   { bg: '#0f172a', headerBg: '#1e293b', accent: '#38bdf8', label: 'Portrait Vertical' },
-    badge:      { bg: '#ffffff', headerBg: '#dc2626', accent: '#dc2626', label: 'Badge / Lanyard' },
-    twosided:   { bg: '#1e293b', headerBg: '#0f172a', accent: '#a78bfa', label: 'Two-Sided Card' },
-    smart:      { bg: '#f8fafc', headerBg: '#1e40af', accent: '#1e40af', label: 'Smart Chip Card' },
-    pakistani:  { bg: '#006233', headerBg: '#006233', accent: '#fff', label: 'Pakistani Green' },
-    kids:       { bg: '#f0abfc', headerBg: '#a855f7', accent: '#f472b6', label: 'Kids / Primary' },
-    corporate:  { bg: '#f1f5f9', headerBg: '#334155', accent: '#0ea5e9', label: 'Corporate Clean' }
+    design1:   { bg: '#1565c0', headerBg: '#0d47a1', accent: '#ffc107', label: 'Design 1 - Lanyard Badge' },
+    design2:   { bg: '#006233', headerBg: '#006233', accent: '#ffffff', label: 'Design 2 - Pakistan Green' },
+    design3:   { bg: '#0b2b5c', headerBg: '#0b2b5c', accent: '#c9a227', label: 'Design 3 - Royal Crest' },
+    design4:   { bg: '#0f2b8c', headerBg: '#2563eb', accent: '#93c5fd', label: 'Design 4 - Scholar Blue' },
+    design5:   { bg: '#7f1d1d', headerBg: '#b91c1c', accent: '#fecaca', label: 'Design 5 - House Badge' },
+    design6:   { bg: '#7f1d1d', headerBg: '#991b1b', accent: '#c9a227', label: 'Design 6 - Twin Sides' }
   };
 
+  // ==========================================
+  // v70: GENDER-AWARE RELATION LABELS
+  // students.gender comes from the admission form (Male / Female), so girls
+  // print "D/O" (daughter of) and boys print "S/O" (son of) everywhere a card
+  // or certificate is generated. Unknown/blank gender stays "S/O".
+  // ==========================================
+  function relationPrefix(gender) {
+    return /^f/i.test(String(gender || '').trim()) ? 'D/O' : 'S/O';
+  }
+  function relationLabel(gender, fatherName) {
+    return fatherName ? `${relationPrefix(gender)} ${fatherName}` : '';
+  }
+  // Certificates: "son of X" / "daughter of X"
+  function childOfLabel(gender, fatherName) {
+    if (!fatherName) return '';
+    return `${/^f/i.test(String(gender || '').trim()) ? 'daughter of' : 'son of'} <strong>${fatherName}</strong>`;
+  }
+  // Certificates: "We wish him/her ..." -> him / her
+  function objectPronoun(gender) {
+    return /^f/i.test(String(gender || '').trim()) ? 'her' : 'him';
+  }
+
   function generateIdCardHtml(student, design, schoolName, logoPath, includeQr, includeBarcode, principalSign) {
-    const d = design || 'classic';
+    // v70: only the six current designs exist (design1..design6). Anything
+    // else — stale dropdown value, old bookmark — falls back to design1 so a
+    // card ALWAYS renders instead of showing an empty preview.
+    const d = design || 'design1';
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(student.student_id || student.name || '')}`;
     const photoSrc = student.photo ? imgSrc(student.photo, PLACEHOLDER_IMG) : PLACEHOLDER_IMG;
     const logoSrc = logoPath ? imgSrc(logoPath, PLACEHOLDER_IMG) : PLACEHOLDER_IMG;
@@ -1703,246 +1726,226 @@ document.addEventListener('DOMContentLoaded', () => {
     const cls = s.class_name || '-';
     const barcode = includeBarcode ? `<div style="text-align:center;margin-top:4px;"><div style="font-family:monospace;font-size:0.65rem;letter-spacing:2px;background:#fff;padding:3px 8px;border-radius:3px;color:#000;display:inline-block;border:1px solid #ddd;">║║ ${s.student_id||s.id||'00000'} ║║</div></div>` : '';
     const qr = includeQr ? `<div style="margin-top:6px;"><img src="${qrUrl}" style="width:65px;height:65px;border-radius:4px;" onerror="this.style.display='none'"></div>` : '';
+    // v70: compact QR at a chosen pixel size (used by the new designs so
+    // cards never overflow their fixed card height and clip content).
+    const qrAt = (size) => includeQr ? `<img src="${qrUrl}" style="width:${size}px;height:${size}px;border-radius:4px;background:#fff;" onerror="this.style.display='none'">` : '';
     const principalSignImg = principalSign ? `<img src="${principalSign}" style="height:28px;max-width:80px;object-fit:contain;" onerror="this.style.display='none'">` : '';
 
-    if (d === 'classic') {
-      return `<div style="width:340px;height:215px;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.25);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;display:flex;flex-direction:column;">
-        <div style="background:#1e40af;padding:8px 16px;display:flex;align-items:center;gap:10px;">
-          <img src="${logoSrc}" style="height:32px;border-radius:4px;" onerror="this.style.display='none'">
-          <div style="font-size:0.85rem;font-weight:800;color:#fff;flex:1;">${schoolName||'SCHOOL'}</div>
-          <div style="font-size:0.55rem;color:rgba(255,255,255,0.7);text-align:right;">Student Card<br>${year}</div>
-        </div>
-        <div style="flex:1;display:flex;padding:10px 14px;gap:12px;">
-          <div style="flex-shrink:0;text-align:center;">
-            <img src="${photoSrc}" style="width:72px;height:82px;border-radius:6px;object-fit:cover;border:2px solid #60a5fa;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
-            ${qr}
+    // ==========================================
+    // v70: five NEW designs modelled on the best Pakistani school ID cards.
+    // The eight legacy designs (classic/portrait/badge/twosided/smart/
+    // pakistani/kids/corporate) were removed in v70 — only Design 1 plus the
+    // five below remain, and every card renders from these blocks (unknown
+    // design values fall back to design1 instead of showing an empty card).
+    // ==========================================
+
+    // Design 2 — Pakistan Green: national green/white theme, crescent & star,
+    // flag stripe, photo + QR + barcode. (Landscape 340x215)
+    if (d === 'design2') {
+      return `<div style="width:340px;height:215px;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.25);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;display:flex;flex-direction:column;border:1px solid #006233;">
+        <div style="background:#006233;padding:7px 14px;display:flex;align-items:center;gap:10px;position:relative;">
+          <div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);opacity:0.18;font-size:2.3rem;">&#9770;</div>
+          <img src="${logoSrc}" style="height:30px;width:30px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.5);background:#fff;" onerror="this.style.display='none'">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:0.8rem;font-weight:800;color:#fff;letter-spacing:0.4px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${schoolName||'SCHOOL'}</div>
+            <div style="font-size:0.44rem;color:rgba(255,255,255,0.75);letter-spacing:1.6px;text-transform:uppercase;">Student Identity Card</div>
           </div>
-          <div style="flex:1;font-size:0.78rem;color:#1e293b;">
-            <div style="font-size:1rem;font-weight:700;margin-bottom:2px;">${s.name||'-'}</div>
-            <div style="font-size:0.68rem;color:#64748b;margin-bottom:6px;">S/O ${s.father_name||'-'}</div>
-            <table style="width:100%;border-collapse:collapse;font-size:0.72rem;">
-              <tr><td style="padding:1.5px 0;color:#94a3b8;width:50px;">ID</td><td style="padding:1.5px 0;font-weight:600;">${s.student_id||'-'}</td><td style="padding:1.5px 0;color:#94a3b8;width:38px;">Class</td><td style="padding:1.5px 0;font-weight:600;">${cls}</td></tr>
-              <tr><td style="padding:1.5px 0;color:#94a3b8;">Roll</td><td style="padding:1.5px 0;font-weight:600;">${s.roll_no||'-'}</td><td style="padding:1.5px 0;color:#94a3b8;">DOB</td><td style="padding:1.5px 0;font-weight:600;">${s.dob||'-'}</td></tr>
-              <tr><td style="padding:1.5px 0;color:#94a3b8;">Ph</td><td style="padding:1.5px 0;font-weight:600;" colspan="3">${s.phone||'-'}</td></tr>
+        </div>
+        <div style="height:5px;background:linear-gradient(90deg,#fff 0 16%,#006233 16% 100%);border-bottom:1px solid #e2e8f0;"></div>
+        <div style="flex:1;display:flex;padding:7px 12px;gap:10px;min-height:0;">
+          <div style="flex-shrink:0;text-align:center;">
+            <img src="${photoSrc}" style="width:70px;height:76px;border-radius:4px;object-fit:cover;border:2px solid #006233;background:#e8f5e9;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
+            <div style="margin-top:4px;">${qrAt(52)}</div>
+          </div>
+          <div style="flex:1;min-width:0;font-size:0.72rem;color:#1e293b;">
+            <div style="font-size:0.92rem;font-weight:800;color:#006233;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.name||'-'}</div>
+            <div style="font-size:0.62rem;color:#475569;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${relationLabel(s.gender, s.father_name) || '-'}</div>
+            <table style="width:100%;border-collapse:collapse;font-size:0.64rem;">
+              <tr><td style="padding:1.5px 0;color:#006233;font-weight:700;width:50px;">ID No</td><td style="padding:1.5px 0;font-weight:600;">${s.student_id||'-'}</td><td style="padding:1.5px 0;color:#006233;font-weight:700;width:36px;">Class</td><td style="padding:1.5px 0;font-weight:600;">${cls}</td></tr>
+              <tr><td style="padding:1.5px 0;color:#006233;font-weight:700;">Roll</td><td style="padding:1.5px 0;font-weight:600;">${s.roll_no||'-'}</td><td style="padding:1.5px 0;color:#006233;font-weight:700;">DOB</td><td style="padding:1.5px 0;font-weight:600;">${s.dob||'-'}</td></tr>
+              <tr><td style="padding:1.5px 0;color:#006233;font-weight:700;">Ph</td><td style="padding:1.5px 0;font-weight:600;" colspan="3">${s.phone||'-'}</td></tr>
             </table>
             ${barcode}
           </div>
         </div>
+        <div style="background:#006233;padding:4px 12px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:0.44rem;color:rgba(255,255,255,0.85);letter-spacing:1.4px;">PAKISTAN ZINDABAD</div>
+          <div style="font-size:0.44rem;color:rgba(255,255,255,0.85);letter-spacing:1.4px;">VALID ${year}</div>
+        </div>
       </div>`;
     }
 
-    if (d === 'portrait') {
-      return `<div style="width:220px;height:340px;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.25);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;display:flex;flex-direction:column;">
-        <div style="background:#1e293b;padding:10px;text-align:center;">
-          <img src="${logoSrc}" style="height:30px;border-radius:4px;" onerror="this.style.display='none'">
-          <div style="font-size:0.75rem;font-weight:800;color:#fff;margin-top:4px;">${schoolName||'SCHOOL'}</div>
+    // Design 3 — Royal Crest: navy + gold crest header (Beaconhouse / City
+    // School style), portrait card with photo, QR and signature footer.
+    if (d === 'design3') {
+      return `<div style="width:250px;height:350px;border-radius:12px;overflow:hidden;box-shadow:0 6px 22px rgba(11,43,92,0.35);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;display:flex;flex-direction:column;border:2px solid #c9a227;">
+        <div style="background:linear-gradient(160deg,#0b2b5c 0%,#123c7c 55%,#0b2b5c 100%);padding:10px 10px 8px;text-align:center;position:relative;">
+          <div style="position:absolute;left:8px;top:9px;width:24px;height:24px;border:2px solid rgba(201,162,39,0.65);border-radius:50%;"></div>
+          <div style="position:absolute;right:8px;top:9px;width:24px;height:24px;border:2px solid rgba(201,162,39,0.65);border-radius:50%;"></div>
+          <img src="${logoSrc}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid #c9a227;background:#fff;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
+          <div style="font-size:0.76rem;font-weight:800;color:#fff;margin-top:4px;letter-spacing:0.5px;text-transform:uppercase;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${schoolName||'SCHOOL'}</div>
+          <div style="font-size:0.42rem;color:#e8c95a;letter-spacing:2px;margin-top:2px;">&#9733; KNOWLEDGE &amp; DISCIPLINE &#9733;</div>
         </div>
-        <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:12px 14px;">
-          <img src="${photoSrc}" style="width:80px;height:90px;border-radius:8px;object-fit:cover;border:3px solid #38bdf8;margin-bottom:8px;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
-          <div style="text-align:center;width:100%;">
-            <div style="font-size:0.9rem;font-weight:700;color:#1e293b;">${s.name||'-'}</div>
-            <div style="font-size:0.65rem;color:#64748b;margin-bottom:8px;">S/O ${s.father_name||'-'}</div>
-            <div style="background:#f1f5f9;border-radius:6px;padding:6px 8px;text-align:left;font-size:0.7rem;">
-              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#94a3b8;">ID</span><strong>${s.student_id||'-'}</strong></div>
-              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#94a3b8;">Class</span><strong>${cls}</strong></div>
-              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#94a3b8;">Roll</span><strong>${s.roll_no||'-'}</strong></div>
-              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#94a3b8;">Phone</span><strong>${s.phone||'-'}</strong></div>
-              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#94a3b8;">DOB</span><strong>${s.dob||'-'}</strong></div>
+        <div style="height:4px;background:linear-gradient(90deg,#c9a227,#f7edc4,#c9a227);"></div>
+        <div style="flex:1;display:flex;padding:9px 10px 6px;gap:8px;min-height:0;">
+          <div style="flex-shrink:0;width:76px;text-align:center;">
+            <img src="${photoSrc}" style="width:70px;height:84px;border-radius:6px;object-fit:cover;border:3px solid #0b2b5c;box-shadow:0 2px 8px rgba(11,43,92,0.3);background:#eef3fb;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
+            <div style="margin-top:5px;">${qrAt(56)}</div>
+          </div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+            <div style="font-size:0.85rem;font-weight:800;color:#0b2b5c;line-height:1.15;">${s.name||'-'}</div>
+            <div style="font-size:0.6rem;color:#475569;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${relationLabel(s.gender, s.father_name) || '-'}</div>
+            <div style="border:1px solid #dbe4f0;border-radius:6px;overflow:hidden;font-size:0.6rem;">
+              <div style="display:flex;background:#f3f6fb;"><span style="width:54px;padding:2.5px 6px;color:#0b2b5c;font-weight:700;border-right:1px solid #dbe4f0;">Class</span><span style="padding:2.5px 6px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${cls}</span></div>
+              <div style="display:flex;border-top:1px solid #dbe4f0;"><span style="width:54px;padding:2.5px 6px;color:#0b2b5c;font-weight:700;border-right:1px solid #dbe4f0;">Roll No</span><span style="padding:2.5px 6px;font-weight:600;">${s.roll_no||'-'}</span></div>
+              <div style="display:flex;background:#f3f6fb;border-top:1px solid #dbe4f0;"><span style="width:54px;padding:2.5px 6px;color:#0b2b5c;font-weight:700;border-right:1px solid #dbe4f0;">ID No</span><span style="padding:2.5px 6px;font-weight:600;">${s.student_id||'-'}</span></div>
+              <div style="display:flex;border-top:1px solid #dbe4f0;"><span style="width:54px;padding:2.5px 6px;color:#0b2b5c;font-weight:700;border-right:1px solid #dbe4f0;">Phone</span><span style="padding:2.5px 6px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.phone||'-'}</span></div>
             </div>
-            ${qr}
+            <div style="margin-top:auto;text-align:center;font-size:0.44rem;color:#8a96ab;letter-spacing:1px;">ACADEMIC YEAR ${year}</div>
           </div>
         </div>
-        <div style="background:#f1f5f9;padding:6px;text-align:center;font-size:0.55rem;color:#94a3b8;border-top:1px solid #e2e8f0;">Valid ${year} | Principal</div>
+        <div style="background:#0b2b5c;padding:5px 10px;display:flex;justify-content:space-between;align-items:flex-end;">
+          <div style="text-align:center;"><div style="height:1px;width:56px;background:rgba(255,255,255,0.5);"></div><div style="font-size:0.4rem;color:rgba(255,255,255,0.75);">Student</div></div>
+          <div style="font-size:0.42rem;color:#c9a227;letter-spacing:1px;padding-bottom:6px;">VALID ${year}</div>
+          <div style="text-align:center;display:flex;flex-direction:column;align-items:center;">
+            ${principalSignImg}
+            <div style="height:1px;width:56px;background:rgba(255,255,255,0.5);margin-top:1px;"></div>
+            <div style="font-size:0.4rem;color:rgba(255,255,255,0.75);">Principal</div>
+          </div>
+        </div>
       </div>`;
     }
 
-    if (d === 'badge') {
-      return `<div style="width:240px;height:340px;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.2);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;display:flex;flex-direction:column;border:2px solid #e2e8f0;">
-        <div style="text-align:center;padding-top:10px;">
-          <div style="width:24px;height:24px;border-radius:50%;border:3px solid #cbd5e1;margin:0 auto;background:#f8fafc;"></div>
+    // Design 4 — Scholar Blue: modern gradient header with ID chip, rounded
+    // photo, QR and pill-style detail grid. (Landscape 340x225)
+    if (d === 'design4') {
+      const pills = [
+        ['ID', s.student_id||'-'], ['Class', cls], ['Roll', s.roll_no||'-'], ['DOB', s.dob||'-']
+      ].map(p => `<span style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;padding:2px 6px;overflow:hidden;"><span style="color:#94a3b8;font-weight:600;">${p[0]}:</span> <strong style="white-space:nowrap;">${p[1]}</strong></span>`).join('');
+      return `<div style="width:340px;height:225px;border-radius:12px;overflow:hidden;box-shadow:0 5px 22px rgba(15,43,140,0.3);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;display:flex;flex-direction:column;border:1px solid #dbeafe;">
+        <div style="background:linear-gradient(135deg,#0f2b8c 0%,#2563eb 60%,#3b82f6 100%);padding:8px 14px;display:flex;align-items:center;gap:9px;position:relative;">
+          <div style="position:absolute;right:-18px;top:-22px;width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,0.12);"></div>
+          <img src="${logoSrc}" style="height:30px;width:30px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.55);background:#fff;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:0.8rem;font-weight:800;color:#fff;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${schoolName||'SCHOOL'}</div>
+            <div style="font-size:0.44rem;color:rgba(255,255,255,0.78);letter-spacing:1.5px;text-transform:uppercase;">Student Identity Card</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.92);color:#0f2b8c;border-radius:20px;padding:3px 9px;font-size:0.5rem;font-weight:800;letter-spacing:0.5px;white-space:nowrap;">ID: ${s.student_id||'-'}</div>
         </div>
-        <div style="background:#dc2626;margin:8px 12px 0;border-radius:8px;padding:10px;text-align:center;">
-          <img src="${logoSrc}" style="height:34px;border-radius:6px;" onerror="this.style.display='none'">
-          <div style="font-size:0.8rem;font-weight:800;color:#fff;margin-top:4px;">${schoolName||'SCHOOL'}</div>
+        <div style="flex:1;display:flex;padding:8px 12px;gap:11px;min-height:0;">
+          <div style="flex-shrink:0;text-align:center;">
+            <img src="${photoSrc}" style="width:74px;height:84px;border-radius:8px;object-fit:cover;border:2px solid #93c5fd;background:#eff6ff;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
+            <div style="margin-top:4px;">${qrAt(54)}</div>
+          </div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+            <div style="font-size:0.95rem;font-weight:800;color:#0f2b8c;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.name||'-'}</div>
+            <div style="font-size:0.64rem;color:#64748b;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${relationLabel(s.gender, s.father_name) || '-'}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.6rem;">${pills}</div>
+            <div style="margin-top:4px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;padding:2px 6px;font-size:0.6rem;overflow:hidden;"><span style="color:#94a3b8;font-weight:600;">Phone:</span> <strong>${s.phone||'-'}</strong></div>
+          </div>
         </div>
-        <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:12px 16px;">
-          <img src="${photoSrc}" style="width:80px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #dc2626;margin-bottom:8px;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
-          <div style="text-align:center;width:100%;">
-            <div style="font-size:0.88rem;font-weight:700;color:#1e293b;">${s.name||'-'}</div>
-            <div style="font-size:0.65rem;color:#64748b;">S/O ${s.father_name||'-'}</div>
-            <div style="margin-top:8px;border-top:2px solid #dc2626;padding-top:8px;font-size:0.7rem;color:#475569;">
-              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#94a3b8;">Class</span><strong>${cls}</strong></div>
-              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#94a3b8;">Roll</span><strong>${s.roll_no||'-'}</strong></div>
-              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#94a3b8;">ID</span><strong>${s.student_id||'-'}</strong></div>
-              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#94a3b8;">Phone</span><strong>${s.phone||'-'}</strong></div>
+        <div style="background:#0f2b8c;padding:4px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          ${barcode}
+          <div style="font-size:0.46rem;color:rgba(255,255,255,0.85);letter-spacing:1.2px;white-space:nowrap;">VALID ${year}</div>
+        </div>
+      </div>`;
+    }
+
+    // Design 5 — House Badge: vertical lanyard badge with punch slot, crimson
+    // side strip, emergency contact and "return to office" footer. (240x350)
+    if (d === 'design5') {
+      return `<div style="width:240px;height:350px;border-radius:12px;overflow:hidden;box-shadow:0 6px 22px rgba(127,29,29,0.3);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;display:flex;flex-direction:column;border:1px solid #fecaca;">
+        <div style="display:flex;justify-content:center;padding:7px 0 3px;background:#fff;">
+          <div style="width:38px;height:11px;border-radius:7px;background:#f1f5f9;border:2px solid #cbd5e1;"></div>
+        </div>
+        <div style="flex:1;display:flex;min-height:0;">
+          <div style="width:32px;background:linear-gradient(180deg,#b91c1c,#7f1d1d);display:flex;align-items:center;justify-content:center;">
+            <div style="writing-mode:vertical-rl;transform:rotate(180deg);color:#fff;font-size:0.5rem;letter-spacing:4px;font-weight:800;">STUDENT ID</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:7px 10px 6px;min-width:0;">
+            <img src="${photoSrc}" style="width:76px;height:88px;border-radius:8px;object-fit:cover;border:3px solid #b91c1c;background:#fef2f2;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
+            <div style="font-size:0.88rem;font-weight:800;color:#7f1d1d;margin-top:5px;text-align:center;line-height:1.15;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.name||'-'}</div>
+            <div style="font-size:0.6rem;color:#475569;width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${relationLabel(s.gender, s.father_name) || '-'}</div>
+            <div style="width:100%;margin-top:5px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:3px 6px;font-size:0.6rem;">
+              <div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="color:#b91c1c;font-weight:700;">Class</span><strong>${cls}</strong></div>
+              <div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="color:#b91c1c;font-weight:700;">Roll</span><strong>${s.roll_no||'-'}</strong></div>
+              <div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="color:#b91c1c;font-weight:700;">ID No</span><strong>${s.student_id||'-'}</strong></div>
             </div>
-            ${qr}
+            <div style="width:100%;margin-top:4px;background:#fee2e2;border:1px solid #fecaca;border-radius:5px;padding:2px 6px;font-size:0.55rem;font-weight:800;color:#991b1b;text-align:center;overflow:hidden;">EMERGENCY: ${s.phone||'N/A'}</div>
+            <div style="margin-top:5px;">${qrAt(48)}</div>
           </div>
         </div>
-        <div style="background:#fef2f2;padding:6px;text-align:center;font-size:0.55rem;color:#dc2626;font-weight:600;">EMERGENCY: ${s.phone||'N/A'}</div>
+        <div style="background:#7f1d1d;padding:5px 8px;text-align:center;">
+          <div style="font-size:0.44rem;color:rgba(255,255,255,0.88);letter-spacing:0.6px;">IF FOUND, PLEASE RETURN TO THE SCHOOL OFFICE</div>
+        </div>
       </div>`;
     }
 
-    if (d === 'twosided') {
-      return `<div style="display:flex;gap:10px;flex-shrink:0;">
-        <div style="width:340px;height:215px;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.25);font-family:'Segoe UI',Arial,sans-serif;background:#1e293b;display:flex;flex-direction:column;">
-          <div style="background:#0f172a;padding:8px 14px;display:flex;align-items:center;gap:8px;">
-            <img src="${logoSrc}" style="height:28px;border-radius:4px;" onerror="this.style.display='none'">
-            <div style="font-size:0.8rem;font-weight:800;color:#fff;">${schoolName||'SCHOOL'}</div>
+    // Design 6 — Twin Sides: maroon + gold front (photo, details, signatures)
+    // and a back with school rules, QR, barcode and validity. (2 x 330x215)
+    if (d === 'design6') {
+      const backQr6 = includeQr ? `<img src="${qrUrl}" style="width:60px;height:60px;border-radius:4px;background:#fff;" onerror="this.style.display='none'">` : '';
+      return `<div style="display:flex;gap:12px;flex-shrink:0;align-items:flex-start;">
+        <div style="width:330px;height:215px;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.25);font-family:'Segoe UI',Arial,sans-serif;background:#fff;display:flex;flex-direction:column;border:1px solid #e7d9a8;">
+          <div style="background:linear-gradient(135deg,#7f1d1d,#991b1b);padding:7px 12px;display:flex;align-items:center;gap:8px;">
+            <img src="${logoSrc}" style="height:28px;width:28px;border-radius:50%;object-fit:cover;border:2px solid #c9a227;background:#fff;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:0.78rem;font-weight:800;color:#fff;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${schoolName||'SCHOOL'}</div>
+              <div style="font-size:0.44rem;color:#f3dfa0;letter-spacing:1.5px;text-transform:uppercase;">Student Identity Card &#9733; Front</div>
+            </div>
           </div>
-          <div style="flex:1;display:flex;padding:10px;gap:10px;">
-            <img src="${photoSrc}" style="width:80px;height:90px;border-radius:8px;object-fit:cover;border:2px solid #a78bfa;flex-shrink:0;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
-            <div style="flex:1;color:#fff;font-size:0.78rem;">
-              <div style="font-size:0.95rem;font-weight:700;">${s.name||'-'}</div>
-              <div style="font-size:0.65rem;color:rgba(255,255,255,0.6);">S/O ${s.father_name||'-'}</div>
-              <div style="margin-top:6px;font-size:0.72rem;">
-                <div><span style="opacity:0.6;">Class:</span> <strong>${cls}</strong></div>
-                <div><span style="opacity:0.6;">Roll:</span> <strong>${s.roll_no||'-'}</strong></div>
-                <div><span style="opacity:0.6;">ID:</span> <strong>${s.student_id||'-'}</strong></div>
+          <div style="flex:1;display:flex;padding:8px 10px;gap:10px;min-height:0;">
+            <div style="flex-shrink:0;text-align:center;">
+              <img src="${photoSrc}" style="width:74px;height:86px;border-radius:6px;object-fit:cover;border:2px solid #c9a227;background:#fdf6e3;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
+            </div>
+            <div style="flex:1;min-width:0;font-size:0.7rem;color:#1e293b;">
+              <div style="font-size:0.95rem;font-weight:800;color:#7f1d1d;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.name||'-'}</div>
+              <div style="font-size:0.62rem;color:#57534e;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${relationLabel(s.gender, s.father_name) || '-'}</div>
+              <table style="width:100%;border-collapse:collapse;font-size:0.64rem;">
+                <tr><td style="padding:2px 0;color:#a16207;font-weight:700;width:52px;">ID No</td><td style="padding:2px 0;font-weight:600;">${s.student_id||'-'}</td><td style="padding:2px 0;color:#a16207;font-weight:700;width:40px;">Class</td><td style="padding:2px 0;font-weight:600;">${cls}</td></tr>
+                <tr><td style="padding:2px 0;color:#a16207;font-weight:700;">Roll</td><td style="padding:2px 0;font-weight:600;">${s.roll_no||'-'}</td><td style="padding:2px 0;color:#a16207;font-weight:700;">DOB</td><td style="padding:2px 0;font-weight:600;">${s.dob||'-'}</td></tr>
+                <tr><td style="padding:2px 0;color:#a16207;font-weight:700;">Ph</td><td style="padding:2px 0;font-weight:600;" colspan="3">${s.phone||'-'}</td></tr>
+              </table>
+              <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px;">
+                <div style="text-align:center;"><div style="height:1px;width:70px;background:#cbd5e1;"></div><div style="font-size:0.44rem;color:#94a3b8;">Student</div></div>
+                <div style="text-align:center;display:flex;flex-direction:column;align-items:center;">
+                  ${principalSignImg}
+                  <div style="height:1px;width:70px;background:#cbd5e1;margin-top:1px;"></div>
+                  <div style="font-size:0.44rem;color:#94a3b8;">Principal</div>
+                </div>
               </div>
-              ${qr}
             </div>
           </div>
-          <div style="text-align:center;padding:4px;font-size:0.5rem;color:rgba(255,255,255,0.5);">FRONT SIDE</div>
+          <div style="background:#fdf6e3;border-top:1px solid #e7d9a8;padding:3px 10px;display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:0.44rem;color:#a16207;letter-spacing:1px;">VALID ${year}</div>
+            <div style="font-size:0.44rem;color:#a16207;letter-spacing:1px;">FRONT SIDE</div>
+          </div>
         </div>
-        <div style="width:340px;height:215px;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.25);font-family:'Segoe UI',Arial,sans-serif;background:#fff;display:flex;flex-direction:column;">
-          <div style="background:#334155;padding:8px 14px;font-size:0.75rem;font-weight:700;color:#fff;text-align:center;">BACK SIDE</div>
-          <div style="flex:1;padding:12px 16px;font-size:0.72rem;color:#475569;">
-            <div style="text-align:center;margin-bottom:8px;"><div style="font-size:0.85rem;font-weight:700;color:#1e293b;">${schoolName||'SCHOOL'}</div><div style="font-size:0.6rem;color:#94a3b8;">Academic Year ${year}</div></div>
-            <table style="width:100%;border-collapse:collapse;">
-              <tr><td style="padding:3px 0;color:#94a3b8;width:80px;">Student ID</td><td style="padding:3px 0;font-weight:600;">${s.student_id||'-'}</td></tr>
-              <tr><td style="padding:3px 0;color:#94a3b8;">Class / Section</td><td style="padding:3px 0;font-weight:600;">${cls}</td></tr>
-              <tr><td style="padding:3px 0;color:#94a3b8;">Roll Number</td><td style="padding:3px 0;font-weight:600;">${s.roll_no||'-'}</td></tr>
-              <tr><td style="padding:3px 0;color:#94a3b8;">Date of Birth</td><td style="padding:3px 0;font-weight:600;">${s.dob||'-'}</td></tr>
-              <tr><td style="padding:3px 0;color:#94a3b8;">Phone</td><td style="padding:3px 0;font-weight:600;">${s.phone||'-'}</td></tr>
-              <tr><td style="padding:3px 0;color:#94a3b8;">Gender</td><td style="padding:3px 0;font-weight:600;">${s.gender||'-'}</td></tr>
-            </table>
-            <div style="margin-top:8px;display:flex;justify-content:space-between;">
-              <div style="text-align:center;"><div style="height:1px;width:80px;background:#cbd5e1;margin:0 auto 2px;"></div><div style="font-size:0.55rem;color:#94a3b8;">Principal</div></div>
-              <div style="text-align:center;"><div style="height:1px;width:80px;background:#cbd5e1;margin:0 auto 2px;"></div><div style="font-size:0.55rem;color:#94a3b8;">Class Teacher</div></div>
+        <div style="width:330px;height:215px;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.25);font-family:'Segoe UI',Arial,sans-serif;background:#fff;display:flex;flex-direction:column;border:1px solid #e7d9a8;">
+          <div style="background:linear-gradient(135deg,#991b1b,#7f1d1d);padding:6px 12px;text-align:center;">
+            <div style="font-size:0.74rem;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${schoolName||'SCHOOL'}</div>
+            <div style="font-size:0.42rem;color:#f3dfa0;letter-spacing:1.5px;">PROPERTY OF THE SCHOOL &#9733; BACK SIDE</div>
+          </div>
+          <div style="flex:1;display:flex;padding:7px 10px;gap:8px;min-height:0;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:0.56rem;font-weight:800;color:#7f1d1d;letter-spacing:1px;border-bottom:2px solid #c9a227;padding-bottom:2px;">SCHOOL RULES</div>
+              <ol style="margin:4px 0 0 14px;padding:0;font-size:0.5rem;color:#44403c;line-height:1.45;">
+                <li>This card is the property of the school and must be carried every day.</li>
+                <li>It is non-transferable; misuse may lead to cancellation.</li>
+                <li>If found, please return it to the school office.</li>
+                <li>Valid for the academic year ${year} only.</li>
+              </ol>
+              <div style="margin-top:4px;font-size:0.5rem;color:#78716c;">Return to: School Office, ${schoolName||'SCHOOL'}</div>
+              ${barcode}
+            </div>
+            <div style="flex-shrink:0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;">
+              ${backQr6}
+              <div style="font-size:0.44rem;color:#a16207;margin-top:3px;letter-spacing:1px;">SCAN ID</div>
             </div>
           </div>
-        </div>
-      </div>`;
-    }
-
-    if (d === 'smart') {
-      return `<div style="width:340px;height:215px;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.15);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;display:flex;flex-direction:column;border:1px solid #e2e8f0;">
-        <div style="background:linear-gradient(135deg,#1e40af,#3b82f6);padding:10px 16px;display:flex;align-items:center;gap:10px;">
-          <img src="${logoSrc}" style="height:30px;border-radius:4px;" onerror="this.style.display='none'">
-          <div style="flex:1;"><div style="font-size:0.8rem;font-weight:800;color:#fff;">${schoolName||'SCHOOL'}</div><div style="font-size:0.55rem;color:rgba(255,255,255,0.7);">Student Identity Card</div></div>
-          <div style="width:32px;height:24px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:4px;border:1px solid #d97706;position:relative;">
-            <div style="position:absolute;top:5px;left:4px;right:4px;height:1px;background:#92400e;"></div>
-            <div style="position:absolute;top:10px;left:4px;right:4px;height:1px;background:#92400e;"></div>
-            <div style="position:absolute;top:15px;left:4px;right:4px;height:1px;background:#92400e;"></div>
-          </div>
-        </div>
-        <div style="flex:1;display:flex;padding:10px 14px;gap:12px;">
-          <div style="flex-shrink:0;">
-            <img src="${photoSrc}" style="width:75px;height:85px;border-radius:6px;object-fit:cover;border:2px solid #e2e8f0;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
-          </div>
-          <div style="flex:1;font-size:0.78rem;color:#1e293b;">
-            <div style="font-size:0.95rem;font-weight:700;">${s.name||'-'}</div>
-            <div style="font-size:0.65rem;color:#64748b;margin-bottom:6px;">S/O ${s.father_name||'-'}</div>
-            <div style="display:grid;grid-template-columns:auto 1fr auto 1fr;gap:2px 6px;font-size:0.7rem;">
-              <span style="color:#94a3b8;">ID</span><strong>${s.student_id||'-'}</strong>
-              <span style="color:#94a3b8;">Class</span><strong>${cls}</strong>
-              <span style="color:#94a3b8;">Roll</span><strong>${s.roll_no||'-'}</strong>
-              <span style="color:#94a3b8;">DOB</span><strong>${s.dob||'-'}</strong>
-            </div>
-            <div style="margin-top:4px;display:flex;gap:8px;align-items:center;">${qr}${barcode}</div>
-          </div>
-        </div>
-        <div style="background:#f1f5f9;padding:4px 14px;display:flex;justify-content:space-between;font-size:0.5rem;color:#94a3b8;border-top:1px solid #e2e8f0;">
-          <span>VALID: ${year}</span><span>${s.student_id||'N/A'}</span><span>SCHOOL ID CARD</span>
-        </div>
-      </div>`;
-    }
-
-    if (d === 'pakistani') {
-      return `<div style="width:340px;height:215px;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.25);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;display:flex;flex-direction:column;">
-        <div style="background:#006233;padding:10px 16px;display:flex;align-items:center;gap:10px;position:relative;">
-          <div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);opacity:0.15;font-size:2.5rem;">&#9770;</div>
-          <img src="${logoSrc}" style="height:32px;border-radius:4px;border:1px solid rgba(255,255,255,0.3);" onerror="this.style.display='none'">
-          <div style="font-size:0.82rem;font-weight:800;color:#fff;">${schoolName||'SCHOOL'}</div>
-        </div>
-        <div style="height:3px;background:linear-gradient(90deg,#fff 33%,#006233 33%,#006233 66%,#fff 66%);"></div>
-        <div style="flex:1;display:flex;padding:10px 14px;gap:12px;">
-          <div style="flex-shrink:0;text-align:center;">
-            <img src="${photoSrc}" style="width:75px;height:85px;border-radius:6px;object-fit:cover;border:3px solid #006233;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
-            ${qr}
-          </div>
-          <div style="flex:1;font-size:0.78rem;color:#1e293b;">
-            <div style="font-size:0.95rem;font-weight:700;color:#006233;">${s.name||'-'}</div>
-            <div style="font-size:0.65rem;color:#64748b;margin-bottom:6px;">S/O ${s.father_name||'-'}</div>
-            <table style="width:100%;border-collapse:collapse;font-size:0.72rem;">
-              <tr><td style="padding:2px 0;color:#006233;width:55px;font-weight:600;">ID No</td><td style="padding:2px 0;">${s.student_id||'-'}</td></tr>
-              <tr><td style="padding:2px 0;color:#006233;font-weight:600;">Class</td><td style="padding:2px 0;">${cls}</td></tr>
-              <tr><td style="padding:2px 0;color:#006233;font-weight:600;">Roll</td><td style="padding:2px 0;">${s.roll_no||'-'}</td></tr>
-              <tr><td style="padding:2px 0;color:#006233;font-weight:600;">Phone</td><td style="padding:2px 0;">${s.phone||'-'}</td></tr>
-            </table>
-            ${barcode}
-          </div>
-        </div>
-        <div style="background:#006233;padding:5px 14px;display:flex;justify-content:space-between;align-items:center;">
-          <div style="font-size:0.55rem;color:rgba(255,255,255,0.7);">Pakistan Zindabad</div>
-          <div style="font-size:0.55rem;color:rgba(255,255,255,0.7);">Valid ${year}</div>
-        </div>
-      </div>`;
-    }
-
-    if (d === 'kids') {
-      return `<div style="width:340px;height:225px;border-radius:18px;overflow:hidden;box-shadow:0 6px 24px rgba(168,85,247,0.25);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fdf4ff;display:flex;flex-direction:column;border:3px solid #e9d5ff;">
-        <div style="background:linear-gradient(135deg,#a855f7,#ec4899);padding:10px 16px;display:flex;align-items:center;gap:10px;">
-          <img src="${logoSrc}" style="height:34px;border-radius:10px;border:2px solid rgba(255,255,255,0.4);" onerror="this.style.display='none'">
-          <div style="font-size:0.85rem;font-weight:800;color:#fff;">${schoolName||'SCHOOL'}</div>
-          <div style="margin-left:auto;font-size:1.4rem;">&#127891;</div>
-        </div>
-        <div style="flex:1;display:flex;padding:12px 16px;gap:14px;">
-          <div style="flex-shrink:0;">
-            <img src="${photoSrc}" style="width:78px;height:88px;border-radius:14px;object-fit:cover;border:3px solid #c084fc;background:#fff;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
-            ${qr}
-          </div>
-          <div style="flex:1;font-size:0.78rem;color:#1e293b;">
-            <div style="font-size:1rem;font-weight:700;color:#7c3aed;">${s.name||'-'}</div>
-            <div style="font-size:0.65rem;color:#94a3b8;margin-bottom:6px;">S/O ${s.father_name||'-'}</div>
-            <div style="background:#f3e8ff;border-radius:10px;padding:6px 10px;font-size:0.72rem;">
-              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#a855f7;">Class</span><strong>${cls}</strong></div>
-              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#a855f7;">Roll</span><strong>${s.roll_no||'-'}</strong></div>
-              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#a855f7;">ID</span><strong>${s.student_id||'-'}</strong></div>
-              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#a855f7;">Phone</span><strong>${s.phone||'-'}</strong></div>
-            </div>
-            ${barcode}
-          </div>
-        </div>
-      </div>`;
-    }
-
-    if (d === 'corporate') {
-      return `<div style="width:340px;height:215px;border-radius:4px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.1);font-family:'Segoe UI',Arial,sans-serif;flex-shrink:0;background:#fff;display:flex;border:1px solid #e2e8f0;">
-        <div style="width:95px;background:#f8fafc;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;border-right:2px solid #e2e8f0;">
-          <img src="${photoSrc}" style="width:70px;height:80px;border-radius:4px;object-fit:cover;margin-bottom:6px;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
-          ${qr}
-        </div>
-        <div style="flex:1;display:flex;flex-direction:column;">
-          <div style="background:#334155;padding:6px 14px;display:flex;align-items:center;gap:8px;">
-            <img src="${logoSrc}" style="height:22px;border-radius:3px;" onerror="this.style.display='none'">
-            <div style="font-size:0.72rem;font-weight:700;color:#fff;">${schoolName||'SCHOOL'}</div>
-            <div style="margin-left:auto;font-size:0.5rem;color:#94a3b8;">${year}</div>
-          </div>
-          <div style="flex:1;padding:8px 14px;font-size:0.75rem;color:#1e293b;">
-            <div style="font-size:0.92rem;font-weight:700;">${s.name||'-'}</div>
-            <div style="font-size:0.62rem;color:#64748b;margin-bottom:4px;">S/O ${s.father_name||'-'}</div>
-            <div style="display:grid;grid-template-columns:auto 1fr auto 1fr;gap:1px 8px;font-size:0.68rem;">
-              <span style="color:#94a3b8;">ID</span><strong>${s.student_id||'-'}</strong>
-              <span style="color:#94a3b8;">Class</span><strong>${cls}</strong>
-              <span style="color:#94a3b8;">Roll</span><strong>${s.roll_no||'-'}</strong>
-              <span style="color:#94a3b8;">DOB</span><strong>${s.dob||'-'}</strong>
-            </div>
-            ${barcode}
-          </div>
-          <div style="border-top:1px solid #e2e8f0;padding:4px 14px;display:flex;justify-content:space-between;font-size:0.5rem;color:#94a3b8;">
-            <span>VALID: ${year}</span><span>PRINCIPAL SIGNATURE</span>
+          <div style="background:#fdf6e3;border-top:1px solid #e7d9a8;padding:3px 10px;display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:0.44rem;color:#a16207;letter-spacing:1px;">STUDENT SIGNATURE</div>
+            <div style="font-size:0.44rem;color:#a16207;letter-spacing:1px;">PRINCIPAL SIGNATURE</div>
           </div>
         </div>
       </div>`;
@@ -1969,7 +1972,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;font-size:0.55rem;color:#1e293b;">
               <div style="font-weight:700;font-size:0.68rem;color:#0d47a1;line-height:1.1;">${s.name||'-'}</div>
-              <div style="font-size:0.48rem;color:#64748b;">S/O ${s.father_name||'-'}</div>
+              <div style="font-size:0.48rem;color:#64748b;">${relationLabel(s.gender, s.father_name) || '-'}</div>
               <table style="width:100%;border-collapse:collapse;font-size:0.5rem;">
                 <tr><td style="padding:1px 0;color:#94a3b8;width:38px;">ID</td><td style="padding:1px 0;font-weight:600;">${s.student_id||'-'}</td><td style="padding:1px 0;color:#94a3b8;width:32px;">Class</td><td style="padding:1px 0;font-weight:600;">${cls}</td></tr>
                 <tr><td style="padding:1px 0;color:#94a3b8;">Roll</td><td style="padding:1px 0;font-weight:600;">${s.roll_no||'-'}</td><td style="padding:1px 0;color:#94a3b8;">DOB</td><td style="padding:1px 0;font-weight:600;">${s.dob||'-'}</td></tr>
@@ -2013,7 +2016,8 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
     }
 
-    return generateIdCardHtml(student, 'classic', schoolName, logoPath, includeQr, includeBarcode);
+    // v70: unknown design value -> render Design 1 (never an empty card)
+    return generateIdCardHtml(student, 'design1', schoolName, logoPath, includeQr, includeBarcode, principalSign);
   }
 
   function generateTeacherIdCardHtml(teacher, design, schoolName, logoPath, includeQr, principalSign) {
@@ -2171,6 +2175,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // NOTE: never pdf.save() here — it creates a blob: URL, which the Android
     // WebView DownloadListener cannot download ("unknown protocol: blob").
+    await saveGeneratedPdf(pdf, filename);
+  }
+
+  // ==========================================
+  // v70: CERTIFICATE EXPORT — SAVE AS PDF (same jsPDF + html2canvas path the
+  // ID cards use). Certificates are a single 8.5x11in node in #cert-printable
+  // (no box-shadow wrapper like the cards), so the node itself is rendered and
+  // handed to saveGeneratedPdf, which writes to Downloads/SkyHonix in the APK.
+  // ==========================================
+  async function exportCertificateToPdf(filename) {
+    const container = document.getElementById('cert-printable');
+    const card = container && container.firstElementChild;
+    if (!card) throw new Error('Generate the certificate first');
+    if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
+      throw new Error('PDF library failed to load. Please refresh the page.');
+    }
+    await waitForImages(card);
+    const canvas = await html2canvas(card, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+    const { jsPDF } = window.jspdf;
+    const wIn = card.offsetWidth / 96;
+    const hIn = card.offsetHeight / 96;
+    const pdf = new jsPDF({ unit: 'in', format: [wIn, hIn], orientation: wIn >= hIn ? 'landscape' : 'portrait', compress: true });
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.94), 'JPEG', 0, 0, wIn, hIn, undefined, 'FAST');
     await saveGeneratedPdf(pdf, filename);
   }
 
@@ -2384,6 +2411,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // MODULE: CERTIFICATE GENERATOR
   // ==========================================
   let certSelectedStudent = null;
+  // v70: which certificate is currently in the preview ('leave' | 'character'
+  // | 'sports') — the leave certificate uses it to offer the "has the student
+  // left school?" follow-up right after Save as PDF.
+  let certCurrentType = null;
 
   // Set current year in session field
   const certCharSession = document.getElementById('cert-char-session');
@@ -2397,7 +2428,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const q = document.getElementById('cert-student-search').value.trim();
     if (!q) return;
     try {
-      const students = await apiCall(`/students/all?q=${encodeURIComponent(q)}`);
+      // v70 fix: /students/all filters on `search` (it never read `q`), so the
+      // results were always the first students regardless of what was typed.
+      const students = await apiCall(`/students/all?search=${encodeURIComponent(q)}`);
       const resultsDiv = document.getElementById('cert-student-results');
       if (!students.length) { resultsDiv.innerHTML = '<div style="padding:8px;color:var(--text-muted);">No students found</div>'; resultsDiv.style.display='block'; return; }
       resultsDiv.innerHTML = students.slice(0,10).map(st => `
@@ -2434,7 +2467,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Certificate HTML generators
   function generateLeaveCertificateHtml(s, startDate, endDate, reason, schoolName, logoSrc, principalSign) {
     const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
-    return `<div style="width:8.5in;height:11in;background:#fff;border:3px double #1a237e;padding:0.5in;font-family:'Georgia',serif;position:relative;">
+    return `<div style="width:8.5in;height:11in;flex-shrink:0;background:#fff;border:3px double #1a237e;padding:0.5in;font-family:'Georgia',serif;position:relative;">
       <div style="text-align:center;margin-bottom:24px;">
         <img src="${logoSrc}" style="height:70px;border-radius:8px;" onerror="this.style.display='none'">
         <div style="font-size:1.6rem;font-weight:900;color:#1a237e;margin-top:8px;letter-spacing:2px;text-transform:uppercase;">${schoolName||'SCHOOL NAME'}</div>
@@ -2448,7 +2481,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div style="margin-bottom:8px;">Date: <strong>${today}</strong></div>
         <p style="text-indent:40px;">
           This is to certify that <strong style="color:#1a237e;font-size:1.1rem;">${s.name}</strong>,
-          ${s.father_name ? `son/daughter of <strong>${s.father_name}</strong>,` : ''}
+          ${childOfLabel(s.gender, s.father_name)}${s.father_name ? ',' : ''}
           studying in <strong>${s.class_name}</strong>${s.section_name ? `, Section <strong>${s.section_name}</strong>` : ''}
           (Roll No: <strong>${s.roll_no||'-'}</strong>, Student ID: <strong>${s.student_id||'-'}</strong>),
           has been granted leave from <strong>${startDate}</strong> to <strong>${endDate}</strong>
@@ -2473,7 +2506,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function generateCharacterCertificateHtml(s, session, conduct, schoolName, logoSrc, principalSign) {
     const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
-    return `<div style="width:8.5in;height:11in;background:#fff;border:3px double #1b5e20;padding:0.5in;font-family:'Georgia',serif;position:relative;">
+    return `<div style="width:8.5in;height:11in;flex-shrink:0;background:#fff;border:3px double #1b5e20;padding:0.5in;font-family:'Georgia',serif;position:relative;">
       <div style="text-align:center;margin-bottom:24px;">
         <img src="${logoSrc}" style="height:70px;border-radius:8px;" onerror="this.style.display='none'">
         <div style="font-size:1.6rem;font-weight:900;color:#1b5e20;margin-top:8px;letter-spacing:2px;text-transform:uppercase;">${schoolName||'SCHOOL NAME'}</div>
@@ -2487,15 +2520,14 @@ document.addEventListener('DOMContentLoaded', () => {
         <div style="margin-bottom:8px;">Date: <strong>${today}</strong></div>
         <p style="text-indent:40px;">
           This is to certify that <strong style="color:#1b5e20;font-size:1.1rem;">${s.name}</strong>,
-          ${s.father_name ? `son/daughter of <strong>${s.father_name}</strong>,` : ''}
-          S/O <strong>${s.father_name||'-'}</strong>,
+          ${childOfLabel(s.gender, s.father_name)}${s.father_name ? ',' : ''}
           studying in <strong>${s.class_name}</strong>${s.section_name ? `, Section <strong>${s.section_name}</strong>` : ''}
           (Roll No: <strong>${s.roll_no||'-'}</strong>, Student ID: <strong>${s.student_id||'-'}</strong>),
           ${s.dob ? `born on <strong>${s.dob}</strong>,` : ''}
           has attended this school during the academic session <strong>${session}</strong>.
         </p>
         <p style="text-indent:40px;">${conduct}</p>
-        <p style="text-indent:40px;">We wish him/her all the best for future endeavors.</p>
+        <p style="text-indent:40px;">We wish ${objectPronoun(s.gender)} all the best for future endeavors.</p>
       </div>
       <div style="margin-top:60px;display:flex;justify-content:space-between;align-items:flex-end;">
         <div style="text-align:center;">
@@ -2514,7 +2546,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function generateSportsCertificateHtml(s, event, achievement, eventDate, details, schoolName, logoSrc, principalSign) {
     const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
-    return `<div style="width:8.5in;height:11in;background:#fff;border:3px double #e65100;padding:0.5in;font-family:'Georgia',serif;position:relative;">
+    return `<div style="width:8.5in;height:11in;flex-shrink:0;background:#fff;border:3px double #e65100;padding:0.5in;font-family:'Georgia',serif;position:relative;">
       <div style="text-align:center;margin-bottom:24px;">
         <img src="${logoSrc}" style="height:70px;border-radius:8px;" onerror="this.style.display='none'">
         <div style="font-size:1.6rem;font-weight:900;color:#e65100;margin-top:8px;letter-spacing:2px;text-transform:uppercase;">${schoolName||'SCHOOL NAME'}</div>
@@ -2529,7 +2561,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <p style="text-indent:40px;">
           This certificate is proudly presented to
           <strong style="color:#e65100;font-size:1.1rem;">${s.name}</strong>,
-          ${s.father_name ? `son/daughter of <strong>${s.father_name}</strong>,` : ''}
+          ${childOfLabel(s.gender, s.father_name)}${s.father_name ? ',' : ''}
           studying in <strong>${s.class_name}</strong>${s.section_name ? `, Section <strong>${s.section_name}</strong>` : ''}
           (Roll No: <strong>${s.roll_no||'-'}</strong>),
         </p>
@@ -2539,7 +2571,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ${eventDate ? `held on <strong>${eventDate}</strong>` : ''}.
         </p>
         ${details ? `<p style="text-indent:40px;">${details}</p>` : ''}
-        <p style="text-indent:40px;">We congratulate him/her on this remarkable achievement and wish continued success in all future endeavors.</p>
+        <p style="text-indent:40px;">We congratulate ${objectPronoun(s.gender)} on this remarkable achievement and wish continued success in all future endeavors.</p>
       </div>
       <div style="margin-top:60px;display:flex;justify-content:space-between;align-items:flex-end;">
         <div style="text-align:center;">
@@ -2591,6 +2623,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const html = generateLeaveCertificateHtml(certSelectedStudent, startDate, endDate, reason, settings.school_name, imgSrc(settings.logo_path, PLACEHOLDER_IMG), principalSign);
     document.getElementById('cert-printable').innerHTML = html;
     document.getElementById('cert-preview-container').style.display='block';
+    certCurrentType = 'leave';
+    document.getElementById('cert-left-prompt').style.display = 'none';
   });
 
   // Generate Character Certificate
@@ -2603,6 +2637,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const html = generateCharacterCertificateHtml(certSelectedStudent, session, conduct, settings.school_name, imgSrc(settings.logo_path, PLACEHOLDER_IMG), principalSign);
     document.getElementById('cert-printable').innerHTML = html;
     document.getElementById('cert-preview-container').style.display='block';
+    certCurrentType = 'character';
+    document.getElementById('cert-left-prompt').style.display = 'none';
   });
 
   // Generate Sports Certificate
@@ -2617,6 +2653,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const html = generateSportsCertificateHtml(certSelectedStudent, event, achievement, eventDate, details, settings.school_name, imgSrc(settings.logo_path, PLACEHOLDER_IMG), principalSign);
     document.getElementById('cert-printable').innerHTML = html;
     document.getElementById('cert-preview-container').style.display='block';
+    certCurrentType = 'sports';
+    document.getElementById('cert-left-prompt').style.display = 'none';
   });
 
   // Certificate Print
@@ -2628,9 +2666,53 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => { printWindow.print(); }, 500);
   });
 
-  // Certificate Download
-  document.getElementById('cert-download').addEventListener('click', () => {
-    showToast('Tip: Right-click the certificate and "Save as image", or use Print > Save as PDF');
+  // Certificate Download — v70: actually SAVES a PDF file (was only a tip
+  // toast before). Uses the same native/browser save path as the ID cards, so
+  // the file lands in Downloads/SkyHonix on Android like every other option.
+  document.getElementById('cert-download').addEventListener('click', async function() {
+    const printable = document.getElementById('cert-printable');
+    if (!printable || !printable.firstElementChild) { showToast('Generate the certificate first', true); return; }
+    const original = this.textContent;
+    this.disabled = true; this.textContent = '⏳ Saving…';
+    try {
+      const label = String((certSelectedStudent && (certSelectedStudent.student_id || certSelectedStudent.name)) || 'Student').replace(/[^\w\-]+/g, '_');
+      const kind = certCurrentType === 'leave' ? 'Leave' : certCurrentType === 'character' ? 'Character' : 'Sports';
+      await exportCertificateToPdf(`Certificate-${kind}-${label}.pdf`);
+      // Follow-up for the leave certificate: has this student left the school?
+      if (certCurrentType === 'leave' && certSelectedStudent && certSelectedStudent.id) {
+        const prompt = document.getElementById('cert-left-prompt');
+        prompt.style.display = 'block';
+        try { prompt.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+      }
+    } catch (e) {
+      console.error('[APP_ERROR]', e.message);
+      showToast('PDF export failed: ' + e.message, true);
+    } finally {
+      this.disabled = false; this.textContent = original;
+    }
+  });
+
+  // Leave-certificate follow-up: "Has the student left school?"
+  // YES -> POST /students/:id/archive (status = 'Left'): the student stays on
+  // the school record but leaves every active list and shows under
+  // Student Profile > Left Students with the complete fee/exam/attendance file.
+  document.getElementById('cert-left-yes').addEventListener('click', async function() {
+    if (!certSelectedStudent || !certSelectedStudent.id) { showToast('No student selected', true); return; }
+    const original = this.textContent;
+    this.disabled = true; this.textContent = '⏳ Updating…';
+    try {
+      await apiCall(`/students/${certSelectedStudent.id}/archive`, 'POST');
+      document.getElementById('cert-left-prompt').style.display = 'none';
+      showToast(`✅ ${certSelectedStudent.name} marked as Left — open Student Profile → Left Students for the full record`);
+    } catch (e) {
+      console.error('[APP_ERROR]', e.message);
+      showToast('Could not update student: ' + (e.message || e), true);
+    } finally {
+      this.disabled = false; this.textContent = original;
+    }
+  });
+  document.getElementById('cert-left-no').addEventListener('click', () => {
+    document.getElementById('cert-left-prompt').style.display = 'none';
   });
 
   // ==========================================
@@ -3514,13 +3596,25 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStudentProfileList();
   });
 
+  // v70: Record Type toggle — Active Students (default; students who left are
+  // hidden here) vs Left Students (complete historic record: fees, exams,
+  // attendance, documents, history).
+  document.getElementById('sp-record-type').addEventListener('change', function() {
+    document.getElementById('sp-profile-container').style.display = 'none';
+    document.getElementById('sp-left-note').style.display = this.value === 'left' ? 'block' : 'none';
+    loadStudentProfileList();
+  });
+
   async function loadStudentProfileList() {
     const className = document.getElementById('sp-class-select').value;
     const sectionName = document.getElementById('sp-section-select').value;
     const search = document.getElementById('sp-search-input').value.trim();
+    const showLeft = document.getElementById('sp-record-type').value === 'left';
     const studentSelect = document.getElementById('sp-student-select');
 
-    if (!className && !sectionName && !search) {
+    // Left Students loads without filters (the whole list is the point);
+    // Active still requires a class/section/search filter as before.
+    if (!showLeft && !className && !sectionName && !search) {
       studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
       return;
     }
@@ -3532,14 +3626,21 @@ document.addEventListener('DOMContentLoaded', () => {
       if (className) url += `class_name=${encodeURIComponent(className)}&`;
       if (sectionName) url += `section_name=${encodeURIComponent(sectionName)}&`;
       if (search) url += `search=${encodeURIComponent(search)}&`;
-      const students = await apiCall(url);
+      const all = await apiCall(url);
+      // /students/all returns everyone — scope it by record type so LEFT
+      // students never appear in the active list and vice versa.
+      const students = all.filter(st => showLeft ? st.status === 'Left' : st.status !== 'Left');
       if (students.length === 0) {
-        studentSelect.innerHTML = '<option value="">-- No students found --</option>';
+        studentSelect.innerHTML = showLeft
+          ? '<option value="">-- No left students found --</option>'
+          : '<option value="">-- No students found --</option>';
       } else {
         const opts = ['<option value="">-- Select Student --</option>'];
         students.forEach(s => {
-          const statusLabel = s.status === 'Left' ? ' [LEFT]' : '';
-          opts.push(`<option value="${s.id}">${s.roll_no || '-'} - ${s.name}${statusLabel}</option>`);
+          const suffix = showLeft
+            ? ` (${s.class_name || '-'})`
+            : (s.status === 'Left' ? ' [LEFT]' : '');
+          opts.push(`<option value="${s.id}">${s.roll_no || '-'} - ${s.name}${suffix}</option>`);
         });
         studentSelect.innerHTML = opts.join('');
       }
@@ -3586,7 +3687,13 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('sp-class-info').innerText = `Class: ${s.class_name || '-'}${s.section_name ? ' - ' + s.section_name : ''}`;
       document.getElementById('sp-roll-info').innerText = `Roll No: ${s.roll_no || '-'}`;
       document.getElementById('sp-father-info').innerText = `Father: ${s.father_name || '-'}`;
-      document.getElementById('sp-status-badge').innerText = s.status || 'Active';
+      // v70: status badge reflects reality — Left students show a red badge
+      // plus a banner pointing at the complete historic record below.
+      const statusBadge = document.getElementById('sp-status-badge');
+      statusBadge.innerText = s.status || 'Active';
+      statusBadge.className = 'badge ' + (s.status === 'Left' ? 'badge-red' : 'badge-green');
+      const leftBanner = document.getElementById('sp-left-banner');
+      if (leftBanner) leftBanner.style.display = s.status === 'Left' ? 'flex' : 'none';
       document.getElementById('sp-attendance-rate').innerText = `${stats.attendanceRate}%`;
 
       // Overview - Personal Info

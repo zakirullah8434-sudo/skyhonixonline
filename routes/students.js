@@ -345,7 +345,7 @@ router.get('/all', authenticateToken, async (req, res) => {
   const schoolId = req.user.schoolId;
   const { class_name, section_name, search } = req.query;
 
-  let query = 'SELECT id, student_id, admission_no, name, roll_no, class_name, section_name, father_name, phone, status, is_free, discount_amount, discount_percent, family_head_id, photo FROM students WHERE 1=1';
+  let query = 'SELECT id, student_id, admission_no, name, roll_no, class_name, section_name, father_name, phone, status, is_free, discount_amount, discount_percent, family_head_id, photo, gender, dob FROM students WHERE 1=1';
   const params = [];
 
   if (class_name) {

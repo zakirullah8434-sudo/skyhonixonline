@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=9" as="style">
-  <link rel="preload" href="js/app.js?v=69" as="script">
+  <link rel="preload" href="js/app.js?v=70" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v69';
+    window.SKYHONIX_PAGE_VERSION = 'v70';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -1288,15 +1288,12 @@
                   <div class="form-group">
                     <label class="form-label">Card Design *</label>
                     <select class="form-control" id="idcard-stu-design">
-                      <option value="design1">Design 1 - Lanyard Badge</option>
-                      <option value="classic">Classic Landscape</option>
-                      <option value="portrait">Portrait Vertical</option>
-                      <option value="badge">Badge / Lanyard</option>
-                      <option value="twosided">Two-Sided Card</option>
-                      <option value="smart">Smart Chip Card</option>
-                      <option value="pakistani">Pakistani Green</option>
-                      <option value="kids">Kids / Primary</option>
-                      <option value="corporate">Corporate Clean</option>
+                      <option value="design1">Design 1 - Lanyard Badge (Front &amp; Back)</option>
+                      <option value="design2">Design 2 - Pakistan Green</option>
+                      <option value="design3">Design 3 - Royal Crest</option>
+                      <option value="design4">Design 4 - Scholar Blue</option>
+                      <option value="design5">Design 5 - House Badge</option>
+                      <option value="design6">Design 6 - Twin Sides (Front &amp; Back)</option>
                     </select>
                   </div>
                 </div>
@@ -1364,15 +1361,12 @@
                   <div class="form-group">
                     <label class="form-label">Card Design *</label>
                     <select class="form-control" id="idcard-teach-design">
-                      <option value="design1">Design 1 - Lanyard Badge</option>
-                      <option value="classic">Classic Landscape</option>
-                      <option value="portrait">Portrait Vertical</option>
-                      <option value="badge">Badge / Lanyard</option>
-                      <option value="twosided">Two-Sided Card</option>
-                      <option value="smart">Smart Chip Card</option>
-                      <option value="pakistani">Pakistani Green</option>
-                      <option value="kids">Kids / Primary</option>
-                      <option value="corporate">Corporate Clean</option>
+                      <option value="design1">Design 1 - Lanyard Badge (Front &amp; Back)</option>
+                      <option value="design2">Design 2 - Pakistan Green</option>
+                      <option value="design3">Design 3 - Royal Crest</option>
+                      <option value="design4">Design 4 - Scholar Blue</option>
+                      <option value="design5">Design 5 - House Badge</option>
+                      <option value="design6">Design 6 - Twin Sides (Front &amp; Back)</option>
                     </select>
                   </div>
                   <div class="form-group">
@@ -1437,15 +1431,12 @@
                   <div class="form-group">
                     <label class="form-label">Card Design *</label>
                     <select class="form-control" id="idcard-staff-design">
-                      <option value="design1">Design 1 - Lanyard Badge</option>
-                      <option value="classic">Classic Landscape</option>
-                      <option value="portrait">Portrait Vertical</option>
-                      <option value="badge">Badge / Lanyard</option>
-                      <option value="twosided">Two-Sided Card</option>
-                      <option value="smart">Smart Chip Card</option>
-                      <option value="pakistani">Pakistani Green</option>
-                      <option value="kids">Kids / Primary</option>
-                      <option value="corporate">Corporate Clean</option>
+                      <option value="design1">Design 1 - Lanyard Badge (Front &amp; Back)</option>
+                      <option value="design2">Design 2 - Pakistan Green</option>
+                      <option value="design3">Design 3 - Royal Crest</option>
+                      <option value="design4">Design 4 - Scholar Blue</option>
+                      <option value="design5">Design 5 - House Badge</option>
+                      <option value="design6">Design 6 - Twin Sides (Front &amp; Back)</option>
                     </select>
                   </div>
                   <div class="form-group">
@@ -1486,15 +1477,12 @@
                   <div class="form-group">
                     <label class="form-label">Card Design *</label>
                     <select class="form-control" id="idcard-cw-design">
-                      <option value="design1">Design 1 - Lanyard Badge</option>
-                      <option value="classic">Classic Landscape</option>
-                      <option value="portrait">Portrait Vertical</option>
-                      <option value="badge">Badge / Lanyard</option>
-                      <option value="twosided">Two-Sided Card</option>
-                      <option value="smart">Smart Chip Card</option>
-                      <option value="pakistani">Pakistani Green</option>
-                      <option value="kids">Kids / Primary</option>
-                      <option value="corporate">Corporate Clean</option>
+                      <option value="design1">Design 1 - Lanyard Badge (Front &amp; Back)</option>
+                      <option value="design2">Design 2 - Pakistan Green</option>
+                      <option value="design3">Design 3 - Royal Crest</option>
+                      <option value="design4">Design 4 - Scholar Blue</option>
+                      <option value="design5">Design 5 - House Badge</option>
+                      <option value="design6">Design 6 - Twin Sides (Front &amp; Back)</option>
                     </select>
                   </div>
                   <div class="form-group">
@@ -1651,7 +1639,22 @@
                   <button class="btn btn-outline" id="cert-download">📥 Download PDF</button>
                 </div>
               </div>
-              <div id="cert-printable" style="background:#f1f5f9; padding:20px; border-radius:12px; display:flex; justify-content:center;"></div>
+
+              <!-- v70: leave-certificate follow-up (shown after Save as PDF) -->
+              <div id="cert-left-prompt" style="display:none; margin-bottom:16px; padding:16px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.35); border-radius: 12px;">
+                <div style="font-weight: 800; font-size: 1rem; margin-bottom: 4px;">🚪 Has this student left school?</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+                  The leave certificate has been saved as PDF. Choose <strong>Yes</strong> if this student has actually left the school —
+                  they will stay on the school record (status <strong>Left</strong>), disappear from all active student lists, and their complete
+                  file (fee, exam, attendance, documents) will show under <strong>Student Profile → Left Students</strong>.
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                  <button class="btn btn-primary" id="cert-left-yes">✅ Yes, the student left</button>
+                  <button class="btn btn-outline" id="cert-left-no">❌ No, still studying</button>
+                </div>
+              </div>
+
+              <div id="cert-printable" style="background:#f1f5f9; padding:20px; border-radius:12px; display:flex; justify-content:center; overflow-x:auto;"></div>
             </div>
           </div>
 
@@ -2323,6 +2326,19 @@
 
           <!-- Student Selector -->
           <div class="card" style="margin-bottom: 24px;">
+            <!-- v70: Active vs Left record switch -->
+            <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 15px;">
+              <div class="form-group" style="margin-bottom: 0; min-width: 240px;">
+                <label class="form-label">Record Type</label>
+                <select class="form-control" id="sp-record-type">
+                  <option value="active">👩‍🎓 Active Students</option>
+                  <option value="left">🚪 Left Students</option>
+                </select>
+              </div>
+              <div id="sp-left-note" style="display: none; flex: 1; min-width: 260px; padding: 10px 14px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; font-size: 0.85rem; color: var(--text-muted);">
+                Showing students who have <strong style="color:#ef4444;">left the school</strong> — pick one to see their complete record (fees, exams, attendance, documents &amp; history).
+              </div>
+            </div>
             <div class="grid-3" style="gap: 15px; align-items: flex-end;">
               <div class="form-group" style="margin-bottom: 0;">
                 <label class="form-label">Select Class</label>
@@ -2354,6 +2370,11 @@
 
           <!-- Profile Content (hidden until student selected) -->
           <div id="sp-profile-container" style="display: none;">
+
+            <!-- v70: banner shown when the opened student has left the school -->
+            <div id="sp-left-banner" style="display:none; align-items:center; gap:10px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.35); color:#ef4444; padding:12px 16px; border-radius:12px; margin-bottom:16px; font-weight:700;">
+              🚪 LEFT STUDENT — this student has left the school. The complete record below (fees, exams, attendance, documents &amp; history) is kept for the school file.
+            </div>
 
             <!-- Student Header Card -->
             <div class="card sp-header-card" style="margin-bottom: 24px;">
@@ -5086,8 +5107,8 @@
     </div>
   </div>
 
-  <script src="js/vendor/jspdf.umd.min.js?v=69"></script>
-  <script src="js/vendor/html2canvas.min.js?v=69"></script>
-  <script src="js/app.js?v=69"></script>
+  <script src="js/vendor/jspdf.umd.min.js?v=70"></script>
+  <script src="js/vendor/html2canvas.min.js?v=70"></script>
+  <script src="js/app.js?v=70"></script>
 </body>
 </html>
