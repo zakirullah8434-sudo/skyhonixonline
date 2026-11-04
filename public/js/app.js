@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v72';
+    const EXPECTED_PAGE_VERSION = 'v73';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -2072,9 +2072,9 @@ document.addEventListener('DOMContentLoaded', () => {
               <div style="font-size:0.95rem;font-weight:800;color:#7f1d1d;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.name||'-'}</div>
               <div style="font-size:0.62rem;color:#57534e;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${relationLabel(s.gender, s.father_name) || '-'}</div>
               <table style="width:100%;border-collapse:collapse;font-size:0.64rem;">
-                <tr><td style="padding:2px 0;color:#a16207;font-weight:700;width:52px;">ID No</td><td style="padding:2px 0;font-weight:600;">${s.student_id||'-'}</td><td style="padding:2px 0;color:#a16207;font-weight:700;width:40px;">Class</td><td style="padding:2px 0;font-weight:600;">${cls}</td></tr>
-                <tr><td style="padding:2px 0;color:#a16207;font-weight:700;">Roll</td><td style="padding:2px 0;font-weight:600;">${s.roll_no||'-'}</td><td style="padding:2px 0;color:#a16207;font-weight:700;">DOB</td><td style="padding:2px 0;font-weight:600;">${s.dob||'-'}</td></tr>
-                <tr><td style="padding:2px 0;color:#a16207;font-weight:700;">Ph</td><td style="padding:2px 0;font-weight:600;" colspan="3">${s.phone||'-'}</td></tr>
+                <tr><td style="padding:2px 0;color:#a16207;font-weight:700;width:44px;">ID No</td><td style="padding:2px 0;font-weight:600;">${s.student_id||'-'}</td><td style="padding:2px 0;color:#a16207;font-weight:700;width:34px;">DOB</td><td style="padding:2px 0;font-weight:600;">${s.dob||'-'}</td></tr>
+                <tr><td style="padding:2px 0;color:#a16207;font-weight:700;">Class</td><td style="padding:2px 0;font-weight:600;">${cls}</td><td style="padding:2px 0;color:#a16207;font-weight:700;">Roll</td><td style="padding:2px 0;font-weight:600;">${s.roll_no||'-'}</td></tr>
+                <tr><td colspan="4" style="padding:3px 5px;margin-top:2px;background:#fdf6e3;border:1px solid #e7d9a8;border-radius:3px;"><span style="color:#a16207;font-weight:800;font-size:0.64rem;">Phone: </span><span style="color:#7f1d1d;font-weight:800;font-size:0.7rem;letter-spacing:0.3px;">${s.phone||'-'}</span></td></tr>
               </table>
               <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px;">
                 <div style="text-align:center;"><div style="height:1px;width:70px;background:#cbd5e1;"></div><div style="font-size:0.44rem;color:#94a3b8;">Student</div></div>
@@ -2092,9 +2092,13 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
         <div style="width:330px;height:215px;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.25);font-family:'Segoe UI',Arial,sans-serif;background:#fff;display:flex;flex-direction:column;border:1px solid #e7d9a8;">
-          <div style="background:linear-gradient(135deg,#991b1b,#7f1d1d);padding:6px 12px;text-align:center;">
-            <div style="font-size:0.74rem;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${schoolName||'SCHOOL'}</div>
-            <div style="font-size:0.42rem;color:#f3dfa0;letter-spacing:1.5px;">PROPERTY OF THE SCHOOL &#9733; BACK SIDE</div>
+          <div style="background:linear-gradient(135deg,#991b1b,#7f1d1d);padding:6px 12px;display:flex;align-items:center;gap:8px;">
+            <img src="${logoSrc}" style="height:26px;width:26px;border-radius:50%;object-fit:cover;border:2px solid #c9a227;background:#fff;flex-shrink:0;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
+            <div style="flex:1;min-width:0;text-align:center;">
+              <div style="font-size:0.74rem;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${schoolName||'SCHOOL'}</div>
+              <div style="font-size:0.42rem;color:#f3dfa0;letter-spacing:1.5px;">PROPERTY OF THE SCHOOL &#9733; BACK SIDE</div>
+            </div>
+            <div style="width:26px;flex-shrink:0;"></div>
           </div>
           <div style="flex:1;display:flex;padding:7px 10px;gap:8px;min-height:0;">
             <div style="flex:1;min-width:0;">
@@ -2113,9 +2117,13 @@ document.addEventListener('DOMContentLoaded', () => {
               <div style="font-size:0.44rem;color:#a16207;margin-top:3px;letter-spacing:1px;">SCAN ID</div>
             </div>
           </div>
-          <div style="background:#fdf6e3;border-top:1px solid #e7d9a8;padding:3px 10px;display:flex;justify-content:space-between;align-items:center;">
-            <div style="font-size:0.44rem;color:#a16207;letter-spacing:1px;">STUDENT SIGNATURE</div>
-            <div style="font-size:0.44rem;color:#a16207;letter-spacing:1px;">PRINCIPAL SIGNATURE</div>
+          <div style="background:#fdf6e3;border-top:1px solid #e7d9a8;padding:3px 10px;display:flex;justify-content:space-between;align-items:flex-end;gap:8px;">
+            <div style="font-size:0.44rem;color:#a16207;letter-spacing:1px;">VALID ${year}</div>
+            <div style="text-align:center;">
+              ${principalSign ? `<img src="${principalSign}" style="height:15px;max-width:74px;object-fit:contain;" onerror="this.style.display='none'">` : '<div style="height:15px;"></div>'}
+              <div style="height:1px;width:74px;background:#a16207;margin:0 auto;"></div>
+              <div style="font-size:0.4rem;color:#a16207;font-weight:700;letter-spacing:0.5px;">Principal</div>
+            </div>
           </div>
         </div>
       </div>`;
@@ -2125,7 +2133,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const cardW = '3.375in', cardH = '2.125in';
       const backQr = includeQr ? `<img src="${qrUrl}" style="width:0.7in;height:0.7in;border-radius:3px;" onerror="this.style.display='none'">` : '';
       const backBarcode = includeBarcode ? `<div style="margin-top:4px;font-family:monospace;font-size:0.55rem;letter-spacing:2px;background:#fff;padding:3px 8px;border-radius:3px;color:#333;display:inline-block;border:1px solid #ddd;">║║ ${s.student_id||s.id||'00000'} ║║</div>` : '';
-      const principalImg = principalSign ? `<img src="${principalSign}" style="height:20px;max-width:60px;object-fit:contain;" onerror="this.style.display='none'">` : `<div style="height:20px;"></div>`;
 
       return `<div style="display:flex;gap:16px;flex-shrink:0;align-items:flex-start;">
         <div style="width:${cardW};height:${cardH};border-radius:8px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.2);font-family:'Segoe UI',Arial,sans-serif;background:#fff;position:relative;display:flex;flex-direction:column;">
@@ -2146,11 +2153,14 @@ document.addEventListener('DOMContentLoaded', () => {
               <table style="width:100%;border-collapse:collapse;font-size:0.5rem;">
                 <tr><td style="padding:1px 0;color:#94a3b8;width:38px;">ID</td><td style="padding:1px 0;font-weight:600;">${s.student_id||'-'}</td><td style="padding:1px 0;color:#94a3b8;width:32px;">Class</td><td style="padding:1px 0;font-weight:600;">${cls}</td></tr>
                 <tr><td style="padding:1px 0;color:#94a3b8;">Roll</td><td style="padding:1px 0;font-weight:600;">${s.roll_no||'-'}</td><td style="padding:1px 0;color:#94a3b8;">DOB</td><td style="padding:1px 0;font-weight:600;">${s.dob||'-'}</td></tr>
-                <tr><td style="padding:1px 0;color:#94a3b8;">Ph.</td><td style="padding:1px 0;font-weight:600;" colspan="3">${s.phone||'-'}</td></tr>
+                <tr><td style="padding:1px 0;color:#94a3b8;">Gender</td><td style="padding:1px 0;font-weight:600;">${s.gender||'-'}</td><td style="padding:1px 0;color:#94a3b8;">Phone</td><td style="padding:1px 0;font-weight:600;">${s.phone||'-'}</td></tr>
               </table>
-              <div style="display:flex;justify-content:flex-end;align-items:center;gap:4px;margin-top:2px;">
-                <div style="text-align:right;"><div style="height:1px;width:45px;background:#bbb;margin:0 0 1px auto;"></div><div style="font-size:0.38rem;color:#888;">Principal</div></div>
-                ${principalImg}
+              <div style="display:flex;justify-content:flex-end;margin-top:2px;">
+                <div style="text-align:center;min-width:64px;">
+                  ${principalSign ? `<img src="${principalSign}" style="height:17px;max-width:76px;object-fit:contain;display:block;margin:0 auto;" onerror="this.style.display='none'">` : '<div style="height:17px;"></div>'}
+                  <div style="height:1px;background:#94a3b8;"></div>
+                  <div style="font-size:0.38rem;color:#64748b;font-weight:600;letter-spacing:0.2px;">Principal Signature</div>
+                </div>
               </div>
             </div>
           </div>
@@ -2160,28 +2170,32 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
         <div style="width:${cardW};height:${cardH};border-radius:8px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.2);font-family:'Segoe UI',Arial,sans-serif;background:#f8f9fa;position:relative;display:flex;flex-direction:column;">
-          <div style="background:linear-gradient(135deg,#1565c0 0%,#1976d2 50%,#1e88e5 100%);padding:5px 10px;text-align:center;">
-            <div style="font-size:0.58rem;font-weight:800;color:#fff;letter-spacing:0.5px;">${schoolName||'SCHOOL NAME'}</div>
-            <div style="font-size:0.38rem;color:rgba(255,255,255,0.7);">Academic Year ${year}</div>
+          <div style="background:linear-gradient(135deg,#1565c0 0%,#1976d2 50%,#1e88e5 100%);padding:5px 10px;display:flex;align-items:center;gap:6px;">
+            <img src="${logoSrc}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.4);background:#fff;flex-shrink:0;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
+            <div style="flex:1;min-width:0;text-align:center;">
+              <div style="font-size:0.58rem;font-weight:800;color:#fff;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${schoolName||'SCHOOL NAME'}</div>
+              <div style="font-size:0.38rem;color:rgba(255,255,255,0.7);">Academic Year ${year}</div>
+            </div>
+            <div style="width:24px;flex-shrink:0;"></div>
           </div>
-          <div style="flex:1;padding:5px 8px;display:flex;flex-direction:column;justify-content:space-between;">
-            <div style="display:flex;gap:6px;align-items:flex-start;">
+          <div style="flex:1;padding:5px 8px;display:flex;flex-direction:column;justify-content:space-between;gap:4px;min-height:0;">
+            <div style="display:flex;gap:6px;align-items:flex-start;min-height:0;">
               <div style="flex-shrink:0;">${backQr}</div>
-              <div style="flex:1;background:#fff;border-radius:4px;padding:4px 6px;font-size:0.48rem;color:#333;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
-                <div style="display:flex;padding:1.5px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:52px;color:#94a3b8;font-weight:600;">Student ID</span><span>: ${s.student_id||'-'}</span></div>
-                <div style="display:flex;padding:1.5px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:52px;color:#94a3b8;font-weight:600;">Class</span><span>: ${cls}</span></div>
-                <div style="display:flex;padding:1.5px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:52px;color:#94a3b8;font-weight:600;">Roll No</span><span>: ${s.roll_no||'-'}</span></div>
-                <div style="display:flex;padding:1.5px 0;border-bottom:1px dotted #e0e0e0;"><span style="width:52px;color:#94a3b8;font-weight:600;">Father</span><span>: ${s.father_name||'-'}</span></div>
-                <div style="display:flex;padding:1.5px 0;"><span style="width:52px;color:#94a3b8;font-weight:600;">Gender</span><span>: ${s.gender||'-'}</span></div>
+              <div style="flex:1;background:#fff;border-radius:4px;padding:4px 6px;font-size:0.44rem;color:#333;box-shadow:0 1px 4px rgba(0,0,0,0.06);line-height:1.45;">
+                <div style="font-weight:700;color:#0d47a1;font-size:0.46rem;letter-spacing:0.4px;margin-bottom:1px;">INSTRUCTIONS</div>
+                <div>1. Carry this card to school every day and produce it on demand.</div>
+                <div>2. This card is non-transferable; do not lend it to anyone.</div>
+                <div>3. If found, please return it to the school office.</div>
+                <div>4. Report the loss of this card to the office immediately.</div>
+                <div>5. Valid for the academic year ${year} only.</div>
               </div>
             </div>
             ${backBarcode}
-            <div style="display:flex;justify-content:space-between;align-items:flex-end;">
-              <div style="text-align:center;"><div style="height:1px;width:50px;background:#bbb;margin:0 auto 1px;"></div><div style="font-size:0.38rem;color:#888;">Student</div></div>
-              <div style="text-align:center;"><div style="height:1px;width:50px;background:#bbb;margin:0 auto 1px;"></div><div style="font-size:0.38rem;color:#888;">Principal</div></div>
-            </div>
           </div>
-          <div style="background:#1565c0;padding:2px 8px;text-align:center;"><div style="font-size:0.35rem;color:rgba(255,255,255,0.7);">Property of ${schoolName||'SCHOOL'} | If found please return</div></div>
+          <div style="background:#1565c0;padding:2px 8px;display:flex;justify-content:space-between;align-items:center;gap:6px;">
+            <div style="font-size:0.35rem;color:rgba(255,255,255,0.9);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Student ID: ${s.student_id||'-'}</div>
+            <div style="font-size:0.35rem;color:rgba(255,255,255,0.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Property of ${schoolName||'SCHOOL'}</div>
+          </div>
         </div>
       </div>`;
     }
@@ -2592,6 +2606,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const y = new Date().getFullYear();
     certCharSession.value = `${y-1}-${y}`;
   }
+  // v73: School Leave Certificate defaults — current session + today's date
+  const certLeaveSession = document.getElementById('cert-leave-session');
+  if (certLeaveSession) {
+    const y = new Date().getFullYear();
+    certLeaveSession.value = `${y-1}-${y}`;
+  }
+  const certLeaveDate = document.getElementById('cert-leave-date');
+  if (certLeaveDate) {
+    const d = new Date();
+    certLeaveDate.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
 
   // Search students
   document.getElementById('cert-student-search-btn').addEventListener('click', async () => {
@@ -2635,40 +2660,77 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Certificate HTML generators
-  function generateLeaveCertificateHtml(s, startDate, endDate, reason, schoolName, logoSrc, principalSign) {
+  // v73: passport-style student photo block — EVERY certificate shows the
+  // student's picture beside the body text (falls back to the shared avatar).
+  function certPhotoBox(s, accent) {
+    const src = s.photo ? imgSrc(s.photo, PLACEHOLDER_IMG) : PLACEHOLDER_IMG;
+    return `<div style="flex-shrink:0;text-align:center;width:1.35in;">
+      <img src="${src}" style="width:1.35in;height:1.65in;object-fit:cover;border:2px solid ${accent};background:#eef1f8;" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
+      <div style="font-size:0.72rem;font-weight:700;color:${accent};margin-top:3px;">${s.name||'-'}</div>
+      <div style="font-size:0.62rem;color:#666;">${s.class_name||'-'}${s.roll_no ? ` | Roll ${s.roll_no}` : ''}</div>
+    </div>`;
+  }
+
+  // v73: SCHOOL LEAVE CERTIFICATE — formal standard layout: bordered page,
+  // school header with logo, student details table + photo, certification
+  // body, then school-stamp + principal signature block. (The old version
+  // was a generic "LEAVE CERTIFICATE" for absenteeism; a leave certificate
+  // from a school is a formal leaving/relieving document.)
+  function generateLeaveCertificateHtml(s, session, leavingDate, reason, schoolName, logoSrc, principalSign) {
     const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
-    return `<div style="width:8.5in;height:11in;flex-shrink:0;background:#fff;border:3px double #1a237e;padding:0.5in;font-family:'Georgia',serif;position:relative;">
-      <div style="text-align:center;margin-bottom:24px;">
+    const isF = /^f/i.test(String(s.gender || '').trim());
+    const detailRow = (label, value) => `<div style="display:flex;font-size:0.85rem;border-bottom:1px dotted #b9c0d4;"><span style="width:1.45in;flex-shrink:0;padding:4px 8px;background:#f4f6fb;color:#1a237e;font-weight:700;border-right:1px dotted #b9c0d4;">${label}</span><span style="padding:4px 8px;font-weight:600;color:#222;">${value}</span></div>`;
+    const section = s.section_name ? `, Section ${s.section_name}` : '';
+    return `<div style="width:8.5in;height:11in;flex-shrink:0;background:#fff;border:4px double #1a237e;padding:0.45in;font-family:'Georgia',serif;position:relative;display:flex;flex-direction:column;">
+      <div style="text-align:center;">
         <img src="${logoSrc}" style="height:70px;border-radius:8px;" onerror="this.style.display='none'">
         <div style="font-size:1.6rem;font-weight:900;color:#1a237e;margin-top:8px;letter-spacing:2px;text-transform:uppercase;">${schoolName||'SCHOOL NAME'}</div>
         <div style="font-size:0.85rem;color:#555;letter-spacing:1px;">School Address | Phone | Email</div>
         <div style="width:100%;height:3px;background:linear-gradient(90deg,#1a237e,#ffc107,#1a237e);margin-top:8px;"></div>
       </div>
-      <div style="text-align:center;margin-bottom:20px;">
-        <div style="font-size:1.8rem;font-weight:700;color:#1a237e;border-bottom:3px solid #ffc107;display:inline-block;padding-bottom:4px;">LEAVE CERTIFICATE</div>
+      <div style="text-align:center;margin:16px 0 14px;">
+        <div style="font-size:1.8rem;font-weight:700;color:#1a237e;border-bottom:3px solid #ffc107;display:inline-block;padding-bottom:4px;letter-spacing:1px;">SCHOOL LEAVE CERTIFICATE</div>
       </div>
-      <div style="font-size:1rem;color:#333;line-height:2;">
-        <div style="margin-bottom:8px;">Date: <strong>${today}</strong></div>
+      <div style="display:flex;gap:16px;align-items:flex-start;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;justify-content:space-between;font-size:0.95rem;margin-bottom:8px;color:#333;">
+            <div>Certificate No: <strong>__________</strong></div>
+            <div>Date: <strong>${today}</strong></div>
+          </div>
+          ${detailRow('Name', `<strong>${s.name||'-'}</strong>`)}
+          ${detailRow("Father's Name", s.father_name||'-')}
+          ${detailRow('Class', `${s.class_name||'-'}${section}`)}
+          ${detailRow('Roll No', s.roll_no||'-')}
+          ${detailRow('Student ID', s.student_id||'-')}
+          ${detailRow('Date of Birth', s.dob||'-')}
+          ${detailRow('Gender', s.gender||'-')}
+          ${detailRow('Academic Session', session)}
+          ${detailRow('Date of Leaving', leavingDate)}
+          ${reason ? detailRow('Reason', reason) : ''}
+        </div>
+        ${certPhotoBox(s, '#1a237e')}
+      </div>
+      <div style="font-size:1rem;color:#333;line-height:1.9;margin-top:16px;flex:1;">
         <p style="text-indent:40px;">
-          This is to certify that <strong style="color:#1a237e;font-size:1.1rem;">${s.name}</strong>,
-          ${childOfLabel(s.gender, s.father_name)}${s.father_name ? ',' : ''}
-          studying in <strong>${s.class_name}</strong>${s.section_name ? `, Section <strong>${s.section_name}</strong>` : ''}
-          (Roll No: <strong>${s.roll_no||'-'}</strong>, Student ID: <strong>${s.student_id||'-'}</strong>),
-          has been granted leave from <strong>${startDate}</strong> to <strong>${endDate}</strong>
-          due to <strong>${reason||'personal reasons'}</strong>.
+          This is to certify that <strong style="color:#1a237e;font-size:1.1rem;">${s.name||'-'}</strong>${s.father_name ? `, ${childOfLabel(s.gender, s.father_name)},` : ''}
+          was a student of Class <strong>${s.class_name||'-'}${section}</strong>
+          (Roll No: <strong>${s.roll_no||'-'}</strong>, Student ID: <strong>${s.student_id||'-'}</strong>)
+          in this school during the academic session <strong>${session}</strong>.
         </p>
-        <p style="text-indent:40px;">The leave period totals <strong>${Math.ceil((new Date(endDate) - new Date(startDate)) / 86400000) + 1} day(s)</strong>.</p>
+        <p style="text-indent:40px;">
+          ${isF ? 'Her' : 'His'} conduct and behaviour throughout ${isF ? 'her' : 'his'} stay in this school were found good and satisfactory.
+          ${s.dob ? `Born on <strong>${s.dob}</strong>, ` : ''}${isF ? 'she' : 'he'} has been relieved from this school on <strong>${leavingDate}</strong>${reason ? `, and the reason recorded for leaving is <strong>${reason}</strong>` : ''}.
+        </p>
+        <p style="text-indent:40px;">We wish ${objectPronoun(s.gender)} all the best for ${isF ? 'her' : 'his'} future endeavors.</p>
       </div>
-      <div style="margin-top:60px;display:flex;justify-content:space-between;align-items:flex-end;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:12px;">
         <div style="text-align:center;">
-          <div style="height:1px;width:120px;background:#333;margin-bottom:4px;"></div>
-          <div style="font-size:0.85rem;font-weight:600;">Student's Signature</div>
+          <div style="width:130px;height:70px;border:1px dashed #8a93b5;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;color:#8a93b5;margin-bottom:4px;">School Stamp</div>
         </div>
         <div style="text-align:center;">
-          ${principalSign ? `<img src="${principalSign}" style="height:40px;max-width:120px;object-fit:contain;" onerror="this.style.display='none'">` : '<div style="height:40px;"></div>'}
-          <div style="height:1px;width:120px;background:#333;margin:4px auto;"></div>
-          <div style="font-size:0.85rem;font-weight:600;">Principal's Signature</div>
-          <div style="font-size:0.75rem;color:#888;">(School Stamp)</div>
+          ${principalSign ? `<img src="${principalSign}" style="height:44px;max-width:160px;object-fit:contain;" onerror="this.style.display='none'">` : '<div style="height:44px;"></div>'}
+          <div style="height:1px;width:180px;background:#333;margin:4px auto;"></div>
+          <div style="font-size:0.9rem;font-weight:600;">Principal's Signature</div>
         </div>
       </div>
     </div>`;
@@ -2686,18 +2748,21 @@ document.addEventListener('DOMContentLoaded', () => {
       <div style="text-align:center;margin-bottom:20px;">
         <div style="font-size:1.8rem;font-weight:700;color:#1b5e20;border-bottom:3px solid #ffc107;display:inline-block;padding-bottom:4px;">CHARACTER CERTIFICATE</div>
       </div>
-      <div style="font-size:1rem;color:#333;line-height:2;">
-        <div style="margin-bottom:8px;">Date: <strong>${today}</strong></div>
-        <p style="text-indent:40px;">
-          This is to certify that <strong style="color:#1b5e20;font-size:1.1rem;">${s.name}</strong>,
-          ${childOfLabel(s.gender, s.father_name)}${s.father_name ? ',' : ''}
-          studying in <strong>${s.class_name}</strong>${s.section_name ? `, Section <strong>${s.section_name}</strong>` : ''}
-          (Roll No: <strong>${s.roll_no||'-'}</strong>, Student ID: <strong>${s.student_id||'-'}</strong>),
-          ${s.dob ? `born on <strong>${s.dob}</strong>,` : ''}
-          has attended this school during the academic session <strong>${session}</strong>.
-        </p>
-        <p style="text-indent:40px;">${conduct}</p>
-        <p style="text-indent:40px;">We wish ${objectPronoun(s.gender)} all the best for future endeavors.</p>
+      <div style="display:flex;gap:16px;align-items:flex-start;">
+        <div style="flex:1;min-width:0;font-size:1rem;color:#333;line-height:2;">
+          <div style="margin-bottom:8px;">Date: <strong>${today}</strong></div>
+          <p style="text-indent:40px;">
+            This is to certify that <strong style="color:#1b5e20;font-size:1.1rem;">${s.name}</strong>,
+            ${childOfLabel(s.gender, s.father_name)}${s.father_name ? ',' : ''}
+            studying in <strong>${s.class_name}</strong>${s.section_name ? `, Section <strong>${s.section_name}</strong>` : ''}
+            (Roll No: <strong>${s.roll_no||'-'}</strong>, Student ID: <strong>${s.student_id||'-'}</strong>),
+            ${s.dob ? `born on <strong>${s.dob}</strong>,` : ''}
+            has attended this school during the academic session <strong>${session}</strong>.
+          </p>
+          <p style="text-indent:40px;">${conduct}</p>
+          <p style="text-indent:40px;">We wish ${objectPronoun(s.gender)} all the best for future endeavors.</p>
+        </div>
+        ${certPhotoBox(s, '#1b5e20')}
       </div>
       <div style="margin-top:60px;display:flex;justify-content:space-between;align-items:flex-end;">
         <div style="text-align:center;">
@@ -2726,22 +2791,24 @@ document.addEventListener('DOMContentLoaded', () => {
       <div style="text-align:center;margin-bottom:20px;">
         <div style="font-size:1.8rem;font-weight:700;color:#e65100;border-bottom:3px solid #ffc107;display:inline-block;padding-bottom:4px;">🏆 SPORTS ACHIEVEMENT CERTIFICATE</div>
       </div>
-      <div style="font-size:1rem;color:#333;line-height:2;">
-        <div style="margin-bottom:8px;">Date: <strong>${today}</strong></div>
-        <p style="text-indent:40px;">
-          This certificate is proudly presented to
-          <strong style="color:#e65100;font-size:1.1rem;">${s.name}</strong>,
-          ${childOfLabel(s.gender, s.father_name)}${s.father_name ? ',' : ''}
-          studying in <strong>${s.class_name}</strong>${s.section_name ? `, Section <strong>${s.section_name}</strong>` : ''}
-          (Roll No: <strong>${s.roll_no||'-'}</strong>),
-        </p>
-        <p style="text-indent:40px;">
-          for achieving <strong style="color:#e65100;font-size:1.1rem;">${achievement}</strong>
-          in <strong>${event}</strong>
-          ${eventDate ? `held on <strong>${eventDate}</strong>` : ''}.
-        </p>
-        ${details ? `<p style="text-indent:40px;">${details}</p>` : ''}
-        <p style="text-indent:40px;">We congratulate ${objectPronoun(s.gender)} on this remarkable achievement and wish continued success in all future endeavors.</p>
+      <div style="display:flex;gap:16px;align-items:flex-start;">
+        <div style="flex:1;min-width:0;font-size:1rem;color:#333;line-height:2;">
+          <div style="margin-bottom:8px;">Date: <strong>${today}</strong></div>
+          <p style="text-indent:40px;">
+            This certificate is proudly presented to
+            <strong style="color:#e65100;font-size:1.1rem;">${s.name}</strong>,
+            ${childOfLabel(s.gender, s.father_name)}${s.father_name ? ',' : ''}
+            studying in <strong>${s.class_name}</strong>${s.section_name ? `, Section <strong>${s.section_name}</strong>` : ''}
+            (Roll No: <strong>${s.roll_no||'-'}</strong>),
+          </p>
+          <p style="text-indent:40px;">
+            for achieving <strong style="color:#e65100;font-size:1.1rem;">${achievement}</strong>
+            in <strong>${event}</strong>${eventDate ? ` held on <strong>${eventDate}</strong>.` : '.'}
+          </p>
+          ${details ? `<p style="text-indent:40px;">${details}</p>` : ''}
+          <p style="text-indent:40px;">We congratulate ${objectPronoun(s.gender)} on this remarkable achievement and wish continued success in all future endeavors.</p>
+        </div>
+        ${certPhotoBox(s, '#e65100')}
       </div>
       <div style="margin-top:60px;display:flex;justify-content:space-between;align-items:flex-end;">
         <div style="text-align:center;">
@@ -2782,49 +2849,67 @@ document.addEventListener('DOMContentLoaded', () => {
     return true;
   }
 
-  // Generate Leave Certificate
+  // Generate School Leave Certificate (v73: formal leaving document —
+  // academic session + date of leaving instead of the old start/end dates)
   document.getElementById('cert-leave-generate').addEventListener('click', async () => {
     if (!certValidateStudent()) return;
-    const startDate = document.getElementById('cert-leave-start').value;
-    const endDate = document.getElementById('cert-leave-end').value;
-    const reason = document.getElementById('cert-leave-reason').value;
-    if (!startDate || !endDate) { showToast('Please select start and end dates', true); return; }
-    const { settings, principalSign } = await fetchCertSettings();
-    const html = generateLeaveCertificateHtml(certSelectedStudent, startDate, endDate, reason, settings.school_name, imgSrc(settings.logo_path, PLACEHOLDER_IMG), principalSign);
-    document.getElementById('cert-printable').innerHTML = html;
-    document.getElementById('cert-preview-container').style.display='block';
-    certCurrentType = 'leave';
-    document.getElementById('cert-left-prompt').style.display = 'none';
+    try {
+      const session = document.getElementById('cert-leave-session').value.trim();
+      const leavingDate = document.getElementById('cert-leave-date').value;
+      const reason = document.getElementById('cert-leave-reason').value.trim();
+      if (!session || !leavingDate) { showToast('Please enter academic session and date of leaving', true); return; }
+      const { settings, principalSign } = await fetchCertSettings();
+      const html = generateLeaveCertificateHtml(certSelectedStudent, session, leavingDate, reason, settings.school_name, imgSrc(settings.logo_path, PLACEHOLDER_IMG), principalSign);
+      document.getElementById('cert-printable').innerHTML = html;
+      document.getElementById('cert-preview-container').style.display='block';
+      certCurrentType = 'leave';
+      document.getElementById('cert-left-prompt').style.display = 'none';
+    } catch (e) {
+      console.error('[APP_ERROR]', e.message);
+      showToast('School Leave Certificate failed: ' + e.message, true);
+    }
   });
 
-  // Generate Character Certificate
+  // Generate Character Certificate (v73: never silently no-ops — a blank
+  // session falls back to the current academic session so the preview
+  // ALWAYS becomes a character certificate instead of a stale previous one)
   document.getElementById('cert-char-generate').addEventListener('click', async () => {
     if (!certValidateStudent()) return;
-    const session = document.getElementById('cert-char-session').value;
-    const conduct = document.getElementById('cert-char-conduct').value;
-    if (!session) { showToast('Please enter the academic session', true); return; }
-    const { settings, principalSign } = await fetchCertSettings();
-    const html = generateCharacterCertificateHtml(certSelectedStudent, session, conduct, settings.school_name, imgSrc(settings.logo_path, PLACEHOLDER_IMG), principalSign);
-    document.getElementById('cert-printable').innerHTML = html;
-    document.getElementById('cert-preview-container').style.display='block';
-    certCurrentType = 'character';
-    document.getElementById('cert-left-prompt').style.display = 'none';
+    try {
+      const y = new Date().getFullYear();
+      const session = document.getElementById('cert-char-session').value.trim() || `${y-1}-${y}`;
+      const conduct = document.getElementById('cert-char-conduct').value;
+      const { settings, principalSign } = await fetchCertSettings();
+      const html = generateCharacterCertificateHtml(certSelectedStudent, session, conduct, settings.school_name, imgSrc(settings.logo_path, PLACEHOLDER_IMG), principalSign);
+      document.getElementById('cert-printable').innerHTML = html;
+      document.getElementById('cert-preview-container').style.display='block';
+      certCurrentType = 'character';
+      document.getElementById('cert-left-prompt').style.display = 'none';
+    } catch (e) {
+      console.error('[APP_ERROR]', e.message);
+      showToast('Character Certificate failed: ' + e.message, true);
+    }
   });
 
   // Generate Sports Certificate
   document.getElementById('cert-sports-generate').addEventListener('click', async () => {
     if (!certValidateStudent()) return;
-    const event = document.getElementById('cert-sports-event').value;
-    const achievement = document.getElementById('cert-sports-achievement').value;
-    const eventDate = document.getElementById('cert-sports-date').value;
-    const details = document.getElementById('cert-sports-details').value;
-    if (!event || !achievement) { showToast('Please enter event name and achievement', true); return; }
-    const { settings, principalSign } = await fetchCertSettings();
-    const html = generateSportsCertificateHtml(certSelectedStudent, event, achievement, eventDate, details, settings.school_name, imgSrc(settings.logo_path, PLACEHOLDER_IMG), principalSign);
-    document.getElementById('cert-printable').innerHTML = html;
-    document.getElementById('cert-preview-container').style.display='block';
-    certCurrentType = 'sports';
-    document.getElementById('cert-left-prompt').style.display = 'none';
+    try {
+      const event = document.getElementById('cert-sports-event').value;
+      const achievement = document.getElementById('cert-sports-achievement').value;
+      const eventDate = document.getElementById('cert-sports-date').value;
+      const details = document.getElementById('cert-sports-details').value;
+      if (!event || !achievement) { showToast('Please enter event name and achievement', true); return; }
+      const { settings, principalSign } = await fetchCertSettings();
+      const html = generateSportsCertificateHtml(certSelectedStudent, event, achievement, eventDate, details, settings.school_name, imgSrc(settings.logo_path, PLACEHOLDER_IMG), principalSign);
+      document.getElementById('cert-printable').innerHTML = html;
+      document.getElementById('cert-preview-container').style.display='block';
+      certCurrentType = 'sports';
+      document.getElementById('cert-left-prompt').style.display = 'none';
+    } catch (e) {
+      console.error('[APP_ERROR]', e.message);
+      showToast('Sports Certificate failed: ' + e.message, true);
+    }
   });
 
   // Certificate Print
@@ -2846,7 +2931,7 @@ document.addEventListener('DOMContentLoaded', () => {
     this.disabled = true; this.textContent = '⏳ Saving…';
     try {
       const label = String((certSelectedStudent && (certSelectedStudent.student_id || certSelectedStudent.name)) || 'Student').replace(/[^\w\-]+/g, '_');
-      const kind = certCurrentType === 'leave' ? 'Leave' : certCurrentType === 'character' ? 'Character' : 'Sports';
+      const kind = certCurrentType === 'leave' ? 'SchoolLeave' : certCurrentType === 'character' ? 'Character' : 'Sports';
       await exportCertificateToPdf(`Certificate-${kind}-${label}.pdf`);
       // Follow-up for the leave certificate: has this student left the school?
       if (certCurrentType === 'leave' && certSelectedStudent && certSelectedStudent.id) {

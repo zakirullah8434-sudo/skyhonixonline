@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=9" as="style">
-  <link rel="preload" href="js/app.js?v=72" as="script">
+  <link rel="preload" href="js/app.js?v=73" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v72';
+    window.SKYHONIX_PAGE_VERSION = 'v73';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -1570,29 +1570,29 @@
 
             <!-- Certificate Type Tabs -->
             <div class="tab-container" style="margin-bottom: 20px;">
-              <button class="tab-btn active" data-tab="cert-leave">Leave Certificate</button>
+              <button class="tab-btn active" data-tab="cert-leave">School Leave Certificate</button>
               <button class="tab-btn" data-tab="cert-character">Character Certificate</button>
               <button class="tab-btn" data-tab="cert-sports">Sports Certificate</button>
             </div>
 
-            <!-- Leave Certificate Tab -->
+            <!-- School Leave Certificate Tab (v73: formal leaving document) -->
             <div id="tab-cert-leave" class="tab-content" style="display:block;">
               <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
                 <div class="grid-3">
                   <div class="form-group">
-                    <label class="form-label">Leave Start Date</label>
-                    <input type="date" class="form-control" id="cert-leave-start">
+                    <label class="form-label">Academic Session</label>
+                    <input type="text" class="form-control" id="cert-leave-session" placeholder="e.g., 2025-2026">
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Leave End Date</label>
-                    <input type="date" class="form-control" id="cert-leave-end">
+                    <label class="form-label">Date of Leaving</label>
+                    <input type="date" class="form-control" id="cert-leave-date">
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Reason for Leave</label>
-                    <input type="text" class="form-control" id="cert-leave-reason" placeholder="e.g., Family function, Medical">
+                    <label class="form-label">Reason for Leaving (optional)</label>
+                    <input type="text" class="form-control" id="cert-leave-reason" placeholder="e.g., Family relocation">
                   </div>
                 </div>
-                <button class="btn btn-primary" id="cert-leave-generate" style="margin-top:12px; width:100%;">Generate Leave Certificate</button>
+                <button class="btn btn-primary" id="cert-leave-generate" style="margin-top:12px; width:100%;">Generate School Leave Certificate</button>
               </div>
             </div>
 
@@ -1601,7 +1601,7 @@
               <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
                 <div class="form-group">
                   <label class="form-label">Academic Session</label>
-                  <input type="text" class="form-control" id="cert-char-session" placeholder="e.g., 2025-2026" value="">
+                  <input type="text" class="form-control" id="cert-char-session" placeholder="e.g., 2025-2026 (blank = current session)" value="">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Conduct Description</label>
@@ -1650,7 +1650,7 @@
               <div id="cert-left-prompt" style="display:none; margin-bottom:16px; padding:16px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.35); border-radius: 12px;">
                 <div style="font-weight: 800; font-size: 1rem; margin-bottom: 4px;">🚪 Has this student left school?</div>
                 <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
-                  The leave certificate has been saved as PDF. Choose <strong>Yes</strong> if this student has actually left the school —
+                  The School Leave Certificate has been saved as PDF. Choose <strong>Yes</strong> if this student has actually left the school —
                   they will stay on the school record (status <strong>Left</strong>), disappear from all active student lists, and their complete
                   file (fee, exam, attendance, documents) will show under <strong>Student Profile → Left Students</strong>.
                 </div>
@@ -5279,8 +5279,8 @@
     </div>
   </div>
 
-  <script src="js/vendor/jspdf.umd.min.js?v=72"></script>
-  <script src="js/vendor/html2canvas.min.js?v=72"></script>
-  <script src="js/app.js?v=72"></script>
+  <script src="js/vendor/jspdf.umd.min.js?v=73"></script>
+  <script src="js/vendor/html2canvas.min.js?v=73"></script>
+  <script src="js/app.js?v=73"></script>
 </body>
 </html>
