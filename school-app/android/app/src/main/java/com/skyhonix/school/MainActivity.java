@@ -29,6 +29,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(SaveToDownloadsPlugin.class);
+        registerPlugin(OpenExternalPlugin.class);
         super.onCreate(savedInstanceState);
         installDownloadListener();
     }

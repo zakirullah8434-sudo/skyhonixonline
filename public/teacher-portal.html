@@ -14,14 +14,14 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
   <link rel="preload" href="css/styles.css?v=9" as="style">
-  <link rel="preload" href="js/teacher-portal.js?v=19" as="script">
+  <link rel="preload" href="js/teacher-portal.js?v=20" as="script">
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/service-worker.js').catch(function () {});
     }
   </script>
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v71';
+    window.SKYHONIX_PAGE_VERSION = 'v72';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -145,6 +145,7 @@
       <button class="nav-item" data-opt="marks-entry">Marks Entry</button>
       <button class="nav-item" data-opt="assignments">Assignments</button>
       <button class="nav-item" data-opt="announcements">Announcements</button>
+      <button class="nav-item" data-opt="social-media">&#127760; Social Media</button>
       <button class="nav-item" data-opt="fee-collection" id="nav-fee-collection" style="display:none;">&#128176; Fee Collection</button>
     </nav>
   </aside>
@@ -465,6 +466,14 @@
       </div>
     </section>
 
+    <!-- Social Media Panel (v72) — the school's official channels,
+         videos and WhatsApp number, opened from here. -->
+    <section class="content-panel" id="panel-social-media">
+      <h2>&#127760; Social Media</h2>
+      <p class="text-muted" style="margin-bottom:20px;">Official school channels, videos and WhatsApp — tap to open.</p>
+      <div id="social-media-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:16px;"></div>
+    </section>
+
   </main>
 
   <div id="toast" style="display: none; position: fixed; bottom: 30px; right: 30px; padding: 16px 24px; border-radius: 12px; background: #FFFFFF; border: 2px solid #D4A017; z-index: 10000; box-shadow: 0 4px 16px rgba(0,0,0,0.1); color: #1E293B; animation: fadeIn 0.3s ease;">
@@ -501,6 +510,6 @@
     })();
   </script>
   <script src="js/section-history.js?v=2"></script>
-  <script src="js/teacher-portal.js?v=19" defer></script>
+  <script src="js/teacher-portal.js?v=20" defer></script>
 </body>
 </html>

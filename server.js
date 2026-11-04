@@ -267,6 +267,7 @@ const parentRoutes = require('./routes/parents');
 const promotionsRoutes = require('./routes/promotions');
 const transportRoutes = require('./routes/transport');
 const salaryRoutes = require('./routes/salary');
+const socialRoutes = require('./routes/social');
 
 // Prevent caching of API responses (critical for Vercel serverless)
 app.use('/api', (req, res, next) => {
@@ -406,7 +407,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
 // Keep in sync with ?v= query on js/app.js and SHELL_VERSION in public/sw.js.
 app.get('/api/version', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-  res.json({ version: 'v71' });
+  res.json({ version: 'v72' });
 });
 
 // Mount API routes
@@ -424,6 +425,7 @@ app.use('/api/parents', parentRoutes);
 app.use('/api/promotions', promotionsRoutes);
 app.use('/api/transport', transportRoutes);
 app.use('/api/salary', salaryRoutes);
+app.use('/api/social', socialRoutes);
 
 // Serve static frontend files with optimized caching
 app.use(express.static(path.join(__dirname, 'public'), {

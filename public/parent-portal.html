@@ -9,14 +9,14 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"></noscript>
   <link rel="preload" href="css/styles.css?v=9" as="style">
-  <link rel="preload" href="js/parent-portal.js?v=17" as="script">
+  <link rel="preload" href="js/parent-portal.js?v=18" as="script">
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/service-worker.js').catch(function () {});
     }
   </script>
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v71';
+    window.SKYHONIX_PAGE_VERSION = 'v72';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -538,6 +538,7 @@
         <a data-panel="attendance" onclick="showPanel('attendance')">📋 Attendance</a>
         <a data-panel="assignments" onclick="showPanel('assignments')">📚 Homework & Tests</a>
         <a data-panel="announcements" onclick="showPanel('announcements')">📢 Announcements</a>
+        <a data-panel="social-media" onclick="showPanel('social-media')">🌐 Social Media</a>
       </nav>
     </aside>
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
@@ -688,6 +689,16 @@
         </div>
       </div>
 
+      <!-- Social Media (v72) — the school's official channels, videos
+           and WhatsApp number, opened from here. -->
+      <div id="panel-social-media" class="screen-section" style="display:none;">
+        <div class="card" style="margin-bottom:16px;">
+          <h3 style="margin: 0 0 6px; color:#1E293B;">🌐 Social Media</h3>
+          <p style="margin:0; font-size:0.85rem; color:#64748B;">Official school channels, videos and WhatsApp — tap to open.</p>
+        </div>
+        <div id="social-media-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:16px;"></div>
+      </div>
+
     </main>
   </div>
 
@@ -710,6 +721,6 @@
     })();
   </script>
   <script src="js/section-history.js?v=2"></script>
-  <script src="js/parent-portal.js?v=17" defer></script>
+  <script src="js/parent-portal.js?v=18" defer></script>
 </body>
 </html>

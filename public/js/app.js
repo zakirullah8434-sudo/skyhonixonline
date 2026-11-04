@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v71';
+    const EXPECTED_PAGE_VERSION = 'v72';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -716,6 +716,9 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (section === 'admin-settings') {
         const card = document.querySelector(`#screen-admin-settings [data-opt="${sub}"]`);
         if (card) { card.click(); return true; }
+      } else if (section === 'social-media') {
+        const card = document.querySelector(`#screen-social-media [data-opt="${sub}"]`);
+        if (card) { card.click(); return true; }
       } else if (section === 'students' && sub === 'staff-entry') {
         const btn = document.getElementById('btn-staff-entry');
         if (btn) { btn.click(); return true; }
@@ -873,7 +876,174 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (screenName === 'promotions') {
       loadPromotionsData();
       resetPromoPanels();
+    } else if (screenName === 'social-media') {
+      // Re-entering the section always starts from the 5 platform cards
+      // (closes any platform editor a history restore left open).
+      loadSocialMediaData();
     }
+  }
+
+  // ==========================================
+  // MODULE: SOCIAL MEDIA (v72)
+  // ------------------------------------------
+  // Admin edits the school's TikTok / Facebook / YouTube / Instagram
+  // channel + video links and the school WhatsApp number (stored as
+  // JSON under settings.key = 'social_media'). Teachers and parents
+  // read the same config from GET /api/social in their apps.
+  // ==========================================
+  const SM_LINK_PLATFORMS = ['tiktok', 'facebook', 'youtube', 'instagram'];
+  let smConfigCache = null;
+
+  function smNormalizeUrl(v) {
+    v = String(v == null ? '' : v).trim();
+    if (!v) return '';
+    if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+    return /^https?:\/\/\S+$/i.test(v) ? v : '';
+  }
+
+  function smNormalizePhone(v) {
+    v = String(v == null ? '' : v).replace(/[^\d+]/g, '');
+    if (v.charAt(0) === '+') v = v.slice(1);
+    return v.slice(0, 20);
+  }
+
+  // Opens an external URL: in the APK a native plugin hands it to the
+  // system browser (window.open is blocked inside the Capacitor WebView),
+  // in a plain browser window.open is used.
+  function smOpenExternal(url) {
+    if (!url) { showToast('No link saved yet', true); return; }
+    try {
+      const cap = window.Capacitor;
+      const plugin = cap && cap.Plugins && cap.Plugins.OpenExternal;
+      if (plugin && typeof plugin.open === 'function') { plugin.open({ url }); return; }
+    } catch (e) { /* fall through to browser */ }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  function smApplyConfig() {
+    const cfg = smConfigCache || {};
+    SM_LINK_PLATFORMS.forEach(p => {
+      const c = cfg[p] || {};
+      const ch = document.getElementById('sm-' + p + '-channel');
+      const vi = document.getElementById('sm-' + p + '-video');
+      if (ch) ch.value = c.channel || '';
+      if (vi) vi.value = c.video || '';
+      const pill = document.querySelector('.sm-status[data-for="' + p + '"]');
+      if (pill) {
+        const set = (c.channel ? 1 : 0) + (c.video ? 1 : 0);
+        pill.textContent = set === 0 ? 'Not set'
+          : set === 2 ? 'Channel + Video set'
+          : (c.channel ? 'Channel set' : 'Video set');
+        pill.style.color = set ? '#16a34a' : 'var(--text-muted)';
+      }
+    });
+    const wa = (cfg.whatsapp || {}).number || '';
+    const waInput = document.getElementById('sm-whatsapp-number');
+    if (waInput) waInput.value = wa;
+    const waPill = document.querySelector('.sm-status[data-for="whatsapp"]');
+    if (waPill) {
+      waPill.textContent = wa ? 'Number set' : 'Not set';
+      waPill.style.color = wa ? '#16a34a' : 'var(--text-muted)';
+    }
+  }
+
+  function smShowGrid() {
+    const grid = document.getElementById('sm-platforms-grid');
+    const screen = document.getElementById('screen-social-media');
+    if (screen) screen.querySelectorAll('.fee-option-panel').forEach(p => p.style.display = 'none');
+    if (grid) grid.style.display = 'grid';
+  }
+
+  async function loadSocialMediaData() {
+    smShowGrid();
+    try {
+      smConfigCache = await apiCall('/social');
+      smApplyConfig();
+    } catch (e) {
+      console.error('[SOCIAL_MEDIA]', e.message);
+      showToast('Failed to load social media links', true);
+    }
+  }
+
+  async function smSavePlatform(platform) {
+    // Always send the WHOLE config (all inputs) so nothing is lost.
+    const body = {};
+    SM_LINK_PLATFORMS.forEach(p => {
+      const ch = document.getElementById('sm-' + p + '-channel');
+      const vi = document.getElementById('sm-' + p + '-video');
+      body[p] = {
+        channel: smNormalizeUrl(ch ? ch.value : ''),
+        video: smNormalizeUrl(vi ? vi.value : '')
+      };
+    });
+    const wa = document.getElementById('sm-whatsapp-number');
+    body.whatsapp = { number: smNormalizePhone(wa ? wa.value : '') };
+
+    try {
+      const res = await apiCall('/social', 'PUT', body);
+      smConfigCache = (res && res.config) || body;
+      smApplyConfig();
+      showToast(res && res.message ? res.message : 'Saved!');
+    } catch (e) {
+      showToast('Failed to save: ' + e.message, true);
+    }
+  }
+
+  function smOpenField(field) {
+    // field: 'tiktok-channel' | 'whatsapp' | ...
+    if (field === 'whatsapp') {
+      const num = smNormalizePhone((document.getElementById('sm-whatsapp-number') || {}).value || '');
+      if (!num) { showToast('No WhatsApp number saved yet', true); return; }
+      smOpenExternal('https://wa.me/' + num);
+      return;
+    }
+    const parts = field.split('-');
+    const platform = parts[0];
+    const kind = parts[1]; // channel | video
+    const input = document.getElementById('sm-' + platform + '-' + kind);
+    const url = smNormalizeUrl(input ? input.value : '');
+    if (!url) { showToast('No ' + kind + ' link saved yet', true); return; }
+    smOpenExternal(url);
+  }
+
+  // Delegated clicks inside the Social Media screen: platform cards,
+  // Save / Open buttons and the Back buttons.
+  const smScreen = document.getElementById('screen-social-media');
+  if (smScreen) {
+    smScreen.addEventListener('click', async (e) => {
+      const card = e.target.closest('[data-opt^="sm-"]');
+      if (card) {
+        e.stopPropagation();
+        const platform = card.getAttribute('data-opt').replace('sm-', '');
+        const grid = document.getElementById('sm-platforms-grid');
+        smScreen.querySelectorAll('.fee-option-panel').forEach(p => p.style.display = 'none');
+        if (grid) grid.style.display = 'none';
+        const panel = document.getElementById('sm-panel-' + platform);
+        if (panel) panel.style.display = 'block';
+        navVisitSub('sm-' + platform);
+        return;
+      }
+
+      const saveBtn = e.target.closest('[data-save]');
+      if (saveBtn) {
+        e.stopPropagation();
+        await smSavePlatform(saveBtn.getAttribute('data-save'));
+        return;
+      }
+
+      const openBtn = e.target.closest('[data-open]');
+      if (openBtn) {
+        e.stopPropagation();
+        smOpenField(openBtn.getAttribute('data-open'));
+        return;
+      }
+
+      const backBtn = e.target.closest('.btn-back-sm');
+      if (backBtn) {
+        e.stopPropagation();
+        navBack(() => { smShowGrid(); });
+      }
+    });
   }
 
   // Tabs layout navigation inside screens

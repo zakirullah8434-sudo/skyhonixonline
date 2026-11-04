@@ -1,10 +1,20 @@
 package com.skyhonix.parent;
 
+import android.os.Bundle;
 import android.webkit.WebView;
 
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+
+    // Registers the custom native plugins BEFORE the bridge boots so the
+    // portal can call them immediately (OpenExternal: opening social media
+    // links in the system browser).
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(OpenExternalPlugin.class);
+        super.onCreate(savedInstanceState);
+    }
 
     // ---------------------------------------------------------------
     // Android hardware / gesture BACK button
