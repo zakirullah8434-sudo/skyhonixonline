@@ -10,12 +10,15 @@ const { querySchoolOne, runSchool } = require('../database_manager');
 // Stored as a JSON blob in the per-school `settings` key/value
 // table under key = 'social_media':
 //   {
-//     tiktok:   { channel: '', video: '' },
-//     facebook: { channel: '', video: '' },
-//     youtube:  { channel: '', video: '' },
-//     instagram:{ channel: '', video: '' },
+//     tiktok:   { channel: '', video: '', videos: [] },
+//     facebook: { channel: '', video: '', videos: [] },
+//     youtube:  { channel: '', video: '', videos: [] },
+//     instagram:{ channel: '', video: '', videos: [] },
 //     whatsapp: { number: '' }
 //   }
+//
+// v74: each platform keeps MULTIPLE video links in `videos: []`.
+// `video` stays = videos[0] so older cached clients keep working.
 //
 // GET  /api/social  - admin, teacher or parent (viewers)
 // PUT  /api/social  - school admin only (the teacher/parent apps
@@ -26,10 +29,12 @@ const LINK_PLATFORMS = ['tiktok', 'facebook', 'youtube', 'instagram'];
 
 function defaultConfig() {
   const cfg = {};
-  LINK_PLATFORMS.forEach(p => { cfg[p] = { channel: '', video: '' }; });
+  LINK_PLATFORMS.forEach(p => { cfg[p] = { channel: '', video: '', videos: [] }; });
   cfg.whatsapp = { number: '' };
   return cfg;
 }
+
+const MAX_VIDEOS = 12; // per platform
 
 // Accepts ANY logged-in role of the school (admin / teacher / parent).
 function authenticateAnyRole(req, res, next) {
@@ -83,8 +88,19 @@ async function loadSocialConfig(schoolId) {
   Object.keys(cfg).forEach(k => {
     if (saved && typeof saved[k] === 'object' && saved[k]) {
       Object.keys(cfg[k]).forEach(field => {
+        if (field === 'videos') return; // handled below (array + legacy seed)
         if (typeof saved[k][field] === 'string') cfg[k][field] = saved[k][field];
       });
+      if ('videos' in cfg[k]) {
+        if (Array.isArray(saved[k].videos)) {
+          cfg[k].videos = saved[k].videos.map(cleanUrl).filter(Boolean).slice(0, MAX_VIDEOS);
+        } else if (cfg[k].video) {
+          // Legacy rows only stored a single `video` — seed the array from it.
+          cfg[k].videos = [cfg[k].video];
+        }
+        // Keep the old single field in sync with the first video.
+        cfg[k].video = cfg[k].videos[0] || '';
+      }
     }
   });
   return cfg;
@@ -117,7 +133,21 @@ router.put('/', authenticateAnyRole, async (req, res) => {
     LINK_PLATFORMS.forEach(p => {
       const src = (body[p] && typeof body[p] === 'object') ? body[p] : {};
       cfg[p].channel = cleanUrl(src.channel);
-      cfg[p].video = cleanUrl(src.video);
+
+      // v74: multiple video links per platform. Accept `videos: []` and
+      // fall back to the legacy single `video` string.
+      let videos = [];
+      if (Array.isArray(src.videos)) {
+        videos = src.videos.map(cleanUrl).filter(Boolean);
+      }
+      if (!videos.length) {
+        const one = cleanUrl(src.video);
+        if (one) videos = [one];
+      }
+      // de-dup while preserving order
+      videos = videos.filter((u, i) => videos.indexOf(u) === i).slice(0, MAX_VIDEOS);
+      cfg[p].videos = videos;
+      cfg[p].video = videos[0] || '';
     });
     const wa = (body.whatsapp && typeof body.whatsapp === 'object') ? body.whatsapp : {};
     cfg.whatsapp.number = cleanPhone(wa.number);

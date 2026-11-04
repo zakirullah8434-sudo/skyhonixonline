@@ -6,7 +6,7 @@
 // come from the same release.
 (function () {
   try {
-    const EXPECTED_PAGE_VERSION = 'v73';
+    const EXPECTED_PAGE_VERSION = 'v74';
     const healKey = 'skyhonix-heal-' + EXPECTED_PAGE_VERSION;
     if (window.SKYHONIX_PAGE_VERSION !== EXPECTED_PAGE_VERSION && !sessionStorage.getItem(healKey)) {
       sessionStorage.setItem(healKey, '1');
@@ -907,17 +907,84 @@ document.addEventListener('DOMContentLoaded', () => {
     return v.slice(0, 20);
   }
 
+  // v74: packages of the real social media apps — the native plugin forces
+  // ACTION_VIEW into that exact package so links open IN the app itself
+  // (not in SkyHonix / a browser tab). Empty array = generic view intent.
+  function smPackagesFor(url) {
+    try {
+      const u = String(url || '').toLowerCase();
+      if (u.indexOf('tiktok.com') > -1) return ['com.zhiliaoapp.musically', 'com.ss.android.ugc.trill'];
+      if (u.indexOf('youtube.com') > -1 || u.indexOf('youtu.be') > -1) return ['com.google.android.youtube'];
+      if (u.indexOf('facebook.com') > -1 || u.indexOf('fb.watch') > -1) return ['com.facebook.katana'];
+      if (u.indexOf('instagram.com') > -1) return ['com.instagram.android'];
+      if (u.indexOf('wa.me') > -1 || u.indexOf('whatsapp.com') > -1) return ['com.whatsapp', 'com.whatsapp.w4b'];
+    } catch (e) { /* bad url → generic */ }
+    return [];
+  }
+
   // Opens an external URL: in the APK a native plugin hands it to the
-  // system browser (window.open is blocked inside the Capacitor WebView),
-  // in a plain browser window.open is used.
-  function smOpenExternal(url) {
+  // matching social media APP first (window.open is blocked inside the
+  // Capacitor WebView), in a plain browser window.open is used.
+  async function smOpenExternal(url) {
     if (!url) { showToast('No link saved yet', true); return; }
     try {
       const cap = window.Capacitor;
       const plugin = cap && cap.Plugins && cap.Plugins.OpenExternal;
-      if (plugin && typeof plugin.open === 'function') { plugin.open({ url }); return; }
+      if (plugin && typeof plugin.open === 'function') {
+        const tries = smPackagesFor(url).slice();
+        tries.push(''); // generic ACTION_VIEW fallback (browser / chooser)
+        for (const pkg of tries) {
+          try {
+            if (pkg) await plugin.open({ url, package: pkg });
+            else await plugin.open({ url });
+            return;
+          } catch (e) { /* package missing → try next */ }
+        }
+        return;
+      }
     } catch (e) { /* fall through to browser */ }
     window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  // ---- v74: multiple video links per platform (add/remove rows) ----
+  const SM_VIDEO_PLACEHOLDER = {
+    tiktok: 'https://www.tiktok.com/@yourschool/video/1234567890',
+    facebook: 'https://www.facebook.com/yourschool/videos/1234567890',
+    youtube: 'https://www.youtube.com/watch?v=abcdefghijk',
+    instagram: 'https://www.instagram.com/reel/abcdefghijk/'
+  };
+
+  function smVideoRowHtml(platform, url) {
+    const ph = SM_VIDEO_PLACEHOLDER[platform] || 'https://...';
+    return '<div class="sm-video-row" style="display:flex; gap:8px; margin-bottom:8px;">'
+      + '<input type="text" class="form-control" value="' + String(url || '').replace(/"/g, '&quot;') + '"'
+      + ' placeholder="' + ph + '" spellcheck="false">'
+      + '<button type="button" class="btn btn-outline btn-sm" data-rmvideo style="flex:0 0 auto;" title="Remove this video link" aria-label="Remove video link">&#10005;</button>'
+      + '</div>';
+  }
+
+  function smVideoRowsContainer(platform) {
+    return document.getElementById('sm-' + platform + '-video-rows');
+  }
+
+  function smRenderVideoRows(platform, urls) {
+    const box = smVideoRowsContainer(platform);
+    if (!box) return;
+    const list = (urls || []).filter(Boolean);
+    // Always keep at least one visible input so the admin sees the field.
+    box.innerHTML = (list.length ? list : ['']).map(u => smVideoRowHtml(platform, u)).join('');
+  }
+
+  // Reads every video row for a platform → normalized, de-duped URL list.
+  function smCollectVideos(platform) {
+    const box = smVideoRowsContainer(platform);
+    if (!box) return [];
+    const out = [];
+    box.querySelectorAll('input').forEach(inp => {
+      const u = smNormalizeUrl(inp.value);
+      if (u && out.indexOf(u) === -1) out.push(u);
+    });
+    return out;
   }
 
   function smApplyConfig() {
@@ -925,16 +992,20 @@ document.addEventListener('DOMContentLoaded', () => {
     SM_LINK_PLATFORMS.forEach(p => {
       const c = cfg[p] || {};
       const ch = document.getElementById('sm-' + p + '-channel');
-      const vi = document.getElementById('sm-' + p + '-video');
       if (ch) ch.value = c.channel || '';
-      if (vi) vi.value = c.video || '';
+      // v74: multiple video inputs — prefer `videos[]`, seed from legacy `video`.
+      let videos = Array.isArray(c.videos) ? c.videos.slice() : [];
+      if (!videos.length && c.video) videos = [c.video];
+      smRenderVideoRows(p, videos.filter(Boolean));
       const pill = document.querySelector('.sm-status[data-for="' + p + '"]');
       if (pill) {
-        const set = (c.channel ? 1 : 0) + (c.video ? 1 : 0);
-        pill.textContent = set === 0 ? 'Not set'
-          : set === 2 ? 'Channel + Video set'
-          : (c.channel ? 'Channel set' : 'Video set');
-        pill.style.color = set ? '#16a34a' : 'var(--text-muted)';
+        const n = videos.filter(Boolean).length;
+        const hasCh = !!c.channel;
+        pill.textContent = (!hasCh && n === 0) ? 'Not set'
+          : hasCh && n === 0 ? 'Channel set'
+          : !hasCh ? (n === 1 ? 'Video set' : n + ' videos set')
+          : n === 1 ? 'Channel + Video set' : 'Channel + ' + n + ' videos set';
+        pill.style.color = (hasCh || n) ? '#16a34a' : 'var(--text-muted)';
       }
     });
     const wa = (cfg.whatsapp || {}).number || '';
@@ -970,10 +1041,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const body = {};
     SM_LINK_PLATFORMS.forEach(p => {
       const ch = document.getElementById('sm-' + p + '-channel');
-      const vi = document.getElementById('sm-' + p + '-video');
+      const videos = smCollectVideos(p); // v74: every video row
       body[p] = {
         channel: smNormalizeUrl(ch ? ch.value : ''),
-        video: smNormalizeUrl(vi ? vi.value : '')
+        videos: videos,
+        video: videos[0] || '' // legacy single field = first video
       };
     });
     const wa = document.getElementById('sm-whatsapp-number');
@@ -1000,9 +1072,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const parts = field.split('-');
     const platform = parts[0];
     const kind = parts[1]; // channel | video
-    const input = document.getElementById('sm-' + platform + '-' + kind);
-    const url = smNormalizeUrl(input ? input.value : '');
-    if (!url) { showToast('No ' + kind + ' link saved yet', true); return; }
+    let url;
+    if (kind === 'video') {
+      // v74: "Open Video" opens the FIRST saved video row.
+      url = smCollectVideos(platform)[0] || '';
+      if (!url) { showToast('No video link saved yet', true); return; }
+    } else {
+      const input = document.getElementById('sm-' + platform + '-' + kind);
+      url = smNormalizeUrl(input ? input.value : '');
+      if (!url) { showToast('No ' + kind + ' link saved yet', true); return; }
+    }
     smOpenExternal(url);
   }
 
@@ -1028,6 +1107,33 @@ document.addEventListener('DOMContentLoaded', () => {
       if (saveBtn) {
         e.stopPropagation();
         await smSavePlatform(saveBtn.getAttribute('data-save'));
+        return;
+      }
+
+      // v74: add / remove video link rows
+      const addVid = e.target.closest('[data-addvideo]');
+      if (addVid) {
+        e.stopPropagation();
+        const p = addVid.getAttribute('data-addvideo');
+        const box = smVideoRowsContainer(p);
+        if (box) {
+          box.insertAdjacentHTML('beforeend', smVideoRowHtml(p, ''));
+          const inputs = box.querySelectorAll('input');
+          if (inputs.length) inputs[inputs.length - 1].focus();
+        }
+        return;
+      }
+
+      const rmVid = e.target.closest('[data-rmvideo]');
+      if (rmVid) {
+        e.stopPropagation();
+        const row = rmVid.closest('.sm-video-row');
+        const box = rmVid.closest('[data-video-rows]');
+        if (row) row.remove();
+        // Never leave the panel with ZERO inputs — keep one empty row.
+        if (box && !box.querySelector('input')) {
+          box.insertAdjacentHTML('beforeend', smVideoRowHtml(box.getAttribute('data-video-rows'), ''));
+        }
         return;
       }
 

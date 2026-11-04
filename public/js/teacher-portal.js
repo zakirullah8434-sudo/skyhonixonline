@@ -1051,26 +1051,62 @@ document.addEventListener('DOMContentLoaded', () => {
     return /^https?:\/\/\S+$/i.test(url) ? url : '';
   }
 
+  // v74: packages of the real social media apps — the native plugin forces
+  // ACTION_VIEW into that exact package so links open IN the app itself
+  // (not inside SkyHonix / a browser tab). Empty = generic view intent.
+  function smPackagesFor(url) {
+    try {
+      const u = String(url || '').toLowerCase();
+      if (u.indexOf('tiktok.com') > -1) return ['com.zhiliaoapp.musically', 'com.ss.android.ugc.trill'];
+      if (u.indexOf('youtube.com') > -1 || u.indexOf('youtu.be') > -1) return ['com.google.android.youtube'];
+      if (u.indexOf('facebook.com') > -1 || u.indexOf('fb.watch') > -1) return ['com.facebook.katana'];
+      if (u.indexOf('instagram.com') > -1) return ['com.instagram.android'];
+      if (u.indexOf('wa.me') > -1 || u.indexOf('whatsapp.com') > -1) return ['com.whatsapp', 'com.whatsapp.w4b'];
+    } catch (e) { /* bad url → generic */ }
+    return [];
+  }
+
   // In the APK window.open is blocked inside the Capacitor WebView, so a
-  // native plugin hands the URL to the system browser; plain browsers use
-  // window.open.
-  function smOpenExternal(url) {
+  // native plugin hands the URL to the matching social media APP first;
+  // plain browsers use window.open.
+  async function smOpenExternal(url) {
     if (!url) { showToast('Link not added yet', true); return; }
     try {
       const cap = window.Capacitor;
       const plugin = cap && cap.Plugins && cap.Plugins.OpenExternal;
-      if (plugin && typeof plugin.open === 'function') { plugin.open({ url }); return; }
+      if (plugin && typeof plugin.open === 'function') {
+        const tries = smPackagesFor(url).slice();
+        tries.push(''); // generic ACTION_VIEW fallback (browser / chooser)
+        for (const pkg of tries) {
+          try {
+            if (pkg) await plugin.open({ url, package: pkg });
+            else await plugin.open({ url });
+            return;
+          } catch (e) { /* package missing → try next */ }
+        }
+        return;
+      }
     } catch (e) { /* fall through */ }
     window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  // v74: all video links of a platform (legacy single `video` seeds the list).
+  function smVideoList(c) {
+    const list = Array.isArray(c.videos) ? c.videos.slice() : [];
+    if (!list.length && c.video) list.push(c.video);
+    return list.map(smSafeHttp).filter(Boolean);
   }
 
   function smRenderCard(p) {
     const c = smCache[p.key] || {};
     const channel = smSafeHttp(c.channel);
-    const video = smSafeHttp(c.video);
+    const videos = smVideoList(c);
     const btns = [];
     if (channel) btns.push(`<button class="btn btn-primary btn-sm" data-sm-open="${p.key}:channel" style="font-size:0.78rem;">&#128279; Open Channel</button>`);
-    if (video) btns.push(`<button class="btn btn-outline btn-sm" data-sm-open="${p.key}:video" style="font-size:0.78rem;">&#9654; Open Video</button>`);
+    videos.forEach((v, i) => {
+      const label = videos.length === 1 ? '&#9654; Open Video' : '&#9654; Video ' + (i + 1);
+      btns.push(`<button class="btn btn-outline btn-sm" data-sm-open="${p.key}:video:${i}" style="font-size:0.78rem;">${label}</button>`);
+    });
     if (btns.length === 0) btns.push('<span style="font-size:0.75rem; color:var(--text-muted);">Not added yet</span>');
     return `<div class="card" style="text-align:center; padding:22px 16px; border-top:4px solid ${p.border};">
       <div style="width:58px; height:58px; border-radius:16px; background:${p.bg}; margin:0 auto 12px; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 18px rgba(0,0,0,0.25);">${p.icon}</div>
@@ -1126,7 +1162,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       const c = smCache[parts[0]] || {};
-      const url = smSafeHttp(parts[1] === 'video' ? c.video : c.channel);
+      // spec: 'tiktok:channel' | 'tiktok:video' | 'tiktok:video:2' (v74)
+      let url = '';
+      if (parts[1] === 'video') {
+        const videos = smVideoList(c);
+        url = videos[parseInt(parts[2], 10) || 0] || '';
+      } else {
+        url = smSafeHttp(c.channel);
+      }
       if (!url) { showToast('No ' + parts[1] + ' link added yet', true); return; }
       smOpenExternal(url);
     });

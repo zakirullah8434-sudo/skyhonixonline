@@ -19,7 +19,7 @@
 
   <!-- Critical assets: fetched in parallel with the HTML parse -->
   <link rel="preload" href="css/styles.css?v=9" as="style">
-  <link rel="preload" href="js/app.js?v=73" as="script">
+  <link rel="preload" href="js/app.js?v=74" as="script">
 
   <!-- Register the service worker as early as possible so portal loads are served from cache -->
   <script>
@@ -32,7 +32,7 @@
        (possibly service-worker-cached) page currently open, force one reload.
        /api/version is network-only in the service worker, so it is never stale. -->
   <script>
-    window.SKYHONIX_PAGE_VERSION = 'v73';
+    window.SKYHONIX_PAGE_VERSION = 'v74';
     setTimeout(function () {
       fetch('/api/version', { cache: 'no-store' })
         .then(function (r) { return r.json(); })
@@ -4793,8 +4793,9 @@
                 <input type="text" class="form-control" id="sm-tiktok-channel" placeholder="https://www.tiktok.com/@yourschool" spellcheck="false">
               </div>
               <div class="form-group">
-                <label class="form-label">Video Link</label>
-                <input type="text" class="form-control" id="sm-tiktok-video" placeholder="https://www.tiktok.com/@yourschool/video/1234567890" spellcheck="false">
+                <label class="form-label">Video Links (add as many as you like)</label>
+                <div id="sm-tiktok-video-rows" data-video-rows="tiktok"></div>
+                <button type="button" class="btn btn-outline btn-sm" data-addvideo="tiktok" style="margin-top: 6px;">+ Add Video Link</button>
               </div>
               <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="btn btn-primary" data-save="tiktok">Save Links</button>
@@ -4813,8 +4814,9 @@
                 <input type="text" class="form-control" id="sm-facebook-channel" placeholder="https://www.facebook.com/yourschool" spellcheck="false">
               </div>
               <div class="form-group">
-                <label class="form-label">Video Link</label>
-                <input type="text" class="form-control" id="sm-facebook-video" placeholder="https://www.facebook.com/yourschool/videos/1234567890" spellcheck="false">
+                <label class="form-label">Video Links (add as many as you like)</label>
+                <div id="sm-facebook-video-rows" data-video-rows="facebook"></div>
+                <button type="button" class="btn btn-outline btn-sm" data-addvideo="facebook" style="margin-top: 6px;">+ Add Video Link</button>
               </div>
               <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="btn btn-primary" data-save="facebook">Save Links</button>
@@ -4833,8 +4835,9 @@
                 <input type="text" class="form-control" id="sm-youtube-channel" placeholder="https://www.youtube.com/@yourschool" spellcheck="false">
               </div>
               <div class="form-group">
-                <label class="form-label">Video Link</label>
-                <input type="text" class="form-control" id="sm-youtube-video" placeholder="https://www.youtube.com/watch?v=abcdefghijk" spellcheck="false">
+                <label class="form-label">Video Links (add as many as you like)</label>
+                <div id="sm-youtube-video-rows" data-video-rows="youtube"></div>
+                <button type="button" class="btn btn-outline btn-sm" data-addvideo="youtube" style="margin-top: 6px;">+ Add Video Link</button>
               </div>
               <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="btn btn-primary" data-save="youtube">Save Links</button>
@@ -4853,8 +4856,9 @@
                 <input type="text" class="form-control" id="sm-instagram-channel" placeholder="https://www.instagram.com/yourschool" spellcheck="false">
               </div>
               <div class="form-group">
-                <label class="form-label">Video / Reel Link</label>
-                <input type="text" class="form-control" id="sm-instagram-video" placeholder="https://www.instagram.com/reel/abcdefghijk/" spellcheck="false">
+                <label class="form-label">Video / Reel Links (add as many as you like)</label>
+                <div id="sm-instagram-video-rows" data-video-rows="instagram"></div>
+                <button type="button" class="btn btn-outline btn-sm" data-addvideo="instagram" style="margin-top: 6px;">+ Add Video Link</button>
               </div>
               <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="btn btn-primary" data-save="instagram">Save Links</button>
@@ -5279,8 +5283,8 @@
     </div>
   </div>
 
-  <script src="js/vendor/jspdf.umd.min.js?v=73"></script>
-  <script src="js/vendor/html2canvas.min.js?v=73"></script>
-  <script src="js/app.js?v=73"></script>
+  <script src="js/vendor/jspdf.umd.min.js?v=74"></script>
+  <script src="js/vendor/html2canvas.min.js?v=74"></script>
+  <script src="js/app.js?v=74"></script>
 </body>
 </html>
